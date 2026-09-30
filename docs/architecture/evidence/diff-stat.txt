@@ -1,0 +1,81 @@
+ NOTICE.md                                          |   16 +
+ docs/ARCHITECTURE.md                               |  100 ++
+ docs/PHASE_0_ARCHITECTURE_REPORT.md                |  468 ++++++
+ docs/PHASE_0_REQUIREMENTS.md                       |   52 +
+ docs/UPSTREAM.md                                   |   32 +
+ docs/adr/0001-upstream-baseline.md                 |   27 +
+ docs/adr/0002-product-identity.md                  |   27 +
+ docs/adr/0003-domain-state-authority.md            |   27 +
+ docs/adr/0004-account-binding-credential.md        |   27 +
+ docs/adr/0005-protocol-engine-separation.md        |   27 +
+ docs/adr/0006-client-profile-exporter.md           |   27 +
+ docs/adr/0007-storage-strategy.md                  |   27 +
+ docs/adr/0008-api-boundary.md                      |   27 +
+ docs/adr/0009-xray-compatibility-engine.md         |   27 +
+ docs/adr/0010-mieru-integration-strategy.md        |   27 +
+ docs/adr/0011-upstream-sync-strategy.md            |   27 +
+ docs/adr/0012-versioning-model.md                  |   27 +
+ docs/adr/README.md                                 |   16 +
+ docs/api/API_V1_DESIGN.md                          |   69 +
+ docs/api/openapi-skeleton.yaml                     | 1767 ++++++++++++++++++++
+ docs/architecture/CLIENT_COMPATIBILITY.md          |   48 +
+ docs/architecture/CONFIG_STATE_AUTHORITY.md        |   41 +
+ docs/architecture/DATABASE_ERD.md                  |   71 +
+ docs/architecture/DIAGNOSTICS.md                   |   35 +
+ docs/architecture/DOMAIN_MODEL.md                  |   59 +
+ docs/architecture/ENGINE_MODEL.md                  |   62 +
+ docs/architecture/FORK_BOUNDARY.md                 |   56 +
+ docs/architecture/LICENSE_BOUNDARIES.md            |   32 +
+ docs/architecture/MIERU_INTEGRATION.md             |   72 +
+ docs/architecture/NATIVE_PROTOCOL_GUIDELINES.md    |   33 +
+ docs/architecture/POLICY_USAGE.md                  |   74 +
+ docs/architecture/PROTOCOL_SDK.md                  |   78 +
+ docs/architecture/RUNTIME_LIFECYCLE.md             |   46 +
+ docs/architecture/SECURITY_BOUNDARIES.md           |   33 +
+ docs/architecture/STORAGE_MODEL.md                 |   65 +
+ docs/architecture/SUBSCRIPTION_MODEL.md            |   38 +
+ docs/architecture/TRANSACTION_MODEL.md             |   73 +
+ docs/architecture/UPSTREAM_ARCHITECTURE_MAP.md     |  160 ++
+ docs/architecture/UPSTREAM_BASELINE.md             |  107 ++
+ docs/architecture/UPSTREAM_SYNC.md                 |   35 +
+ docs/architecture/VERSION_MODEL.md                 |   26 +
+ docs/architecture/evidence/README.md               |   63 +
+ docs/architecture/evidence/SHA256SUMS.json         |   86 +
+ .../architecture/evidence/baseline-build-ci.log.gz |  Bin 0 -> 1362 bytes
+ .../evidence/baseline-build-minimal.log.gz         |  Bin 0 -> 889 bytes
+ .../evidence/baseline-build-windows.log.gz         |  Bin 0 -> 154 bytes
+ docs/architecture/evidence/baseline-format.log.gz  |    0
+ docs/architecture/evidence/baseline-lint.log.gz    |  Bin 0 -> 31 bytes
+ .../evidence/baseline-linux-build.log.gz           |  Bin 0 -> 2265 bytes
+ .../baseline-linux-qualified-env-test.log.gz       |  Bin 0 -> 10689 bytes
+ .../evidence/baseline-linux-test.log.gz            |  Bin 0 -> 11216 bytes
+ docs/architecture/evidence/baseline-test-ci.log.gz |  Bin 0 -> 12641 bytes
+ .../baseline-test-without-integration.log.gz       |  Bin 0 -> 11807 bytes
+ docs/architecture/evidence/baseline-vet.log.gz     |  Bin 0 -> 142 bytes
+ docs/architecture/evidence/diff-check.txt          |    1 +
+ docs/architecture/evidence/diff-stat.txt           |   81 +
+ docs/architecture/evidence/document-check.log      |    9 +
+ docs/architecture/evidence/git-verification.json   |   19 +
+ docs/architecture/evidence/go-env.json             |   48 +
+ docs/architecture/evidence/go-version.txt          |    1 +
+ docs/architecture/evidence/linux-go-env.json       |   48 +
+ docs/architecture/evidence/linux-go-version.txt    |    1 +
+ docs/architecture/evidence/linux-image.txt         |    1 +
+ .../evidence/linux-qualified-env-results.txt       |    1 +
+ docs/architecture/evidence/linux-results.txt       |    2 +
+ .../architecture/evidence/post-doc-build-ci.log.gz |    0
+ .../evidence/post-doc-build-minimal.log.gz         |    0
+ .../evidence/post-doc-build-windows.log.gz         |    0
+ docs/architecture/evidence/post-doc-format.log.gz  |    0
+ docs/architecture/evidence/post-doc-lint.log.gz    |  Bin 0 -> 31 bytes
+ .../evidence/post-doc-linux-build.log.gz           |    0
+ .../evidence/post-doc-linux-results.txt            |    2 +
+ .../evidence/post-doc-linux-test.log.gz            |  Bin 0 -> 10738 bytes
+ docs/architecture/evidence/post-doc-test-ci.log.gz |  Bin 0 -> 12334 bytes
+ .../post-doc-test-without-integration.log.gz       |  Bin 0 -> 11800 bytes
+ docs/architecture/evidence/post-doc-vet.log.gz     |  Bin 0 -> 142 bytes
+ docs/architecture/evidence/results.jsonl           |   16 +
+ docs/integration/NOBRAND_MIGRATION.md              |   46 +
+ docs/testing/INTEROP_MATRIX.md                     |   33 +
+ docs/testing/TEST_STRATEGY.md                      |   44 +
+ 80 files changed, 4590 insertions(+)

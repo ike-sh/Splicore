@@ -1,0 +1,1 @@
+PASS git diff --check (temporary index includes every new document/evidence file); exit 0.

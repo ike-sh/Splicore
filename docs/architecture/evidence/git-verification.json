@@ -1,0 +1,19 @@
+{
+  "review_date": "2026-10-01",
+  "timezone": "Asia/Shanghai",
+  "head": "1ac1a339cb1223e9c70eae14c44411c75033c02d",
+  "main": "1ac1a339cb1223e9c70eae14c44411c75033c02d",
+  "baseline": "1ac1a339cb1223e9c70eae14c44411c75033c02d",
+  "branch": "codex/phase-0-architecture",
+  "remote_names": [
+    "upstream"
+  ],
+  "upstream_url": "https://github.com/SagerNet/sing-box.git",
+  "shallow": "false",
+  "tracked_changes": [],
+  "staged_changes": [],
+  "commit": "NONE",
+  "push": "NONE",
+  "new_tag": "NONE",
+  "release": "NONE"
+}
