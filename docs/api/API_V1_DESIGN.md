@@ -7,9 +7,11 @@
 - Responsibility: Transport, security and operation semantics; OpenAPI owns endpoint surface.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-Design maturity: contract skeleton, no HTTP server/CLI implementation. OpenAPI describes
-the initial read/import workflow; resource mutations and token management are
-specified as later additions using the same operation contract.
+Design maturity: Foundation implements only System and Capabilities reads marked
+in OpenAPI. Import/resource/subscription operations remain contract-only. System
+adds explicit dirty identity and a typed foundation diagnostic summary; health
+is degraded with foundation_only_runtime_not_implemented and no applied_revision.
+A pending crash journal instead reports recovery_required.
 
 Transport → Application Service → Domain + repository/runtime ports. HTTP handler
 performs parsing/auth/serialization only. Local CLI defaults to HTTP over Unix
@@ -17,7 +19,8 @@ socket `/run/splicore/splicore.sock`; daemon transport and future Panel invoke t
 same application commands. Offline CLI takes ownership lock and the same
 application/journal path; it cannot casually edit SQLite. Linux UDS permissions
 and peer identity make Phase 1 suitable without opening public API. Windows
-needs named-pipe adapter or explicitly configured authenticated loopback transport.
+Foundation tests use httptest with an explicitly injected HTTP client; no
+production Windows or network management listener is implemented.
 
 Future HTTP/TLS shares `/api/v1`, adds control principal authentication/authorization
 and separate exposure configuration. `http://localhost` in the OpenAPI servers

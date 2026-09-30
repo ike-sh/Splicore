@@ -7,12 +7,12 @@
     "owner": "API maintainers",
     "responsibility": "Machine authority for proposed API paths, methods, parameters, schemas and responses.",
     "lifecycle": "Update with API surface changes; Markdown owns design/security/semantics.",
-    "design_maturity": "Proposed; no HTTP server or CLI transport implemented."
+    "design_maturity": "Foundation: System and Capabilities reads implemented; all other operations deferred."
   },
   "info": {
-    "title": "Splicore API v1 — Phase 0 contract skeleton",
-    "version": "0.0.0-design",
-    "description": "Proposed, not implemented. JSON syntax is valid YAML. Redacted domain reads. Local HTTP requires Unix socket permissions and server-derived peer identity; future TCP/TLS requires bearer security overlay."
+    "title": "Splicore API v1 — Foundation contract",
+    "version": "0.0.0-foundation",
+    "description": "Foundation read API; deferred operations are marked explicitly. Local HTTP uses protected Linux UDS and peer identity. No public TCP listener. JSON syntax is valid YAML."
   },
   "servers": [
     {
@@ -51,7 +51,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-implementation-status": "foundation"
       }
     },
     "/api/v1/capabilities": {
@@ -85,7 +86,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-implementation-status": "foundation"
       }
     },
     "/api/v1/accounts": {
@@ -119,7 +121,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-implementation-status": "deferred"
       }
     },
     "/api/v1/inbounds": {
@@ -153,7 +156,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-implementation-status": "deferred"
       }
     },
     "/api/v1/subscriptions": {
@@ -188,7 +192,8 @@
             "$ref": "#/components/responses/Problem"
           }
         },
-        "x-availability": "future-subscription-stage"
+        "x-availability": "future-subscription-stage",
+        "x-implementation-status": "deferred"
       }
     },
     "/api/v1/usage": {
@@ -275,7 +280,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-implementation-status": "deferred"
       }
     },
     "/api/v1/accounts/{id}": {
@@ -317,7 +323,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-implementation-status": "deferred"
       }
     },
     "/api/v1/inbounds/{id}": {
@@ -359,7 +366,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-implementation-status": "deferred"
       }
     },
     "/api/v1/accounts/{id}/bindings": {
@@ -399,7 +407,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-implementation-status": "deferred"
       }
     },
     "/api/v1/transactions/{id}": {
@@ -433,7 +442,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-implementation-status": "deferred"
       }
     },
     "/api/v1/config/validate": {
@@ -475,7 +485,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-implementation-status": "deferred"
       }
     },
     "/api/v1/config/plan": {
@@ -517,7 +528,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-implementation-status": "deferred"
       }
     },
     "/api/v1/config/apply": {
@@ -581,7 +593,8 @@
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        }
+        },
+        "x-implementation-status": "deferred"
       }
     }
   },
@@ -679,6 +692,10 @@
           },
           "api_version": {
             "type": "string"
+          },
+          "dirty": {
+            "type": "boolean",
+            "description": "Source worktree had uncommitted changes when built."
           }
         },
         "required": [
@@ -731,6 +748,9 @@
             "items": {
               "type": "string"
             }
+          },
+          "foundation": {
+            "$ref": "#/components/schemas/Foundation"
           }
         },
         "required": [
@@ -1703,6 +1723,46 @@
           },
           "next_cursor": {
             "type": "string"
+          }
+        }
+      },
+      "Foundation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "database_status",
+          "pending_migrations",
+          "pending_transactions",
+          "protocols",
+          "engines",
+          "exporters"
+        ],
+        "properties": {
+          "database_status": {
+            "type": "string",
+            "enum": [
+              "ready"
+            ]
+          },
+          "pending_migrations": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "pending_transactions": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "protocols": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "engines": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "exporters": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       }

@@ -25,6 +25,12 @@ A: immediate wholesale path rename gives import independence with high churn. B:
 
 ## Consequences
 
+Phase 1 implements the recommended separate cmd/splicore and internal/splicore
+composition while retaining the original module and cmd/sing-box. New tests and
+build scripts do not alter upstream workflows or publishing identity.
+The small Foundation dispatcher uses standard-library flags; the earlier
+Cobra/completion recommendation is deferred until the command surface needs it.
+
 Build identity, product version and public API do not depend on Go module path. Own packaging/completions/service assets need qualification; source preserving upstream commands does not mean publishing a sing-box-branded derivative. Future module replacement must resolve to local fork code.
 
 ## Future Review

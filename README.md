@@ -5,9 +5,13 @@ modular, extensible server architecture as its target.
 
 ## Status
 
-**Early Development / Architecture Phase.** Phase 0 architecture is complete
-and available for maintainer review. Splicore has **not been released as a stable
-proxy runtime**; its domain services and control interfaces are proposed designs.
+**Early Development / Foundation Frozen.** Phase 1 implements an independent
+command, domain contracts, SQLite storage and a local read API. Splicore has
+**not been released as a stable proxy runtime**. Protocol runtime adapters and
+client exporters remain unimplemented placeholders.
+
+Phase 1 is frozen locally. The Phase 2 branch is prepared; implementation has
+not started.
 
 This checkout retains the upstream runtime for baseline verification. The
 architecture described here is not a claim of implemented Splicore support.
@@ -25,10 +29,10 @@ architecture described here is not a claim of implemented Splicore support.
 
 ## Architecture
 
-The proposed design separates domain and application services from protocol
+The architecture separates domain and application services from protocol
 adapters, execution engines, storage and control transports. Protocols describe
 wire behavior; engines supply implementations. Committed SQLite domain state
-would drive runtime configuration and independent client profiles. The sing-box
+will drive runtime configuration and independent client profiles. The sing-box
 network foundation remains behind those boundaries.
 
 See the [architecture overview](docs/ARCHITECTURE.md) for the design and its limits.
@@ -66,6 +70,8 @@ Start at the [documentation index](docs/README.md).
 - [Storage model](docs/architecture/STORAGE_MODEL.md)
 - [Testing strategy](docs/testing/TEST_STRATEGY.md)
 - [Development context](docs/DEVELOPMENT_CONTEXT.md) and [workflow](docs/development/README.md)
+- [Foundation build, commands and tests](docs/development/FOUNDATION.md)
+- [Phase 1 Foundation Report](docs/reports/PHASE_1_FOUNDATION_REPORT.md)
 - [Historical Phase 0 architecture report](docs/PHASE_0_ARCHITECTURE_REPORT.md)
 
 ## Upstream

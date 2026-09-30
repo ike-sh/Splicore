@@ -7,7 +7,12 @@
 - Responsibility: Proposed diagnostic command semantics and bounded redacted local bundles.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-Command contracts are designs for Phase 1 and later, not existing commands.
+Phase 1 implements version, status, doctor, capabilities, validate and run.
+Status is the shared application System response; an absent daemon prints
+not running and exits normally. Doctor reports real Foundation checks from
+System/Capabilities and read-only path existence checks. Offline it marks DB
+integrity/schema unavailable rather than opening or repairing the database.
+Diagnose/support-bundle and the full runtime checks below remain deferred.
 
 | Command | Output |
 |---|---|
@@ -21,7 +26,8 @@ Command contracts are designs for Phase 1 and later, not existing commands.
 Machine-readable JSON and human-readable summaries share check codes. Distinguish
 not compiled, unsupported platform, unqualified protocol, unhealthy engine,
 revision conflict and permission failure. Exit code 0 success, 1 operational/check
-failure, 2 invalid input; operation failures expose structured result details.
+failure; Foundation currently uses 1 for rejected input as well. Future richer
+operation failures will expose structured result details.
 
 Default support bundle includes version/full commit/upstream SHA, OS/kernel/arch,
 config and DB schemas, Protocol ABI/API version, doctor results, redacted bootstrap

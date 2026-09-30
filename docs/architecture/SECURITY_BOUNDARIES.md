@@ -7,7 +7,9 @@
 - Responsibility: Secret handling, transport authorization, imports, files and executable trust.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-Proposed design; no custom encryption or auth implementation in Phase 0.
+Phase 1 implements typed redaction, injected AES-256-GCM credential encryption,
+Linux directory/socket ownership and peer identity, plus installation locks.
+The table includes future deployment requirements beyond this foundation.
 
 | Boundary | Required behavior |
 |---|---|
@@ -24,9 +26,22 @@ Proposed design; no custom encryption or auth implementation in Phase 0.
 | DB/key permissions | 0700 state directory, 0600 DB/WAL/backups/keys and equivalent ACLs; refuse writable startup on unsafe key ownership; no auto-delete of failed DB |
 
 Keys use existing mature cryptographic constructions; choose exact storage backend
-and key provisioning in Phase 1 after platform/deployment review. Exportable UUIDs,
+and key provisioning before enabling production credential writes. Exportable UUIDs,
 PSKs/passwords and shared Snell server PSK remain secret even if not visually
 password-like. Public REALITY keys are distinguished from private keys in types.
+
+Foundation key material is explicitly injected through a Cipher port, never
+stored in SQLite. AES-GCM binds ciphertext to credential ID, owner, kind and
+schema; nonce randomness, tamper and owner substitution have tests. The command
+does not provision keys and cannot persist/reveal credentials without one.
+Deployment key recovery/rotation remains deferred. Windows has process locking
+and reparse-point rejection for development, but production DACL provisioning
+is not implemented; production control transport is Linux only.
+Linux state/control directories require current ownership and mode 0700;
+DB/WAL/SHM/lock files require no group/other access. The socket is 0660 inside
+the private directory; only the owner and privileged root are admitted, with
+SO_PEERCRED captured. Group operator access requires a later reviewed directory
+permission/identity policy. Existing socket paths are never auto-replaced.
 
 Redaction is data-type driven before serialization, with adversarial fixtures for
 URIs/YAML/protobuf-shaped payloads, query tokens, exceptions and child output.

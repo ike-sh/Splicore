@@ -8,7 +8,7 @@
 - Lifecycle: Update when specification boundaries or navigation change.
 
 Begin with the [overview](../ARCHITECTURE.md) and [current context](../DEVELOPMENT_CONTEXT.md).
-Canonical documents describe the current **proposed design**, not implemented
+Canonical documents distinguish implemented Foundation from **proposed runtime design**, not qualified
 Splicore functionality. [ADRs](../adr/README.md) own rationale and decision status;
 [policy](../DOCUMENTATION_POLICY.md) governs updates.
 

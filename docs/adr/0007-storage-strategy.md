@@ -25,10 +25,17 @@ mattn/go-sqlite3 is a mature CGO alternative with explicit compiler/libc cross-b
 
 ## Consequences
 
+Phase 1 implementation amendment for review: select modernc.org/sqlite v1.59.0
+and matching libc v1.75.7 (SQLite 3.53.4; Go 1.25.0 requirement). v1.60.1 requires
+Go 1.26 and was rejected to preserve the repository minimum. Windows/Linux amd64
+runtime and arm64 compile qualification apply to Foundation only; production
+power-loss/load/key recovery gates remain deferred. A four-connection bounded
+pool and serialized short writer callbacks implement the initial repository.
+
 Driver is replaceable at adapter boundary. Pin driver and matching libc versions together; performance is measured, not assumed. WAL backup cannot copy state.db alone. Post-migration rollback restores a compatible checkpoint rather than arbitrary down migrations.
 
 ## Future Review
 
-Select exact driver version/key provisioning before Phase 1 implementation; revisit if measured workloads exceed SQLite single-writer capacity.
+Review the pinned driver and deployment key provisioning before production credential use; revisit if measured workloads exceed SQLite single-writer capacity.
 
 Details: [architecture specification](../architecture/STORAGE_MODEL.md).

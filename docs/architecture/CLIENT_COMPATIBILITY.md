@@ -15,6 +15,12 @@ Committed authorized Binding + Inbound endpoint/security/settings
  → rendered config / URI / bundle
 ```
 
+Phase 1 implements the canonical profile value and Exporter contract/registry.
+Mihomo, sing-box, Surge, URI and JSON entries all return NotImplemented with no
+rendered bytes. Profile carries no Engine or server runtime configuration.
+Default JSON omits credential payload; secret access is explicit for future
+authorized exporters. No exporter or actual client traffic is qualified.
+
 Canonical profile contains profile ID, protocol ID/wire version/feature profile,
 DisplayEndpoint, typed client authentication, TLS (SNI/ALPN/trust/public key/short ID),
 transport and protocol options, display metadata and schema version. It contains

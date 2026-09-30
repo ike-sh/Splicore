@@ -7,8 +7,8 @@
 - Responsibility: Namespace, composition, adapters and product command transition strategy.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-Recommendation: retain upstream module path for Phase 0; introduce Splicore
-packages and its own command in Phase 1. Publish only Splicore identity once a
+Phase 1 retains the upstream module path and introduces internal/splicore and
+cmd/splicore. Publish only Splicore identity once a
 derivative product exists. Upstream networking packages remain the reference.
 
 | Conflict risk | Extension area | Approach |
@@ -42,7 +42,7 @@ proposal to upstream is preferable to recurring invasive local changes.
   Splicore module with a pinned local foundation/replacement or deliberate path
   migration. Do not accidentally import remote upstream for local fork code.
 
-Root module remains upstream in Phase 0. Product version/build identity is
+Root module remains upstream through Foundation. Product version/build identity is
 independent of Go import identity; do not release a fork as an official upstream
 module version. Keep replacement and nested test module semantics in sync when
 eventually migrating. No guessed GitHub owner or new remote is created.
@@ -51,8 +51,10 @@ eventually migrating. No guessed GitHub owner or new remote is created.
 
 Phase 0: leave `cmd/sing-box`, Makefile/release/completions/service files intact;
 build upstream only into temporary evidence directories. Phase 1: add
-`cmd/splicore` with an independent Cobra root, version identity, domain commands
-and local API client. Add own build/packaging/service assets and completions;
+`cmd/splicore` with independent version identity, Foundation commands and a local
+API client. Foundation uses a small standard-library flag dispatcher instead of
+the originally recommended Cobra root; this does not alter application contracts.
+Own build/test scripts exist; packaging/service assets and completions are deferred;
 use `/etc/splicore/splicore.yaml`, `/var/lib/splicore/state.db`,
 `/run/splicore/splicore.sock`, `splicore.service`. Phase 2: qualify own packaging
 and remove upstream-named artifacts from **Splicore release selection**, preserving

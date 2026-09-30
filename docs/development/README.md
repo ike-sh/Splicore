@@ -22,15 +22,16 @@ are frozen acceptance snapshots, not growing development logs.
 
 ## Current scope
 
-Phase 0 Freeze permits final documentation audit, explicit staging, one local
-documentation commit, fast-forward of `main`, and creation of
-`codex/phase-1-foundation` at that freeze commit. Stop after the new branch is
-verified clean. Phase 1 implementation requires a separate prompt.
+Phase 1 Foundation is frozen on `codex/phase-1-foundation`, with Phase 0 freeze
+`687425bdbfff6c76f900035068c23a03c4547062` as sole parent. The explicit freeze
+request authorizes one commit, fast-forward of `main` and preparation of
+`codex/phase-2-snell-vertical-slice`. Phase 2 implementation has not started.
+See [Foundation commands and tests](FOUNDATION.md) and its
+[dependency audit](DEPENDENCIES_PHASE_1.md).
 
-No runtime, protocol, option, network, route, transport, module, workflow or
-build/service changes; no push, `origin`, new tag or release. The inherited
-build verifies upstream source, not a Splicore binary. Individual proposed ADRs
-remain proposed; freezing does not claim implemented or qualified functionality.
+No upstream runtime/protocol/wire changes; no push, origin, tag or release.
+Own command/packages/scripts and required dependencies are isolated.
+Individual proposed ADRs remain proposed; Foundation does not qualify protocols.
 
 ## Change workflow
 
@@ -51,16 +52,14 @@ future code changes require their canonical docs in the same review.
   against an empty directory for a temporary snapshot of untracked additions.
   The latter returns 1 for differing files; require no whitespace diagnostics.
   Verify the real index hash is unchanged. No staging is needed.
-- Verify tracked changes are confined to README; additions belong to Splicore
-  documentation/NOTICE. Compare protected tracked source to HEAD.
+- Verify source changes are confined to new Splicore code/scripts, dependencies
+  and canonical docs. Compare protected upstream runtime and historical files to HEAD.
 
-For the authorized freeze, explicitly stage the audited README/NOTICE/docs scope,
-including approved archived Phase 0 evidence. Fresh logs, binaries, temporary
-outputs, IDE state, secrets and caches are excluded. Check staged name/status,
-stat, whitespace and content before the fixed-message commit. Confirm its single
-parent is the pinned upstream baseline, fast-forward `main` without rewriting
-history, then create the foundation branch and verify the clean tree. Existing
-historical reports retain their original pre-commit state and evidence scope.
+The completed Phase 0 freeze included approved archived evidence and has the
+pinned upstream commit as its sole parent. Phase 1 preserves those bytes and
+keeps fresh logs/binaries/tools outside the repository. The Phase 1 freeze
+instruction supersedes the implementation-only staging/commit restriction.
+Stop after creating the Phase 2 branch; further implementation needs a new scope.
 
 For Windows, the normal build's PowerShell translation is:
 

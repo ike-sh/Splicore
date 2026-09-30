@@ -8,13 +8,14 @@
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
 Scope: storage operations and qualification. The [ERD](DATABASE_ERD.md) owns
-logical entities/relationships/ownership; future migration files own actual
+logical entities/relationships/ownership; migration files own actual
 schema history. This document specifies migration mechanics, not duplicate SQL.
 
-Recommendation: SQLite + WAL on local filesystem, `database/sql` behind repository
-ports, **modernc.org/sqlite preferred pending Phase 1 qualification**. No driver
-dependency added here. Research includes current official package documentation;
-the exact driver/SQLite/libc versions must be pinned together before implementation.
+Foundation selection: SQLite 3.53.4 + WAL on local filesystem, `database/sql`
+behind repository ports, **modernc.org/sqlite v1.59.0 + libc v1.75.7**. Driver
+Go requirement is 1.25.0; the repository stays at 1.25.5. v1.60.1 was rejected
+because it requires Go 1.26.0. Exact dependency/licensing evidence is in the
+[Foundation dependency audit](../development/DEPENDENCIES_PHASE_1.md).
 
 | Choice | Build/deployment | Tradeoff |
 |---|---|---|
@@ -23,22 +24,26 @@ the exact driver/SQLite/libc versions must be pinned together before implementat
 | other pure-Go/WASM binding | additional runtime/binding choice | evaluate only if concrete required API/measurement justifies replacing preferred driver |
 
 Use benchmark workloads resembling accounts, plans, usage settlement and audit,
-not generic microbenchmarks to claim equivalent performance. Phase 1 gate: both
-Linux architectures build/run, WAL lock/busy behavior, power/process failure,
-backup/restore, migrations, realistic flush/read load and binary size measured.
+not generic microbenchmarks to claim equivalent performance. Foundation gates:
+Windows and Linux amd64 run, Linux arm64 compiles, WAL lock/busy behavior,
+process failure, coherent snapshot/reopen, migrations and concurrent revision
+writes. Arm64 execution, power-loss testing and representative accounting
+performance remain prerequisites for production storage qualification.
 If modernc fails those gates, switch adapter to mattn with a documented build matrix.
 
 ## Connections and durability
 
 Single daemon process holds installation ownership lock. One serialized domain
-mutation coordinator; one bounded writer connection, bounded read pool. SQLite
+mutation coordinator with a four-connection bounded pool in Foundation. Separate
+writer/read pools are deferred until measured concurrency requires them. SQLite
 still has one writer in WAL; WAL improves read/write coexistence, not concurrent
 writer capacity. Set `foreign_keys=ON`, bounded `busy_timeout`, and agreed pragmas
 on **every physical connection** via DSN/hook, not one pooled Exec.
 Use `journal_mode=WAL`, `synchronous=FULL` for domain journal/commit and strict
 budget reservations. Keep transactions short; runtime/network calls happen
-outside SQLite transactions. Checkpoint on bounded schedule and monitor WAL
-growth/readers. Never place WAL DB on NFS or share it across servers.
+outside SQLite transactions. Foundation uses SQLite's default WAL auto-checkpoint;
+explicit checkpoint scheduling/monitoring is deferred. Never place WAL DB on NFS
+or share it across servers.
 
 ## Schema and migration
 
@@ -47,6 +52,13 @@ and monotonic DB schema version. Acquire exclusive migration lock, stop admissio
 create consistent backup, apply migration in a transaction where supported,
 validate FK/integrity/schema, start/reconstruct runtime, health-check. Never issue
 ad hoc ALTER at startup. Unknown newer schema refuses writable startup.
+
+Foundation acquires an OS installation file lock before SQLite opens; startup
+validates migration sequence/checksum, product/schema/node metadata, quick_check
+and foreign keys. Schema 1 has a single embedded 0001_initial migration.
+Fresh/close/reopen/repeat/failure/future/corruption tests exist. No upgrade beyond
+schema 1 is supplied, so pre-upgrade backup orchestration is deferred; the driver
+VACUUM INTO snapshot/reopen path is tested. Runtime health is not implemented.
 
 If migration fails before commit, DB transaction rolls back. If an upgrade with
 committed forward migration fails health, rollback is restore of a coherent

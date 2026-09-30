@@ -13,6 +13,26 @@ schema version, credential kinds, maturity, provenance and qualified client pair
 Capabilities are effective intersections of protocol, Engine implementation,
 build tags/platform and requested settings; absence means unsupported, not unknown=true.
 
+## Foundation implementation
+
+[ports](../../internal/splicore/ports/ports.go) owns the concrete source ABI 1
+contracts; [registry](../../internal/splicore/registry/registry.go) constructs
+immutable maps with sorted iteration, duplicate/ABI rejection and typed unknown
+errors. Registration is explicit in Foundation composition, never init/.so.
+Implementations must keep their own returned values safe for concurrent reads.
+
+Metadata-only Snell 6, Hysteria2 2, TUIC 5 and VLESS 0 entries return
+NotImplemented for validation/runtime/profile operations. They report
+not_compiled/unqualified for the Splicore runtime adapter, independently of the
+retained upstream command. All effective traffic capabilities are false or
+unsupported; no upstream observation becomes a qualified Splicore claim.
+Grouped typed capabilities express transport versus UDP payload, endpoint
+families, identity/stats, policy, mutation, TLS/REALITY and qualified clients.
+VLESS uses actual wire version 0 from sing-vmess v0.2.8 vless/protocol.go; the
+former illustrative version 1 was not a wire specification.
+Future credential creation, normalization and probe execution ports are deferred
+until adapters need them; explicit credential access remains mandatory.
+
 Conceptual typed ports below are **design notation**, not production declarations.
 The concrete value types will be defined in domain/ports before implementation.
 
@@ -45,7 +65,7 @@ into options and Binding-ID names plus an immutable auth identity mapping.
 
 ```json
 {
-  "protocol": "vless", "wire_version": "1", "feature_profile": "reality",
+  "protocol": "vless", "wire_version": "0", "feature_profile": "reality",
   "availability": "compiled", "qualification": "unqualified",
   "transport": {"tcp": true, "udp_payload": true, "ipv4": true, "ipv6": true},
   "identity": {"multi_user_native": true, "attributed_payload": "requires_adapter"},

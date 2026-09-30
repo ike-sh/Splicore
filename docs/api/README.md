@@ -9,11 +9,13 @@
 
 ## Current state and authority
 
-The API is a **proposed design**. No Splicore HTTP server or CLI transport is
-implemented. The [OpenAPI 3.1 skeleton](openapi-skeleton.yaml) is the machine
-authority for the current proposed surface: paths, methods, parameters, schemas,
+The API has a **Foundation implementation** of the System and Capabilities reads.
+Other routes remain proposed. The [OpenAPI 3.1 skeleton](openapi-skeleton.yaml) is
+the machine authority for paths, methods, parameters, schemas,
 responses and HTTP security descriptions. JSON syntax is valid YAML. Its
-`0.0.0-design` version is a contract marker, not a product release.
+version is a contract marker, not a product release. Each operation records its
+implementation maturity. The Foundation test transport is Windows httptest;
+the runnable production control transport is protected Linux UDS.
 
 [API v1 design](API_V1_DESIGN.md) owns transport/authentication boundaries,
 pagination and numeric semantics, mutation preconditions, asynchronous operation

@@ -25,6 +25,10 @@ Using upstream version as product version obscures domain changes. Equating DB/c
 
 ## Consequences
 
+Phase 1 implementation note: product devel, Config 1, DB 1, ABI 1 and API v1
+are independent identities. Linker metadata supplies version/full commit/dirty/
+build time; Go VCS metadata is the fallback. This assigns no product release.
+
 Upgrade manifests declare supported schema ranges and artifact digests; diagnostics identify actual build and state. Protocol ABI is a source contract, not dynamic plugin ABI. Phase 0 creates no formal product version/tag/release.
 
 ## Future Review

@@ -13,6 +13,13 @@ Engine choice is private planning/diagnostic data. Accounts, Subscription and
 Exporter do not branch on Engine names. Administrators may inspect resolved
 placement in a plan but public protocol settings contain no raw engine config.
 
+Phase 1 implements the Engine registry and compiler boundary in ports. Native
+metadata is compiled but RuntimeImplemented is false; Xray metadata is
+not_compiled and no executable is present. Both Supports/Compile return typed
+NotImplemented. A VLESS intent can carry either placement without changing
+Account, Binding or ClientProfile. Prepare/health/usage/drain handles below
+remain future contracts, not implemented operations.
+
 ```go
 type Engine interface {
     Metadata() EngineMetadata

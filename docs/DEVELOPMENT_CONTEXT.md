@@ -13,31 +13,34 @@ Splicore is an independent modular server proxy core project derived from sing-b
 The target is unified protocol access, multi-user policy/accounting and qualified
 third-party interoperability with sustainable upstream maintenance.
 
-**Current scope: Phase 0 Freeze.** Architecture and documentation have completed
-review for a local freeze; individual proposed ADRs retain their recorded status.
-The freeze creates one documentation commit, fast-forwards `main` and prepares
-`codex/phase-1-foundation` at that commit. Branch preparation does not start
-Phase 1 implementation. Runtime Changes: **NONE**. No stable Splicore
-runtime, own binary, SQLite repository, API server, Mieru integration, Xray
-supervisor, new wire protocol or Panel has been implemented.
+**Current state: Phase 1 Foundation frozen; Phase 2 implementation not started.**
+The explicit freeze request authorizes one Foundation commit, fast-forward of
+`main` and creation of `codex/phase-2-snell-vertical-slice`. Own binary,
+domain values, registries, SQLite, transaction journal, shared application reads,
+API v1 and CLI now exist. Upstream runtime source changes: **NONE**. No stable
+Splicore proxy runtime, actual traffic adapters, Mieru, Xray supervisor, new wire
+protocol or Panel has been implemented. Proposed ADRs retain maintainer review status.
 
 ## Reproducible baseline
 
 - Upstream: SagerNet/sing-box **v1.14.1**.
 - Full upstream baseline: `1ac1a339cb1223e9c70eae14c44411c75033c02d`.
-- Freeze branch: `codex/phase-0-architecture`; its documentation commit is the first owned Splicore commit, directly after the upstream baseline.
-- Local `main` advances only by fast-forward to that freeze commit.
-- Prepared working branch: `codex/phase-1-foundation`, created at the freeze commit with no implementation changes.
+- Phase 0 freeze branch: `codex/phase-0-architecture`; its documentation commit `687425bdbfff6c76f900035068c23a03c4547062` is the first owned Splicore commit, directly after the upstream baseline.
+- Phase 1 freeze branch: `codex/phase-1-foundation`; its single Foundation commit has the Phase 0 freeze as sole parent.
+- Local `main` advances only by fast-forward to the Phase 1 freeze and matches `codex/phase-1-foundation`.
+- Working branch: `codex/phase-2-snell-vertical-slice`, created from frozen `main`; HEAD remains the Phase 1 freeze and the working tree is clean. Phase 2 code has not started.
 - Only remote: `upstream`, `https://github.com/SagerNet/sing-box.git`.
 - Full upstream history retained; module path remains `github.com/sagernet/sing-box`.
-- Freeze identity: resolve `git rev-parse codex/phase-0-architecture`; this commit is the architecture freeze point, without a product tag.
-- Freeze commit message: `docs: establish Splicore architecture baseline`.
+- Freeze identities: resolve `git rev-parse codex/phase-0-architecture` and `git rev-parse codex/phase-1-foundation`; neither is a product tag.
+- Phase 0 message: `docs: establish Splicore architecture baseline`; Phase 1 message: `feat: establish Splicore foundation`.
 - No `origin`, push, new tag or release; upstream history and existing tags remain intact.
 
-Verify actual Git state when resuming. The freeze authorization covers local
-staging/commit, fast-forward `main` and branch preparation only. Stop after the
-prepared branch is verified clean; implementation requires a separate prompt.
-This document does not authorize future commits or publication.
+Verify actual Git state when resuming. The freeze instruction supersedes the
+earlier implementation-only ban on staging/commit. Stop after preparing the
+Phase 2 branch; further implementation needs a new scope instruction. No push,
+origin creation, tag or release is authorized. Historical reports/evidence remain
+frozen; tools, binaries and fresh logs stay outside the repository. This document
+does not authorize publication.
 
 ## Architecture constraints
 
@@ -62,13 +65,20 @@ entities/relationships. Historical reports record past outcomes, not current
 specification authority. [Documentation policy](DOCUMENTATION_POLICY.md)
 defines when to update each source.
 
-## Next planned phase
+## Implemented Foundation and deferred scope
 
-Phase 1 is a **recommendation requiring a later explicit scope**, not work started
-here: review proposals, establish independent composition/command and domain ports,
-qualify storage/key handling and recovery, then local API/CLI and one native
-reference protocol with policy and real client tests. Broad protocol expansion,
-Mieru, special Xray features and management interfaces remain later work.
+The runnable command serves only System/Capabilities reads over protected Linux
+UDS. Windows uses httptest; no public TCP bind exists. Account application commands
+use repository ports; creation of other Foundation entities exists in the writer.
+Protocol/engine/exporter placeholders fail with NotImplemented. Schema 1 migration
+is checksummed and transactional; pending crash journals block further mutation.
+Credential encryption requires an injected key; the command provisions no key.
+
+Entitlements, usage, imports, runtime apply/compensation, key deployment/recovery,
+third-party interop, all live protocol adapters and broader management surfaces
+remain deferred. This supersedes Phase 0's recommended reference-protocol and
+broader ERD Phase 1 staging. See [Foundation workflow](development/FOUNDATION.md)
+and the completed [Phase 1 report](reports/PHASE_1_FOUNDATION_REPORT.md).
 
 Before implementation, maintainers still need to settle public repository/module
 ownership, secret-key provisioning/recovery, and exact future FinalMask/Sudoku
@@ -81,16 +91,16 @@ add protocol columns to Account, weaken unsupported policy silently, treat expor
 rendering as interoperability, or call an upstream build a qualified Splicore release.
 Do not globally rename upstream packages/branding or move large package trees
 without a reviewed decision. Preserve LICENSE, copyright and non-affiliation.
-Do not implement Panel or start Phase 1 during this phase.
+Do not implement Panel or broaden Foundation into live proxy traffic.
 
 ## Validation context
 
 Historical upstream results include successful builds and qualified Linux root CI,
 Windows integration failures, additional vet findings and unrun optional suites.
 Read the [baseline ledger](architecture/UPSTREAM_BASELINE.md) for exact scope.
-Freeze requires a normal upstream build, docs/link checks, OpenAPI validation,
-inclusive and staged `git diff --check`, runtime scope audit and ancestry checks.
-Known Windows driver integrations are not rerun; source is not patched to silence
-baseline failures. Archived Phase 0 validation evidence is part of the reviewed
-freeze; temporary tools, fresh logs, binaries and caches remain outside the repo.
+Foundation requires own package tests, Linux race/fuzz, both binaries on Windows
+and Linux, arm64 compilation, repeated upstream regression and docs/OpenAPI/
+inclusive whitespace/secret audits. Known upstream/environment failures stay
+classified; source is not patched to silence them. Archived Phase 0 evidence
+remains part of the freeze; fresh outputs remain external.
 See the [development index](development/README.md).

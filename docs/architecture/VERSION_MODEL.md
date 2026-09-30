@@ -25,6 +25,13 @@ is an example, not assigned Phase 0 versions. New protocol options cannot silent
 change existing ClientProfile semantics. Stable old clients need documented
 acceptance/migration windows for schema updates.
 
+Phase 1 assigns **devel**, Config Schema 1, Database Schema 1, Protocol ABI 1
+and API v1. Version/commit/dirty/build time can be injected with linker flags;
+Go VCS metadata supplies commit/dirty fallback, otherwise commit is unknown.
+Build time defaults to unknown for plain go build; the build script injects UTC.
+The JSON version projection explicitly includes dirty and development channel.
+No generated source or public module identity is introduced.
+
 Channels: stable, beta, nightly. Stable means qualified gates passed, not merely
 highest GitHub tag. NoBrand defaults to a pinned qualified stable manifest with
 artifact digest/platform/schema ranges and qualification evidence. Upstream's

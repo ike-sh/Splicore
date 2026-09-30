@@ -7,8 +7,9 @@
 - Responsibility: Overall boundaries, dependency direction, invariants and implementation gates.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-Design maturity: proposed architecture, ready for maintainer review. All contracts
-below are designs, not implemented features or claims of protocol qualification.
+Design maturity: Phase 1 Foundation is implemented and frozen. Domain, storage,
+application, API and CLI have tests; protocol runtime and exporter contracts
+remain placeholders. No protocol qualification is claimed.
 Decision status lives in the [ADR index](adr/README.md); historical validation
 scope lives in the [Phase 0 report](PHASE_0_ARCHITECTURE_REPORT.md).
 
@@ -46,18 +47,17 @@ contracts; domain must not import SQL drivers, HTTP, sing-box options, protobuf,
 Panel or installer scripts. This distinction prevents ports from depending on
 their implementations.
 
-Proposed Phase 1 directories, **not created in Phase 0**:
+Implemented Phase 1 directories:
 
 | Area | Packages and responsibility |
 |---|---|
 | Entry | `cmd/splicore`, composition root `internal/splicore/app` |
-| Domain | `internal/splicore/domain/{identity,access,policy,subscription}`; usage value types in policy |
-| Application | `internal/splicore/application`: resource commands, import, operations, revision coordination |
-| Ports | `internal/splicore/ports`: repository, runtime, clock, secrets, accounting, exporter contracts |
-| Protocol | `internal/splicore/protocol/{registry,snell,hysteria2,tuic,vless}` |
-| Engine | `internal/splicore/engine/{registry,native,xray}`; xray reserved until its stage |
-| Adapters | `internal/splicore/storage/sqlite`, `internal/splicore/runtime`, `internal/splicore/api`, `internal/splicore/diagnostic` |
-| Client | `internal/splicore/clientprofile`, `internal/splicore/export/{mihomo,singbox,surge,uri,json}` |
+| Domain | `internal/splicore/domain/{identity,access,policy,secret}`: values, ownership, policy and redaction |
+| Application | `internal/splicore/application`: shared reads, Account commands and revision coordination |
+| Ports | `internal/splicore/ports`: repository, runtime intent, protocol/engine/exporter and cipher contracts |
+| Registries | `internal/splicore/registry`: immutable explicit composition for protocols, engines and exporters |
+| Adapters | `internal/splicore/storage/sqlite`, `internal/splicore/secretvault`, `internal/splicore/api`, `internal/splicore/transport`, `internal/splicore/cli` |
+| Client / process | `internal/splicore/clientprofile`, `internal/splicore/config`, `internal/splicore/version` |
 
 These are bounded modules, not one god package and not a hundred precreated
 micro-packages. Split application services further only when ownership or imports
@@ -95,7 +95,10 @@ maintained specifications above own the current design.
 ## Implementation gates
 
 Phase 1 establishes identity, domain/application ports, SQLite generation storage,
-transaction recovery and local API contracts with one native reference protocol.
+pending/committed/failed journaling and local read API contracts. The explicit
+Foundation scope defers native reference traffic, entitlement, usage, imports,
+runtime compensation and full audit persistence. The combined registry package
+avoids empty per-protocol directories; real adapters can be split when introduced.
 It does not automatically qualify all protocols. Public stable support requires
 third-party traffic tests and usable policy enforcement. No Mieru, Panel, new
 wire protocol, FinalMask/Sudoku port or external supervisor is implemented here.

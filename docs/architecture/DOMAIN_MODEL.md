@@ -7,7 +7,8 @@
 - Responsibility: Entity meaning, authorization relationships and identity/secret separation.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-Design invariants; no repositories or runtime structs implemented in Phase 0.
+Phase 1 implements identity/access/policy values and repository ports; runtime
+authorization and traffic integration are deferred.
 Opaque stable IDs are random UUIDs generated with a cryptographic random source;
 names/IPs/hostnames are mutable labels. UTC timestamps; byte counts are integers,
 rates are bits per second. Resource revisions monotonically increase at commit.
@@ -45,7 +46,7 @@ can only narrow authorized bindings; selecting a tag does not create credentials
 or bypass a Binding. Newly matching Inbounds require application reconciliation
 to create real authorized bindings in a revisioned transaction.
 
-One effective Entitlement is active per Account in Phase 1. Future overlapping
+One effective Entitlement is planned per Account at the entitlement stage. Future overlapping
 grants require explicit composition semantics; do not silently sum quotas or
 raise rate limits. Binding overrides can only restrict account ceilings.
 Soft disable/revocation preserves historic usage dimensions. Hard deletion is
@@ -61,6 +62,28 @@ retained with tombstones according to retention policy.
 | C | 500 GB means 500,000,000,000 upload+download payload bytes across Alice's bindings in one period. GiB is a different explicit unit. |
 | D | 200 Mbps account ceiling maps to one shared limiter per direction across VLESS/TUIC/Mieru streams. Per-session native congestion settings cannot substitute for that ceiling. |
 | E | Single-credential protocol expands into internal listener/instance per Binding with an explicit display endpoint/port allocation, or rejects multi-user deployment. No account separation is promised for shared unauthenticated PSK. |
+
+## Implemented Foundation subset
+
+Account status is active/suspended/closed plus enabled; stamps require UTC.
+Metadata is bounded nonsecret string annotations; sensitive keys are rejected
+and diagnostic formatting redacts metadata. Resource IDs are canonical random
+UUID v4; credential UUID validation is a separate authentication concern.
+Credential payloads are tagged PSK, UUID, UUID+password or username+password
+values. Credential records require exactly one Account or Inbound owner.
+
+Inbound owns separate Listener and DisplayEndpoint values and internal Engine
+placement. Settings carry schema 1 and bounded opaque JSON, redacted on default
+serialization/formatting. Until protocol settings validators exist, persistence
+accepts only an empty settings object. No upstream options enter this model.
+Endpoint accepts raw IPv4/IPv6 or ASCII DNS/punycode and a separate nonzero port;
+URLs, zones/brackets, embedded ports, invalid numeric IPs and controls are rejected.
+
+TrafficPolicy has nullable nonnegative integer limits and reset/timezone values;
+nil is unlimited and zero is denial. There is no enforcement or inheritance yet.
+Account repository updates check expected resource revision inside a global
+generation transaction. Other Foundation resource repository methods create
+records; their update/rotation workflows remain future application commands.
 
 See [policy semantics](POLICY_USAGE.md), [ERD](DATABASE_ERD.md),
 [protocol contract](PROTOCOL_SDK.md).

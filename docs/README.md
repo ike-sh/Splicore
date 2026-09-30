@@ -11,7 +11,9 @@
 
 **Canonical** identifies the maintained source for a topic. It does not mean
 proposed functionality is implemented. Phase 0 establishes designs and baseline
-research; no stable Splicore runtime has been released. **Historical** documents
+research; Phase 1 Foundation is frozen, with runtime/interop still deferred.
+The Phase 2 branch is prepared; implementation has not started.
+No stable Splicore runtime has been released. **Historical** documents
 and **Generated** evidence preserve what was observed at a particular time.
 **Draft** is work that has not yet become an authoritative design.
 
@@ -61,7 +63,7 @@ Decision acceptance is separate from implementation and interoperability qualifi
 
 - [API index](api/README.md): machine contract and semantic documentation responsibilities.
 - [API v1 design](api/API_V1_DESIGN.md): control transport, authorization and operation semantics.
-- [OpenAPI contract skeleton](api/openapi-skeleton.yaml): proposed paths, schemas and responses; no server implemented.
+- [OpenAPI contract skeleton](api/openapi-skeleton.yaml): Foundation reads and marked deferred paths, schemas and responses.
 
 ## Storage
 
@@ -69,7 +71,8 @@ Decision acceptance is separate from implementation and interoperability qualifi
 - [Database ERD](architecture/DATABASE_ERD.md): entities, relationships, constraints and ownership.
 - [Transaction model](architecture/TRANSACTION_MODEL.md): coordination outside database atomicity.
 
-Future migration files will own actual schema history; no migrations exist in Phase 0.
+[0001_initial](../internal/splicore/storage/sqlite/migrations/0001_initial.sql)
+owns actual schema 1 history; the complete ERD remains a future target.
 
 ## Client Compatibility
 
@@ -85,8 +88,8 @@ Future migration files will own actual schema history; no migrations exist in Ph
 
 ## Diagnostics
 
-[Diagnostics](architecture/DIAGNOSTICS.md) owns proposed CLI checks and local,
-bounded, redacted support bundles. These commands do not exist yet.
+[Diagnostics](architecture/DIAGNOSTICS.md) owns Foundation CLI checks and future
+local, bounded, redacted support bundles.
 
 ## Integration
 
@@ -112,6 +115,9 @@ no installer or existing deployment is modified here.
 
 - [Development context](DEVELOPMENT_CONTEXT.md): current phase and durable constraints.
 - [Development index](development/README.md): recovery, change workflow and validation.
+- [Foundation workflow](development/FOUNDATION.md): implemented commands, bootstrap, builds and tests.
+- [Foundation dependency audit](development/DEPENDENCIES_PHASE_1.md): driver selection and dependency/licenses.
+- [Phase 1 Foundation Report](reports/PHASE_1_FOUNDATION_REPORT.md): scoped implementation acceptance.
 - [Documentation policy](DOCUMENTATION_POLICY.md): ownership, authorities, ADRs and history rules.
 
 ## Historical Reports

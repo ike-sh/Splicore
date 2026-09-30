@@ -25,6 +25,12 @@ In-process ad hoc CLI SQL creates a second writer model. Immediate public unauth
 
 ## Consequences
 
+Phase 1 implementation note: System/Capabilities reads and shared CLI application
+queries exist; all other OpenAPI routes remain marked deferred. System adds dirty
+build identity and a typed Foundation diagnostic summary. Protected Linux UDS
+captures peer identity; Windows tests use injected httptest clients. No production
+TCP exposure, resource CRUD, idempotency or offline mutation command is supplied.
+
 OpenAPI is a contract skeleton, not server code. Reads are redacted; apply is a durable 202 operation with 409 stale revision and 428 missing precondition. Offline CLI still needs the same ownership lock/application coordinator.
 
 ## Future Review

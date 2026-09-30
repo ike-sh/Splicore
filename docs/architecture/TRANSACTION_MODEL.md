@@ -11,6 +11,21 @@ There is no atomic transaction spanning SQLite, kernel sockets and child process
 Splicore uses a durable coordinator with generation fences and compensation.
 Do not promise zero downtime or undo already transferred traffic.
 
+## Implemented Foundation transaction
+
+Phase 1 implements only pending → committed/failed and typed Actor/RequestID/
+DomainEvent contracts. The adapter first persists pending identity, then runs a
+short SQL callback with global revision check and Account resource revision check.
+Resource changes, generation advance and committed outcome publish atomically.
+On failure resources roll back and a bounded independent write marks failed.
+Failure messages are fixed safe text; arbitrary callback error strings are dropped.
+
+A process crash can leave pending identity; reopening preserves committed state,
+System reports recovery_required, and new domain mutations refuse until operator
+review. There is no automatic recovery command, runtime admission or candidate
+resource reconstruction yet. Idempotency, full audit persistence and the runtime
+sequence below remain deferred; RequestID is correlation, not an idempotency key.
+
 ```text
 VALIDATED → PLANNED → PENDING → APPLYING → HEALTHY → COMMITTED
                            \ failure → ROLLING_BACK → ROLLED_BACK

@@ -7,9 +7,15 @@
 - Responsibility: Meaningful implementation/interop/failure gates and reporting scope.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-Phase 0 executes upstream validation; future layers below are plans, not test
-implementations or completed Splicore qualification. Actual results live in
+Phase 1 implements Foundation unit/contract/migration, process-crash, Linux
+race and endpoint/config/ID fuzz tests. Runtime/interop/accounting layers below
+remain future gates. Phase 0 actual results live in
 [baseline](../architecture/UPSTREAM_BASELINE.md) and its evidence directory.
+
+Run the independent suite with `go test ./internal/splicore/... ./cmd/splicore`,
+`scripts/splicore-test.ps1`, or `sh scripts/splicore-test.sh`. Upstream Makefile,
+workflows, tags and test semantics are unchanged. Results and platform limits
+live in the [Phase 1 report](../reports/PHASE_1_FOUNDATION_REPORT.md).
 
 | Layer | Required meaningful checks |
 |---|---|
