@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Contributors, reviewers and returning coding agents
-- Last reviewed: 2026-10-01
+- Last reviewed: 2026-10-02
 - Owner: Project maintainers
 - Responsibility: Recovery reading order, change workflow and scoped validation.
 - Lifecycle: Update when development scope or required validation gates change.
@@ -28,12 +28,11 @@ Read [workflow](PHASE_2_SNELL.md) and [report](../reports/PHASE_2_SNELL_VERTICAL
 
 Phase 3 froze experimental HY2 at `94555d9608ebcc36c5a396bc06a5743cce4e0788`. Read
 [HY2 workflow](PHASE_3_HYSTERIA2.md) and [report](../reports/PHASE_3_HYSTERIA2_VERTICAL_SLICE_REPORT.md).
-Phase 4 is locally frozen by the commit containing its
-[report](../reports/PHASE_4_TUIC_VERTICAL_SLICE_REPORT.md). Main is fast-forwarded
-to that commit; `codex/phase-5-vless-reality-vertical-slice` is reserved from main.
-VLESS/REALITY implementation is NOT STARTED. No push, origin, tag or release.
-Upstream runtime sources and historical Phase 0–3 reports remain unchanged;
-tools/binaries/logs/state stay external.
+Phase 4 is locally frozen at `2a9c0f3e14de29050c1228ce013b2f1ad4556946`; main and
+HEAD remain there. `codex/phase-5-vless-reality-vertical-slice` has an unstaged
+native VLESS/REALITY candidate. Vision is deferred/unsupported; flow-none acceptance is separate.
+No stage/commit/push/tag/release. Upstream runtime sources and historical Phase
+0–4 reports remain unchanged; tools/binaries/logs/state stay external.
 Foundation composition remains for independent placeholder contract tests.
 
 ## Change workflow
@@ -96,3 +95,8 @@ gates belong to the [test strategy](../testing/TEST_STRATEGY.md).
 [TUIC workflow](PHASE_4_TUIC.md) defines native/shared campaign and local freeze
 gates. Fresh freeze evidence is external at `D:\splicore-validation\phase4-freeze-20261001`.
 The frozen profile remains Experimental; further implementation requires new scope.
+
+## Current Phase 5
+
+[Workflow](PHASE_5_VLESS.md), [support](../protocol/VLESS.md) and [report](../reports/PHASE_5_FINAL_ACCEPTANCE_REPORT.md)
+own the native flow-none VLESS/REALITY candidate and Vision rejection gates. No stage/commit/push/tag/release.

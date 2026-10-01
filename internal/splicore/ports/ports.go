@@ -45,6 +45,7 @@ const (
 )
 
 type TransportCapabilities struct {
+	Kinds          []string
 	TCP            bool
 	UDPTransport   bool
 	UDPPayload     bool
@@ -72,6 +73,8 @@ type MutationCapabilities struct {
 type SecurityCapabilities struct {
 	TLS     bool
 	Reality bool
+	Vision  bool
+	Flows   []string
 }
 type ClientCompatibility struct {
 	Format   Format
@@ -100,10 +103,11 @@ type CapabilityContext struct {
 	Platform string
 }
 type RuntimeIntent struct {
-	Inbound     access.Inbound
-	Bindings    []access.Binding
-	Credentials []access.Credential
-	Revision    identity.Revision
+	Inbound           access.Inbound
+	Bindings          []access.Binding
+	Credentials       []access.Credential
+	ServerCredentials []access.Credential
+	Revision          identity.Revision
 }
 type AuthorizedBinding struct {
 	Binding    access.Binding
@@ -125,6 +129,7 @@ type EngineMetadata struct {
 	Availability       Availability
 	RuntimeImplemented bool
 	ABI                int
+	Protocols          []string
 }
 type (
 	PreparedRuntime interface{ Close(context.Context) error }

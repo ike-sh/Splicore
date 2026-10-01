@@ -73,12 +73,19 @@ func (s *Service) PlanSnell(ctx context.Context, b json.RawMessage) (Plan, error
 	if s.runtime == nil {
 		return Plan{}, identity.Err(identity.NotImplemented, "runtime unavailable")
 	}
-	d, _ := DecodeSnell(b)
+	d, e := s.creationDraft("snell", b)
+	if e != nil {
+		return Plan{}, e
+	}
+	settings, e := sm.Decode(d.Settings)
+	if e != nil {
+		return Plan{}, e
+	}
 	state, e := s.repo.State(ctx)
 	if e != nil {
 		return Plan{}, e
 	}
-	return Plan{s.creationDigest("snell", b, state.Revision), state.Revision, d.Settings.Version, d.Listener, d.Display, true}, nil
+	return Plan{s.creationDigest("snell", b, state.Revision), state.Revision, settings.Version, d.Listener, d.Display, true}, nil
 }
 func (s *Service) ApplySnell(ctx context.Context, req ApplyRequest) (ApplyResult, error) {
 	v, err := s.ApplyCreation(ctx, "snell", req)

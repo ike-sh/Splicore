@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Developers, maintainers and integration authors
-- Last reviewed: 2026-10-01
+- Last reviewed: 2026-10-02
 - Owner: Documentation maintainers
 - Responsibility: Complete navigation to Splicore specifications, decisions and history.
 - Lifecycle: Update when owned documents are added, retired or change responsibility.
@@ -14,8 +14,9 @@ proposed functionality is implemented. Phase 0 establishes designs and baseline
 research; Phases 1–4 are locally frozen. Phase 2 implements experimental Snell with real
 Mihomo/sing-box interoperability. Phase 3 adds experimental Hysteria2 with
 trusted-CA multi-user TCP/UDP interoperability; Phase 4 implements experimental TUIC v5 with shared TLS/QUIC and
-registered creation commands. Phase 5's branch is reserved; VLESS/REALITY
-implementation has not started. Other adapters remain deferred.
+registered creation commands. Phase 5 adds a native VLESS/REALITY candidate with
+separate engine placement; Vision is deferred/unsupported and fails closed.
+Other adapters remain deferred.
 No stable Splicore runtime has been released. **Historical** documents
 and **Generated** evidence preserve what was observed at a particular time.
 **Draft** is work that has not yet become an authoritative design.
@@ -44,8 +45,9 @@ README.md                           project introduction
 
 ## Architecture Decision Records
 
-[ADR index](adr/README.md) lists all 15 decisions and their individual status.
+[ADR index](adr/README.md) lists all 16 decisions and their individual status.
 ADR 0001 is accepted for Phase 0; 0002–0015 remain proposed for maintainer review.
+ADR 0016 records the foundation boundary; ADR 0017 defers Vision with explicit re-enable gates.
 Decision acceptance is separate from implementation and interoperability qualification.
 
 ## Domain Model
@@ -81,7 +83,8 @@ Decision acceptance is separate from implementation and interoperability qualifi
 [0001_initial](../internal/splicore/storage/sqlite/migrations/0001_initial.sql)
 preserves schema 1 history. [0002_snell](../internal/splicore/storage/sqlite/migrations/0002_snell.sql)
 adds schema 2; [0003_password](../internal/splicore/storage/sqlite/migrations/0003_password.sql)
-adds generic password credentials in schema 3. The full ERD remains a future target.
+adds generic password credentials in schema 3; [0004_private_key](../internal/splicore/storage/sqlite/migrations/0004_private_key.sql)
+adds generic inbound-owned private keys in schema 4. The full ERD remains a future target.
 
 ## Client Compatibility
 
@@ -152,3 +155,9 @@ Inherited configuration, client, installation, migration and changelog pages
 remain sing-box documentation. They do not describe an implemented Splicore public
 contract. Preserve their names and content; use the Splicore entries above for
 this project's designs. Upstream documentation site configuration is unchanged.
+
+- [VLESS support](protocol/VLESS.md): native TCP/XUDP, REALITY secret boundaries and Vision deferral.
+- [Phase 5 workflow](development/PHASE_5_VLESS.md): isolated validation and exact gates.
+- [Initial Phase 5 report](reports/PHASE_5_VLESS_REALITY_NATIVE_VERTICAL_SLICE_REPORT.md): historical Vision safety failures.
+- [Phase 5 final report](reports/PHASE_5_FINAL_ACCEPTANCE_REPORT.md): non-Vision acceptance and fresh evidence.
+- [Phase 5 local freeze](reports/PHASE_5_FREEZE_REPORT.md): authorized checkpoint for Phase 6.

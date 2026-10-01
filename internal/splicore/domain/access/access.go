@@ -78,6 +78,7 @@ const (
 	UUIDPassword     CredentialKind = "uuid_password"
 	UsernamePassword CredentialKind = "username_password"
 	Password         CredentialKind = "password"
+	PrivateKey       CredentialKind = "private_key"
 )
 
 // Payload is a tagged closed set of typed secret values, not protocol columns.
@@ -98,6 +99,8 @@ func ValidatePayload(p Payload) error {
 	case UsernamePasswordPayload:
 		return v.Validate()
 	case PasswordPayload:
+		return v.Validate()
+	case PrivateKeyPayload:
 		return v.Validate()
 	default:
 		return identity.Err(identity.Invalid, "unsupported or nil credential payload")
@@ -341,7 +344,7 @@ type Inbound struct {
 	NodeID           identity.ID       `json:"node_id"`
 	Name             string            `json:"name"`
 	Protocol         ProtocolKey       `json:"protocol"`
-	Engine           string            `json:"-"`
+	Engine           string            `json:"engine"`
 	Listeners        []Listener        `json:"listeners"`
 	DisplayEndpoints []DisplayEndpoint `json:"display_endpoints"`
 	Enabled          bool              `json:"enabled"`

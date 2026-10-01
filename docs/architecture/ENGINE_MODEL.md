@@ -2,19 +2,20 @@
 
 - Documentation status: Canonical
 - Audience: Engine and runtime developers
-- Last reviewed: 2026-10-01
+- Last reviewed: 2026-10-02
 - Owner: Engine maintainers
 - Responsibility: Private native/compatibility execution contracts and enforcement limits.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-Registry keys `native`, `xray-compatibility`; future external keys require their
+Current registry keys `native`, `xray`; xray denotes the future compatibility slot.
+Future external keys require their
 own reviewed implementation. Protocol and wire extensions describe client behavior;
-Engine choice is private planning/diagnostic data. Accounts, Subscription and
+Engine choice is an explicit bounded creation selector and resolved API/domain field. Accounts, Subscription and
 Exporter do not branch on Engine names. Administrators may inspect resolved
 placement in a plan but public protocol settings contain no raw engine config.
 
-Phase 4 shares one native Compile and Start/Health/Activate/Close/Stats contract
-for Snell, Hysteria2 and TUIC, dispatched by protocol key. Each Inbound owns one minimal private Box and direct route;
+Phase 5 shares one native Compile and Start/Health/Activate/Close/Stats contract
+for Snell, Hysteria2, TUIC and VLESS, dispatched by protocol key. Each Inbound owns one minimal private Box and direct route;
 Xray remains a placeholder. [ADR 0013](../adr/0013-snell-runtime-composition.md)
 documents owned TCP admission/raw socket cleanup and static platform context.
 Upstream constructors/auth/framing/crypto/version semantics remain unchanged.
@@ -88,3 +89,17 @@ HY2/TUIC use one shared owned handle for Box/router, static TLS, UDP admission/h
 cancellation/close grace, immutable Binding mapping and meters. Factories own exact
 upstream auth/options and construct users before Start. No unsafe live UpdateUsers,
 wire copy or upstream modifications. [ADR 0015](../adr/0015-tuic-shared-control-plane.md).
+
+## VLESS placement realization
+
+EngineMetadata lists protocol IDs. Capabilities expose native/xray entries for the
+same vless identity. Default native selection is shared registry plumbing; xray is
+not compiled or runtime implemented, and selection/compile fail before side effects.
+The native engine rejects another placement. Account/Binding/Subscription/profile
+and exporters gain no engine cases. No Xray binary, renderer or child exists.
+
+Native VLESS uses pinned sing-vmess service, existing TLS/REALITY constructors,
+owned TCP admission/raw sockets and Binding meters. A bounded target reachability
+probe does not establish TLS target health. Vision is deferred/unsupported with explicit
+protocol and native compiler hard gates; no upstream patch is carried. [Support](../protocol/VLESS.md),
+[decision](../adr/0016-vless-engine-server-secrets.md).

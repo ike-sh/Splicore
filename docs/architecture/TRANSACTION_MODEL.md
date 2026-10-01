@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Core, API and storage developers
-- Last reviewed: 2026-10-01
+- Last reviewed: 2026-10-02
 - Owner: Core maintainers
 - Responsibility: Journal, generation fences, runtime compensation, idempotency and audit.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -118,3 +118,16 @@ UUID/password/settings, TLS, UDP conflict, compile/start/health/commit failures 
 publish rows. QUIC admission opens after commit; reconcile reconstructs committed
 credentials on failure/recovery. Disabled Account creation/recovery is tested; general
 live Account mutation deferred.
+
+## VLESS server-material transaction
+
+Generic engine selection and module validation precede planning. Apply generates or
+derives UUID/server key before pending, then builds resources, starts gated runtime,
+checks health, commits inbound-owned secrets with resources and opens admission.
+Invalid UUID/key/short ID/target, unsupported Vision flow and unavailable engine
+have no committed side effects. Vision is rejected during validation; if that gate
+is bypassed, runtime building rejects and the pending operation is compensated. Port
+conflict and injected compile/start/health failures compensate without resources.
+Recovery/reconcile carries committed server credentials, including encrypted REALITY
+key; imports and client exports are not recovery sources. Reconcile interrupts all
+users on the affected listener. [Decision](../adr/0016-vless-engine-server-secrets.md).

@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Integration and deployment developers
-- Last reviewed: 2026-10-01
+- Last reviewed: 2026-10-02
 - Owner: Integration maintainers
 - Responsibility: Future NoBrand import, rollout, field-test and rollback boundaries.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -118,3 +118,24 @@ UUID/password/CA and native protected file references; real NoBrand was not acce
 
 Logical contract only; no production extractor/canary. Policies metadata_only; no
 enforcement. Input/runtime JSON never recovery authority. [Workflow](../development/PHASE_4_TUIC.md).
+
+## Synthetic VLESS / REALITY mapping
+
+Real `D:\code\NoBrand-OneClick` remains untouched. [Synthetic fixture](../../tests/fixtures/nobrand/vless-reality.json)
+maps name, local listener, display endpoint, UUID, flow, public REALITY material,
+short IDs, server name and target into the typed VLESS creation command. Engine
+selection is separate and defaults native. REALITY private input uses write-only
+server_secret.private_key; omission generates it. The fixture has no private key.
+An importer must derive/check public key, protect private input, and use plan/apply;
+it must not write SQLite or generate sing-box server JSON. Future exports cannot
+recover server material for migration. Production canary remains deferred.
+
+| Logical legacy value | Canonical VLESS import |
+|---|---|
+| Name | name / users[].account_name |
+| Listener / display endpoint | Independent listener and display_endpoint host/port |
+| UUID | Optional secret users[].uuid; the synthetic fixture omits both users' UUIDs for secure generation |
+| Flow | settings.flow=none only; Vision rejected, never silently downgraded |
+| REALITY private/public key | Write-only server_secret.private_key / derived settings.reality.public_key |
+| Short IDs | settings.reality.short_ids; bounded padded baseline semantics |
+| Server name / target | Independent settings.reality.server_name / target host/port |

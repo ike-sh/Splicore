@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Developers and decision reviewers
-- Last reviewed: 2026-10-01
+- Last reviewed: 2026-10-02
 - Owner: Core maintainers
 - Responsibility: Decision navigation, individual decision status and review lifecycle.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -32,3 +32,7 @@ See [documentation policy](../DOCUMENTATION_POLICY.md) and the
 * [0014-hysteria2-runtime-composition — Owned Hysteria2 service and UDP lifecycle](0014-hysteria2-runtime-composition.md) — Proposed; implemented experimentally
 
 * [0015-tuic-shared-control-plane — Registered creation and shared QUIC control plane](0015-tuic-shared-control-plane.md) — Proposed; implemented experimentally
+
+- [0016: VLESS engine placement and inbound server secrets](0016-vless-engine-server-secrets.md): accepted candidate foundation; Vision deferred under ADR 0017.
+
+- [0017: Defer Vision due to dependency safety](0017-defer-vision-dependency-safety.md): accepted for the Phase 5 candidate.

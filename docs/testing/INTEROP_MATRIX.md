@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Protocol, client and test developers
-- Last reviewed: 2026-10-01
+- Last reviewed: 2026-10-02
 - Owner: Test maintainers
 - Responsibility: Planned third-party protocol/client qualification cells and evidence rules.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -115,3 +115,29 @@ SQLite recovery, existing-client reconnect, client kill and UDP release PASS.
 Full HY2 12-cell and Snell nine-cell regression PASS after shared refactor.
 See [Phase 4 report](../reports/PHASE_4_TUIC_VERTICAL_SLICE_REPORT.md) for client archive
 hashes, capability limits, source/platform gates and external cleanup deferral.
+
+## Phase 5 VLESS / REALITY candidate
+
+| Surface | Clients | Users / endpoints | Actual outcome |
+|---|---|---|---|
+| REALITY, flow none | Mihomo 1.19.30 / sing-box 1.14.1 | Alice/Bob × IPv4/IPv6/domain, 12 cells | TCP/XUDP PASS, default race binary |
+| Plain, flow none | Same | Alice/Bob × IPv4, 4 cells | TCP/XUDP PASS, default race binary |
+| Static TLS, flow none | Same | Alice/Bob × IPv4, 4 cells | trusted TCP/XUDP PASS, default race binary |
+| Vision | All managed inputs/exporters | N/A | DEFERRED / UNSUPPORTED; rejection PASS |
+| VLESS URI | Bounded parser/exporter | IPv4/IPv6/domain contract | PASS contract; reference client import NOT QUALIFIED |
+| Surge | No qualified VLESS profile | N/A | UnsupportedExport |
+
+Passing campaigns retain concurrency 16, 4 MiB integrity, XUDP sequence, reconnect,
+abnormal close, attribution, disable/re-enable, committed SQLite recovery, process
+kill and socket release. REALITY wrong UUID/pbk/sid/SNI both clients reject user
+payload and retain healthy server. Default checkptr and race remain enabled.
+Native Go traffic tests also run ten iterations with single/dual users, 16 concurrent,
+4 MiB, reconnect and abnormal close. Vision rejection tests include a missed creation
+validator, no authoritative commit, fake builder count=0, direct compiler rejection
+and a Vision wire request rejected before constructor dispatch.
+
+The [final report](../reports/PHASE_5_FINAL_ACCEPTANCE_REPORT.md) records exact fresh
+matrix cells, versions, executable hashes and regression/platform gates. The
+[initial report](../reports/PHASE_5_VLESS_REALITY_NATIVE_VERTICAL_SLICE_REPORT.md)
+preserves original Vision functional passes and safety failures; they are not part
+of the current supported surface. No Stable declaration or Phase 5 freeze.

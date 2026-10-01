@@ -69,4 +69,5 @@ Stage explicit reviewed paths, audit staged blobs, create one commit with messag
 `feat(protocol): add experimental TUIC vertical slice`, verify the Phase 3 sole
 parent and baseline ancestry, then fast-forward main with `--ff-only`. Create
 `codex/phase-5-vless-reality-vertical-slice` from main, verify CLEAN, and stop.
-VLESS/REALITY implementation is NOT STARTED; TUIC remains Experimental.
+At that Phase 4 freeze checkpoint VLESS/REALITY was NOT STARTED; TUIC remains
+Experimental. Current work is governed by the [Phase 5 workflow](PHASE_5_VLESS.md).

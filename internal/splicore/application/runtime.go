@@ -30,6 +30,13 @@ func (s *Service) bindings(ctx context.Context, id identity.ID) ([]access.Bindin
 }
 func (s *Service) projection(ctx context.Context, i access.Inbound, revision identity.Revision) (ports.RuntimeIntent, error) {
 	in := ports.RuntimeIntent{Inbound: i, Revision: revision}
+	if secrets, ok := s.runtime.repo.(ports.ServerSecretRepository); ok {
+		var err error
+		in.ServerCredentials, err = secrets.RevealInboundCredentials(ctx, i.ID)
+		if err != nil {
+			return in, err
+		}
+	}
 	bs, err := s.bindings(ctx, i.ID)
 	if err != nil {
 		return in, err

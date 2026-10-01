@@ -12,7 +12,7 @@ import (
 
 func TestCommandIdentity(t *testing.T) {
 	var out, errOut bytes.Buffer
-	if cli.Run(context.Background(), []string{"version"}, &out, &errOut, cli.Dependencies{Build: version.Current()}) != 0 || !strings.Contains(out.String(), "Splicore devel") || !strings.Contains(out.String(), "Database Schema: 3") {
+	if cli.Run(context.Background(), []string{"version"}, &out, &errOut, cli.Dependencies{Build: version.Current()}) != 0 || !strings.Contains(out.String(), "Splicore devel") || !strings.Contains(out.String(), "Database Schema: 4") {
 		t.Fatal("command identity", errOut.String())
 	}
 }

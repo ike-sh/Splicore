@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Domain and storage developers
-- Last reviewed: 2026-10-01
+- Last reviewed: 2026-10-02
 - Owner: Storage / Core maintainers
 - Responsibility: Logical entities, relationships, ownership and constraints; not schema migration history.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -84,13 +84,18 @@ resource updates and audit success in **one** SQLite transaction.
 
 ## Foundation schema scope
 
-Current schema 3 adds [0003_password](../../internal/splicore/storage/sqlite/migrations/0003_password.sql)
-without changing 0001/0002. Generic Credential kind `password` supports HY2;
+Current schema 4 adds [0004_private_key](../../internal/splicore/storage/sqlite/migrations/0004_private_key.sql)
+after [0003_password](../../internal/splicore/storage/sqlite/migrations/0003_password.sql),
+without changing previous migrations. Generic Credential kind `password` supports HY2;
 Account has no protocol-secret columns. The rebuild preserves ciphertext/AAD,
 foreign keys and the Snell single-Binding trigger. HY2 stores 1–16 Account-owned
 Bindings/credentials per Inbound, with optional distinct TrafficPolicy references.
 No durable usage/accounting tables are added. TLS public CA and file references
-are versioned Inbound settings; private-key contents never enter SQLite.
+are versioned Inbound settings; TLS private-key file contents never enter SQLite.
+REALITY uses inbound-owned generic private_key encrypted payloads in the existing
+Credential table. Public key/short IDs/SNI/target are typed public settings; no
+protocol-specific columns or Account fields. Existing ciphertext/AAD and ownership
+relationships survive populated schema-2/schema-3 migrations.
 
 Schema 1 contains schema_migrations, metadata, nodes, settings, accounts,
 inbounds, listeners, display_endpoints, credentials, bindings, traffic_policies

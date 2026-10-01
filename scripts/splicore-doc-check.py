@@ -22,7 +22,7 @@ def main():
     parser.add_argument("root", type=pathlib.Path)
     parser.add_argument("inventory", type=pathlib.Path)
     parser.add_argument("--responses", type=pathlib.Path)
-    parser.add_argument("--protocol", choices=["snell","hysteria2","tuic"],default="hysteria2")
+    parser.add_argument("--protocol", choices=["snell","hysteria2","tuic","vless"],default="hysteria2")
     args = parser.parse_args()
     root = args.root.resolve()
     inventory = json.loads(args.inventory.read_text(encoding="utf-8-sig"))
@@ -110,8 +110,8 @@ def main():
         for method, operation in methods.items():
             if method in {"get", "post", "put", "patch", "delete"}:
                 operations.append(operation["operationId"])
-                assert operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "phase4", "deferred"}
-                if operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "phase4"}:
+                assert operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "phase4", "phase5", "deferred"}
+                if operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "phase4", "phase5"}:
                     implemented.append((method, path))
     assert len(operations) == len(set(operations))
     assert sorted(implemented) == sorted([
@@ -127,8 +127,8 @@ def main():
     if args.responses:
         pairs=[("system-response.json","System"),("http-system-response.json","System"),("capabilities-response.json","CapabilityPage"),("inbounds-response.json","RuntimeInboundPage"),("inbound-response.json","RuntimeInboundView")]
         if args.protocol!="snell":
-            prefix=args.protocol;schema="TUIC" if prefix=="tuic" else "Hysteria2"
-            pairs.extend([(prefix+"-plan-response.json",schema+"Plan"),(prefix+"-apply-response.json",schema+"Applied"),("binding-transaction-response.json","RuntimeTransaction")])
+            prefix=args.protocol;schema={"tuic":"TUIC","hysteria2":"Hysteria2","vless":"VLESS"}[prefix]
+            pairs.extend([(("plan-response.json" if prefix=="vless" else prefix+"-plan-response.json"),schema+"Plan"),(("apply-response.json" if prefix=="vless" else prefix+"-apply-response.json"),schema+"Applied"),("binding-transaction-response.json","RuntimeTransaction")])
         for filename,schema in pairs:
             instance = json.loads((args.responses / filename).read_text(encoding="utf-8-sig"))
             document = {"$ref": "#/components/schemas/" + schema, "components": spec["components"]}

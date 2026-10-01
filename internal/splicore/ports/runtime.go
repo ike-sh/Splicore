@@ -78,3 +78,9 @@ type BindingWriter interface {
 	SetBindingEnabled(identity.ID, bool, identity.Revision) error
 }
 type AttributedStats interface{ BindingStats(identity.ID) Stats }
+
+// ServerSecretRepository reveals only inbound-owned encrypted server credentials.
+// Client export deliberately does not use this port.
+type ServerSecretRepository interface {
+	RevealInboundCredentials(context.Context, identity.ID) ([]access.Credential, error)
+}

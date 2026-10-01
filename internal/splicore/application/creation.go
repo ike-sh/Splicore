@@ -12,13 +12,15 @@ import (
 )
 
 type CreationPlan struct {
-	Digest          string            `json:"digest"`
-	Revision        identity.Revision `json:"revision"`
-	Listener        access.Endpoint   `json:"listener"`
-	Display         access.Endpoint   `json:"display_endpoint"`
-	Users           int               `json:"users"`
-	TLSVerification bool              `json:"tls_verification"`
-	PolicyEnforced  bool              `json:"policy_enforced"`
+	Protocol        access.ProtocolKey `json:"protocol"`
+	Engine          string             `json:"engine"`
+	Digest          string             `json:"digest"`
+	Revision        identity.Revision  `json:"revision"`
+	Listener        access.Endpoint    `json:"listener"`
+	Display         access.Endpoint    `json:"display_endpoint"`
+	Users           int                `json:"users"`
+	TLSVerification bool               `json:"tls_verification"`
+	PolicyEnforced  bool               `json:"policy_enforced"`
 }
 type CreationResult struct {
 	InboundID   identity.ID          `json:"inbound_id"`
@@ -36,19 +38,7 @@ type BindingCommands interface {
 }
 
 func (s *Service) creationDraft(protocol string, b json.RawMessage) (ports.CreationDraft, error) {
-	codec, err := s.protocols.Creation(protocol)
-	if err != nil {
-		return ports.CreationDraft{}, err
-	}
-	d, err := codec.DecodeCreation(b)
-	if err != nil {
-		return d, err
-	}
-	if d.Protocol.Protocol != protocol {
-		return d, identity.Err(identity.Invalid, "creation identity mismatch")
-	}
-	_, err = s.protocols.Get(d.Protocol)
-	return d, err
+	return s.protocols.DecodeCreation(s.engines, protocol, b)
 }
 func (s *Service) ValidateCreation(_ context.Context, protocol string, b json.RawMessage) error {
 	_, err := s.creationDraft(protocol, b)
@@ -73,19 +63,27 @@ func (s *Service) PlanCreation(ctx context.Context, protocol string, b json.RawM
 	if err != nil {
 		return CreationPlan{}, err
 	}
-	return CreationPlan{Digest: s.creationDigest(protocol, b, state.Revision), Revision: state.Revision, Listener: d.Listener, Display: d.Display, Users: len(d.Users), TLSVerification: d.TLSVerification}, nil
+	return CreationPlan{Protocol: d.Protocol, Engine: d.Engine, Digest: s.creationDigest(protocol, b, state.Revision), Revision: state.Revision, Listener: d.Listener, Display: d.Display, Users: len(d.Users), TLSVerification: d.TLSVerification}, nil
 }
 
 type creationResources struct {
-	inbound     access.Inbound
-	accounts    []access.Account
-	bindings    []access.Binding
-	credentials []access.Credential
-	policies    []policy.TrafficPolicy
+	inbound           access.Inbound
+	accounts          []access.Account
+	bindings          []access.Binding
+	credentials       []access.Credential
+	serverCredentials []access.Credential
+	policies          []policy.TrafficPolicy
 }
 
 func (s *Service) creationResources(d ports.CreationDraft, node identity.ID, codec ports.CreationCodec) (creationResources, error) {
 	out := creationResources{}
+	if materializer, ok := codec.(ports.ServerMaterializer); ok {
+		var err error
+		d, err = materializer.MaterializeCreation(d)
+		if err != nil {
+			return out, err
+		}
+	}
 	stamp := identity.NewStamp(time.Now())
 	newID := identity.NewID
 	id, err := newID()
@@ -101,7 +99,14 @@ func (s *Service) creationResources(d ports.CreationDraft, node identity.ID, cod
 		return out, err
 	}
 	data := d.Settings
-	out.inbound = access.Inbound{ID: id, NodeID: node, Name: d.Name, Protocol: d.Protocol, Engine: "native", Enabled: true, Listeners: []access.Listener{{ID: listener, Transport: d.Transport, Endpoint: d.Listener}}, DisplayEndpoints: []access.DisplayEndpoint{{ID: display, Endpoint: d.Display}}, Tags: []string{}, Settings: access.Settings{Schema: 1, Data: data}, Stamp: stamp}
+	out.inbound = access.Inbound{ID: id, NodeID: node, Name: d.Name, Protocol: d.Protocol, Engine: d.Engine, Enabled: true, Listeners: []access.Listener{{ID: listener, Transport: d.Transport, Endpoint: d.Listener}}, DisplayEndpoints: []access.DisplayEndpoint{{ID: display, Endpoint: d.Display}}, Tags: []string{}, Settings: access.Settings{Schema: 1, Data: data}, Stamp: stamp}
+	for _, payload := range d.ServerPayloads {
+		cid, err := newID()
+		if err != nil {
+			return out, err
+		}
+		out.serverCredentials = append(out.serverCredentials, access.Credential{ID: cid, OwnerInboundID: &out.inbound.ID, Kind: payload.Kind(), Schema: 1, State: "active", Payload: payload, Stamp: stamp})
+	}
 	for _, u := range d.Users {
 		aid, err := newID()
 		if err != nil {
@@ -137,7 +142,7 @@ func (s *Service) creationResources(d ports.CreationDraft, node identity.ID, cod
 	return out, nil
 }
 func (res creationResources) intent(revision identity.Revision) ports.RuntimeIntent {
-	in := ports.RuntimeIntent{Inbound: res.inbound, Revision: revision}
+	in := ports.RuntimeIntent{Inbound: res.inbound, Revision: revision, ServerCredentials: res.serverCredentials}
 	for n, b := range res.bindings {
 		if b.Enabled && res.accounts[n].Enabled {
 			in.Bindings = append(in.Bindings, b)
@@ -201,6 +206,11 @@ func (s *Service) ApplyCreation(ctx context.Context, protocol string, req ApplyR
 	}, func(w ports.Writer) error {
 		if err := w.CreateInbound(res.inbound); err != nil {
 			return err
+		}
+		for _, c := range res.serverCredentials {
+			if err := w.CreateCredential(c); err != nil {
+				return err
+			}
 		}
 		for _, p := range res.policies {
 			if err := w.CreatePolicy(p); err != nil {

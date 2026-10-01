@@ -43,7 +43,11 @@ func (p ProtocolPlaceholder) BuildClientProfile(context.Context, ports.Authorize
 
 type EnginePlaceholder struct{ Info ports.EngineMetadata }
 
-func (e EnginePlaceholder) Metadata() ports.EngineMetadata     { return e.Info }
+func (e EnginePlaceholder) Metadata() ports.EngineMetadata {
+	m := e.Info
+	m.Protocols = slices.Clone(m.Protocols)
+	return m
+}
 func (e EnginePlaceholder) Capabilities() ports.Capabilities   { return UnavailableCapabilities() }
 func (e EnginePlaceholder) Supports(ports.RuntimeIntent) error { return notImplemented() }
 func (e EnginePlaceholder) Compile(context.Context, ports.RuntimeIntent) (ports.PreparedRuntime, error) {

@@ -10,7 +10,7 @@
     "design_maturity": "Thirteen Foundation and experimental Snell/Hysteria2 routes implemented; unrelated routes deferred."
   },
   "info": {
-    "title": "Splicore API v1 — Foundation contract",
+    "title": "Splicore API v1 \u2014 Foundation contract",
     "version": "0.0.0-foundation",
     "description": "Splicore API v1: Foundation and experimental Snell/Hysteria2 operations over protected Linux UDS. Marked unrelated routes remain deferred."
   },
@@ -1058,12 +1058,13 @@
               "enum": [
                 "snell",
                 "hysteria2",
-                "tuic"
+                "tuic",
+                "vless"
               ]
             }
           }
         ],
-        "x-implementation-status": "phase4",
+        "x-implementation-status": "phase5",
         "responses": {
           "200": {
             "description": "Success",
@@ -1160,12 +1161,13 @@
               "enum": [
                 "snell",
                 "hysteria2",
-                "tuic"
+                "tuic",
+                "vless"
               ]
             }
           }
         ],
-        "x-implementation-status": "phase4",
+        "x-implementation-status": "phase5",
         "responses": {
           "200": {
             "description": "Success",
@@ -1262,12 +1264,13 @@
               "enum": [
                 "snell",
                 "hysteria2",
-                "tuic"
+                "tuic",
+                "vless"
               ]
             }
           }
         ],
-        "x-implementation-status": "phase4",
+        "x-implementation-status": "phase5",
         "responses": {
           "200": {
             "description": "Success",
@@ -1504,13 +1507,7 @@
             ]
           },
           "features": {
-            "type": "object",
-            "additionalProperties": {
-              "type": [
-                "boolean",
-                "string"
-              ]
-            }
+            "$ref": "#/components/schemas/CapabilityFeatures"
           },
           "qualified_clients": {
             "type": "array",
@@ -1534,6 +1531,12 @@
                 "evidence"
               ]
             }
+          },
+          "engine_implementations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EngineImplementation"
+            }
           }
         },
         "required": [
@@ -1541,7 +1544,8 @@
           "wire_version",
           "availability",
           "qualification",
-          "features"
+          "features",
+          "engine_implementations"
         ]
       },
       "AccountSpec": {
@@ -2554,6 +2558,12 @@
             "maxLength": 255,
             "pattern": "^[A-Za-z0-9_+/=-]+$",
             "writeOnly": true
+          },
+          "engine": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Implementation placement, independent of protocol identity. xray is a non-running placeholder."
           }
         },
         "required": [
@@ -2819,72 +2829,7 @@
             "type": "string"
           },
           "protocol": {
-            "oneOf": [
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                  "protocol": {
-                    "const": "snell"
-                  },
-                  "wire_version": {
-                    "type": "string",
-                    "enum": [
-                      "5",
-                      "6"
-                    ]
-                  },
-                  "feature_profile": {
-                    "const": "base"
-                  }
-                },
-                "required": [
-                  "protocol",
-                  "wire_version",
-                  "feature_profile"
-                ]
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                  "protocol": {
-                    "const": "hysteria2"
-                  },
-                  "wire_version": {
-                    "const": "2"
-                  },
-                  "feature_profile": {
-                    "const": "base"
-                  }
-                },
-                "required": [
-                  "protocol",
-                  "wire_version",
-                  "feature_profile"
-                ]
-              },
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                  "protocol": {
-                    "const": "tuic"
-                  },
-                  "wire_version": {
-                    "const": "5"
-                  },
-                  "feature_profile": {
-                    "const": "base"
-                  }
-                },
-                "required": [
-                  "protocol",
-                  "wire_version",
-                  "feature_profile"
-                ]
-              }
-            ]
+            "$ref": "#/components/schemas/ProtocolIdentity"
           },
           "listeners": {
             "type": "array",
@@ -2933,6 +2878,12 @@
           "updated_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "engine": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Implementation placement, independent of protocol identity. xray is a non-running placeholder."
           }
         },
         "required": [
@@ -2947,7 +2898,8 @@
           "settings",
           "revision",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "engine"
         ]
       },
       "RuntimeStats": {
@@ -3141,7 +3093,7 @@
             "minLength": 12,
             "maxLength": 255,
             "writeOnly": true,
-            "description": "12–255 UTF-8 bytes, no Unicode whitespace/control characters. Omission generates; null/empty rejects."
+            "description": "12\u2013255 UTF-8 bytes, no Unicode whitespace/control characters. Omission generates; null/empty rejects."
           },
           "traffic_policy": {
             "$ref": "#/components/schemas/PolicyMetadata"
@@ -3212,6 +3164,12 @@
             "items": {
               "$ref": "#/components/schemas/Hysteria2User"
             }
+          },
+          "engine": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Implementation placement, independent of protocol identity. xray is a non-running placeholder."
           }
         },
         "required": [
@@ -3281,6 +3239,15 @@
           },
           "policy_enforced": {
             "const": false
+          },
+          "protocol": {
+            "$ref": "#/components/schemas/ProtocolIdentity"
+          },
+          "engine": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Implementation placement, independent of protocol identity. xray is a non-running placeholder."
           }
         },
         "required": [
@@ -3290,7 +3257,9 @@
           "display_endpoint",
           "users",
           "tls_verification",
-          "policy_enforced"
+          "policy_enforced",
+          "protocol",
+          "engine"
         ]
       },
       "Hysteria2Apply": {
@@ -3408,7 +3377,8 @@
             "enum": [
               "mihomo",
               "sing-box",
-              "surge"
+              "surge",
+              "uri"
             ]
           },
           "client_version": {
@@ -3419,10 +3389,9 @@
           }
         },
         "required": [
-          "format",
-          "client_version"
+          "format"
         ],
-        "description": "binding_id required when multiple Bindings exist. Disabled/unavailable identities reject."
+        "description": "binding_id required when multiple Bindings exist. Disabled/unavailable identities reject. URI accepts an omitted/empty client_version; pinned config clients require their exact version."
       },
       "ClientExportResult": {
         "type": "object",
@@ -3445,7 +3414,7 @@
           },
           "content": {
             "type": "string",
-            "description": "Authorized PSK/UUID/password client material, never TLS private keys."
+            "description": "Explicit authorized UUID/PSK/password plus public TLS/REALITY client material. Server private keys and internal target are forbidden."
           },
           "content_shape": {
             "type": "string",
@@ -3453,7 +3422,8 @@
               "mihomo-node",
               "sing-box-outbound",
               "surge-declaration",
-              "mihomo-config-fragment"
+              "mihomo-config-fragment",
+              "vless-uri"
             ]
           }
         },
@@ -3542,7 +3512,7 @@
             "minLength": 12,
             "maxLength": 255,
             "writeOnly": true,
-            "description": "12–255 UTF-8 bytes, no Unicode whitespace/control characters. Omission generates; null/empty rejects."
+            "description": "12\u2013255 UTF-8 bytes, no Unicode whitespace/control characters. Omission generates; null/empty rejects."
           },
           "traffic_policy": {
             "$ref": "#/components/schemas/PolicyMetadata"
@@ -3631,6 +3601,12 @@
             "items": {
               "$ref": "#/components/schemas/TUICUser"
             }
+          },
+          "engine": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Implementation placement, independent of protocol identity. xray is a non-running placeholder."
           }
         },
         "required": [
@@ -3653,6 +3629,9 @@
           },
           {
             "$ref": "#/components/schemas/TUICDocument"
+          },
+          {
+            "$ref": "#/components/schemas/VLESSDocument"
           }
         ]
       },
@@ -3713,6 +3692,15 @@
           },
           "policy_enforced": {
             "const": false
+          },
+          "protocol": {
+            "$ref": "#/components/schemas/ProtocolIdentity"
+          },
+          "engine": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Implementation placement, independent of protocol identity. xray is a non-running placeholder."
           }
         },
         "required": [
@@ -3722,7 +3710,9 @@
           "display_endpoint",
           "users",
           "tls_verification",
-          "policy_enforced"
+          "policy_enforced",
+          "protocol",
+          "engine"
         ]
       },
       "CreationApplied": {
@@ -3797,6 +3787,471 @@
           "digest",
           "revision"
         ]
+      },
+      "ProtocolIdentity": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "protocol": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "wire_version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "feature_profile": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "protocol",
+          "wire_version",
+          "feature_profile"
+        ]
+      },
+      "CapabilityFeatures": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "implementation": {
+            "type": "string"
+          },
+          "tcp": {
+            "type": "boolean"
+          },
+          "udp_transport": {
+            "type": "boolean"
+          },
+          "udp_payload": {
+            "type": "boolean"
+          },
+          "ipv4": {
+            "type": "boolean"
+          },
+          "ipv6": {
+            "type": "boolean"
+          },
+          "domain_endpoint": {
+            "type": "boolean"
+          },
+          "multi_user_native": {
+            "type": "boolean"
+          },
+          "per_user_stats": {
+            "type": "boolean"
+          },
+          "hot_user_update": {
+            "type": "boolean"
+          },
+          "hot_reload": {
+            "type": "boolean"
+          },
+          "tls": {
+            "type": "boolean"
+          },
+          "reality": {
+            "type": "boolean"
+          },
+          "vision": {
+            "type": "boolean"
+          },
+          "native_stats": {
+            "type": "string",
+            "enum": [
+              "native",
+              "unsupported",
+              "adapter_pending"
+            ]
+          },
+          "attributed_payload": {
+            "type": "string",
+            "enum": [
+              "native",
+              "unsupported",
+              "adapter_pending"
+            ]
+          },
+          "quota": {
+            "type": "string",
+            "enum": [
+              "native",
+              "unsupported",
+              "adapter_pending"
+            ]
+          },
+          "speed_limit": {
+            "type": "string",
+            "enum": [
+              "native",
+              "unsupported",
+              "adapter_pending"
+            ]
+          },
+          "max_sessions": {
+            "type": "string",
+            "enum": [
+              "native",
+              "unsupported",
+              "adapter_pending"
+            ]
+          },
+          "user_mutation": {
+            "type": "string",
+            "enum": [
+              "restart",
+              "hot",
+              "unavailable"
+            ]
+          },
+          "listener_mutation": {
+            "type": "string",
+            "enum": [
+              "restart",
+              "hot",
+              "unavailable"
+            ]
+          },
+          "supported_flows": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "supported_transports": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "implementation",
+          "tcp",
+          "udp_transport",
+          "udp_payload",
+          "ipv4",
+          "ipv6",
+          "domain_endpoint",
+          "multi_user_native",
+          "per_user_stats",
+          "hot_user_update",
+          "hot_reload",
+          "tls",
+          "reality",
+          "vision",
+          "native_stats",
+          "attributed_payload",
+          "quota",
+          "speed_limit",
+          "max_sessions",
+          "user_mutation",
+          "listener_mutation"
+        ]
+      },
+      "EngineImplementation": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "engine": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Implementation placement, independent of protocol identity. xray is a non-running placeholder."
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "compiled",
+              "not_compiled",
+              "unsupported_platform"
+            ]
+          },
+          "runtime_implemented": {
+            "type": "boolean"
+          },
+          "features": {
+            "$ref": "#/components/schemas/CapabilityFeatures"
+          }
+        },
+        "required": [
+          "engine",
+          "availability",
+          "runtime_implemented",
+          "features"
+        ]
+      },
+      "RealityPublicSettings": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "public_key": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{43}$",
+            "description": "Optional during generation; supplied value requires matching private key; persisted value is required."
+          },
+          "short_ids": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "string",
+              "pattern": "^(?:[0-9A-Fa-f]{2}){0,8}$"
+            },
+            "description": "Empty/omitted list means the all-zero ID. Reject duplicate padded identities."
+          },
+          "server_name": {
+            "type": "string",
+            "maxLength": 253
+          },
+          "target": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              }
+            },
+            "required": [
+              "host",
+              "port"
+            ]
+          }
+        },
+        "required": [
+          "server_name",
+          "target"
+        ]
+      },
+      "VLESSSettings": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "security": {
+                "const": "none"
+              },
+              "flow": {
+                "const": "none"
+              },
+              "transport": {
+                "const": "tcp"
+              },
+              "packet_encoding": {
+                "const": "xudp"
+              }
+            },
+            "required": [
+              "security",
+              "flow",
+              "transport",
+              "packet_encoding"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "security": {
+                "const": "tls"
+              },
+              "flow": {
+                "type": "string",
+                "enum": [
+                  "none"
+                ],
+                "description": "Only flow-none is supported. Vision is deferred and rejected."
+              },
+              "transport": {
+                "const": "tcp"
+              },
+              "packet_encoding": {
+                "const": "xudp"
+              },
+              "tls": {
+                "$ref": "#/components/schemas/StaticTLS"
+              }
+            },
+            "required": [
+              "security",
+              "flow",
+              "transport",
+              "packet_encoding",
+              "tls"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "security": {
+                "const": "reality"
+              },
+              "flow": {
+                "type": "string",
+                "enum": [
+                  "none"
+                ],
+                "description": "Only flow-none is supported. Vision is deferred and rejected."
+              },
+              "transport": {
+                "const": "tcp"
+              },
+              "packet_encoding": {
+                "const": "xudp"
+              },
+              "reality": {
+                "$ref": "#/components/schemas/RealityPublicSettings"
+              }
+            },
+            "required": [
+              "security",
+              "flow",
+              "transport",
+              "packet_encoding",
+              "reality"
+            ]
+          }
+        ]
+      },
+      "VLESSUser": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "account_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          },
+          "traffic_policy": {
+            "$ref": "#/components/schemas/PolicyMetadata"
+          },
+          "uuid": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            "writeOnly": true,
+            "description": "Canonical nonzero dashed UUID; omission generates a secure v4 UUID."
+          },
+          "account_enabled": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "account_name"
+        ],
+        "description": "Canonical nonzero UUID or omission for secure v4 generation. Complete UUID is a credential secret."
+      },
+      "VLESSDocument": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schema": {
+            "const": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "listener": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              }
+            },
+            "required": [
+              "host",
+              "port"
+            ]
+          },
+          "display_endpoint": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              }
+            },
+            "required": [
+              "host",
+              "port"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/VLESSSettings"
+          },
+          "policy_mode": {
+            "const": "metadata_only"
+          },
+          "users": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 16,
+            "items": {
+              "$ref": "#/components/schemas/VLESSUser"
+            }
+          },
+          "engine": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "Implementation placement, independent of protocol identity. xray is a non-running placeholder."
+          },
+          "server_secret": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "private_key": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{43}$",
+                "writeOnly": true,
+                "description": "Server-only X25519 private key; encrypted inbound-owned credential. Omission generates; never returned."
+              }
+            },
+            "required": []
+          }
+        },
+        "required": [
+          "schema",
+          "name",
+          "listener",
+          "display_endpoint",
+          "settings",
+          "users"
+        ],
+        "description": "VLESS wire 0, independent native engine, TCP/XUDP and typed security. No arbitrary transports or raw engine configuration. server_secret is allowed only for REALITY."
+      },
+      "VLESSPlan": {
+        "$ref": "#/components/schemas/CreationPlan"
+      },
+      "VLESSApplied": {
+        "$ref": "#/components/schemas/CreationApplied"
       }
     },
     "parameters": {

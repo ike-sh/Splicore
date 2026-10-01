@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: All developers and security reviewers
-- Last reviewed: 2026-10-01
+- Last reviewed: 2026-10-02
 - Owner: Security maintainers
 - Responsibility: Secret handling, transport authorization, imports, files and executable trust.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -71,3 +71,21 @@ UUID/password are both secret values in typed encrypted Credential. No default
 metadata/doctor/journal/error/log reveal; scoped export returns the pair. Shared TLS
 loader/password rules retain Linux owner/mode, trust/SNI/snapshot protection. Wrong
 UUID/password combinations fail before routing. No qualified v4/token/0-RTT/insecure.
+
+## REALITY key and export boundary
+
+REALITY private key is an inbound-owned typed X25519 server secret in the existing
+encrypted Credential vault. Standard-library X25519 generates/derives keys; no new
+cryptographic scheme. Public settings carry public key, short IDs, SNI and target;
+write-only server_secret carries optional private input. Client projection has no
+server-secret field/reader. UUID remains secret despite being a user identifier.
+Ordinary GET/doctor/errors/journal/logs omit UUID/private key; authorized export may
+reveal UUID and public client fields only. Blocking tests traverse Mihomo/sing-box/
+URI/API outputs. Synthetic external fixtures and raw DB/log checks cover leak gates.
+Crash dumps/support bundles remain sensitive; no perfect Go heap zeroization claim.
+
+Display endpoint, listener, SNI and target stay distinct typed values. Wrong REALITY
+auth can invoke camouflage fallback but must not route authenticated user payload.
+Vision's upstream race/checkptr defects require fail-closed rejection before
+commit, TLS material access, runtime construction or export. Capability Vision=false;
+no sanitizer suppression or upstream patch. [Decision](../adr/0017-defer-vision-dependency-safety.md).

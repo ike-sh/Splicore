@@ -24,7 +24,7 @@ func TestFoundationDaemonLifecycle(t *testing.T) {
 	for {
 		system, err := client.System(context.Background())
 		if err == nil {
-			if system.DBSchema != 3 || system.Health != "healthy" {
+			if system.DBSchema != 4 || system.Health != "healthy" {
 				t.Fatal("runtime maturity overstated")
 			}
 			break

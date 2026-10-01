@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"fmt"
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	"github.com/sagernet/sing-box/internal/splicore/domain/policy"
@@ -16,7 +17,12 @@ import (
 	"time"
 )
 
-func TestSchema2To3PreservesPopulatedSnellStateCiphertextAndConstraints(t *testing.T) {
+func TestSchema2And3ToCurrentPreservePopulatedSnellStateCiphertextAndConstraints(t *testing.T) {
+	for _, from := range []int{2, 3} {
+		t.Run(fmt.Sprint(from), func(t *testing.T) { testPopulatedForwardMigration(t, from) })
+	}
+}
+func testPopulatedForwardMigration(t *testing.T, from int) {
 	ctx := context.Background()
 	dir := filepath.Join(t.TempDir(), "private")
 	if e := os.Mkdir(dir, 0700); e != nil {
@@ -29,7 +35,7 @@ func TestSchema2To3PreservesPopulatedSnellStateCiphertextAndConstraints(t *testi
 	}
 	db.SetMaxOpenConns(1)
 	defer db.Close()
-	if e = migrate(ctx, db, migrations()[:2]); e != nil {
+	if e = migrate(ctx, db, migrations()[:from]); e != nil {
 		t.Fatal(e)
 	}
 	opts := options(t)
@@ -81,7 +87,7 @@ func TestSchema2To3PreservesPopulatedSnellStateCiphertextAndConstraints(t *testi
 	}
 	defer migrated.Close()
 	state, e := migrated.State(ctx)
-	if e != nil || state.Schema != 3 || state.NodeID != node || state.Revision != 1 || state.PendingTransactions != 0 {
+	if e != nil || state.Schema != 4 || state.NodeID != node || state.Revision != 1 || state.PendingTransactions != 0 {
 		t.Fatal("authority changed", e)
 	}
 	var after []byte
@@ -142,6 +148,14 @@ func TestSchema2To3PreservesPopulatedSnellStateCiphertextAndConstraints(t *testi
 	}
 	if e = integrity(ctx, migrated.db); e != nil {
 		t.Fatal(e)
+	}
+	server := access.Credential{ID: newID(t), OwnerInboundID: &i.ID, Kind: access.PrivateKey, Schema: 1, State: "active", Payload: access.PrivateKeyPayload{Algorithm: "x25519", Material: secret.New("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")}, Stamp: stamp}
+	if _, e = migrated.Transact(ctx, 2, actor(t), func(w ports.Writer) error { return w.CreateCredential(server) }); e != nil {
+		t.Fatal("generic server key kind", e)
+	}
+	serverKeys, e := migrated.RevealInboundCredentials(ctx, i.ID)
+	if e != nil || len(serverKeys) != 1 || serverKeys[0].Payload.(access.PrivateKeyPayload).Material.Reveal() != server.Payload.(access.PrivateKeyPayload).Material.Reveal() {
+		t.Fatal("owner-bound server key roundtrip")
 	}
 	for _, suffix := range []string{"", "-wal"} {
 		data, _ := os.ReadFile(path + suffix)

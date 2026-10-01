@@ -5,7 +5,7 @@ modular, extensible server architecture as its target.
 
 ## Status
 
-**Early Development / Snell, Hysteria2 and TUIC Experimental.** Phases 0–4 are locally frozen.
+**Early Development / Snell, Hysteria2, TUIC and VLESS Experimental.** Phases 0–4 are locally frozen.
 Phase 2 implements Snell v5/v6 using committed SQLite state, the existing sing-box
 data plane, payload stats, protected Linux API/CLI and client exporters. Pinned
 Mihomo and sing-box clients pass actual TCP/UDP tests. Surge has contract tests only.
@@ -15,8 +15,10 @@ Phase 3 adds Hysteria2 using the pinned native QUIC/TLS implementation, encrypte
 password credentials, multi-user Bindings, static TLS, TCP/UDP and per-Binding
 payload stats. Mihomo 1.19.30 and sing-box 1.14.1 pass trusted-CA traffic tests.
 Phase 3 is locally frozen. Phase 4 freezes TUIC v5 with shared TLS/QUIC,
-registered creation and Binding attribution. Phase 5 has a reserved branch;
-VLESS/REALITY implementation has not started. See [Hysteria2 support](docs/protocol/HYSTERIA2.md),
+registered creation and Binding attribution. Phase 5 implements a native VLESS/REALITY
+candidate with separate Protocol and Engine identities. Vision is **DEFERRED / UNSUPPORTED**
+and rejected before runtime or export. Flow-none VLESS/REALITY uses default safety
+checks; see the [final acceptance report](docs/reports/PHASE_5_FINAL_ACCEPTANCE_REPORT.md). See [Hysteria2 support](docs/protocol/HYSTERIA2.md),
 [workflow](docs/development/PHASE_3_HYSTERIA2.md) and
 [Phase 3 report](docs/reports/PHASE_3_HYSTERIA2_VERTICAL_SLICE_REPORT.md).
 
@@ -52,14 +54,14 @@ See the [architecture overview](docs/ARCHITECTURE.md) for the design and its lim
 
 ## Protocol Direction
 
-Snell, Hysteria2 and TUIC have bounded experimental profiles. Other rows are planned targets.
+Snell, Hysteria2, TUIC and VLESS have bounded experimental profiles. Other rows are planned targets.
 
 | Protocol / capability | Planned engine |
 | --- | --- |
 | Snell | Native: v5 no obfs, v6 default; experimental |
 | Hysteria2 | Native: static TLS, password multi-user, TCP/UDP; experimental |
 | TUIC | Native: v5, static TLS, UUID/password, cubic/native UDP; experimental |
-| VLESS / REALITY | Native |
+| VLESS / REALITY | Native: TCP/XUDP, UUID, plain/static TLS/REALITY; experimental; Vision deferred/unsupported |
 | Mieru | Planned native integration |
 | FinalMask / Sudoku | Future Xray compatibility engine |
 
@@ -101,8 +103,11 @@ wording in the unchanged [LICENSE](LICENSE).
 <!--
 Documentation status: Canonical
 Audience: Project visitors and developers
-Last reviewed: 2026-10-01
+Last reviewed: 2026-10-02
 Owner: Project maintainers
 Responsibility: Project identity, development status and documentation entry point.
 Lifecycle: Update with project status and navigation; keep detailed specifications in docs.
 -->
+
+See [VLESS support and blockers](docs/protocol/VLESS.md), [Phase 5 workflow](docs/development/PHASE_5_VLESS.md)
+and [Phase 5 report](docs/reports/PHASE_5_VLESS_REALITY_NATIVE_VERTICAL_SLICE_REPORT.md).

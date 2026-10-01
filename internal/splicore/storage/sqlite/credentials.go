@@ -16,6 +16,8 @@ import (
 func encodePayload(payload access.Payload) ([]byte, error) {
 	var fields []string
 	switch p := payload.(type) {
+	case access.PrivateKeyPayload:
+		fields = []string{p.Algorithm, p.Material.Reveal()}
 	case access.PSKPayload:
 		fields = []string{p.Key.Reveal()}
 	case access.PasswordPayload:
@@ -39,6 +41,8 @@ func decodePayload(kind access.CredentialKind, b []byte) (access.Payload, error)
 	}
 	var p access.Payload
 	switch {
+	case kind == access.PrivateKey && len(f) == 2:
+		p = access.PrivateKeyPayload{Algorithm: f[0], Material: secret.New(f[1])}
 	case kind == access.PSK && len(f) == 1:
 		p = access.PSKPayload{Key: secret.New(f[0])}
 	case kind == access.Password && len(f) == 1:

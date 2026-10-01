@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Developers and decision reviewers
-- Last reviewed: 2026-10-01
+- Last reviewed: 2026-10-02
 - Owner: Core maintainers
 - Responsibility: ADR 0005 rationale, alternatives, consequences and decision review triggers.
 - Lifecycle: Preserve decision rationale; update reviewed status and link superseding ADRs.
@@ -32,3 +32,10 @@ Engine translators can change without replacing domain tables. Unsupported stric
 Review ABI/source contract changes and needed runtime hooks with actual new protocol prototypes; binary plugin loading is outside the current design.
 
 Details: [architecture specification](../architecture/PROTOCOL_SDK.md).
+
+## Phase 5 realization
+
+[ADR 0016](0016-vless-engine-server-secrets.md) realizes separate protocol/engine
+selection and native/xray implementation declarations for vless. Contract tests
+prove neutral domain intent without running Xray. The richer future engine and
+policy contracts retain their proposed status.

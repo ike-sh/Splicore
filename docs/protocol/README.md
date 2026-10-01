@@ -2,21 +2,21 @@
 
 - Documentation status: Canonical
 - Audience: Protocol, engine and client integration developers
-- Last reviewed: 2026-10-01
+- Last reviewed: 2026-10-02
 - Owner: Protocol maintainers
 - Responsibility: Protocol extension navigation and qualification boundaries.
 - Lifecycle: Update when a protocol specification or qualification path changes.
 
-## Current Phase 4 implementation
+## Current Phase 5 implementation candidate
 
 Snell v5/v6, Hysteria2 and TUIC v5 are implemented experimentally. See [Snell support](SNELL.md),
 [Hysteria2 support](HYSTERIA2.md), [TUIC support](TUIC.md), [interop matrix](../testing/INTEROP_MATRIX.md) and
 [Phase 4 report](../reports/PHASE_4_TUIC_VERTICAL_SLICE_REPORT.md). Phases 0–4 are
-locally frozen. Phase 5 reserves a branch only; VLESS/REALITY implementation has
-not started. Other directions below are planned.
+locally frozen. Phase 5 adds [VLESS/REALITY](VLESS.md), with native TCP/XUDP and
+separate engine placement. Vision is deferred/unsupported; every managed input/export rejects it. Other directions below are planned.
 
 Other Splicore protocol integrations are **architecture targets**. Inherited
-upstream implementations remain baseline code outside the managed Snell/HY2/TUIC adapters.
+upstream implementations remain baseline code outside the managed Snell/HY2/TUIC/VLESS adapters.
 This index points to existing bounded specifications in `architecture/`;
 no mass file relocation is needed.
 
@@ -51,3 +51,5 @@ the owning canonical spec and relevant API/profile contracts, with an ADR when
 the durable choice warrants one. New settings do not become Account credential
 columns. Unsupported policy or client features reject explicitly. See
 [policy](../DOCUMENTATION_POLICY.md) and [architecture map](../architecture/README.md).
+
+- [ADR 0016](../adr/0016-vless-engine-server-secrets.md): candidate engine placement and generic server-secret boundary.

@@ -78,3 +78,14 @@ and full HY2/Snell regressions. Docs/OpenAPI/live responses, secret/diff/index a
 protected-source gates apply. Shared refactors preserve TLS/private files, attribution,
 pending admission, compensation and port release. Account disable uses production
 creation/recovery rather than SQL state mutation.
+
+## Phase 5 supported-surface safety
+
+Vision is deferred/unsupported under [ADR 0017](../adr/0017-defer-vision-dependency-safety.md).
+Config/API/CLI/import, protocol, runtime builder, ClientProfile and exporters must
+reject it; a fake engine construction counter remains zero and bypassed validation
+must not commit SQLite state. Flow-none native tests cover plain/TLS/REALITY single
+and dual users, 16 concurrency, 4 MiB integrity, reconnect and abnormal close under
+default race/checkptr. Fixed-version real clients verify the non-Vision matrix and
+secret gates. [Final evidence](../reports/PHASE_5_FINAL_ACCEPTANCE_REPORT.md) owns
+actual outcomes; preserve earlier diagnostic failures and frozen Phase 0–4 reports.

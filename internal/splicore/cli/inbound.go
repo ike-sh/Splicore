@@ -54,14 +54,10 @@ func inboundCLI(ctx context.Context, args []string, out, errOut io.Writer, deps 
 	if args[1] == "validate" {
 		b, e := boundedFile(*file)
 		if e == nil {
-			p, _, _, er := registry.Phase4()
+			p, engines, _, er := registry.Phase5()
 			e = er
 			if e == nil {
-				codec, er := p.Creation(*protocol)
-				e = er
-				if e == nil {
-					_, e = codec.DecodeCreation(b)
-				}
+				_, e = p.DecodeCreation(engines, *protocol, b)
 			}
 		}
 		if e != nil {

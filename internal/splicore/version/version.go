@@ -8,7 +8,7 @@ import (
 
 const (
 	ConfigSchema   = 1
-	DatabaseSchema = 3
+	DatabaseSchema = 4
 	ProtocolABI    = 1
 	APIVersion     = "v1"
 )

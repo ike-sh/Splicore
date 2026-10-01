@@ -2,16 +2,17 @@
 
 - Documentation status: Canonical
 - Audience: Core developers and architecture reviewers
-- Last reviewed: 2026-10-01
+- Last reviewed: 2026-10-02
 - Owner: Core maintainers
 - Responsibility: Overall boundaries, dependency direction, invariants and implementation gates.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-## Locally frozen Phase 4 implementation
+## Current Phase 5 implementation candidate
 
 The Account → Binding → Credential → Inbound → Native Engine → stats → ClientProfile/export
-path supports experimental Snell v5/v6, Hysteria2 and TUIC v5. Phase 4 is locally
-frozen; Phase 5 reserves a branch without VLESS/REALITY implementation. HY2 adds generic encrypted
+path supports experimental Snell v5/v6, Hysteria2, TUIC v5 and native VLESS/REALITY.
+Phases 0–4 are locally frozen; Phase 5 supports flow-none VLESS/REALITY. Vision
+is DEFERRED / UNSUPPORTED and rejected before runtime construction or export. HY2 adds generic encrypted
 passwords, multiple Bindings, static TLS and owned QUIC/UDP admission. One Native
 Engine dispatches protocol compilers; exporters dispatch protocol keys. Create
 transactions share pending/build/start/health/commit/activate coordination.
@@ -125,7 +126,8 @@ registration uses explicit composition; no Go `.so` loading.
 * Node is installation identity; Inbound is logical service; Listener is actual bind;
   DisplayEndpoint is what a client reaches. Egress, TLS SNI and REALITY target are separate.
 * Protocol defines wire behavior; Engine supplies implementation. Protocol version,
-  transport, security and extension feature identify compatibility. Engine selection is internal.
+  transport, security and extension feature identify compatibility. Engine placement
+  is a separate bounded command field and resolved API/domain identity.
 * Runtime configuration is generated private data. ClientProfile is a separate client contract.
 * SQLite committed domain generation is the only domain authority. Bootstrap YAML
   owns process settings, not Accounts. Imports are commands, not live files.
@@ -156,3 +158,26 @@ avoids empty per-protocol directories; real adapters can be split when introduce
 It does not automatically qualify all protocols. Public stable support requires
 third-party traffic tests and usable policy enforcement. No Mieru, Panel, new
 wire protocol, FinalMask/Sudoku port or external supervisor is implemented here.
+
+## Phase 5 fourth-protocol realization
+
+[ADR 0016](adr/0016-vless-engine-server-secrets.md) and [VLESS](protocol/VLESS.md)
+own the candidate boundary. [Phase5 composition](../internal/splicore/registry/phase5.go)
+registers one VLESS identity with plain/TLS/REALITY feature profiles. Shared engine
+selection and engine metadata permit multiple implementations per protocol. Native
+is executable; xray is a not-compiled placeholder. Domain validation stays neutral,
+while each compiler enforces placement. Contract tests prove this without Xray runtime.
+
+Generic private_key payloads extend the existing inbound-owned credential model.
+Schema 4 adds only the kind CHECK; no protocol columns or Account fields. A separate
+runtime secret port recovers encrypted server material. ClientProfile includes UUID,
+public key, short ID and SNI; excludes private key, target, listener and engine.
+
+VLESS adds 0 central protocol switches, 1 generic native placement guard, 0 Application
+protocol branches, 0 protocol-specific storage columns, 0 Account fields and 0 central
+ClientProfile cases. Engine-selector/implementation-list plumbing is generic. Phase 4
+creation/shared QUIC debt stays resolved; TCP ownership is a bounded adapter. Existing
+wire/TLS implementations and dependencies remain unchanged. Vision's upstream checkptr
+and Read/Write defects are isolated by typed rejection at all managed boundaries;
+no dependency or shared concurrency patch is carried. See [ADR 0017](adr/0017-defer-vision-dependency-safety.md)
+and the [final report](reports/PHASE_5_FINAL_ACCEPTANCE_REPORT.md).

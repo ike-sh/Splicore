@@ -23,6 +23,10 @@ type faultEngine struct {
 	handle *faultHandle
 }
 
+func (e faultEngine) Metadata() ports.EngineMetadata {
+	return ports.EngineMetadata{ID: "native", Availability: ports.Compiled, RuntimeImplemented: true, ABI: 1, Protocols: []string{"snell", "hysteria2", "tuic", "vless"}}
+}
+
 func (e faultEngine) Compile(context.Context, ports.RuntimeIntent) (ports.PreparedRuntime, error) {
 	if e.stage == "compile" {
 		return nil, identity.Err(identity.Unavailable, "runtime construction fault")

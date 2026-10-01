@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Client and exporter developers
-- Last reviewed: 2026-10-01
+- Last reviewed: 2026-10-02
 - Owner: Client maintainers
 - Responsibility: ClientProfile projection, exporter responsibility and client/version checks.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -89,3 +89,18 @@ its own specification, not a compatible replacement for an existing protocol.
 h3/QUIC/UDP and v5/cubic/native/no-0RTT options. Pinned Mihomo1.19.30 and sing-box1.14.1
 keep verification enabled and omit v4 token. Surge rejects; URI deferred. Engine
 structs/server keys never enter ClientProfile. [Actual results](../reports/PHASE_4_TUIC_VERTICAL_SLICE_REPORT.md).
+
+## VLESS / REALITY candidate
+
+VLESS ClientProfile projects display endpoint, typed secret UUID, canonical flow,
+TCP/XUDP, SNI and either explicit CA or REALITY public key/selected short ID. Server
+private key, target, actual listener and engine are absent. Mihomo 1.19.30 and
+sing-box 1.14.1 use their pinned VLESS fields; REALITY clients use chrome uTLS.
+Default-race flow-none traffic covers all REALITY endpoint types/users. Vision is
+DEFERRED / UNSUPPORTED: profiles, exporter descriptions/content and URI imports reject it.
+Initial Vision functional passes and safety failures remain historical evidence. [Actual matrix](../testing/INTEROP_MATRIX.md).
+
+URI supports a bounded plain/REALITY dialect with strict UUID, brackets, query and
+fragment escaping; client URI import remains unqualified. Explicit-CA TLS URI and
+Surge reject with UnsupportedExport. A blocking test traverses all client/API exports
+and requires the server private key to be absent. [VLESS](../protocol/VLESS.md).
