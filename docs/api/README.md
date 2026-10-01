@@ -7,6 +7,10 @@
 - Responsibility: Contract authority, semantic references and API change workflow.
 - Lifecycle: Update with contract ownership or API scope changes.
 
+## Current Phase 2 implementation
+
+OpenAPI marks nine implemented routes: two Foundation queries and seven Snell operations. Export is explicitly secret-returning; reads redact credentials. Generic resource/subscription/import routes remain deferred.
+
 ## Current state and authority
 
 The API has a **Foundation implementation** of the System and Capabilities reads.

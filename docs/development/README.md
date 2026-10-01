@@ -22,16 +22,15 @@ are frozen acceptance snapshots, not growing development logs.
 
 ## Current scope
 
-Phase 1 Foundation is frozen on `codex/phase-1-foundation`, with Phase 0 freeze
-`687425bdbfff6c76f900035068c23a03c4547062` as sole parent. The explicit freeze
-request authorizes one commit, fast-forward of `main` and preparation of
-`codex/phase-2-snell-vertical-slice`. Phase 2 implementation has not started.
-See [Foundation commands and tests](FOUNDATION.md) and its
-[dependency audit](DEPENDENCIES_PHASE_1.md).
+Phase 1 is frozen at `a2ca59e6dbf1a239feae5e471ec1914cae0f1eac`.
+Phase 2 freezes experimental Snell on `codex/phase-2-snell-vertical-slice` and main.
+Read [workflow](PHASE_2_SNELL.md) and [report](../reports/PHASE_2_SNELL_VERTICAL_SLICE_REPORT.md).
 
-No upstream runtime/protocol/wire changes; no push, origin, tag or release.
-Own command/packages/scripts and required dependencies are isolated.
-Individual proposed ADRs remain proposed; Foundation does not qualify protocols.
+The freeze permits one commit and a fast-forward of main, then preparation of
+`codex/phase-3-hysteria2-vertical-slice` and an immediate stop. Phase 3 implementation
+is not started. No push, origin, tag or release. Upstream runtime sources and
+historical reports remain unchanged; tools/binaries/logs/state stay external.
+Foundation composition remains for independent placeholder contract tests.
 
 ## Change workflow
 
@@ -59,7 +58,8 @@ The completed Phase 0 freeze included approved archived evidence and has the
 pinned upstream commit as its sole parent. Phase 1 preserves those bytes and
 keeps fresh logs/binaries/tools outside the repository. The Phase 1 freeze
 instruction supersedes the implementation-only staging/commit restriction.
-Stop after creating the Phase 2 branch; further implementation needs a new scope.
+The Phase 2 freeze request supersedes its implementation-only staging/commit
+restriction. Publication remains prohibited; the Phase 3 branch is preparation only.
 
 For Windows, the normal build's PowerShell translation is:
 

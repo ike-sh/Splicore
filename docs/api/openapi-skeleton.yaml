@@ -7,12 +7,12 @@
     "owner": "API maintainers",
     "responsibility": "Machine authority for proposed API paths, methods, parameters, schemas and responses.",
     "lifecycle": "Update with API surface changes; Markdown owns design/security/semantics.",
-    "design_maturity": "Foundation: System and Capabilities reads implemented; all other operations deferred."
+    "design_maturity": "Foundation reads and experimental Phase 2 Snell operations implemented; nine routes are marked implemented and all other operations remain deferred."
   },
   "info": {
     "title": "Splicore API v1 — Foundation contract",
     "version": "0.0.0-foundation",
-    "description": "Foundation read API; deferred operations are marked explicitly. Local HTTP uses protected Linux UDS and peer identity. No public TCP listener. JSON syntax is valid YAML."
+    "description": "Splicore API v1: Foundation queries and experimental Phase 2 Snell operations over protected Linux UDS. Other marked paths remain deferred."
   },
   "servers": [
     {
@@ -127,22 +127,16 @@
     },
     "/api/v1/inbounds": {
       "get": {
-        "operationId": "listInbounds",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/Cursor"
-          },
-          {
-            "$ref": "#/components/parameters/Limit"
-          }
-        ],
+        "operationId": "listManagedInbounds",
+        "parameters": [],
+        "x-implementation-status": "phase2",
         "responses": {
           "200": {
             "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/InboundPage"
+                  "$ref": "#/components/schemas/RuntimeInboundPage"
                 }
               }
             }
@@ -150,14 +144,19 @@
           "400": {
             "$ref": "#/components/responses/Problem"
           },
-          "403": {
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
             "$ref": "#/components/responses/Problem"
           },
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        },
-        "x-implementation-status": "deferred"
+        }
       }
     },
     "/api/v1/subscriptions": {
@@ -329,45 +328,40 @@
     },
     "/api/v1/inbounds/{id}": {
       "get": {
-        "operationId": "getInbound",
+        "operationId": "getManagedInbound",
         "parameters": [
           {
             "$ref": "#/components/parameters/ID"
           }
         ],
+        "x-implementation-status": "phase2",
         "responses": {
           "200": {
             "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Inbound"
+                  "$ref": "#/components/schemas/RuntimeInboundView"
                 }
-              }
-            },
-            "headers": {
-              "ETag": {
-                "schema": {
-                  "type": "string"
-                },
-                "description": "Quoted resource revision."
               }
             }
           },
           "400": {
             "$ref": "#/components/responses/Problem"
           },
-          "403": {
+          "404": {
             "$ref": "#/components/responses/Problem"
           },
-          "404": {
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
             "$ref": "#/components/responses/Problem"
           },
           "503": {
             "$ref": "#/components/responses/Problem"
           }
-        },
-        "x-implementation-status": "deferred"
+        }
       }
     },
     "/api/v1/accounts/{id}/bindings": {
@@ -596,6 +590,236 @@
         },
         "x-implementation-status": "deferred"
       }
+    },
+    "/api/v1/snell/validate": {
+      "post": {
+        "operationId": "snellValidate",
+        "parameters": [],
+        "x-implementation-status": "phase2",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnellValidated"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SnellDocument"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/snell/plan": {
+      "post": {
+        "operationId": "snellPlan",
+        "parameters": [],
+        "x-implementation-status": "phase2",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnellPlan"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SnellDocument"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/snell/apply": {
+      "post": {
+        "operationId": "snellApply",
+        "parameters": [],
+        "x-implementation-status": "phase2",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnellApplied"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SnellApply"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inbounds/{id}/export": {
+      "post": {
+        "operationId": "exportSnell",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "x-implementation-status": "phase2",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnellExportResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SnellExportRequest"
+              }
+            }
+          }
+        },
+        "x-secret-returning": true,
+        "description": "Explicit secret-returning operation; never used by list/get/doctor."
+      }
+    },
+    "/api/v1/inbounds/{id}/display": {
+      "post": {
+        "operationId": "setSnellDisplay",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "x-implementation-status": "phase2",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeTransaction"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DisplayUpdate"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -737,7 +961,6 @@
           "health": {
             "type": "string",
             "enum": [
-              "starting",
               "healthy",
               "degraded",
               "recovery_required"
@@ -789,6 +1012,7 @@
             "type": "string",
             "enum": [
               "unqualified",
+              "experimental",
               "beta",
               "qualified"
             ]
@@ -1765,6 +1989,610 @@
             "minimum": 0
           }
         }
+      },
+      "SnellSettings": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "type": "integer",
+            "enum": [
+              5,
+              6
+            ]
+          }
+        },
+        "required": [
+          "version"
+        ]
+      },
+      "SnellDocument": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schema": {
+            "const": 1
+          },
+          "account_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "listener": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              }
+            },
+            "required": [
+              "host",
+              "port"
+            ]
+          },
+          "display_endpoint": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              }
+            },
+            "required": [
+              "host",
+              "port"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/SnellSettings"
+          },
+          "psk": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 255,
+            "pattern": "^[A-Za-z0-9_+/=-]+$",
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "schema",
+          "account_name",
+          "name",
+          "listener",
+          "display_endpoint",
+          "settings"
+        ]
+      },
+      "SnellPlan": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/Revision"
+          },
+          "server_version": {
+            "type": "integer"
+          },
+          "listener": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              }
+            },
+            "required": [
+              "host",
+              "port"
+            ]
+          },
+          "display_endpoint": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              }
+            },
+            "required": [
+              "host",
+              "port"
+            ]
+          },
+          "single_binding": {
+            "const": true
+          }
+        },
+        "required": [
+          "digest",
+          "revision",
+          "server_version",
+          "listener",
+          "display_endpoint",
+          "single_binding"
+        ]
+      },
+      "SnellApply": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/SnellDocument"
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/Revision"
+          }
+        },
+        "required": [
+          "document",
+          "digest",
+          "revision"
+        ]
+      },
+      "RuntimeTransaction": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "committed",
+              "failed"
+            ]
+          },
+          "base_revision": {
+            "$ref": "#/components/schemas/Revision"
+          },
+          "target_revision": {
+            "$ref": "#/components/schemas/Revision"
+          },
+          "actor": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "principal": {
+                "type": "string"
+              },
+              "request_id": {
+                "$ref": "#/components/schemas/ID"
+              }
+            },
+            "required": [
+              "principal",
+              "request_id"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "failure_code": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "state",
+          "base_revision",
+          "target_revision",
+          "actor",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "SnellApplied": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "inbound_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "account_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "binding_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/RuntimeTransaction"
+          }
+        },
+        "required": [
+          "inbound_id",
+          "account_id",
+          "binding_id",
+          "transaction"
+        ]
+      },
+      "ManagedListener": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "transport": {
+            "const": "tcp"
+          },
+          "endpoint": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              }
+            },
+            "required": [
+              "host",
+              "port"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "transport",
+          "endpoint"
+        ]
+      },
+      "ManagedDisplay": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "endpoint": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              }
+            },
+            "required": [
+              "host",
+              "port"
+            ]
+          },
+          "priority": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "endpoint",
+          "priority"
+        ]
+      },
+      "RuntimeInbound": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "node_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "name": {
+            "type": "string"
+          },
+          "protocol": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "protocol": {
+                "const": "snell"
+              },
+              "wire_version": {
+                "type": "string",
+                "enum": [
+                  "5",
+                  "6"
+                ]
+              },
+              "feature_profile": {
+                "const": "base"
+              }
+            },
+            "required": [
+              "protocol",
+              "wire_version",
+              "feature_profile"
+            ]
+          },
+          "listeners": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManagedListener"
+            }
+          },
+          "display_endpoints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManagedDisplay"
+            }
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "settings": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "schema_version": {
+                "const": 1
+              },
+              "data": {
+                "const": "[REDACTED]"
+              }
+            },
+            "required": [
+              "schema_version",
+              "data"
+            ]
+          },
+          "revision": {
+            "$ref": "#/components/schemas/Revision"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "node_id",
+          "name",
+          "protocol",
+          "listeners",
+          "display_endpoints",
+          "enabled",
+          "tags",
+          "settings",
+          "revision",
+          "created_at",
+          "updated_at"
+        ]
+      },
+      "RuntimeStats": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "upload_bytes": {
+            "$ref": "#/components/schemas/Counter"
+          },
+          "download_bytes": {
+            "$ref": "#/components/schemas/Counter"
+          },
+          "sessions_total": {
+            "$ref": "#/components/schemas/Counter"
+          },
+          "sessions_active": {
+            "$ref": "#/components/schemas/Counter"
+          }
+        },
+        "required": [
+          "upload_bytes",
+          "download_bytes",
+          "sessions_total",
+          "sessions_active"
+        ]
+      },
+      "RuntimeInboundView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "inbound": {
+            "$ref": "#/components/schemas/RuntimeInbound"
+          },
+          "binding_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "account_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "health": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "degraded",
+              "stopped"
+            ]
+          },
+          "stats": {
+            "$ref": "#/components/schemas/RuntimeStats"
+          }
+        },
+        "required": [
+          "inbound",
+          "binding_id",
+          "account_id",
+          "health",
+          "stats"
+        ]
+      },
+      "RuntimeInboundPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RuntimeInboundView"
+            }
+          },
+          "snapshot_revision": {
+            "$ref": "#/components/schemas/Revision"
+          }
+        },
+        "required": [
+          "items",
+          "snapshot_revision"
+        ]
+      },
+      "SnellExportRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "mihomo",
+              "sing-box",
+              "surge"
+            ]
+          },
+          "client_version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "format",
+          "client_version"
+        ]
+      },
+      "SnellExportResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "format": {
+            "type": "string"
+          },
+          "client_version": {
+            "type": "string"
+          },
+          "server_version": {
+            "type": "integer"
+          },
+          "client_wire_version": {
+            "type": "integer"
+          },
+          "compatibility": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string",
+            "description": "Explicitly authorized secret-returning client node/outbound. Contains PSK."
+          }
+        },
+        "required": [
+          "format",
+          "client_version",
+          "server_version",
+          "client_wire_version",
+          "compatibility",
+          "content"
+        ]
+      },
+      "DisplayUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "endpoint": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              }
+            },
+            "required": [
+              "host",
+              "port"
+            ]
+          },
+          "resource_revision": {
+            "$ref": "#/components/schemas/Revision"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/Revision"
+          }
+        },
+        "required": [
+          "endpoint",
+          "resource_revision",
+          "revision"
+        ]
+      },
+      "SnellValidated": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "valid": {
+            "const": true
+          }
+        },
+        "required": [
+          "valid"
+        ]
       }
     },
     "parameters": {

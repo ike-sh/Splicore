@@ -13,25 +13,20 @@ schema version, credential kinds, maturity, provenance and qualified client pair
 Capabilities are effective intersections of protocol, Engine implementation,
 build tags/platform and requested settings; absence means unsupported, not unknown=true.
 
-## Foundation implementation
+## Implemented contracts
 
-[ports](../../internal/splicore/ports/ports.go) owns the concrete source ABI 1
-contracts; [registry](../../internal/splicore/registry/registry.go) constructs
-immutable maps with sorted iteration, duplicate/ABI rejection and typed unknown
-errors. Registration is explicit in Foundation composition, never init/.so.
-Implementations must keep their own returned values safe for concurrent reads.
+[Ports](../../internal/splicore/ports/ports.go) own ABI 1 interfaces;
+[runtime ports](../../internal/splicore/ports/runtime.go) add transient explicit
+credentials, Start/Health/Activate/Close/Stats and durable journal phases.
+[Phase 2 composition](../../internal/splicore/registry/phase2.go) explicitly
+registers Snell v5/v6, native engine and real exporters. HY2/TUIC/VLESS stay
+placeholders; Foundation composition is retained for independent contract tests.
 
-Metadata-only Snell 6, Hysteria2 2, TUIC 5 and VLESS 0 entries return
-NotImplemented for validation/runtime/profile operations. They report
-not_compiled/unqualified for the Splicore runtime adapter, independently of the
-retained upstream command. All effective traffic capabilities are false or
-unsupported; no upstream observation becomes a qualified Splicore claim.
-Grouped typed capabilities express transport versus UDP payload, endpoint
-families, identity/stats, policy, mutation, TLS/REALITY and qualified clients.
-VLESS uses actual wire version 0 from sing-vmess v0.2.8 vless/protocol.go; the
-former illustrative version 1 was not a wire specification.
-Future credential creation, normalization and probe execution ports are deferred
-until adapters need them; explicit credential access remains mandatory.
+[Snell module](../../internal/splicore/protocol/snell/snell.go) validates strict
+version settings, portable PSKs, one Binding and account-owned Credential, without
+HTTP, SQLite or NoBrand dependencies. It generates random PSKs and builds neutral
+RuntimeIntent/ClientProfile. Native userkey support exists but managed multi-user
+is deferred. See [Snell support](../protocol/SNELL.md) for effective capabilities.
 
 Conceptual typed ports below are **design notation**, not production declarations.
 The concrete value types will be defined in domain/ports before implementation.

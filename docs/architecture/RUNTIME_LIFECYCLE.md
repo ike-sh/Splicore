@@ -7,6 +7,10 @@
 - Responsibility: Startup, admission, shutdown, recovery and future child ownership.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
+## Current Phase 2 implementation
+
+Snell has Start/Health/Activate/Close, closed pending admission, raw socket tracking, idempotent shutdown and SQLite-only restart. Health is listener readiness. See [composition ADR](../adr/0013-snell-runtime-composition.md). Broader reconcile/hot reload/child contracts below remain proposed.
+
 Target Linux deployment: one systemd unit `splicore.service`, one native process,
 many logical Inbounds and internal listeners. Systemd restarts the main process;
 Splicore reconciles committed state and supervises optional children.

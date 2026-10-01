@@ -26,6 +26,9 @@ type Dependencies struct {
 }
 
 func Run(ctx context.Context, args []string, out, errOut io.Writer, deps Dependencies) int {
+	if len(args) > 0 && (args[0] == "inbound" || args[0] == "key") {
+		return inboundCLI(ctx, args, out, errOut, deps)
+	}
 	if len(args) == 0 {
 		_, _ = fmt.Fprintln(out, "Splicore foundation: version | status | doctor | capabilities | validate <file> | run --config <file>")
 		return 0
@@ -152,7 +155,7 @@ func offlineDoctor(ctx context.Context, out io.Writer, c config.Config, v versio
 		return outputJSON(out, d)
 	}
 	d.Checks = append(d.Checks, application.Check{Name: "api_transport", Status: "pass", Detail: "application response received"}, application.Check{Name: "db_schema", Status: "pass", Detail: fmt.Sprint(system.DBSchema)}, application.Check{Name: "foundation_health", Status: "info", Detail: system.Health})
-	d.Checks = append(d.Checks, application.Check{Name: "database", Status: "pass", Detail: system.Foundation.DatabaseStatus}, application.Check{Name: "migrations", Status: "info", Detail: fmt.Sprint(system.Foundation.PendingMigrations) + " pending"}, application.Check{Name: "transactions", Status: "info", Detail: fmt.Sprint(system.Foundation.PendingTransactions) + " pending"}, application.Check{Name: "engine_registry", Status: "pass", Detail: fmt.Sprint(system.Foundation.Engines) + " metadata entries; runtime deferred"}, application.Check{Name: "exporter_registry", Status: "pass", Detail: fmt.Sprint(system.Foundation.Exporters) + " placeholders"})
+	d.Checks = append(d.Checks, application.Check{Name: "database", Status: "pass", Detail: system.Foundation.DatabaseStatus}, application.Check{Name: "migrations", Status: "info", Detail: fmt.Sprint(system.Foundation.PendingMigrations) + " pending"}, application.Check{Name: "transactions", Status: "info", Detail: fmt.Sprint(system.Foundation.PendingTransactions) + " pending"}, application.Check{Name: "engine_registry", Status: "pass", Detail: fmt.Sprint(system.Foundation.Engines) + " engine entries"}, application.Check{Name: "exporter_registry", Status: "pass", Detail: fmt.Sprint(system.Foundation.Exporters) + " compiled exporters"})
 	page, err := q.Capabilities(ctx, "", 200)
 	if err == nil {
 		d.Checks = append(d.Checks, application.Check{Name: "protocol_registry", Status: "pass", Detail: fmt.Sprint(len(page.Items)) + " declared entries"})
@@ -172,6 +175,9 @@ func failure(out io.Writer, err error) int {
 	message := "foundation operation failed"
 	if errors.As(err, &e) { // Known domain errors contain no user input; callers cannot smuggle text through transports.
 		message = string(e.Code) + ": command rejected"
+		if e.Code == identity.PortConflict {
+			message = "port_conflict: listener port is already in use"
+		}
 	}
 	_, _ = fmt.Fprintln(out, message)
 	return 1

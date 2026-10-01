@@ -125,7 +125,7 @@ func TestFreshReopenExistingAndRevision(t *testing.T) {
 		t.Fatal(err)
 	}
 	initialState, err := s.State(ctx)
-	if err != nil || initialState.Schema != 1 || initialState.Revision != 0 {
+	if err != nil || initialState.Schema != 2 || initialState.Revision != 0 {
 		t.Fatal("fresh state invalid")
 	}
 	if _, err = Open(ctx, path, options(t)); !codeIs(err, identity.Unavailable) {
@@ -169,7 +169,7 @@ func TestFreshReopenExistingAndRevision(t *testing.T) {
 		t.Fatal("update not durable")
 	}
 	var count int
-	if s.db.QueryRow("SELECT count(*) FROM schema_migrations").Scan(&count) != nil || count != 1 {
+	if s.db.QueryRow("SELECT count(*) FROM schema_migrations").Scan(&count) != nil || count != 2 {
 		t.Fatal("migration repeated")
 	}
 }
@@ -222,7 +222,7 @@ func TestMigrationFailureRollsBack(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	steps := append(migrations(), migration{2, "0002_test_failure", "CREATE TABLE should_rollback(id INTEGER); INSERT INTO missing_table VALUES(1);"})
+	steps := append(migrations(), migration{3, "0003_test_failure", "CREATE TABLE should_rollback(id INTEGER); INSERT INTO missing_table VALUES(1);"})
 	if err = migrate(context.Background(), db, steps); !codeIs(err, identity.Corrupt) {
 		t.Fatal("bad migration succeeded")
 	}
@@ -236,7 +236,7 @@ func TestMigrationFailureRollsBack(t *testing.T) {
 }
 
 func TestFutureSchemaChecksumCorruptionAndMetadata(t *testing.T) {
-	for _, mutation := range []string{"INSERT INTO schema_migrations VALUES(2,'future','future','future')", "UPDATE metadata SET value='wrong' WHERE key='product'", "UPDATE metadata SET value='wrong' WHERE key='db_schema'", "UPDATE schema_migrations SET checksum='wrong'", "UPDATE nodes SET id='wrong'", "DELETE FROM nodes"} {
+	for _, mutation := range []string{"INSERT INTO schema_migrations VALUES(3,'future','future','future')", "UPDATE metadata SET value='wrong' WHERE key='product'", "UPDATE metadata SET value='wrong' WHERE key='db_schema'", "UPDATE schema_migrations SET checksum='wrong'", "UPDATE nodes SET id='wrong'", "DELETE FROM nodes"} {
 		t.Run(mutation, func(t *testing.T) {
 			ctx := context.Background()
 			path := filepath.Join(t.TempDir(), "private", "state.db")

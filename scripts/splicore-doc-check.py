@@ -109,14 +109,20 @@ def main():
         for method, operation in methods.items():
             if method in {"get", "post", "put", "patch", "delete"}:
                 operations.append(operation["operationId"])
-                assert operation["x-implementation-status"] in {"foundation", "deferred"}
-                if operation["x-implementation-status"] == "foundation":
+                assert operation["x-implementation-status"] in {"foundation", "phase2", "deferred"}
+                if operation["x-implementation-status"] in {"foundation", "phase2"}:
                     implemented.append((method, path))
     assert len(operations) == len(set(operations))
-    assert sorted(implemented) == [("get", "/api/v1/capabilities"), ("get", "/api/v1/system")]
+    assert sorted(implemented) == sorted([
+        ("get", "/api/v1/capabilities"), ("get", "/api/v1/system"),
+        ("get", "/api/v1/inbounds"), ("get", "/api/v1/inbounds/{id}"),
+        ("post", "/api/v1/snell/validate"), ("post", "/api/v1/snell/plan"),
+        ("post", "/api/v1/snell/apply"), ("post", "/api/v1/inbounds/{id}/export"),
+        ("post", "/api/v1/inbounds/{id}/display")])
+    assert spec["paths"]["/api/v1/inbounds/{id}/export"]["post"]["x-secret-returning"] is True
     assert not {"password", "psk", "token", "uuid", "secret_data"} & set(spec["components"]["schemas"]["Account"]["properties"])
     if args.responses:
-        for filename, schema in [("system-response.json", "System"), ("http-system-response.json", "System"), ("capabilities-response.json", "CapabilityPage")]:
+        for filename, schema in [("system-response.json", "System"), ("http-system-response.json", "System"), ("capabilities-response.json", "CapabilityPage"), ("inbounds-response.json", "RuntimeInboundPage"), ("inbound-response.json", "RuntimeInboundView")]:
             instance = json.loads((args.responses / filename).read_text())
             document = {"$ref": "#/components/schemas/" + schema, "components": spec["components"]}
             Draft202012Validator(document, format_checker=FormatChecker()).validate(instance)

@@ -99,9 +99,10 @@ type CapabilityContext struct {
 	Platform string
 }
 type RuntimeIntent struct {
-	Inbound  access.Inbound
-	Bindings []access.Binding
-	Revision identity.Revision
+	Inbound     access.Inbound
+	Bindings    []access.Binding
+	Credentials []access.Credential
+	Revision    identity.Revision
 }
 type AuthorizedBinding struct {
 	Binding    access.Binding

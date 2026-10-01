@@ -17,13 +17,15 @@ import (
 type Code string
 
 const (
-	Invalid        Code = "invalid"
-	Conflict       Code = "revision_conflict"
-	NotFound       Code = "not_found"
-	Duplicate      Code = "duplicate"
-	NotImplemented Code = "not_implemented"
-	Unavailable    Code = "unavailable"
-	Corrupt        Code = "corrupt_state"
+	Invalid           Code = "invalid"
+	Conflict          Code = "revision_conflict"
+	NotFound          Code = "not_found"
+	Duplicate         Code = "duplicate"
+	NotImplemented    Code = "not_implemented"
+	UnsupportedExport Code = "unsupported_export"
+	PortConflict      Code = "port_conflict"
+	Unavailable       Code = "unavailable"
+	Corrupt           Code = "corrupt_state"
 )
 
 // Error contains only fixed, safe messages; never attach untrusted inputs.

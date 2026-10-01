@@ -5,13 +5,14 @@ modular, extensible server architecture as its target.
 
 ## Status
 
-**Early Development / Foundation Frozen.** Phase 1 implements an independent
-command, domain contracts, SQLite storage and a local read API. Splicore has
-**not been released as a stable proxy runtime**. Protocol runtime adapters and
-client exporters remain unimplemented placeholders.
+**Early Development / Snell Experimental.** Phase 0, Phase 1 and Phase 2 are frozen.
+Phase 2 implements Snell v5/v6 using committed SQLite state, the existing sing-box
+data plane, payload stats, protected Linux API/CLI and client exporters. Pinned
+Mihomo and sing-box clients pass actual TCP/UDP tests. Surge has contract tests only.
+Phase 2 is a local freeze; no stable Splicore runtime is released.
 
-Phase 1 is frozen locally. The Phase 2 branch is prepared; implementation has
-not started.
+See [Snell support](docs/protocol/SNELL.md), [workflow](docs/development/PHASE_2_SNELL.md)
+and the [Phase 2 report](docs/reports/PHASE_2_SNELL_VERTICAL_SLICE_REPORT.md).
 
 This checkout retains the upstream runtime for baseline verification. The
 architecture described here is not a claim of implemented Splicore support.
@@ -39,12 +40,11 @@ See the [architecture overview](docs/ARCHITECTURE.md) for the design and its lim
 
 ## Protocol Direction
 
-**All rows are planned architecture targets, not implemented or qualified
-Splicore protocol support.**
+Snell has the bounded experimental profile below. Other rows are planned targets.
 
 | Protocol / capability | Planned engine |
 | --- | --- |
-| Snell | Native |
+| Snell | Native: v5 no obfs, v6 default; experimental |
 | Hysteria2 | Native |
 | TUIC | Native |
 | VLESS / REALITY | Native |

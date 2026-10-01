@@ -7,11 +7,20 @@
 - Responsibility: Transport, security and operation semantics; OpenAPI owns endpoint surface.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-Design maturity: Foundation implements only System and Capabilities reads marked
-in OpenAPI. Import/resource/subscription operations remain contract-only. System
-adds explicit dirty identity and a typed foundation diagnostic summary; health
-is degraded with foundation_only_runtime_not_implemented and no applied_revision.
-A pending crash journal instead reports recovery_required.
+Design maturity: Foundation queries and experimental Phase 2 Snell operations
+are implemented and marked in OpenAPI. Other paths remain deferred. Protected
+local UDS access authorizes control; no public network bearer surface is enabled.
+
+Snell operations accept at most 64 KiB strict JSON. Apply checks compact-JSON HMAC
+and decimal global revision and returns 200 only after health and durable commit.
+Plans expire on daemon restart/state change. This create-only synchronous API has
+no generic Idempotency-Key/If-Match promise; requirements below apply to future
+generic routes. Metadata is one bounded committed snapshot (at most 64 Inbounds).
+Display mutation checks resource/global revisions without changing runtime.
+Export POST is explicitly secret-returning; default GET/doctor/journal/errors have
+no PSK. Unsupported client combinations return 422. Counters are decimal strings.
+Occupied listeners return `port_conflict` (409) with a fixed safe message through
+API and CLI; this differs from a revision conflict.
 
 Transport → Application Service → Domain + repository/runtime ports. HTTP handler
 performs parsing/auth/serialization only. Local CLI defaults to HTTP over Unix

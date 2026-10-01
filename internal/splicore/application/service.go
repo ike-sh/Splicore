@@ -87,6 +87,7 @@ type Queries interface {
 	Capabilities(context.Context, string, int) (CapabilityPage, error)
 }
 type Service struct {
+	runtime     *runtimeState
 	repo        ports.Repository
 	protocols   *registry.Protocols
 	engines     *registry.Engines
@@ -119,6 +120,20 @@ func (s *Service) System(ctx context.Context) (System, error) {
 	}
 	health := "degraded"
 	reasons := []string{"foundation_only_runtime_not_implemented"}
+	if s.runtime != nil {
+		health = "healthy"
+		reasons = []string{}
+		page, e := s.Inbounds(ctx)
+		if e != nil {
+			return System{}, e
+		}
+		for _, i := range page.Items {
+			if i.Health != "healthy" {
+				health = "degraded"
+				reasons = append(reasons, "native_listener_unhealthy")
+			}
+		}
+	}
 	if state.PendingTransactions > 0 {
 		health = "recovery_required"
 		reasons = append(reasons, "pending_transaction_requires_review")
@@ -171,7 +186,7 @@ func (s *Service) Capabilities(ctx context.Context, cursor string, limit int) (C
 				clients = append(clients, QualifiedClient{q.Client, q.Version, q.Evidence})
 			}
 		}
-		page.Items = append(page.Items, Capability{Protocol: key.Protocol, WireVersion: key.WireVersion, FeatureProfile: key.FeatureProfile, Availability: m.Availability, Qualification: m.Qualification, Features: Features{Implementation: "placeholder", TCP: c.Transport.TCP, UDPTransport: c.Transport.UDPTransport, UDPPayload: c.Transport.UDPPayload, IPv4: c.Transport.IPv4, IPv6: c.Transport.IPv6, DomainEndpoint: c.Transport.DomainEndpoint, NativeMultiUser: c.Identity.MultiUserNative, NativeStats: c.Identity.NativeStats, AttributedPayload: c.Identity.AttributedPayload, NativeQuota: c.Policy.Quota, NativeSpeedLimit: c.Policy.SpeedLimit, MaxSessions: c.Policy.MaxSessions, UserMutation: c.Mutation.Users, ListenerMutation: c.Mutation.Listener, HotReload: c.Mutation.HotReload, TLS: c.Security.TLS, Reality: c.Security.Reality}, QualifiedClients: clients})
+		page.Items = append(page.Items, Capability{Protocol: key.Protocol, WireVersion: key.WireVersion, FeatureProfile: key.FeatureProfile, Availability: m.Availability, Qualification: m.Qualification, Features: Features{Implementation: implementation(m.Qualification), TCP: c.Transport.TCP, UDPTransport: c.Transport.UDPTransport, UDPPayload: c.Transport.UDPPayload, IPv4: c.Transport.IPv4, IPv6: c.Transport.IPv6, DomainEndpoint: c.Transport.DomainEndpoint, NativeMultiUser: c.Identity.MultiUserNative, NativeStats: c.Identity.NativeStats, AttributedPayload: c.Identity.AttributedPayload, NativeQuota: c.Policy.Quota, NativeSpeedLimit: c.Policy.SpeedLimit, MaxSessions: c.Policy.MaxSessions, UserMutation: c.Mutation.Users, ListenerMutation: c.Mutation.Listener, HotReload: c.Mutation.HotReload, TLS: c.Security.TLS, Reality: c.Security.Reality}, QualifiedClients: clients})
 	}
 	if end < len(keys) {
 		page.NextCursor = base64.RawURLEncoding.EncodeToString(fmt.Appendf(nil, "%d:%d:%s", state.Revision, end, s.fingerprint))
@@ -196,6 +211,9 @@ func (s *Service) CreateAccount(ctx context.Context, name string, expected ident
 }
 
 func (s *Service) UpdateAccount(ctx context.Context, a access.Account, resourceRevision, globalRevision identity.Revision, actor identity.Actor) (identity.Transaction, error) {
+	if s.runtime != nil {
+		return identity.Transaction{}, identity.Err(identity.NotImplemented, "live account mutation requires runtime coordination")
+	}
 	if err := a.Validate(); err != nil {
 		return identity.Transaction{}, err
 	}
@@ -217,5 +235,12 @@ func (s *Service) Doctor(ctx context.Context, transport string) (Doctor, error) 
 	if err != nil {
 		return Doctor{}, err
 	}
-	return Doctor{Version: s.build, Checks: []Check{{"platform", "pass", s.build.Platform}, {"storage", "pass", "committed SQLite available"}, {"db_schema", "pass", strconv.Itoa(state.Schema)}, {"migrations", "pass", strconv.Itoa(state.PendingMigrations) + " pending"}, {"transactions", "info", strconv.Itoa(state.PendingTransactions) + " pending"}, {"protocol_registry", "pass", strconv.Itoa(len(s.protocols.Keys())) + " placeholders"}, {"engine_registry", "pass", strconv.Itoa(len(s.engines.Keys())) + " metadata entries; runtime deferred"}, {"exporter_registry", "pass", strconv.Itoa(len(s.exporters.Keys())) + " placeholders"}, {"api_transport", "pass", transport}}}, nil
+	return Doctor{Version: s.build, Checks: []Check{{"platform", "pass", s.build.Platform}, {"storage", "pass", "committed SQLite available"}, {"db_schema", "pass", strconv.Itoa(state.Schema)}, {"migrations", "pass", strconv.Itoa(state.PendingMigrations) + " pending"}, {"transactions", "info", strconv.Itoa(state.PendingTransactions) + " pending"}, {"protocol_registry", "pass", strconv.Itoa(len(s.protocols.Keys())) + " registered entries"}, {"engine_registry", "pass", strconv.Itoa(len(s.engines.Keys())) + " engine entries"}, {"exporter_registry", "pass", strconv.Itoa(len(s.exporters.Keys())) + " registered entries"}, {"api_transport", "pass", transport}}}, nil
+}
+
+func implementation(q string) string {
+	if q == "experimental" {
+		return "native"
+	}
+	return "placeholder"
 }

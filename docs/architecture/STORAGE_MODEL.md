@@ -7,6 +7,10 @@
 - Responsibility: Driver qualification, durability, migration mechanics, backup and corruption recovery.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
+## Current Phase 2 implementation
+
+Schema 2 adds checksummed 0002_snell without editing schema 1 history. Network I/O stays outside SQL callbacks. Explicit private Linux key files protect credentials. See [Snell support](../protocol/SNELL.md).
+
 Scope: storage operations and qualification. The [ERD](DATABASE_ERD.md) owns
 logical entities/relationships/ownership; migration files own actual
 schema history. This document specifies migration mechanics, not duplicate SQL.
@@ -55,10 +59,10 @@ ad hoc ALTER at startup. Unknown newer schema refuses writable startup.
 
 Foundation acquires an OS installation file lock before SQLite opens; startup
 validates migration sequence/checksum, product/schema/node metadata, quick_check
-and foreign keys. Schema 1 has a single embedded 0001_initial migration.
-Fresh/close/reopen/repeat/failure/future/corruption tests exist. No upgrade beyond
-schema 1 is supplied, so pre-upgrade backup orchestration is deferred; the driver
-VACUUM INTO snapshot/reopen path is tested. Runtime health is not implemented.
+and foreign keys. Schema 1 preserves 0001_initial; schema 2 adds 0002_snell.
+Fresh/close/reopen/repeat/failure/future/corruption tests exist. Pre-upgrade backup
+orchestration remains deferred; the driver VACUUM INTO snapshot/reopen path is
+tested. Managed Snell has listener health and committed-state reconstruction.
 
 If migration fails before commit, DB transaction rolls back. If an upgrade with
 committed forward migration fails health, rollback is restore of a coherent

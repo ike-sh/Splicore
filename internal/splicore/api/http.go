@@ -23,6 +23,9 @@ func Handler(service application.Queries) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
+		if snellRoute(w, r, service) {
+			return
+		}
 		if r.URL.Path != "/api/v1/system" && r.URL.Path != "/api/v1/capabilities" {
 			writeError(w, identity.Err(identity.NotFound, "unknown endpoint"))
 			return
@@ -80,7 +83,7 @@ func requestID() string {
 }
 
 func writeError(w http.ResponseWriter, err error) {
-	code, message, status := identity.Unavailable, "foundation service unavailable", http.StatusServiceUnavailable
+	code, message, status := identity.Unavailable, "service unavailable", http.StatusServiceUnavailable
 	var current *identity.Revision
 	var de *identity.Error
 	if errors.As(err, &de) {
@@ -100,6 +103,12 @@ func writeError(w http.ResponseWriter, err error) {
 		case identity.NotImplemented:
 			status = http.StatusNotImplemented
 			message = "operation not implemented"
+		case identity.UnsupportedExport:
+			status = http.StatusUnprocessableEntity
+			message = "unsupported client export"
+		case identity.PortConflict:
+			status = http.StatusConflict
+			message = "listener port is already in use"
 		}
 	}
 	writeJSON(w, status, Problem{Code: code, Message: message, RequestID: requestID(), CurrentRevision: current})

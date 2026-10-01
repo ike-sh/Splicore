@@ -7,6 +7,10 @@
 - Responsibility: Independent product, build, schema, API and client-qualification identities.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
+## Current Phase 2 implementation
+
+DatabaseSchema is now 2; ConfigSchema and ProtocolABI stay 1, API stays v1. Bootstrap key_file is optional but real credentials require it. Upstream Snell wire versions are unchanged.
+
 | Identity | Meaning / compatibility rule |
 |---|---|
 | Splicore version | product SemVer; Phase 0 has no product release/version tag |

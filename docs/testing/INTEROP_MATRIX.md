@@ -7,9 +7,33 @@
 - Responsibility: Planned third-party protocol/client qualification cells and evidence rules.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-All entries are **planned / NOT RUN for Splicore** in Phase 0. Baseline unit tests
-are not a substitute. Pin server full commit/build tags, client version/digest,
-wire feature, exporter schema and OS/network setup for each qualification row.
+Phase 2 has real Snell traffic qualification below; other profiles remain
+**planned / NOT RUN**. Pin server source/build, client version/digest, feature,
+export contract and OS/network setup for each row. Baseline unit tests are separate.
+
+## Verified experimental Snell cells
+
+| Server | Client | Client version | Server/client wire | TCP | UDP payload | IPv4 endpoint | IPv6 endpoint | Domain endpoint | Result |
+|---|---|---|---|---|---|---|---|---|---|
+| Splicore native | Mihomo | 1.19.30 | 5 / 4 | PASS | PASS | PASS | PASS | PASS | experimental PASS |
+| Splicore native | sing-box | 1.14.1 | 5 / 4 | PASS | PASS | PASS | PASS | PASS | experimental PASS |
+| Splicore native | sing-box | 1.14.1 | 6 / 6 | PASS | PASS | PASS | PASS | PASS | experimental PASS |
+| Splicore native | Mihomo | 1.19.30 | 6 / unsupported | N/A | N/A | contract | contract | contract | UnsupportedExport |
+| Splicore native | Surge | Mac 6.7.0 / iOS 5.20.0 | 5 / 4; 6 / 6 | NOT RUN | NOT RUN | contract | contract | contract | exporter contract only |
+
+Actual endpoint literals are 127.0.0.1, ::1 and localhost. Each live cell exercises
+TCP/UDP payload integrity, 16 concurrent connections, 4 MiB transfer, reconnect,
+abnormal close, session cleanup and counter growth. Wrong PSK/version/port and
+stopped server fail without panic; committed state survives actual daemon restart.
+Surge has no licensed runtime in this Linux/Windows environment. It remains
+unqualified for live traffic; its IPv6 formatting follows official host/port grammar
+without parser validation. No multi-user/policy/obfs/QUIC mode qualification.
+
+See [Phase 2 report](../reports/PHASE_2_SNELL_VERTICAL_SLICE_REPORT.md) for archive
+and executable hashes, platform gates and exact limits. The
+[workflow](../development/PHASE_2_SNELL.md) describes reproducing external evidence.
+
+## Future profile targets
 
 | Protocol/profile | Target clients | Conditions |
 |---|---|---|

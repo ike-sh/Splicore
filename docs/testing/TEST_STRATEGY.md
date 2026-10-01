@@ -7,6 +7,10 @@
 - Responsibility: Meaningful implementation/interop/failure gates and reporting scope.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
+## Current Phase 2 implementation
+
+Actual pinned clients exercise TCP/UDP integrity, IPv4/IPv6/domain endpoints, auth/version/port/stopped failures, concurrent transfers, race, restart and external evidence. See [workflow](../development/PHASE_2_SNELL.md) and [matrix](INTEROP_MATRIX.md).
+
 Phase 1 implements Foundation unit/contract/migration, process-crash, Linux
 race and endpoint/config/ID fuzz tests. Runtime/interop/accounting layers below
 remain future gates. Phase 0 actual results live in

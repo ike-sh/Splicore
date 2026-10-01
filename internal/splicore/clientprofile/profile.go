@@ -30,6 +30,7 @@ type Profile struct {
 	Credentials access.Payload     `json:"-"`
 	TLS         TLS                `json:"tls"`
 	Transport   Transport          `json:"transport"`
+	UDPPayload  bool               `json:"udp_payload"`
 	Options     access.Settings    `json:"options"`
 	Metadata    identity.Metadata  `json:"metadata"`
 }

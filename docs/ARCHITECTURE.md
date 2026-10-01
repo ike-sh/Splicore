@@ -7,9 +7,13 @@
 - Responsibility: Overall boundaries, dependency direction, invariants and implementation gates.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
+## Current Phase 2 implementation
+
+Phase 2 implements the Account → Binding → Credential → Inbound → native Snell → stats → ClientProfile/export path. Snell v5/v6 is experimental; other runtime directions below remain proposed. See [support](protocol/SNELL.md) and [report](reports/PHASE_2_SNELL_VERTICAL_SLICE_REPORT.md). Upstream runtime changes remain zero.
+
 Design maturity: Phase 1 Foundation is implemented and frozen. Domain, storage,
-application, API and CLI have tests; protocol runtime and exporter contracts
-remain placeholders. No protocol qualification is claimed.
+application, API and CLI have tests. Phase 2 realizes only managed Snell runtime
+and exporters with experimental client qualification.
 Decision status lives in the [ADR index](adr/README.md); historical validation
 scope lives in the [Phase 0 report](PHASE_0_ARCHITECTURE_REPORT.md).
 

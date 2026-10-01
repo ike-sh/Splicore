@@ -25,6 +25,34 @@ Manifest declares compatible config/DB/ABI/API and upgrade/backup requirements.
 
 ## Per-protocol rollout
 
+### Phase 2 synthetic Snell mapping
+
+The [synthetic fixture](../../tests/fixtures/nobrand/snell.json) and actual CLI
+validate/plan/apply/export tests define the bounded managed import contract.
+No real NoBrand state or installation was inspected or modified. Mapping below
+describes logical legacy values, not invented legacy files/extraction locations.
+
+| Logical NoBrand value | Canonical Snell import |
+|---|---|
+| name | `name` and explicit `account_name` |
+| listen address/port | `listener.host` (IP) / `listener.port` |
+| public address/port | `display_endpoint.host` / `display_endpoint.port` |
+| PSK | optional private `psk`; omission generates a new key |
+| version | `settings.version`: 5 or 6 |
+
+A logical legacy v4 TCP profile requires an explicitly reviewed v5-server/v4-client
+compatibility conversion; `settings.version=4` is rejected. A v5 profile depending
+on QUIC Proxy Mode cannot be migrated to this managed profile. Native multi-user
+userkey, obfs and non-default v6 modes also fail rather than being dropped.
+Preserve a supplied PSK only when it satisfies the portable validation contract;
+incompatible values need an explicitly planned rotation. Phase 2 creates fresh
+Account/Binding IDs and has no upsert/idempotent production importer.
+
+DisplayEndpoint never changes listener, routing or egress. NoBrand must use the
+Splicore application/CLI/API and explicit secret export; it must not write SQLite
+or render native server options. See [Snell workflow](../development/PHASE_2_SNELL.md).
+Real canary/production rollout and stable qualification remain deferred.
+
 | Stage | Migration gate / flag |
 |---|---|
 | A | `migration.snell`: qualified exact client/profile; Account binding/PSK+userkey model, one-account quota and reconnect |

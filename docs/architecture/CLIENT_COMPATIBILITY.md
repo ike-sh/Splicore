@@ -15,11 +15,24 @@ Committed authorized Binding + Inbound endpoint/security/settings
  → rendered config / URI / bundle
 ```
 
-Phase 1 implements the canonical profile value and Exporter contract/registry.
-Mihomo, sing-box, Surge, URI and JSON entries all return NotImplemented with no
-rendered bytes. Profile carries no Engine or server runtime configuration.
-Default JSON omits credential payload; secret access is explicit for future
-authorized exporters. No exporter or actual client traffic is qualified.
+Phase 2 implements Snell ClientProfile and Mihomo/sing-box/Surge exporters.
+Default profile JSON/formatting redacts PSK. Export is explicitly secret-returning.
+No server runtime struct/Engine ID enters the profile; no Snell URI is invented.
+
+| Server | Pinned client | Mapping / qualification |
+|---|---|---|
+| v5 no obfs | Mihomo 1.19.30 | explicit v4 client, TCP/UDP PASS |
+| v5 no obfs | sing-box 1.14.1 | explicit v4 client, TCP/UDP PASS |
+| v6 default | sing-box 1.14.1 | exact v6, TCP/UDP PASS |
+| v5/v6 | Surge Mac 6.7.0 / iOS 5.20.0 | v4/v6 contract only; live NOT RUN |
+| v6 | Mihomo 1.19.30 | UnsupportedExport |
+
+Envelope fields report server_version/client_wire_version/compatibility; v5→v4
+avoids unsupported Surge QUIC Proxy Mode. Unknown clients/features return
+unsupported_export (HTTP 422). Exported nodes/outbounds use validated raw IPv6
+host fields with separate ports; PSKs reject delimiter injection. Surge's host/port
+contract is inferred from its official grammar, without parser/runtime validation.
+See [Snell support](../protocol/SNELL.md) and [interop](../testing/INTEROP_MATRIX.md).
 
 Canonical profile contains profile ID, protocol ID/wire version/feature profile,
 DisplayEndpoint, typed client authentication, TLS (SNI/ALPN/trust/public key/short ID),

@@ -24,6 +24,7 @@ type Options struct {
 	Cipher ports.Cipher
 	// CredentialKinds is resolved from compiled protocol metadata at composition.
 	CredentialKinds func(access.ProtocolKey) ([]access.CredentialKind, error)
+	ValidateInbound func(access.Inbound) error
 }
 type Store struct {
 	db      *sql.DB
@@ -128,7 +129,7 @@ func (s *Store) State(ctx context.Context) (ports.State, error) {
 		return out, identity.Err(identity.Corrupt, "invalid committed state metadata")
 	}
 	n, err := strconv.Atoi(schema)
-	if err != nil || n != 1 || out.Revision < 0 || out.NodeID.Validate() != nil {
+	if err != nil || n != len(migrations()) || out.Revision < 0 || out.NodeID.Validate() != nil {
 		return ports.State{}, identity.Err(identity.Corrupt, "invalid committed state metadata")
 	}
 	out.Schema = n

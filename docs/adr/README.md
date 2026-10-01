@@ -27,3 +27,5 @@ See [documentation policy](../DOCUMENTATION_POLICY.md) and the
 * [0010-mieru-integration-strategy — Mieru reference to native embedding](0010-mieru-integration-strategy.md) — Proposed for maintainer review
 * [0011-upstream-sync-strategy — Stable mergeability and drift control](0011-upstream-sync-strategy.md) — Proposed for maintainer review
 * [0012-versioning-model — Independent product/schema/API identities](0012-versioning-model.md) — Proposed for maintainer review
+
+* [0013-snell-runtime-composition — Owned Snell runtime composition](0013-snell-runtime-composition.md) — Proposed for maintainer review

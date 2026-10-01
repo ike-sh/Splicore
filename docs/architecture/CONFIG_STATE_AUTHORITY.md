@@ -7,6 +7,10 @@
 - Responsibility: Bootstrap, import-command and committed-domain authority boundaries.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
+## Current Phase 2 implementation
+
+Bootstrap adds optional key_file. Snell validate/plan/apply commits domain state; restart never rereads import files. See [workflow](../development/PHASE_2_SNELL.md). Generic declarative imports below remain deferred.
+
 Decision: SQLite committed domain generation is the sole domain authority.
 No file watcher may mutate Accounts/Inbounds independently. Runtime, profiles and
 upstream JSON are derived projections with an applied generation and digest.

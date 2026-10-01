@@ -11,20 +11,26 @@ There is no atomic transaction spanning SQLite, kernel sockets and child process
 Splicore uses a durable coordinator with generation fences and compensation.
 Do not promise zero downtime or undo already transferred traffic.
 
-## Implemented Foundation transaction
+## Implemented Phase 2 transaction
 
-Phase 1 implements only pending → committed/failed and typed Actor/RequestID/
-DomainEvent contracts. The adapter first persists pending identity, then runs a
-short SQL callback with global revision check and Account resource revision check.
-Resource changes, generation advance and committed outcome publish atomically.
-On failure resources roll back and a bounded independent write marks failed.
-Failure messages are fixed safe text; arbitrary callback error strings are dropped.
+Validate → revision/HMAC plan check → compile without sockets → short SQL
+BeginOperation (`snell_create`) → Start with closed admission → listener Health
+→ short SQL commit of resources/global revision/journal → Activate.
+Invalid input and compile failures publish no resources. Start/health/storage
+failures close candidates and mark failed with an independent bounded context.
+Storage failure tests reject after Account/Inbound SQL insertion and prove rollback.
+Display updates check resource/global revisions and do not touch sockets/routes.
 
-A process crash can leave pending identity; reopening preserves committed state,
-System reports recovery_required, and new domain mutations refuse until operator
-review. There is no automatic recovery command, runtime admission or candidate
-resource reconstruction yet. Idempotency, full audit persistence and the runtime
-sequence below remain deferred; RequestID is correlation, not an idempotency key.
+Restart reconstructs committed resources only from SQLite. Interrupted create-only
+journals become failed; no candidate granted traffic before commit. Unknown pending
+Foundation operations remain fenced for review. Any failed committed restore cleans
+previously restored handles and fails startup. Crash after commit before Activate
+recovers committed state at restart. Listener Health is readiness; actual auth and
+payload qualification is provided by independent interop tests.
+
+No generic idempotency, durable candidate payload, arbitrary update recovery or
+full audit ledger is claimed. RequestID is correlation. The broader normal-mutation
+design below remains future work.
 
 ```text
 VALIDATED → PLANNED → PENDING → APPLYING → HEALTHY → COMMITTED

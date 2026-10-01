@@ -19,6 +19,7 @@ type API struct {
 type Config struct {
 	Schema         int    `json:"schema" yaml:"schema"`
 	StateDirectory string `json:"state_directory" yaml:"state_directory"`
+	KeyFile        string `json:"key_file,omitempty" yaml:"key_file,omitempty"`
 	API            API    `json:"api" yaml:"api"`
 }
 
@@ -74,6 +75,9 @@ func checkNode(n *yaml.Node, depth int) error {
 }
 
 func (c Config) Validate() error {
+	if c.KeyFile != "" && (!filepath.IsAbs(c.KeyFile) || !identity.Label(c.KeyFile, 1024)) {
+		return identity.Err(identity.Invalid, "key file must be an absolute path")
+	}
 	if c.Schema != 1 {
 		return identity.Err(identity.Invalid, "unsupported bootstrap schema")
 	}

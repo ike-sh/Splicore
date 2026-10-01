@@ -7,8 +7,12 @@
 - Responsibility: Protocol extension navigation and qualification boundaries.
 - Lifecycle: Update when a protocol specification or qualification path changes.
 
-All Splicore protocol integrations are **architecture targets**, not implemented
-or qualified support. Inherited upstream implementations remain baseline code.
+## Current Phase 2 implementation
+
+Snell is implemented experimentally for bounded v5/v6. See [Snell support](SNELL.md), [interop matrix](../testing/INTEROP_MATRIX.md) and [report](../reports/PHASE_2_SNELL_VERTICAL_SLICE_REPORT.md). Other directions below are planned.
+
+Other Splicore protocol integrations are **architecture targets**. Inherited
+upstream implementations remain baseline code outside the managed Snell adapter.
 This index points to existing bounded specifications in `architecture/`;
 no mass file relocation is needed.
 

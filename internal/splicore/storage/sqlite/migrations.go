@@ -24,7 +24,8 @@ type migration struct {
 
 func migrations() []migration {
 	b, _ := migrationFiles.ReadFile("migrations/0001_initial.sql")
-	return []migration{{1, "0001_initial", string(b)}}
+	c, _ := migrationFiles.ReadFile("migrations/0002_snell.sql")
+	return []migration{{1, "0001_initial", string(b)}, {2, "0002_snell", string(c)}}
 }
 
 func checksum(m migration) string { s := sha256.Sum256([]byte(m.SQL)); return hex.EncodeToString(s[:]) }

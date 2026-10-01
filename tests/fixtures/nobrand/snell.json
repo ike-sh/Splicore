@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "account_name": "synthetic-nobrand-account",
+  "name": "synthetic-nobrand-snell",
+  "listener": {"host": "127.0.0.1", "port": 24443},
+  "display_endpoint": {"host": "127.0.0.1", "port": 24443},
+  "settings": {"version": 5}
+}

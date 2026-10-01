@@ -83,10 +83,15 @@ func (w *writer) CreateInbound(i access.Inbound) error {
 	if err := initial(i.Stamp); err != nil {
 		return err
 	}
-	// Runtime settings schema is not implemented; no generic secret-bearing JSON persistence.
-	var fields map[string]json.RawMessage
-	if json.Unmarshal(i.Settings.Data, &fields) != nil || fields == nil || len(fields) != 0 {
-		return identity.Err(identity.NotImplemented, "protocol settings persistence is deferred")
+	if w.options.ValidateInbound != nil {
+		if err := w.options.ValidateInbound(i); err != nil {
+			return err
+		}
+	} else {
+		var fields map[string]json.RawMessage
+		if json.Unmarshal(i.Settings.Data, &fields) != nil || fields == nil || len(fields) != 0 {
+			return identity.Err(identity.NotImplemented, "protocol settings persistence is deferred")
+		}
 	}
 	if w.options.CredentialKinds == nil {
 		return identity.Err(identity.Unavailable, "protocol metadata resolver unavailable")

@@ -9,38 +9,31 @@
 
 ## Goal and current phase
 
-Splicore is an independent modular server proxy core project derived from sing-box.
-The target is unified protocol access, multi-user policy/accounting and qualified
-third-party interoperability with sustainable upstream maintenance.
+Splicore is an independent modular server proxy core derived from sing-box.
+Phase 0, Phase 1 and Phase 2 are frozen. **Current scope: the local Phase 2 freeze
+and preparation of the Phase 3 branch; implementation is not started.** Snell
+remains experimental. Only Snell is implemented. HY2, TUIC,
+VLESS/REALITY, Mieru, Xray, Panel and NoBrand production integration remain deferred.
+See [Snell support](protocol/SNELL.md), [workflow](development/PHASE_2_SNELL.md)
+and [report](reports/PHASE_2_SNELL_VERTICAL_SLICE_REPORT.md).
 
-**Current state: Phase 1 Foundation frozen; Phase 2 implementation not started.**
-The explicit freeze request authorizes one Foundation commit, fast-forward of
-`main` and creation of `codex/phase-2-snell-vertical-slice`. Own binary,
-domain values, registries, SQLite, transaction journal, shared application reads,
-API v1 and CLI now exist. Upstream runtime source changes: **NONE**. No stable
-Splicore proxy runtime, actual traffic adapters, Mieru, Xray supervisor, new wire
-protocol or Panel has been implemented. Proposed ADRs retain maintainer review status.
+## Reproducible baseline and authorization
 
-## Reproducible baseline
-
-- Upstream: SagerNet/sing-box **v1.14.1**.
-- Full upstream baseline: `1ac1a339cb1223e9c70eae14c44411c75033c02d`.
-- Phase 0 freeze branch: `codex/phase-0-architecture`; its documentation commit `687425bdbfff6c76f900035068c23a03c4547062` is the first owned Splicore commit, directly after the upstream baseline.
-- Phase 1 freeze branch: `codex/phase-1-foundation`; its single Foundation commit has the Phase 0 freeze as sole parent.
-- Local `main` advances only by fast-forward to the Phase 1 freeze and matches `codex/phase-1-foundation`.
-- Working branch: `codex/phase-2-snell-vertical-slice`, created from frozen `main`; HEAD remains the Phase 1 freeze and the working tree is clean. Phase 2 code has not started.
-- Only remote: `upstream`, `https://github.com/SagerNet/sing-box.git`.
-- Full upstream history retained; module path remains `github.com/sagernet/sing-box`.
-- Freeze identities: resolve `git rev-parse codex/phase-0-architecture` and `git rev-parse codex/phase-1-foundation`; neither is a product tag.
-- Phase 0 message: `docs: establish Splicore architecture baseline`; Phase 1 message: `feat: establish Splicore foundation`.
-- No `origin`, push, new tag or release; upstream history and existing tags remain intact.
-
-Verify actual Git state when resuming. The freeze instruction supersedes the
-earlier implementation-only ban on staging/commit. Stop after preparing the
-Phase 2 branch; further implementation needs a new scope instruction. No push,
-origin creation, tag or release is authorized. Historical reports/evidence remain
-frozen; tools, binaries and fresh logs stay outside the repository. This document
-does not authorize publication.
+- Upstream v1.14.1: `1ac1a339cb1223e9c70eae14c44411c75033c02d`.
+- Phase 0 freeze: `687425bdbfff6c76f900035068c23a03c4547062`.
+- Phase 1 freeze / Phase 2 parent: `a2ca59e6dbf1a239feae5e471ec1914cae0f1eac`.
+- Phase 2 freeze: the shared tip of `main` and `codex/phase-2-snell-vertical-slice`;
+  resolve its full SHA with `git rev-parse main` and inspect the freeze delivery report.
+- Prepared branch: `codex/phase-3-hysteria2-vertical-slice`, based on the Phase 2
+  freeze with a clean working tree. Phase 3 implementation is not authorized here.
+- Sole remote: upstream at `https://github.com/SagerNet/sing-box.git`; no origin.
+- Module remains `github.com/sagernet/sing-box`; upstream runtime changes: 0.
+- The Phase 2 freeze request supersedes the implementation-only staging/commit
+  restriction: one freeze commit and a fast-forward of main are authorized,
+  followed by creation of the Phase 3 branch and an immediate stop.
+- Push, origin creation, tag, release and edits to NoBrand-OneClick remain prohibited.
+- Historical Phase 0/1 reports/evidence remain unchanged. Tools/binaries/logs and
+  test state are external. No publication is authorized.
 
 ## Architecture constraints
 
@@ -65,24 +58,24 @@ entities/relationships. Historical reports record past outcomes, not current
 specification authority. [Documentation policy](DOCUMENTATION_POLICY.md)
 defines when to update each source.
 
-## Implemented Foundation and deferred scope
+## Implemented and deferred scope
 
-The runnable command serves only System/Capabilities reads over protected Linux
-UDS. Windows uses httptest; no public TCP bind exists. Account application commands
-use repository ports; creation of other Foundation entities exists in the writer.
-Protocol/engine/exporter placeholders fail with NotImplemented. Schema 1 migration
-is checksummed and transactional; pending crash journals block further mutation.
-Credential encryption requires an injected key; the command provisions no key.
+Schema 2 SQLite committed state is authority. Snell creation has strict
+validate/plan/pending/start/listener-health/commit/admission semantics. Plans bind
+compact JSON and global revision using a daemon-local HMAC; restart requires
+replanning. One Inbound creates one Account, Binding and encrypted PSK. Explicit
+Linux key-file provisioning has no lost-key or plaintext fallback.
 
-Entitlements, usage, imports, runtime apply/compensation, key deployment/recovery,
-third-party interop, all live protocol adapters and broader management surfaces
-remain deferred. This supersedes Phase 0's recommended reference-protocol and
-broader ERD Phase 1 staging. See [Foundation workflow](development/FOUNDATION.md)
-and the completed [Phase 1 report](reports/PHASE_1_FOUNDATION_REPORT.md).
+The protected Linux UDS API exposes metadata, creation, display mutation and
+explicit secret-returning client export. Windows remains a development target.
+Each Inbound owns a private Box, TCP listener and authenticated routing counters.
+Static platform composition avoids an inherited monitor startup race; see
+[ADR 0013](adr/0013-snell-runtime-composition.md).
 
-Before implementation, maintainers still need to settle public repository/module
-ownership, secret-key provisioning/recovery, and exact future FinalMask/Sudoku
-fork/spec/license references. These do not block documentation review.
+Quota/rate, userkey multi-user, account mutation/revocation, credential rotation,
+hot reload/delete, durable usage and generic imports remain deferred. Surge live
+testing is unqualified. Public module ownership and future FinalMask/Sudoku
+provenance remain future decisions.
 
 ## Forbidden shortcuts
 
@@ -91,7 +84,7 @@ add protocol columns to Account, weaken unsupported policy silently, treat expor
 rendering as interoperability, or call an upstream build a qualified Splicore release.
 Do not globally rename upstream packages/branding or move large package trees
 without a reviewed decision. Preserve LICENSE, copyright and non-affiliation.
-Do not implement Panel or broaden Foundation into live proxy traffic.
+Do not implement Panel or broaden Phase 2 beyond managed Snell.
 
 ## Validation context
 

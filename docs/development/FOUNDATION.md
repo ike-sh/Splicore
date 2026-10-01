@@ -7,6 +7,10 @@
 - Responsibility: Current build/test commands, bootstrap and runnable Foundation scope.
 - Lifecycle: Update with Foundation process interfaces and gates.
 
+## Current Phase 2 implementation
+
+This document preserves Foundation contracts/workflow. Current daemon also implements Phase 2 Snell with DatabaseSchema 2; see [current workflow](PHASE_2_SNELL.md). Foundation composition remains for independent placeholder tests.
+
 ## Build and test
 
 Keep binaries and logs outside the repository. The module remains
@@ -64,7 +68,7 @@ httptest. The command has no Windows production server or public TCP fallback.
 Linux UDS uses 0700 current-owned directory, 0660 socket and captured peer
 credentials; existing socket paths need operator review, never automatic deletion.
 
-## Maturity and recovery
+## Historical Foundation maturity and recovery
 
 System reports degraded/Foundation-only, or recovery_required for pending
 journals. Neither means proxy traffic is implemented. SQLite is authoritative;
@@ -77,5 +81,6 @@ Use the [dependency audit](DEPENDENCIES_PHASE_1.md),
 [current report](../reports/PHASE_1_FOUNDATION_REPORT.md),
 [API index](../api/README.md) and [test strategy](../testing/TEST_STRATEGY.md).
 Phase 1 is frozen locally under the explicit freeze instruction: one Foundation
-commit, fast-forward of main and preparation of the Phase 2 branch. Phase 2
-implementation has not started. No push, origin creation, tag or release is authorized.
+commit, fast-forward of main and preparation of the Phase 2 branch. The current
+Phase 2 request now authorizes Snell implementation. No staging, commit, push,
+origin creation, tag or release is authorized for Phase 2.
