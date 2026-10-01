@@ -7,12 +7,12 @@
     "owner": "API maintainers",
     "responsibility": "Machine authority for proposed API paths, methods, parameters, schemas and responses.",
     "lifecycle": "Update with API surface changes; Markdown owns design/security/semantics.",
-    "design_maturity": "Foundation reads and experimental Phase 2 Snell operations implemented; nine routes are marked implemented and all other operations remain deferred."
+    "design_maturity": "Thirteen Foundation and experimental Snell/Hysteria2 routes implemented; unrelated routes deferred."
   },
   "info": {
     "title": "Splicore API v1 — Foundation contract",
     "version": "0.0.0-foundation",
-    "description": "Splicore API v1: Foundation queries and experimental Phase 2 Snell operations over protected Linux UDS. Other marked paths remain deferred."
+    "description": "Splicore API v1: Foundation and experimental Snell/Hysteria2 operations over protected Linux UDS. Marked unrelated routes remain deferred."
   },
   "servers": [
     {
@@ -725,20 +725,20 @@
     },
     "/api/v1/inbounds/{id}/export": {
       "post": {
-        "operationId": "exportSnell",
+        "operationId": "exportClient",
         "parameters": [
           {
             "$ref": "#/components/parameters/ID"
           }
         ],
-        "x-implementation-status": "phase2",
+        "x-implementation-status": "phase3",
         "responses": {
           "200": {
             "description": "Success",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SnellExportResult"
+                  "$ref": "#/components/schemas/ClientExportResult"
                 }
               }
             }
@@ -764,7 +764,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/SnellExportRequest"
+                "$ref": "#/components/schemas/ClientExportRequest"
               }
             }
           }
@@ -775,7 +775,7 @@
     },
     "/api/v1/inbounds/{id}/display": {
       "post": {
-        "operationId": "setSnellDisplay",
+        "operationId": "setInboundDisplay",
         "parameters": [
           {
             "$ref": "#/components/parameters/ID"
@@ -815,6 +815,186 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/DisplayUpdate"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hysteria2/validate": {
+      "post": {
+        "operationId": "validateHysteria2",
+        "parameters": [],
+        "x-implementation-status": "phase3",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnellValidated"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Hysteria2Document"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hysteria2/plan": {
+      "post": {
+        "operationId": "planHysteria2",
+        "parameters": [],
+        "x-implementation-status": "phase3",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Hysteria2Plan"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Hysteria2Document"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/hysteria2/apply": {
+      "post": {
+        "operationId": "applyHysteria2",
+        "parameters": [],
+        "x-implementation-status": "phase3",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Hysteria2Applied"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Hysteria2Apply"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/inbounds/{id}/binding": {
+      "post": {
+        "operationId": "setBindingEnabled",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "x-implementation-status": "phase3",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeTransaction"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BindingUpdate"
               }
             }
           }
@@ -2254,7 +2434,10 @@
             "$ref": "#/components/schemas/ID"
           },
           "transport": {
-            "const": "tcp"
+            "enum": [
+              "tcp",
+              "udp"
+            ]
           },
           "endpoint": {
             "type": "object",
@@ -2330,27 +2513,51 @@
             "type": "string"
           },
           "protocol": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "protocol": {
-                "const": "snell"
-              },
-              "wire_version": {
-                "type": "string",
-                "enum": [
-                  "5",
-                  "6"
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "protocol": {
+                    "const": "snell"
+                  },
+                  "wire_version": {
+                    "type": "string",
+                    "enum": [
+                      "5",
+                      "6"
+                    ]
+                  },
+                  "feature_profile": {
+                    "const": "base"
+                  }
+                },
+                "required": [
+                  "protocol",
+                  "wire_version",
+                  "feature_profile"
                 ]
               },
-              "feature_profile": {
-                "const": "base"
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "protocol": {
+                    "const": "hysteria2"
+                  },
+                  "wire_version": {
+                    "const": "2"
+                  },
+                  "feature_profile": {
+                    "const": "base"
+                  }
+                },
+                "required": [
+                  "protocol",
+                  "wire_version",
+                  "feature_profile"
+                ]
               }
-            },
-            "required": [
-              "protocol",
-              "wire_version",
-              "feature_profile"
             ]
           },
           "listeners": {
@@ -2464,12 +2671,19 @@
           },
           "stats": {
             "$ref": "#/components/schemas/RuntimeStats"
+          },
+          "bindings": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 16,
+            "items": {
+              "$ref": "#/components/schemas/BindingView"
+            }
           }
         },
         "required": [
           "inbound",
-          "binding_id",
-          "account_id",
+          "bindings",
           "health",
           "stats"
         ]
@@ -2494,58 +2708,10 @@
         ]
       },
       "SnellExportRequest": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "format": {
-            "type": "string",
-            "enum": [
-              "mihomo",
-              "sing-box",
-              "surge"
-            ]
-          },
-          "client_version": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "format",
-          "client_version"
-        ]
+        "$ref": "#/components/schemas/ClientExportRequest"
       },
       "SnellExportResult": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "format": {
-            "type": "string"
-          },
-          "client_version": {
-            "type": "string"
-          },
-          "server_version": {
-            "type": "integer"
-          },
-          "client_wire_version": {
-            "type": "integer"
-          },
-          "compatibility": {
-            "type": "string"
-          },
-          "content": {
-            "type": "string",
-            "description": "Explicitly authorized secret-returning client node/outbound. Contains PSK."
-          }
-        },
-        "required": [
-          "format",
-          "client_version",
-          "server_version",
-          "client_wire_version",
-          "compatibility",
-          "content"
-        ]
+        "$ref": "#/components/schemas/ClientExportResult"
       },
       "DisplayUpdate": {
         "type": "object",
@@ -2592,6 +2758,413 @@
         },
         "required": [
           "valid"
+        ]
+      },
+      "Hysteria2TLS": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "server_name": {
+            "type": "string",
+            "description": "Explicit DNS SNI/verification identity, independent of listener and display endpoint."
+          },
+          "certificate_file": {
+            "type": "string",
+            "description": "Absolute local static certificate file reference; bounded regular file without symlinks."
+          },
+          "private_key_file": {
+            "type": "string",
+            "description": "Absolute local protected private-key file reference, never key contents."
+          },
+          "ca_certificate": {
+            "type": "string",
+            "maxLength": 8192,
+            "description": "One public CA PEM; leaf/key/chain/SNI/validity must verify."
+          }
+        },
+        "required": [
+          "server_name",
+          "certificate_file",
+          "private_key_file",
+          "ca_certificate"
+        ]
+      },
+      "Hysteria2Settings": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "tls": {
+            "$ref": "#/components/schemas/Hysteria2TLS"
+          }
+        },
+        "required": [
+          "tls"
+        ]
+      },
+      "PolicyMetadata": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "quota_bytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9223372036854775807
+          },
+          "upload_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9223372036854775807
+          },
+          "download_bps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9223372036854775807
+          }
+        },
+        "required": []
+      },
+      "Hysteria2User": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "account_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          },
+          "password": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 255,
+            "writeOnly": true,
+            "description": "12–255 UTF-8 bytes, no Unicode whitespace/control characters. Omission generates; null/empty rejects."
+          },
+          "traffic_policy": {
+            "$ref": "#/components/schemas/PolicyMetadata"
+          }
+        },
+        "required": [
+          "account_name"
+        ]
+      },
+      "Hysteria2Document": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schema": {
+            "const": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "listener": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              }
+            },
+            "required": [
+              "host",
+              "port"
+            ]
+          },
+          "display_endpoint": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              }
+            },
+            "required": [
+              "host",
+              "port"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/Hysteria2Settings"
+          },
+          "policy_mode": {
+            "const": "metadata_only"
+          },
+          "users": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 16,
+            "items": {
+              "$ref": "#/components/schemas/Hysteria2User"
+            }
+          }
+        },
+        "required": [
+          "schema",
+          "name",
+          "listener",
+          "display_endpoint",
+          "settings",
+          "users"
+        ],
+        "description": "Listener must be an IP. Names/passwords distinct within Inbound. Any policy requires policy_mode=metadata_only; no enforcement."
+      },
+      "Hysteria2Plan": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/Revision"
+          },
+          "listener": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              }
+            },
+            "required": [
+              "host",
+              "port"
+            ]
+          },
+          "display_endpoint": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              }
+            },
+            "required": [
+              "host",
+              "port"
+            ]
+          },
+          "users": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 16
+          },
+          "tls_verification": {
+            "const": true
+          },
+          "policy_enforced": {
+            "const": false
+          }
+        },
+        "required": [
+          "digest",
+          "revision",
+          "listener",
+          "display_endpoint",
+          "users",
+          "tls_verification",
+          "policy_enforced"
+        ]
+      },
+      "Hysteria2Apply": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/Hysteria2Document"
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/Revision"
+          }
+        },
+        "required": [
+          "document",
+          "digest",
+          "revision"
+        ]
+      },
+      "BindingView": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "binding_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "account_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/Revision"
+          },
+          "traffic_policy_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "policy_enforced": {
+            "const": false
+          },
+          "stats": {
+            "$ref": "#/components/schemas/RuntimeStats"
+          }
+        },
+        "required": [
+          "binding_id",
+          "account_id",
+          "enabled",
+          "revision",
+          "policy_enforced",
+          "stats"
+        ]
+      },
+      "Hysteria2Applied": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "inbound_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "bindings": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 16,
+            "items": {
+              "$ref": "#/components/schemas/BindingView"
+            }
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/RuntimeTransaction"
+          }
+        },
+        "required": [
+          "inbound_id",
+          "bindings",
+          "transaction"
+        ]
+      },
+      "BindingUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "binding_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "resource_revision": {
+            "$ref": "#/components/schemas/Revision"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/Revision"
+          }
+        },
+        "required": [
+          "binding_id",
+          "enabled",
+          "resource_revision",
+          "revision"
+        ],
+        "description": "Reconstructs only the affected HY2 Inbound, interrupts all its sessions and resets counters. Failure restores committed projection or reports recovery required."
+      },
+      "ClientExportRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "mihomo",
+              "sing-box",
+              "surge"
+            ]
+          },
+          "client_version": {
+            "type": "string"
+          },
+          "binding_id": {
+            "$ref": "#/components/schemas/ID"
+          }
+        },
+        "required": [
+          "format",
+          "client_version"
+        ],
+        "description": "binding_id required when multiple Bindings exist. Disabled/unavailable identities reject."
+      },
+      "ClientExportResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "format": {
+            "type": "string"
+          },
+          "client_version": {
+            "type": "string"
+          },
+          "server_version": {
+            "type": "integer"
+          },
+          "client_wire_version": {
+            "type": "integer"
+          },
+          "compatibility": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string",
+            "description": "Explicitly authorized secret-returning client content with PSK/password, never server private keys."
+          },
+          "content_shape": {
+            "type": "string",
+            "enum": [
+              "mihomo-node",
+              "sing-box-outbound",
+              "surge-declaration",
+              "mihomo-config-fragment"
+            ]
+          }
+        },
+        "required": [
+          "format",
+          "client_version",
+          "server_version",
+          "client_wire_version",
+          "compatibility",
+          "content",
+          "content_shape"
         ]
       }
     },

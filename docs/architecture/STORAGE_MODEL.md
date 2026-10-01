@@ -9,7 +9,12 @@
 
 ## Current Phase 2 implementation
 
-Schema 2 adds checksummed 0002_snell without editing schema 1 history. Network I/O stays outside SQL callbacks. Explicit private Linux key files protect credentials. See [Snell support](../protocol/SNELL.md).
+Schema 3 adds checksummed 0003_password after 0002_snell, without editing migration
+history. It rebuilds the credential-kind CHECK to admit generic password payloads,
+preserves ciphertext/AAD and Binding FKs, and restores the Snell single-Binding
+trigger. Populated schema-2 migration and encrypted password roundtrip tests cover
+these boundaries. Network I/O stays outside SQL callbacks. Explicit private Linux
+key files protect credentials. See [HY2 support](../protocol/HYSTERIA2.md).
 
 Scope: storage operations and qualification. The [ERD](DATABASE_ERD.md) owns
 logical entities/relationships/ownership; migration files own actual
@@ -59,7 +64,8 @@ ad hoc ALTER at startup. Unknown newer schema refuses writable startup.
 
 Foundation acquires an OS installation file lock before SQLite opens; startup
 validates migration sequence/checksum, product/schema/node metadata, quick_check
-and foreign keys. Schema 1 preserves 0001_initial; schema 2 adds 0002_snell.
+and foreign keys. Schema 1 preserves 0001_initial; schema 2 adds 0002_snell;
+schema 3 adds 0003_password.
 Fresh/close/reopen/repeat/failure/future/corruption tests exist. Pre-upgrade backup
 orchestration remains deferred; the driver VACUUM INTO snapshot/reopen path is
 tested. Managed Snell has listener health and committed-state reconstruction.

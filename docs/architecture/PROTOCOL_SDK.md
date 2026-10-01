@@ -19,14 +19,33 @@ build tags/platform and requested settings; absence means unsupported, not unkno
 [runtime ports](../../internal/splicore/ports/runtime.go) add transient explicit
 credentials, Start/Health/Activate/Close/Stats and durable journal phases.
 [Phase 2 composition](../../internal/splicore/registry/phase2.go) explicitly
-registers Snell v5/v6, native engine and real exporters. HY2/TUIC/VLESS stay
-placeholders; Foundation composition is retained for independent contract tests.
+registers Snell v5/v6. [Phase 3 composition](../../internal/splicore/registry/phase3.go)
+adds Hysteria2, one shared native compiler map and protocol-dispatched exporters.
+TUIC/VLESS remain placeholders; Foundation composition is retained for independent contract tests.
+
+The Phase 3 freeze records bounded command/composition/display-allowlist growth as
+[non-blocking technical debt](../ARCHITECTURE.md#phase-3-extensibility-disposition).
+Phase 4 must address those triggers before copying them for a third protocol;
+the Protocol/Engine/runtime and ClientProfile contracts remain reusable.
 
 [Snell module](../../internal/splicore/protocol/snell/snell.go) validates strict
 version settings, portable PSKs, one Binding and account-owned Credential, without
 HTTP, SQLite or NoBrand dependencies. It generates random PSKs and builds neutral
 RuntimeIntent/ClientProfile. Native userkey support exists but managed multi-user
 is deferred. See [Snell support](../protocol/SNELL.md) for effective capabilities.
+
+[Hysteria2 module](../../internal/splicore/protocol/hysteria2/hysteria2.go) owns
+bounded password/TLS validation, native multi-user identity and independent
+ClientProfile SNI/endpoint projection. It has no SQL/HTTP/NoBrand dependency.
+
+| Managed profile | TCP | UDP payload / transport | MultiUserNative | NativeStats / PerUserStats | HotUserUpdate | Users mutation | Policy enforcement |
+|---|---|---|---|---|---|---|---|
+| Snell v5/v6 | yes | yes / no | false | yes / false | false | unavailable | none |
+| Hysteria2 wire 2 | yes | yes / yes | true, 16 configured | yes / true | false | Inbound restart | none |
+
+Both are Experimental and support IPv4/IPv6/domain display endpoints. HY2 requires
+static TLS and one explicit CA; obfs/masquerade/URI remain deferred. Stats mean
+authenticated payload and routed sessions, not durable Account billing.
 
 Conceptual typed ports below are **design notation**, not production declarations.
 The concrete value types will be defined in domain/ports before implementation.

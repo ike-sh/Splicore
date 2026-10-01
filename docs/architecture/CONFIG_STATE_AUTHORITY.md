@@ -7,9 +7,13 @@
 - Responsibility: Bootstrap, import-command and committed-domain authority boundaries.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-## Current Phase 2 implementation
+## Current Phase 3 implementation
 
-Bootstrap adds optional key_file. Snell validate/plan/apply commits domain state; restart never rereads import files. See [workflow](../development/PHASE_2_SNELL.md). Generic declarative imports below remain deferred.
+Bootstrap has optional key_file. Snell/HY2 validate/plan/apply commits domain state;
+restart never rereads import files. HY2 restores authorized Bindings/passwords and
+requires its protected TLS file references to remain available; neither generated
+client config nor a TLS file watcher can mutate domain state. See
+[workflow](../development/PHASE_3_HYSTERIA2.md). Generic declarative imports below remain deferred.
 
 Decision: SQLite committed domain generation is the sole domain authority.
 No file watcher may mutate Accounts/Inbounds independently. Runtime, profiles and

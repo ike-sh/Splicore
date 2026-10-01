@@ -7,9 +7,12 @@
 - Responsibility: Proposed diagnostic command semantics and bounded redacted local bundles.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-## Current Phase 2 implementation
+## Current Phase 3 implementation
 
-Doctor describes registry entries and actual native listener health without PSKs. Metadata has decimal payload counters; only explicit export returns secrets. See [Snell support](../protocol/SNELL.md).
+Doctor describes registry entries and actual native listener health without
+PSKs/passwords/private keys. Metadata has decimal payload counters, including HY2
+per-Binding stats; only explicit export returns client secrets. See
+[HY2 support](../protocol/HYSTERIA2.md) and [Snell support](../protocol/SNELL.md).
 
 Phase 1 implements version, status, doctor, capabilities, validate and run.
 Status is the shared application System response; an absent daemon prints

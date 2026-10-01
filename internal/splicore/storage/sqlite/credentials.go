@@ -18,6 +18,8 @@ func encodePayload(payload access.Payload) ([]byte, error) {
 	switch p := payload.(type) {
 	case access.PSKPayload:
 		fields = []string{p.Key.Reveal()}
+	case access.PasswordPayload:
+		fields = []string{p.Password.Reveal()}
 	case access.UUIDPayload:
 		fields = []string{p.UUID.Reveal()}
 	case access.UUIDPasswordPayload:
@@ -39,6 +41,8 @@ func decodePayload(kind access.CredentialKind, b []byte) (access.Payload, error)
 	switch {
 	case kind == access.PSK && len(f) == 1:
 		p = access.PSKPayload{Key: secret.New(f[0])}
+	case kind == access.Password && len(f) == 1:
+		p = access.PasswordPayload{Password: secret.New(f[0])}
 	case kind == access.UUID && len(f) == 1:
 		p = access.UUIDPayload{UUID: secret.New(f[0])}
 	case kind == access.UUIDPassword && len(f) == 2:

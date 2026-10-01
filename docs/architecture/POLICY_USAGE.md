@@ -14,6 +14,14 @@ policies in Validate/Plan with field-level errors.
 
 ## Accounting contract
 
+Phase 3 HY2 exposes authenticated payload bytes and routed TCP/UDP sessions per
+Inbound/Binding. Immutable native user identity is Binding ID. Counters reset on
+runtime replacement/recovery; shared Account aggregation and durable billing remain
+deferred. Distinct policies persist per Binding with explicit `policy_mode:metadata_only`
+and `policy_enforced:false`. Native HY2 bandwidth hints are not user speed enforcement;
+the profile ignores client hints and uses BBR. No policy values enter runtime/export.
+See [HY2 contract](../protocol/HYSTERIA2.md).
+
 Billable unit is successfully forwarded proxy payload byte, excluding protocol
 encryption/framing/padding/handshakes/retransmits. Upload is client → destination;
 download is destination → client. Count TCP payload after authentication and

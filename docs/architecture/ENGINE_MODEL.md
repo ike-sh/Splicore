@@ -13,12 +13,19 @@ Engine choice is private planning/diagnostic data. Accounts, Subscription and
 Exporter do not branch on Engine names. Administrators may inspect resolved
 placement in a plan but public protocol settings contain no raw engine config.
 
-Phase 2 implements native Compile and owned Start/Health/Activate/Close/Stats
-for Snell only. Each Inbound owns one minimal private Box and direct route;
+Phase 3 shares one native Compile and Start/Health/Activate/Close/Stats contract
+for Snell and Hysteria2, dispatched by protocol key. Each Inbound owns one minimal private Box and direct route;
 Xray remains a placeholder. [ADR 0013](../adr/0013-snell-runtime-composition.md)
 documents owned TCP admission/raw socket cleanup and static platform context.
 Upstream constructors/auth/framing/crypto/version semantics remain unchanged.
 The richer interfaces below remain proposed future contracts.
+
+[ADR 0014](../adr/0014-hysteria2-runtime-composition.md) records HY2 composition
+of the exact pinned service/TLS constructors with an owned UDP socket. Reads drop
+before commit. User updates reconstruct the affected Inbound; no unsafe live
+UpdateUsers call occurs. Session and payload meters use immutable Binding IDs.
+The bounded 100 ms close grace permits QUIC notifications before socket release;
+replacement interrupts all users on that Inbound and resets its counters.
 
 ```go
 type Engine interface {

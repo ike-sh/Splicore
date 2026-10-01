@@ -54,6 +54,7 @@ type TransportCapabilities struct {
 }
 type IdentityCapabilities struct {
 	MultiUserNative   bool
+	PerUserStats      bool
 	AttributedPayload Support
 	NativeStats       Support
 	StatsUnits        string

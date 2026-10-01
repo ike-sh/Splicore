@@ -29,7 +29,7 @@ func Serve(ctx context.Context, c config.Config) error {
 		return err
 	}
 	defer listener.Close()
-	p, e, x, err := registry.Phase2()
+	p, e, x, err := registry.Phase3()
 	if err != nil {
 		return err
 	}

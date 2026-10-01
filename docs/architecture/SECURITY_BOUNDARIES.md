@@ -11,6 +11,17 @@ Phase 1 implements typed redaction, injected AES-256-GCM credential encryption,
 Linux directory/socket ownership and peer identity, plus installation locks.
 The table includes future deployment requirements beyond this foundation.
 
+Phase 3 encrypts account-owned protocol passwords with the existing AEAD/AAD
+boundary. Supplied passwords reject whitespace/control characters; generated
+passwords use 32 random bytes. GET/doctor/journal/error output remains redacted;
+explicit Binding-scoped client export may reveal a password, never a TLS key.
+Static leaf/key files are bounded/regular, reject symlinks, check Linux private
+mode/owner, validate pair/chain/validity/SNI and snapshot into runtime TLS.
+One explicit CA and a non-CA leaf are required. Client verification stays enabled;
+Mihomo pins the non-leaf CA so its verifier still checks SNI and validity. Private
+keys stay outside SQLite and exports. Tests create/clean ephemeral synthetic material.
+See [HY2 security contract](../protocol/HYSTERIA2.md).
+
 | Boundary | Required behavior |
 |---|---|
 | Secrets at rest | encrypted credential payloads via reviewed AEAD/envelope scheme and standard library; external protected master key with key ID/rotation; DB backup alone must not decrypt credentials |

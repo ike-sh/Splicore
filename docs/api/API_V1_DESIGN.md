@@ -7,20 +7,30 @@
 - Responsibility: Transport, security and operation semantics; OpenAPI owns endpoint surface.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-Design maturity: Foundation queries and experimental Phase 2 Snell operations
+Design maturity: Foundation queries and experimental Snell/Hysteria2 operations
 are implemented and marked in OpenAPI. Other paths remain deferred. Protected
 local UDS access authorizes control; no public network bearer surface is enabled.
 
-Snell operations accept at most 64 KiB strict JSON. Apply checks compact-JSON HMAC
+Managed protocol operations accept at most 64 KiB strict JSON. Apply checks compact-JSON HMAC
 and decimal global revision and returns 200 only after health and durable commit.
-Plans expire on daemon restart/state change. This create-only synchronous API has
+Plans expire on daemon restart/state change. This bounded synchronous API has
 no generic Idempotency-Key/If-Match promise; requirements below apply to future
 generic routes. Metadata is one bounded committed snapshot (at most 64 Inbounds).
 Display mutation checks resource/global revisions without changing runtime.
 Export POST is explicitly secret-returning; default GET/doctor/journal/errors have
-no PSK. Unsupported client combinations return 422. Counters are decimal strings.
+no PSK/password/private-key contents. Unsupported client combinations return 422. Counters are decimal strings.
 Occupied listeners return `port_conflict` (409) with a fixed safe message through
 API and CLI; this differs from a revision conflict.
+
+HY2 creation accepts 1–16 users, static TLS file references/public CA and optional
+explicit metadata-only policies. Generic export requires `binding_id` for multiple
+Bindings and rejects disabled/unavailable identities. Ordinary views include
+`bindings` with per-Binding counters and `policy_enforced:false`; legacy top-level
+Account/Binding IDs appear only for single-Binding views. Private keys are neither
+returned nor stored in SQLite. Binding mutation checks global/Binding revisions,
+journals and reconstructs only its Inbound; all of its sessions are interrupted.
+It returns 200 after health/commit, without a whole-daemon restart. Failure restores
+the prior committed projection or reports recovery required. See [HY2](../protocol/HYSTERIA2.md).
 
 Transport → Application Service → Domain + repository/runtime ports. HTTP handler
 performs parsing/auth/serialization only. Local CLI defaults to HTTP over Unix

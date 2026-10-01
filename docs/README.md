@@ -11,8 +11,10 @@
 
 **Canonical** identifies the maintained source for a topic. It does not mean
 proposed functionality is implemented. Phase 0 establishes designs and baseline
-research; Phase 1 and Phase 2 are frozen. Phase 2 implements experimental Snell with real
-Mihomo/sing-box interoperability; other adapters remain deferred.
+research; Phases 1–3 are locally frozen. Phase 2 implements experimental Snell with real
+Mihomo/sing-box interoperability. Phase 3 adds experimental Hysteria2 with
+trusted-CA multi-user TCP/UDP interoperability; Phase 4 TUIC implementation has not
+started. Other adapters remain deferred.
 No stable Splicore runtime has been released. **Historical** documents
 and **Generated** evidence preserve what was observed at a particular time.
 **Draft** is work that has not yet become an authoritative design.
@@ -41,8 +43,8 @@ README.md                           project introduction
 
 ## Architecture Decision Records
 
-[ADR index](adr/README.md) lists all 13 decisions and their individual status.
-ADR 0001 is accepted for Phase 0; 0002–0013 remain proposed for maintainer review.
+[ADR index](adr/README.md) lists all 14 decisions and their individual status.
+ADR 0001 is accepted for Phase 0; 0002–0014 remain proposed for maintainer review.
 Decision acceptance is separate from implementation and interoperability qualification.
 
 ## Domain Model
@@ -54,6 +56,7 @@ Decision acceptance is separate from implementation and interoperability qualifi
 ## Protocol / Engine
 
 - [Snell support](protocol/SNELL.md): implemented profile and client contracts.
+- [Hysteria2 support](protocol/HYSTERIA2.md): multi-user, TLS, QUIC/UDP and restart limits.
 
 - [Protocol and engine index](protocol/README.md): extension path and qualification gates.
 - [Protocol SDK](architecture/PROTOCOL_SDK.md): registry, proposed ports and effective capabilities.
@@ -65,7 +68,7 @@ Decision acceptance is separate from implementation and interoperability qualifi
 
 - [API index](api/README.md): machine contract and semantic documentation responsibilities.
 - [API v1 design](api/API_V1_DESIGN.md): control transport, authorization and operation semantics.
-- [OpenAPI contract skeleton](api/openapi-skeleton.yaml): Foundation reads, Snell operations and marked deferred paths, schemas and responses.
+- [OpenAPI contract skeleton](api/openapi-skeleton.yaml): Foundation reads, Snell/Hysteria2 operations and marked deferred paths, schemas and responses.
 
 ## Storage
 
@@ -74,7 +77,9 @@ Decision acceptance is separate from implementation and interoperability qualifi
 - [Transaction model](architecture/TRANSACTION_MODEL.md): coordination outside database atomicity.
 
 [0001_initial](../internal/splicore/storage/sqlite/migrations/0001_initial.sql)
-preserves schema 1 history. [0002_snell](../internal/splicore/storage/sqlite/migrations/0002_snell.sql) adds schema 2; the full ERD remains a future target.
+preserves schema 1 history. [0002_snell](../internal/splicore/storage/sqlite/migrations/0002_snell.sql)
+adds schema 2; [0003_password](../internal/splicore/storage/sqlite/migrations/0003_password.sql)
+adds generic password credentials in schema 3. The full ERD remains a future target.
 
 ## Client Compatibility
 
@@ -86,6 +91,8 @@ preserves schema 1 history. [0002_snell](../internal/splicore/storage/sqlite/mig
 
 - [Phase 2 workflow](development/PHASE_2_SNELL.md): commands and external clients.
 - [Phase 2 report](reports/PHASE_2_SNELL_VERTICAL_SLICE_REPORT.md): actual verification.
+- [Phase 3 workflow](development/PHASE_3_HYSTERIA2.md): pinned HY2 clients and synthetic TLS.
+- [Phase 3 report](reports/PHASE_3_HYSTERIA2_VERTICAL_SLICE_REPORT.md): HY2 qualification and regression results.
 
 - [Test strategy](testing/TEST_STRATEGY.md): unit, contract, failure, migration and release gates.
 - [Interop matrix](testing/INTEROP_MATRIX.md): protocol/client coverage and evidence requirements.

@@ -1,4 +1,4 @@
-"""Validate owned Markdown/OpenAPI and optional live Foundation response fixtures.
+"""Validate owned Markdown/OpenAPI and optional live runtime response fixtures.
 
 Requires markdown-it-py==3.0.0 and openapi-spec-validator==0.7.2.
 Inventory is JSON with an `owned` list generated from Git (see Foundation workflow).
@@ -87,7 +87,7 @@ def main():
             stack.extend(graph[name] - reached)
     assert set(documents) <= reached, set(documents) - reached
 
-    spec = json.loads((root / "docs/api/openapi-skeleton.yaml").read_text())
+    spec = json.loads((root / "docs/api/openapi-skeleton.yaml").read_text(encoding="utf-8-sig"))
     validate(spec)
     operations, implemented = [], []
 
@@ -109,8 +109,8 @@ def main():
         for method, operation in methods.items():
             if method in {"get", "post", "put", "patch", "delete"}:
                 operations.append(operation["operationId"])
-                assert operation["x-implementation-status"] in {"foundation", "phase2", "deferred"}
-                if operation["x-implementation-status"] in {"foundation", "phase2"}:
+                assert operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "deferred"}
+                if operation["x-implementation-status"] in {"foundation", "phase2", "phase3"}:
                     implemented.append((method, path))
     assert len(operations) == len(set(operations))
     assert sorted(implemented) == sorted([
@@ -118,13 +118,22 @@ def main():
         ("get", "/api/v1/inbounds"), ("get", "/api/v1/inbounds/{id}"),
         ("post", "/api/v1/snell/validate"), ("post", "/api/v1/snell/plan"),
         ("post", "/api/v1/snell/apply"), ("post", "/api/v1/inbounds/{id}/export"),
-        ("post", "/api/v1/inbounds/{id}/display")])
+        ("post", "/api/v1/inbounds/{id}/display"),
+        ("post", "/api/v1/hysteria2/validate"), ("post", "/api/v1/hysteria2/plan"),
+        ("post", "/api/v1/hysteria2/apply"), ("post", "/api/v1/inbounds/{id}/binding")])
     assert spec["paths"]["/api/v1/inbounds/{id}/export"]["post"]["x-secret-returning"] is True
     assert not {"password", "psk", "token", "uuid", "secret_data"} & set(spec["components"]["schemas"]["Account"]["properties"])
     if args.responses:
-        for filename, schema in [("system-response.json", "System"), ("http-system-response.json", "System"), ("capabilities-response.json", "CapabilityPage"), ("inbounds-response.json", "RuntimeInboundPage"), ("inbound-response.json", "RuntimeInboundView")]:
-            instance = json.loads((args.responses / filename).read_text())
+        for filename, schema in [("system-response.json", "System"), ("http-system-response.json", "System"), ("capabilities-response.json", "CapabilityPage"), ("inbounds-response.json", "RuntimeInboundPage"), ("inbound-response.json", "RuntimeInboundView"), ("hysteria2-plan-response.json", "Hysteria2Plan"), ("hysteria2-apply-response.json", "Hysteria2Applied"), ("binding-transaction-response.json", "RuntimeTransaction")]:
+            instance = json.loads((args.responses / filename).read_text(encoding="utf-8-sig"))
             document = {"$ref": "#/components/schemas/" + schema, "components": spec["components"]}
+            Draft202012Validator(document, format_checker=FormatChecker()).validate(instance)
+        # Safe envelopes replace content before archival; the harness checks live secrets.
+        envelopes = args.responses / "export-envelopes-response.json"
+        document = {"$ref": "#/components/schemas/ClientExportResult", "components": spec["components"]}
+        instances = json.loads(envelopes.read_text(encoding="utf-8-sig"))
+        assert instances, "missing live export envelopes"
+        for instance in instances:
             Draft202012Validator(document, format_checker=FormatChecker()).validate(instance)
     result = {"result": "PASS", "markdown_documents": len(documents), "local_links": links, "operations": len(operations), "implemented_reads": implemented, "live_responses_checked": bool(args.responses)}
     print(json.dumps(result, indent=2))

@@ -15,9 +15,29 @@ import (
 
 type Snell struct{ Target ports.Format }
 
+func (e Snell) Describe(p clientprofile.Profile) (ports.ExportDescription, error) {
+	s, err := snell.Decode(p.Options.Data)
+	if err != nil {
+		return ports.ExportDescription{}, unsupported()
+	}
+	v, compat := s.Version, "exact"
+	if v == 5 {
+		v = 4
+		compat = "v4 TCP/UDP client to v5 server; QUIC Proxy Mode unavailable"
+	}
+	shape := "sing-box-outbound"
+	if e.Target == ports.Mihomo {
+		shape = "mihomo-node"
+	}
+	if e.Target == ports.Surge {
+		shape = "surge-declaration"
+	}
+	return ports.ExportDescription{ServerVersion: s.Version, ClientWireVersion: v, Compatibility: compat, ContentShape: shape}, nil
+}
+
 func (e Snell) Format() ports.Format { return e.Target }
 func unsupported() error {
-	return identity.Err(identity.UnsupportedExport, "UnsupportedExport: client version or Snell feature not supported")
+	return identity.Err(identity.UnsupportedExport, "UnsupportedExport: client version or protocol feature not supported")
 }
 func (e Snell) Export(_ context.Context, p clientprofile.Profile, t ports.ExportTarget) ([]byte, error) {
 	if p.Validate() != nil {

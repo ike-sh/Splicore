@@ -66,3 +66,15 @@ type RuntimeRepository interface {
 	RecoverPending(context.Context) error
 	UpdateDisplay(context.Context, identity.ID, access.Endpoint, identity.Revision, identity.Revision, identity.Actor) (identity.Transaction, error)
 }
+
+// MultiBindingRepository is the bounded runtime extension, separate from ordinary reads.
+type MultiBindingRepository interface {
+	RuntimeRepository
+	Bindings(context.Context, identity.ID) ([]access.Binding, error)
+	BeginRuntimeOperation(context.Context, identity.Revision, identity.Actor, string) (identity.Transaction, error)
+}
+
+type BindingWriter interface {
+	SetBindingEnabled(identity.ID, bool, identity.Revision) error
+}
+type AttributedStats interface{ BindingStats(identity.ID) Stats }

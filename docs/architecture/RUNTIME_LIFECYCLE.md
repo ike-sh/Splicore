@@ -11,6 +11,13 @@
 
 Snell has Start/Health/Activate/Close, closed pending admission, raw socket tracking, idempotent shutdown and SQLite-only restart. Health is listener readiness. See [composition ADR](../adr/0013-snell-runtime-composition.md). Broader reconcile/hot reload/child contracts below remain proposed.
 
+HY2 implements the same handle contract using an owned UDP socket and the exact
+pinned QUIC service/TLS constructors. Its immutable user map uses Binding IDs.
+Close clears admission, cancels sessions, permits QUIC close writes for 100 ms,
+then releases service/socket/Box. Listener reuse and forced-client shutdown are
+tested. Binding changes reconstruct only that Inbound, interrupt other users and
+reset stats; HotUserUpdate/HotReload are false. See [ADR 0014](../adr/0014-hysteria2-runtime-composition.md).
+
 Target Linux deployment: one systemd unit `splicore.service`, one native process,
 many logical Inbounds and internal listeners. Systemd restarts the main process;
 Splicore reconciles committed state and supervises optional children.

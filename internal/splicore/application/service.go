@@ -53,6 +53,8 @@ type Features struct {
 	DomainEndpoint    bool           `json:"domain_endpoint"`
 	NativeMultiUser   bool           `json:"multi_user_native"`
 	NativeStats       ports.Support  `json:"native_stats"`
+	PerUserStats      bool           `json:"per_user_stats"`
+	HotUserUpdate     bool           `json:"hot_user_update"`
 	AttributedPayload ports.Support  `json:"attributed_payload"`
 	NativeQuota       ports.Support  `json:"quota"`
 	NativeSpeedLimit  ports.Support  `json:"speed_limit"`
@@ -186,7 +188,7 @@ func (s *Service) Capabilities(ctx context.Context, cursor string, limit int) (C
 				clients = append(clients, QualifiedClient{q.Client, q.Version, q.Evidence})
 			}
 		}
-		page.Items = append(page.Items, Capability{Protocol: key.Protocol, WireVersion: key.WireVersion, FeatureProfile: key.FeatureProfile, Availability: m.Availability, Qualification: m.Qualification, Features: Features{Implementation: implementation(m.Qualification), TCP: c.Transport.TCP, UDPTransport: c.Transport.UDPTransport, UDPPayload: c.Transport.UDPPayload, IPv4: c.Transport.IPv4, IPv6: c.Transport.IPv6, DomainEndpoint: c.Transport.DomainEndpoint, NativeMultiUser: c.Identity.MultiUserNative, NativeStats: c.Identity.NativeStats, AttributedPayload: c.Identity.AttributedPayload, NativeQuota: c.Policy.Quota, NativeSpeedLimit: c.Policy.SpeedLimit, MaxSessions: c.Policy.MaxSessions, UserMutation: c.Mutation.Users, ListenerMutation: c.Mutation.Listener, HotReload: c.Mutation.HotReload, TLS: c.Security.TLS, Reality: c.Security.Reality}, QualifiedClients: clients})
+		page.Items = append(page.Items, Capability{Protocol: key.Protocol, WireVersion: key.WireVersion, FeatureProfile: key.FeatureProfile, Availability: m.Availability, Qualification: m.Qualification, Features: Features{Implementation: implementation(m.Qualification), TCP: c.Transport.TCP, UDPTransport: c.Transport.UDPTransport, UDPPayload: c.Transport.UDPPayload, IPv4: c.Transport.IPv4, IPv6: c.Transport.IPv6, DomainEndpoint: c.Transport.DomainEndpoint, NativeMultiUser: c.Identity.MultiUserNative, NativeStats: c.Identity.NativeStats, PerUserStats: c.Identity.PerUserStats, HotUserUpdate: c.Mutation.Users == ports.Hot, AttributedPayload: c.Identity.AttributedPayload, NativeQuota: c.Policy.Quota, NativeSpeedLimit: c.Policy.SpeedLimit, MaxSessions: c.Policy.MaxSessions, UserMutation: c.Mutation.Users, ListenerMutation: c.Mutation.Listener, HotReload: c.Mutation.HotReload, TLS: c.Security.TLS, Reality: c.Security.Reality}, QualifiedClients: clients})
 	}
 	if end < len(keys) {
 		page.NextCursor = base64.RawURLEncoding.EncodeToString(fmt.Appendf(nil, "%d:%d:%s", state.Revision, end, s.fingerprint))

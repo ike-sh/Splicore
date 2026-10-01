@@ -9,7 +9,9 @@
 
 ## Current Phase 2 implementation
 
-DatabaseSchema is now 2; ConfigSchema and ProtocolABI stay 1, API stays v1. Bootstrap key_file is optional but real credentials require it. Upstream Snell wire versions are unchanged.
+DatabaseSchema is now 3; ConfigSchema and ProtocolABI stay 1, API stays v1. Bootstrap
+key_file is optional but real credentials require it. Upstream Snell/HY2 wire versions
+are unchanged. The schema increment adds generic password credentials.
 
 | Identity | Meaning / compatibility rule |
 |---|---|

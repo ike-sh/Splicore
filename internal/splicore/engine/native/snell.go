@@ -34,15 +34,10 @@ import (
 	"github.com/sagernet/sing/service"
 )
 
-type Engine struct{}
+type SnellCompiler struct{}
 
-func (Engine) Metadata() ports.EngineMetadata {
-	return ports.EngineMetadata{ID: "native", Availability: ports.Compiled, RuntimeImplemented: true, ABI: 1}
-}
-func (Engine) Capabilities() ports.Capabilities {
-	return module.Module{Version: 6}.Capabilities(ports.CapabilityContext{})
-}
-func (Engine) Supports(i ports.RuntimeIntent) error {
+func (SnellCompiler) ProtocolID() string { return "snell" }
+func (SnellCompiler) Supports(i ports.RuntimeIntent) error {
 	s, e := module.Decode(i.Inbound.Settings.Data)
 	if e != nil {
 		return e
@@ -50,7 +45,7 @@ func (Engine) Supports(i ports.RuntimeIntent) error {
 	_, e = (module.Module{Version: s.Version}).BuildRuntime(context.Background(), i)
 	return e
 }
-func (e Engine) Compile(ctx context.Context, i ports.RuntimeIntent) (ports.PreparedRuntime, error) {
+func (e SnellCompiler) Compile(ctx context.Context, i ports.RuntimeIntent) (ports.PreparedRuntime, error) {
 	if err := e.Supports(i); err != nil {
 		return nil, err
 	}

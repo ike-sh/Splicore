@@ -11,17 +11,28 @@ There is no atomic transaction spanning SQLite, kernel sockets and child process
 Splicore uses a durable coordinator with generation fences and compensation.
 Do not promise zero downtime or undo already transferred traffic.
 
-## Implemented Phase 2 transaction
+## Implemented runtime transactions
 
-Validate → revision/HMAC plan check → compile without sockets → short SQL
-BeginOperation (`snell_create`) → Start with closed admission → listener Health
+Phase 3 uses one shared create coordinator for Snell/HY2: pending journal → build
+→ start → listener health → SQL commit → activate. HY2 owns a UDP gate dropping
+reads before commit. Invalid credential/TLS, keypair/chain failure, UDP conflict,
+startup/health/commit faults publish no resources and close the candidate.
+Binding enable/disable journals a replacement, stops only its Inbound and admits
+the candidate after commit. Failure reconstructs its old committed projection;
+failed reconstruction reports recovery required. All sessions on that Inbound close;
+counters reset. Restart recovers committed SQLite plus required TLS file references,
+never client exports/import files. Interrupted known runtime operations fail before
+reconstruction. See [HY2 contract](../protocol/HYSTERIA2.md) and [ADR 0014](../adr/0014-hysteria2-runtime-composition.md).
+
+Validate → revision/HMAC plan check → short SQL BeginOperation (`snell_create`
+or `runtime_create`) → compile without sockets → Start with closed admission → listener Health
 → short SQL commit of resources/global revision/journal → Activate.
 Invalid input and compile failures publish no resources. Start/health/storage
 failures close candidates and mark failed with an independent bounded context.
 Storage failure tests reject after Account/Inbound SQL insertion and prove rollback.
 Display updates check resource/global revisions and do not touch sockets/routes.
 
-Restart reconstructs committed resources only from SQLite. Interrupted create-only
+Restart reconstructs committed resources only from SQLite. Interrupted known runtime
 journals become failed; no candidate granted traffic before commit. Unknown pending
 Foundation operations remain fenced for review. Any failed committed restore cleans
 previously restored handles and fails startup. Crash after commit before Activate

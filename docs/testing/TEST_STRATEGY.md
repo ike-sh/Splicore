@@ -7,7 +7,17 @@
 - Responsibility: Meaningful implementation/interop/failure gates and reporting scope.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-## Current Phase 2 implementation
+## Current implemented gates
+
+Phase 3 adds HY2 strict option/password/TLS validation, native multi-user ownership,
+per-Binding stats, precommit UDP drop, UDP conflicts, pending/build/start/health/commit
+failure compensation, Binding replacement rollback, SQLite recovery and populated
+schema-2→3 ciphertext preservation. Real pinned clients test trusted CA/SNI, all
+endpoint types, TCP/UDP, wrong password/SNI/CA, 16 connections, 4 MiB, sequence
+integrity, revocation/re-enable and existing-client reconnect after actual daemon
+restart. Linux race/fuzz and Windows/Linux/arm64 gates accompany Snell real regression.
+See [HY2 workflow](../development/PHASE_3_HYSTERIA2.md) and
+[report](../reports/PHASE_3_HYSTERIA2_VERTICAL_SLICE_REPORT.md). Wire/TLS crypto is not reimplemented or fuzzed here.
 
 Actual pinned clients exercise TCP/UDP integrity, IPv4/IPv6/domain endpoints, auth/version/port/stopped failures, concurrent transfers, race, restart and external evidence. See [workflow](../development/PHASE_2_SNELL.md) and [matrix](INTEROP_MATRIX.md).
 

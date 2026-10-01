@@ -29,3 +29,4 @@ See [documentation policy](../DOCUMENTATION_POLICY.md) and the
 * [0012-versioning-model — Independent product/schema/API identities](0012-versioning-model.md) — Proposed for maintainer review
 
 * [0013-snell-runtime-composition — Owned Snell runtime composition](0013-snell-runtime-composition.md) — Proposed for maintainer review
+* [0014-hysteria2-runtime-composition — Owned Hysteria2 service and UDP lifecycle](0014-hysteria2-runtime-composition.md) — Proposed; implemented experimentally

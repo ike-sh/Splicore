@@ -77,6 +77,7 @@ const (
 	UUID             CredentialKind = "uuid"
 	UUIDPassword     CredentialKind = "uuid_password"
 	UsernamePassword CredentialKind = "username_password"
+	Password         CredentialKind = "password"
 )
 
 // Payload is a tagged closed set of typed secret values, not protocol columns.
@@ -96,6 +97,8 @@ func ValidatePayload(p Payload) error {
 		return v.Validate()
 	case UsernamePasswordPayload:
 		return v.Validate()
+	case PasswordPayload:
+		return v.Validate()
 	default:
 		return identity.Err(identity.Invalid, "unsupported or nil credential payload")
 	}
@@ -113,6 +116,18 @@ type (
 type UsernamePasswordPayload struct {
 	Username secret.Value
 	Password secret.Value
+}
+
+// PasswordPayload has no fabricated protocol username.
+type PasswordPayload struct{ Password secret.Value }
+
+func (PasswordPayload) Kind() CredentialKind { return Password }
+func (PasswordPayload) credentialPayload()   {}
+func (p PasswordPayload) Validate() error {
+	if !validSecret(p.Password) {
+		return identity.Err(identity.Invalid, "invalid credential material")
+	}
+	return nil
 }
 
 func (PSKPayload) Kind() CredentialKind              { return PSK }

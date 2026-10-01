@@ -13,9 +13,9 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	"github.com/sagernet/sing-box/internal/splicore/domain/secret"
+	"github.com/sagernet/sing-box/internal/splicore/jsonstrict"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
 	sm "github.com/sagernet/sing-box/internal/splicore/protocol/snell"
-	"io"
 	"net/netip"
 	"sync"
 	"time"
@@ -34,57 +34,7 @@ type SnellDocument struct {
 func (d SnellDocument) Format(f fmt.State, v rune) {
 	_, _ = f.Write([]byte("SnellDocument{[REDACTED]}"))
 }
-func StrictJSON(b []byte, v any) error {
-	if len(b) > 65536 {
-		return identity.Err(identity.Invalid, "document exceeds limit")
-	}
-	d := json.NewDecoder(bytes.NewReader(b))
-	var walk func(int) error
-	walk = func(depth int) error {
-		if depth > 16 {
-			return identity.Err(identity.Invalid, "document too deep")
-		}
-		t, e := d.Token()
-		if e != nil {
-			return e
-		}
-		delim, ok := t.(json.Delim)
-		if !ok {
-			return nil
-		}
-		if delim != '{' && delim != '[' {
-			return identity.Err(identity.Invalid, "invalid structure")
-		}
-		seen := map[string]bool{}
-		for d.More() {
-			if delim == '{' {
-				k, e := d.Token()
-				if e != nil {
-					return e
-				}
-				s, ok := k.(string)
-				if !ok || seen[s] {
-					return identity.Err(identity.Invalid, "duplicate JSON field")
-				}
-				seen[s] = true
-			}
-			if e := walk(depth + 1); e != nil {
-				return e
-			}
-		}
-		_, e = d.Token()
-		return e
-	}
-	if walk(0) != nil || d.Decode(new(any)) != io.EOF {
-		return identity.Err(identity.Invalid, "invalid JSON document")
-	}
-	d = json.NewDecoder(bytes.NewReader(b))
-	d.DisallowUnknownFields()
-	if d.Decode(v) != nil {
-		return identity.Err(identity.Invalid, "unknown or invalid document field")
-	}
-	return nil
-}
+func StrictJSON(b []byte, v any) error { return jsonstrict.Decode(b, v) }
 func DecodeSnell(b []byte) (SnellDocument, error) {
 	var w struct {
 		Schema      int             `json:"schema"`
@@ -147,10 +97,11 @@ type ApplyResult struct {
 }
 type InboundView struct {
 	Inbound   access.Inbound `json:"inbound"`
-	BindingID identity.ID    `json:"binding_id"`
-	AccountID identity.ID    `json:"account_id"`
+	BindingID identity.ID    `json:"binding_id,omitempty"`
+	AccountID identity.ID    `json:"account_id,omitempty"`
 	Health    string         `json:"health"`
 	Stats     ports.Stats    `json:"stats"`
+	Bindings  []BindingView  `json:"bindings,omitempty"`
 }
 type InboundPage struct {
 	Items    []InboundView     `json:"items"`
@@ -159,6 +110,7 @@ type InboundPage struct {
 type ExportRequest struct {
 	Format        ports.Format `json:"format"`
 	ClientVersion string       `json:"client_version"`
+	BindingID     identity.ID  `json:"binding_id,omitempty"`
 }
 type ExportResult struct {
 	Target            ports.Format `json:"format"`
@@ -167,6 +119,7 @@ type ExportResult struct {
 	ClientWireVersion int          `json:"client_wire_version"`
 	Compatibility     string       `json:"compatibility"`
 	Content           string       `json:"content"`
+	ContentShape      string       `json:"content_shape,omitempty"`
 }
 
 func (e ExportResult) Format(f fmt.State, v rune) { _, _ = f.Write([]byte("Export{[REDACTED]}")) }
@@ -183,6 +136,7 @@ type InboundCommands interface {
 	PlanSnell(context.Context, json.RawMessage) (Plan, error)
 	ApplySnell(context.Context, ApplyRequest) (ApplyResult, error)
 	ExportSnell(context.Context, identity.ID, ExportRequest) (ExportResult, error)
+	ExportClient(context.Context, identity.ID, ExportRequest) (ExportResult, error)
 	SetDisplay(context.Context, identity.ID, DisplayRequest) (identity.Transaction, error)
 }
 type runtimeState struct {
@@ -221,22 +175,12 @@ func (s *Service) EnableRuntime(ctx context.Context) error {
 		return e
 	}
 	for _, i := range inbounds {
-		b, e := r.Binding(ctx, i.ID)
+		intent, e := s.projection(ctx, i, snapshot.Revision)
 		if e != nil {
 			s.CloseRuntime(context.Background())
 			return e
 		}
-		a, e := r.Account(ctx, b.AccountID)
-		if e != nil || !accountAllowed(a) {
-			s.CloseRuntime(context.Background())
-			return identity.Err(identity.Invalid, "account unavailable for runtime")
-		}
-		c, e := r.RevealCredential(ctx, b.CredentialID)
-		if e != nil {
-			s.CloseRuntime(context.Background())
-			return e
-		}
-		h, e := s.prepare(ctx, ports.RuntimeIntent{Inbound: i, Bindings: []access.Binding{b}, Credentials: []access.Credential{c}, Revision: snapshot.Revision})
+		h, e := s.prepare(ctx, intent)
 		if e != nil {
 			s.CloseRuntime(context.Background())
 			return e
@@ -393,36 +337,7 @@ func (s *Service) ApplySnell(ctx context.Context, req ApplyRequest) (ApplyResult
 	if state.Revision != req.Revision {
 		return ApplyResult{}, identity.RevisionConflict(state.Revision)
 	}
-	h, e := s.prepare(ctx, ports.RuntimeIntent{Inbound: i, Bindings: []access.Binding{b}, Credentials: []access.Credential{c}, Revision: req.Revision})
-	if e != nil {
-		return ApplyResult{}, e
-	}
-	actor, e := localActor()
-	if e != nil {
-		_ = h.Close(context.Background())
-		return ApplyResult{}, e
-	}
-	op, e := r.repo.BeginOperation(ctx, req.Revision, actor)
-	if e != nil {
-		_ = h.Close(context.Background())
-		return ApplyResult{}, e
-	}
-	committed := false
-	defer func() {
-		if !committed {
-			cleanup, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			_ = h.Close(cleanup)
-			_ = r.repo.FailOperation(cleanup, op)
-		}
-	}()
-	if e = h.Start(ctx); e == nil {
-		e = h.Health(ctx)
-	}
-	if e != nil {
-		return ApplyResult{}, e
-	}
-	e = r.repo.CommitOperation(ctx, op, func(w ports.Writer) error {
+	op, e := s.commitCandidate(ctx, ports.RuntimeIntent{Inbound: i, Bindings: []access.Binding{b}, Credentials: []access.Credential{c}, Revision: req.Revision}, r.repo.BeginOperation, func(w ports.Writer) error {
 		if e := w.CreateAccount(a); e != nil {
 			return e
 		}
@@ -435,12 +350,8 @@ func (s *Service) ApplySnell(ctx context.Context, req ApplyRequest) (ApplyResult
 		return w.CreateBinding(b)
 	})
 	if e != nil {
-		return ApplyResult{}, safeOperation(e)
+		return ApplyResult{}, e
 	}
-	committed = true
-	h.Activate()
-	r.handles[i.ID] = h
-	_ = op.Finish(identity.Committed, time.Now(), "")
 	return ApplyResult{i.ID, a.ID, b.ID, op}, nil
 }
 func localActor() (identity.Actor, error) {
@@ -467,11 +378,22 @@ func (s *Service) views(ctx context.Context) (InboundPage, error) {
 	}
 	out := InboundPage{Items: []InboundView{}, Revision: state.Revision}
 	for _, i := range in {
-		b, e := s.runtime.repo.Binding(ctx, i.ID)
+		bs, e := s.bindings(ctx, i.ID)
 		if e != nil {
 			return InboundPage{}, e
 		}
-		v := InboundView{Inbound: i, BindingID: b.ID, AccountID: b.AccountID, Health: "stopped"}
+		v := InboundView{Inbound: i, Health: "stopped", Bindings: []BindingView{}}
+		if len(bs) == 1 {
+			v.BindingID = bs[0].ID
+			v.AccountID = bs[0].AccountID
+		}
+		for _, b := range bs {
+			bv := BindingView{BindingID: b.ID, AccountID: b.AccountID, Enabled: b.Enabled, Revision: b.Revision, PolicyID: b.PolicyOverrideID}
+			if h, ok := s.runtime.handles[i.ID].(ports.AttributedStats); ok {
+				bv.Stats = h.BindingStats(b.ID)
+			}
+			v.Bindings = append(v.Bindings, bv)
+		}
 		if h := s.runtime.handles[i.ID]; h != nil {
 			v.Stats = h.Stats()
 			if h.Health(ctx) == nil {
@@ -500,6 +422,9 @@ func (s *Service) Inbound(ctx context.Context, id identity.ID) (InboundView, err
 	return InboundView{}, identity.Err(identity.NotFound, "inbound not found")
 }
 func (s *Service) ExportSnell(ctx context.Context, id identity.ID, req ExportRequest) (ExportResult, error) {
+	return s.ExportClient(ctx, id, req)
+}
+func (s *Service) ExportClient(ctx context.Context, id identity.ID, req ExportRequest) (ExportResult, error) {
 	if s.runtime == nil {
 		return ExportResult{}, identity.Err(identity.NotImplemented, "runtime unavailable")
 	}
@@ -521,9 +446,28 @@ func (s *Service) ExportSnell(ctx context.Context, id identity.ID, req ExportReq
 	if !found {
 		return ExportResult{}, identity.Err(identity.NotFound, "inbound not found")
 	}
-	b, e := r.repo.Binding(ctx, id)
+	bs, e := s.bindings(ctx, id)
 	if e != nil {
 		return ExportResult{}, e
+	}
+	var b access.Binding
+	if req.BindingID == "" && len(bs) == 1 {
+		b = bs[0]
+	} else {
+		if req.BindingID.Validate() != nil {
+			return ExportResult{}, identity.Err(identity.Invalid, "explicit binding_id required for multi-user export")
+		}
+		for _, candidate := range bs {
+			if candidate.ID == req.BindingID {
+				b = candidate
+			}
+		}
+	}
+	if b.ID == "" {
+		return ExportResult{}, identity.Err(identity.NotFound, "binding not found")
+	}
+	if !b.Enabled {
+		return ExportResult{}, identity.Err(identity.Invalid, "binding disabled")
 	}
 	a, e := r.repo.Account(ctx, b.AccountID)
 	if e != nil || !accountAllowed(a) {
@@ -549,14 +493,15 @@ func (s *Service) ExportSnell(ctx context.Context, id identity.ID, req ExportReq
 	if e != nil {
 		return ExportResult{}, e
 	}
-	settings, _ := sm.Decode(i.Settings.Data)
-	wire := settings.Version
-	compat := "exact"
-	if wire == 5 {
-		wire = 4
-		compat = "v4 TCP/UDP client to v5 server; QUIC Proxy Mode unavailable"
+	describer, ok := x.(ports.ExportDescriber)
+	if !ok {
+		return ExportResult{}, identity.Err(identity.UnsupportedExport, "export description unavailable")
 	}
-	return ExportResult{req.Format, req.ClientVersion, settings.Version, wire, compat, string(content)}, nil
+	d, e := describer.Describe(profile)
+	if e != nil {
+		return ExportResult{}, e
+	}
+	return ExportResult{Target: req.Format, ClientVersion: req.ClientVersion, ServerVersion: d.ServerVersion, ClientWireVersion: d.ClientWireVersion, Compatibility: d.Compatibility, Content: string(content), ContentShape: d.ContentShape}, nil
 }
 func (s *Service) SetDisplay(ctx context.Context, id identity.ID, req DisplayRequest) (identity.Transaction, error) {
 	if s.runtime == nil {

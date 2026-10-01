@@ -10,7 +10,7 @@ import (
 )
 
 func snellRoute(w http.ResponseWriter, r *http.Request, q application.Queries) bool {
-	if r.URL.Path != "/api/v1/inbounds" && !strings.HasPrefix(r.URL.Path, "/api/v1/inbounds/") && !strings.HasPrefix(r.URL.Path, "/api/v1/snell/") {
+	if r.URL.Path != "/api/v1/inbounds" && !strings.HasPrefix(r.URL.Path, "/api/v1/inbounds/") && !strings.HasPrefix(r.URL.Path, "/api/v1/snell/") && !strings.HasPrefix(r.URL.Path, "/api/v1/hysteria2/") {
 		return false
 	}
 	s, ok := q.(application.InboundCommands)
@@ -55,6 +55,25 @@ func snellRoute(w http.ResponseWriter, r *http.Request, q application.Queries) b
 		if err == nil {
 			result, err = s.ApplySnell(r.Context(), req)
 		}
+	case "/api/v1/hysteria2/validate", "/api/v1/hysteria2/plan", "/api/v1/hysteria2/apply":
+		hy, ok := q.(application.Hysteria2Commands)
+		if !ok {
+			err = identity.Err(identity.NotImplemented, "Hysteria2 commands unavailable")
+			break
+		}
+		switch r.URL.Path {
+		case "/api/v1/hysteria2/validate":
+			err = hy.ValidateHysteria2(r.Context(), body)
+			result = map[string]bool{"valid": true}
+		case "/api/v1/hysteria2/plan":
+			result, err = hy.PlanHysteria2(r.Context(), body)
+		case "/api/v1/hysteria2/apply":
+			var req application.ApplyRequest
+			err = application.StrictJSON(body, &req)
+			if err == nil {
+				result, err = hy.ApplyHysteria2(r.Context(), req)
+			}
+		}
 	default:
 		parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/v1/inbounds/"), "/")
 		id, e := identity.ParseID(parts[0])
@@ -67,13 +86,24 @@ func snellRoute(w http.ResponseWriter, r *http.Request, q application.Queries) b
 				var req application.ExportRequest
 				err = application.StrictJSON(body, &req)
 				if err == nil {
-					result, err = s.ExportSnell(r.Context(), id, req)
+					result, err = s.ExportClient(r.Context(), id, req)
 				}
 			case len(parts) == 2 && parts[1] == "display":
 				var req application.DisplayRequest
 				err = application.StrictJSON(body, &req)
 				if err == nil {
 					result, err = s.SetDisplay(r.Context(), id, req)
+				}
+			case len(parts) == 2 && parts[1] == "binding":
+				hy, ok := q.(application.Hysteria2Commands)
+				if !ok {
+					err = identity.Err(identity.NotImplemented, "binding mutation unavailable")
+					break
+				}
+				var req application.BindingRequest
+				err = application.StrictJSON(body, &req)
+				if err == nil {
+					result, err = hy.SetBinding(r.Context(), id, req)
 				}
 			default:
 				err = identity.Err(identity.NotFound, "unknown endpoint")

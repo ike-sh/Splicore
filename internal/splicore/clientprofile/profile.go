@@ -14,6 +14,7 @@ type TLS struct {
 	ServerName       string   `json:"server_name,omitempty"`
 	ALPN             []string `json:"alpn,omitempty"`
 	Trust            string   `json:"trust,omitempty"`
+	CACertificate    string   `json:"ca_certificate,omitempty"`
 	RealityPublicKey string   `json:"reality_public_key,omitempty"`
 	RealityShortID   string   `json:"reality_short_id,omitempty"`
 }

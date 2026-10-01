@@ -26,9 +26,10 @@ Phase 1 is frozen at `a2ca59e6dbf1a239feae5e471ec1914cae0f1eac`.
 Phase 2 freezes experimental Snell on `codex/phase-2-snell-vertical-slice` and main.
 Read [workflow](PHASE_2_SNELL.md) and [report](../reports/PHASE_2_SNELL_VERTICAL_SLICE_REPORT.md).
 
-The freeze permits one commit and a fast-forward of main, then preparation of
-`codex/phase-3-hysteria2-vertical-slice` and an immediate stop. Phase 3 implementation
-is not started. No push, origin, tag or release. Upstream runtime sources and
+Phase 3 implements experimental HY2 on `codex/phase-3-hysteria2-vertical-slice`,
+parent/main `5bc50a69b0df2c3dc9ede86015c9e4a6b86e2981`. Read
+[HY2 workflow](PHASE_3_HYSTERIA2.md) and [report](../reports/PHASE_3_HYSTERIA2_VERTICAL_SLICE_REPORT.md).
+No stage, commit, push, origin, tag or release. Upstream runtime sources and
 historical reports remain unchanged; tools/binaries/logs/state stay external.
 Foundation composition remains for independent placeholder contract tests.
 
@@ -59,7 +60,8 @@ pinned upstream commit as its sole parent. Phase 1 preserves those bytes and
 keeps fresh logs/binaries/tools outside the repository. The Phase 1 freeze
 instruction supersedes the implementation-only staging/commit restriction.
 The Phase 2 freeze request supersedes its implementation-only staging/commit
-restriction. Publication remains prohibited; the Phase 3 branch is preparation only.
+restriction. Phase 3 has its own implementation-only authorization; all changes
+remain unstaged and unpublished until review.
 
 For Windows, the normal build's PowerShell translation is:
 

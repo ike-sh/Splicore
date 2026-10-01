@@ -5,11 +5,19 @@ modular, extensible server architecture as its target.
 
 ## Status
 
-**Early Development / Snell Experimental.** Phase 0, Phase 1 and Phase 2 are frozen.
+**Early Development / Snell and Hysteria2 Experimental.** Phases 0–3 are locally frozen.
 Phase 2 implements Snell v5/v6 using committed SQLite state, the existing sing-box
 data plane, payload stats, protected Linux API/CLI and client exporters. Pinned
 Mihomo and sing-box clients pass actual TCP/UDP tests. Surge has contract tests only.
 Phase 2 is a local freeze; no stable Splicore runtime is released.
+
+Phase 3 adds Hysteria2 using the pinned native QUIC/TLS implementation, encrypted
+password credentials, multi-user Bindings, static TLS, TCP/UDP and per-Binding
+payload stats. Mihomo 1.19.30 and sing-box 1.14.1 pass trusted-CA traffic tests.
+Phase 3 is a local freeze; Phase 4's TUIC branch is reserved and implementation
+has not started. See [Hysteria2 support](docs/protocol/HYSTERIA2.md),
+[workflow](docs/development/PHASE_3_HYSTERIA2.md) and
+[Phase 3 report](docs/reports/PHASE_3_HYSTERIA2_VERTICAL_SLICE_REPORT.md).
 
 See [Snell support](docs/protocol/SNELL.md), [workflow](docs/development/PHASE_2_SNELL.md)
 and the [Phase 2 report](docs/reports/PHASE_2_SNELL_VERTICAL_SLICE_REPORT.md).
@@ -40,12 +48,12 @@ See the [architecture overview](docs/ARCHITECTURE.md) for the design and its lim
 
 ## Protocol Direction
 
-Snell has the bounded experimental profile below. Other rows are planned targets.
+Snell and Hysteria2 have bounded experimental profiles. Other rows are planned targets.
 
 | Protocol / capability | Planned engine |
 | --- | --- |
 | Snell | Native: v5 no obfs, v6 default; experimental |
-| Hysteria2 | Native |
+| Hysteria2 | Native: static TLS, password multi-user, TCP/UDP; experimental |
 | TUIC | Native |
 | VLESS / REALITY | Native |
 | Mieru | Planned native integration |

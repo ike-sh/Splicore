@@ -167,6 +167,8 @@ def main():
         logs.append(f)
         p = subprocess.Popen(args, stdout=f, stderr=subprocess.STDOUT)
         processes.append(p)
+        with (work / "processes.jsonl").open("a", encoding="utf-8") as record:
+            record.write(json.dumps({"pid": p.pid, "name": name, "executable": args[0]}) + "\n")
         return p
     def start_server():
         proc = launch([exe, "run", "--config", str(bootstrap)], "server-" + str(len(processes)))

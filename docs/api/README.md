@@ -7,14 +7,18 @@
 - Responsibility: Contract authority, semantic references and API change workflow.
 - Lifecycle: Update with contract ownership or API scope changes.
 
-## Current Phase 2 implementation
+## Current Phase 3 implementation
 
-OpenAPI marks nine implemented routes: two Foundation queries and seven Snell operations. Export is explicitly secret-returning; reads redact credentials. Generic resource/subscription/import routes remain deferred.
+OpenAPI marks 13 implemented routes: two Foundation queries, seven existing
+runtime/Snell operations, three HY2 operations and Binding enable/disable.
+Export is explicitly secret-returning and supports explicit Binding selection;
+reads redact credentials. Generic resource/subscription/import routes remain deferred.
 
 ## Current state and authority
 
 The API has a **Foundation implementation** of the System and Capabilities reads.
-Other routes remain proposed. The [OpenAPI 3.1 skeleton](openapi-skeleton.yaml) is
+Marked Snell/HY2 operations are experimental; other routes remain proposed.
+The [OpenAPI 3.1 skeleton](openapi-skeleton.yaml) is
 the machine authority for paths, methods, parameters, schemas,
 responses and HTTP security descriptions. JSON syntax is valid YAML. Its
 version is a contract marker, not a product release. Each operation records its

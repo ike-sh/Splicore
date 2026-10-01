@@ -69,7 +69,7 @@ Account status is active/suspended/closed plus enabled; stamps require UTC.
 Metadata is bounded nonsecret string annotations; sensitive keys are rejected
 and diagnostic formatting redacts metadata. Resource IDs are canonical random
 UUID v4; credential UUID validation is a separate authentication concern.
-Credential payloads are tagged PSK, UUID, UUID+password or username+password
+Credential payloads are tagged PSK, password, UUID, UUID+password or username+password
 values. Credential records require exactly one Account or Inbound owner.
 
 Inbound owns separate Listener and DisplayEndpoint values and internal Engine

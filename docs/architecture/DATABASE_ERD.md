@@ -84,6 +84,14 @@ resource updates and audit success in **one** SQLite transaction.
 
 ## Foundation schema scope
 
+Current schema 3 adds [0003_password](../../internal/splicore/storage/sqlite/migrations/0003_password.sql)
+without changing 0001/0002. Generic Credential kind `password` supports HY2;
+Account has no protocol-secret columns. The rebuild preserves ciphertext/AAD,
+foreign keys and the Snell single-Binding trigger. HY2 stores 1–16 Account-owned
+Bindings/credentials per Inbound, with optional distinct TrafficPolicy references.
+No durable usage/accounting tables are added. TLS public CA and file references
+are versioned Inbound settings; private-key contents never enter SQLite.
+
 Schema 1 contains schema_migrations, metadata, nodes, settings, accounts,
 inbounds, listeners, display_endpoints, credentials, bindings, traffic_policies
 and transactions. Checks/FKs and unique Account/Inbound binding enforce basic

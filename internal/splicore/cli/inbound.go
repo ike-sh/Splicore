@@ -36,6 +36,8 @@ func inboundCLI(ctx context.Context, args []string, out, errOut io.Writer, deps 
 	id := fs.String("id", "", "inbound ID")
 	format := fs.String("format", "", "client format")
 	client := fs.String("client-version", "", "pinned client version")
+	protocol := fs.String("protocol", "snell", "snell or hysteria2")
+	binding := fs.String("binding-id", "", "explicit user binding for export")
 	if fs.Parse(args[2:]) != nil || fs.NArg() != 0 {
 		return failure(errOut, identity.Err(identity.Invalid, "invalid arguments"))
 	}
@@ -48,10 +50,17 @@ func inboundCLI(ctx context.Context, args []string, out, errOut io.Writer, deps 
 		}
 		return outputJSON(out, map[string]bool{"initialized": true})
 	}
+	if *protocol != "snell" && *protocol != "hysteria2" {
+		return failure(errOut, identity.Err(identity.Invalid, "unsupported protocol"))
+	}
 	if args[1] == "validate" {
 		b, e := boundedFile(*file)
 		if e == nil {
-			_, e = application.DecodeSnell(b)
+			if *protocol == "hysteria2" {
+				_, e = application.DecodeHysteria2(b)
+			} else {
+				_, e = application.DecodeSnell(b)
+			}
 		}
 		if e != nil {
 			return failure(errOut, e)
@@ -73,6 +82,10 @@ func inboundCLI(ctx context.Context, args []string, out, errOut io.Writer, deps 
 	}
 	var result any
 	var err error
+	hy, hyAvailable := s.(application.Hysteria2Commands)
+	if *protocol == "hysteria2" && !hyAvailable {
+		return failure(errOut, identity.Err(identity.NotImplemented, "Hysteria2 commands unavailable"))
+	}
 	switch args[1] {
 	case "list":
 		result, err = s.Inbounds(ctx)
@@ -80,7 +93,11 @@ func inboundCLI(ctx context.Context, args []string, out, errOut io.Writer, deps 
 		var b []byte
 		b, err = boundedFile(*file)
 		if err == nil {
-			result, err = s.PlanSnell(ctx, b)
+			if *protocol == "hysteria2" {
+				result, err = hy.PlanHysteria2(ctx, b)
+			} else {
+				result, err = s.PlanSnell(ctx, b)
+			}
 		}
 	case "apply":
 		var b, p []byte
@@ -90,12 +107,24 @@ func inboundCLI(ctx context.Context, args []string, out, errOut io.Writer, deps 
 		}
 		var planned application.Plan
 		if err == nil {
-			err = application.StrictJSON(p, &planned)
+			if *protocol == "hysteria2" {
+				var hp application.Hysteria2Plan
+				err = application.StrictJSON(p, &hp)
+				planned.Digest = hp.Digest
+				planned.Revision = hp.Revision
+			} else {
+				err = application.StrictJSON(p, &planned)
+			}
 		}
 		if err == nil {
-			result, err = s.ApplySnell(ctx, application.ApplyRequest{Document: b, Digest: planned.Digest, Revision: planned.Revision})
+			req := application.ApplyRequest{Document: b, Digest: planned.Digest, Revision: planned.Revision}
+			if *protocol == "hysteria2" {
+				result, err = hy.ApplyHysteria2(ctx, req)
+			} else {
+				result, err = s.ApplySnell(ctx, req)
+			}
 		}
-	case "get", "export", "display":
+	case "get", "export", "display", "binding":
 		var parsed identity.ID
 		parsed, err = identity.ParseID(*id)
 		if err == nil {
@@ -103,7 +132,13 @@ func inboundCLI(ctx context.Context, args []string, out, errOut io.Writer, deps 
 			case "get":
 				result, err = s.Inbound(ctx, parsed)
 			case "export":
-				result, err = s.ExportSnell(ctx, parsed, application.ExportRequest{Format: ports.Format(*format), ClientVersion: *client})
+				var bid identity.ID
+				if *binding != "" {
+					bid, err = identity.ParseID(*binding)
+				}
+				if err == nil {
+					result, err = s.ExportClient(ctx, parsed, application.ExportRequest{Format: ports.Format(*format), ClientVersion: *client, BindingID: bid})
+				}
 			case "display":
 				var b []byte
 				b, err = boundedFile(*file)
@@ -113,6 +148,20 @@ func inboundCLI(ctx context.Context, args []string, out, errOut io.Writer, deps 
 				}
 				if err == nil {
 					result, err = s.SetDisplay(ctx, parsed, r)
+				}
+			case "binding":
+				if !hyAvailable {
+					err = identity.Err(identity.NotImplemented, "binding mutation unavailable")
+					break
+				}
+				var b []byte
+				b, err = boundedFile(*file)
+				var req application.BindingRequest
+				if err == nil {
+					err = application.StrictJSON(b, &req)
+				}
+				if err == nil {
+					result, err = hy.SetBinding(ctx, parsed, req)
 				}
 			}
 		}

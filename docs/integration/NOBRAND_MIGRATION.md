@@ -25,6 +25,28 @@ Manifest declares compatible config/DB/ABI/API and upgrade/backup requirements.
 
 ## Per-protocol rollout
 
+### Phase 3 synthetic Hysteria2 mapping
+
+The [HY2 template](../../tests/fixtures/nobrand/hysteria2.json) is materialized
+with external ephemeral CA/key references and synthetic credentials by the real
+interop harness. Validate/plan/apply and SQLite recovery use only this fixture;
+no real NoBrand source, installation or state was read or changed.
+
+| Logical legacy value | Canonical HY2 import |
+|---|---|
+| name | `name`; explicit `users[].account_name` |
+| actual bind | IP `listener.host` and `listener.port` (UDP) |
+| public address | independent `display_endpoint.host` and `port` |
+| password | optional private `users[].password`; omission generates |
+| TLS/SNI | explicit `settings.tls.server_name`, public CA, certificate/key file references |
+| obfs / masquerade | deferred; input rejects rather than dropping |
+
+TLS identity never follows a display-address change. Migration must provision
+protected files separately; production keys are not fixture material. Existing
+passwords require the portable validation contract or planned rotation. TrafficPolicy
+is explicit metadata only. This is logical mapping, not a claim about old extraction
+paths or a production importer. See [HY2 workflow](../development/PHASE_3_HYSTERIA2.md).
+
 ### Phase 2 synthetic Snell mapping
 
 The [synthetic fixture](../../tests/fixtures/nobrand/snell.json) and actual CLI

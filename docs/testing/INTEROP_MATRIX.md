@@ -7,7 +7,7 @@
 - Responsibility: Planned third-party protocol/client qualification cells and evidence rules.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-Phase 2 has real Snell traffic qualification below; other profiles remain
+Phase 2 has real Snell and Phase 3 has real Hysteria2 traffic qualification below; other profiles remain
 **planned / NOT RUN**. Pin server source/build, client version/digest, feature,
 export contract and OS/network setup for each row. Baseline unit tests are separate.
 
@@ -32,6 +32,33 @@ without parser validation. No multi-user/policy/obfs/QUIC mode qualification.
 See [Phase 2 report](../reports/PHASE_2_SNELL_VERTICAL_SLICE_REPORT.md) for archive
 and executable hashes, platform gates and exact limits. The
 [workflow](../development/PHASE_2_SNELL.md) describes reproducing external evidence.
+
+## Verified experimental Hysteria2 cells
+
+The full 12-cell HY2 matrix and nine-cell Snell regression were independently
+repeated on Ubuntu-24.04 WSL2, using native ext4 state and a race-built server.
+Both IPv4 and IPv6 passed again. Loopback-only network namespaces isolate the
+existing entrypoints; temporary state/keys/clients were removed. Fresh actual
+evidence, hashes and the external Docker cleanup deferral are in the
+[Phase 3 acceptance report](../reports/PHASE_3_HYSTERIA2_VERTICAL_SLICE_REPORT.md).
+
+| Client | Version | User | Endpoint | TCP | UDP payload / QUIC transport | Trusted CA / correct SNI | Result |
+|---|---|---|---|---|---|---|---|
+| Mihomo | 1.19.30 | Alice, Bob | IPv4 / IPv6 / domain | PASS | PASS / PASS | PASS | 6 cells PASS |
+| sing-box | 1.14.1 | Alice, Bob | IPv4 / IPv6 / domain | PASS | PASS / PASS | PASS | 6 cells PASS |
+
+All 12 cells use 127.0.0.1, ::1 or localhost with independent `hy2.test` SNI.
+Each checks 4 MiB integrity, 16 concurrent connections across users, 32 sequenced
+UDP packets, reconnect, abnormal close and attributed counter growth under the
+race-built server. Wrong password/SNI/CA fail for both clients. A password identifies
+its Binding irrespective of a client's local label: Alice's password used with
+Bob's label increments Alice only. Saved Alice configs fail after Binding disable;
+Bob reconnects. SQLite restart retains disabled state; existing clients reconnect;
+re-enable, forced client kill, daemon shutdown and UDP port reuse pass.
+Mihomo uses the non-leaf CA pin; sing-box uses explicit CA PEM. No insecure PASS path.
+Surge UnsupportedExport; URI/obfs/masquerade are unqualified/deferred.
+See [HY2 support](../protocol/HYSTERIA2.md), [workflow](../development/PHASE_3_HYSTERIA2.md)
+and [full evidence report](../reports/PHASE_3_HYSTERIA2_VERTICAL_SLICE_REPORT.md).
 
 ## Future profile targets
 

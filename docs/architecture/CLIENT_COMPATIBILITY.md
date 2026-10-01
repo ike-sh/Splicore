@@ -19,6 +19,16 @@ Phase 2 implements Snell ClientProfile and Mihomo/sing-box/Surge exporters.
 Default profile JSON/formatting redacts PSK. Export is explicitly secret-returning.
 No server runtime struct/Engine ID enters the profile; no Snell URI is invented.
 
+Phase 3 adds password auth, explicit CA/SNI/h3 TLS and QUIC/UDP projection for
+[Hysteria2](../protocol/HYSTERIA2.md). Default formatting redacts password too.
+Mihomo 1.19.30 receives a `mihomo-config-fragment` containing proxies with a
+non-leaf CA SHA-256 fingerprint, SNI and skip-cert-verify=false. The runtime serves
+the configured CA; this pinned verifier checks chain/validity/SNI. sing-box 1.14.1
+receives a `sing-box-outbound` with explicit CA, SNI and insecure=false. Both pass
+real TCP/UDP with Alice/Bob over all three endpoint types. Surge is unsupported;
+URI is deferred. Export envelopes include `content_shape`; multi-user export must
+select `binding_id`. Policy metadata and server private keys never enter profiles.
+
 | Server | Pinned client | Mapping / qualification |
 |---|---|---|
 | v5 no obfs | Mihomo 1.19.30 | explicit v4 client, TCP/UDP PASS |

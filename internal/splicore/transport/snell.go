@@ -77,6 +77,9 @@ func (c *Client) ApplySnell(ctx context.Context, r application.ApplyRequest) (ap
 	return v, e
 }
 func (c *Client) ExportSnell(ctx context.Context, id identity.ID, r application.ExportRequest) (application.ExportResult, error) {
+	return c.ExportClient(ctx, id, r)
+}
+func (c *Client) ExportClient(ctx context.Context, id identity.ID, r application.ExportRequest) (application.ExportResult, error) {
 	var v application.ExportResult
 	if e := id.Validate(); e != nil {
 		return v, e
