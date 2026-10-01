@@ -7,7 +7,7 @@
 - Responsibility: Driver qualification, durability, migration mechanics, backup and corruption recovery.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-## Current Phase 2 implementation
+## Current committed schema
 
 Schema 3 adds checksummed 0003_password after 0002_snell, without editing migration
 history. It rebuilds the credential-kind CHECK to admit generic password payloads,
@@ -96,3 +96,9 @@ Sources: [modernc driver](https://pkg.go.dev/modernc.org/sqlite),
 [CGO driver](https://github.com/mattn/go-sqlite3),
 [SQLite WAL](https://sqlite.org/wal.html), [backup](https://sqlite.org/backup.html),
 [corruption causes](https://sqlite.org/howtocorrupt.html).
+
+## Third-protocol storage
+
+TUIC uses existing schema-3 uuid_password encrypted payloads; no migration/protocol
+column/Account field. Shared creation writes distinct Account/Binding/Credential rows;
+SQLite committed state alone recovers. Display SQL is generic after service checks.

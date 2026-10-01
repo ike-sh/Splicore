@@ -22,6 +22,7 @@ def main():
     parser.add_argument("root", type=pathlib.Path)
     parser.add_argument("inventory", type=pathlib.Path)
     parser.add_argument("--responses", type=pathlib.Path)
+    parser.add_argument("--protocol", choices=["snell","hysteria2","tuic"],default="hysteria2")
     args = parser.parse_args()
     root = args.root.resolve()
     inventory = json.loads(args.inventory.read_text(encoding="utf-8-sig"))
@@ -109,8 +110,8 @@ def main():
         for method, operation in methods.items():
             if method in {"get", "post", "put", "patch", "delete"}:
                 operations.append(operation["operationId"])
-                assert operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "deferred"}
-                if operation["x-implementation-status"] in {"foundation", "phase2", "phase3"}:
+                assert operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "phase4", "deferred"}
+                if operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "phase4"}:
                     implemented.append((method, path))
     assert len(operations) == len(set(operations))
     assert sorted(implemented) == sorted([
@@ -120,19 +121,23 @@ def main():
         ("post", "/api/v1/snell/apply"), ("post", "/api/v1/inbounds/{id}/export"),
         ("post", "/api/v1/inbounds/{id}/display"),
         ("post", "/api/v1/hysteria2/validate"), ("post", "/api/v1/hysteria2/plan"),
-        ("post", "/api/v1/hysteria2/apply"), ("post", "/api/v1/inbounds/{id}/binding")])
+        ("post", "/api/v1/hysteria2/apply"), ("post", "/api/v1/inbounds/{id}/binding")] + [("post", "/api/v1/"+prefix+"/"+action) for prefix in ["tuic","creation/{protocol}"] for action in ["validate","plan","apply"]])
     assert spec["paths"]["/api/v1/inbounds/{id}/export"]["post"]["x-secret-returning"] is True
     assert not {"password", "psk", "token", "uuid", "secret_data"} & set(spec["components"]["schemas"]["Account"]["properties"])
     if args.responses:
-        for filename, schema in [("system-response.json", "System"), ("http-system-response.json", "System"), ("capabilities-response.json", "CapabilityPage"), ("inbounds-response.json", "RuntimeInboundPage"), ("inbound-response.json", "RuntimeInboundView"), ("hysteria2-plan-response.json", "Hysteria2Plan"), ("hysteria2-apply-response.json", "Hysteria2Applied"), ("binding-transaction-response.json", "RuntimeTransaction")]:
+        pairs=[("system-response.json","System"),("http-system-response.json","System"),("capabilities-response.json","CapabilityPage"),("inbounds-response.json","RuntimeInboundPage"),("inbound-response.json","RuntimeInboundView")]
+        if args.protocol!="snell":
+            prefix=args.protocol;schema="TUIC" if prefix=="tuic" else "Hysteria2"
+            pairs.extend([(prefix+"-plan-response.json",schema+"Plan"),(prefix+"-apply-response.json",schema+"Applied"),("binding-transaction-response.json","RuntimeTransaction")])
+        for filename,schema in pairs:
             instance = json.loads((args.responses / filename).read_text(encoding="utf-8-sig"))
             document = {"$ref": "#/components/schemas/" + schema, "components": spec["components"]}
             Draft202012Validator(document, format_checker=FormatChecker()).validate(instance)
         # Safe envelopes replace content before archival; the harness checks live secrets.
         envelopes = args.responses / "export-envelopes-response.json"
         document = {"$ref": "#/components/schemas/ClientExportResult", "components": spec["components"]}
-        instances = json.loads(envelopes.read_text(encoding="utf-8-sig"))
-        assert instances, "missing live export envelopes"
+        instances = json.loads(envelopes.read_text(encoding="utf-8-sig")) if envelopes.exists() else []
+        assert instances or args.protocol=="snell", "missing live export envelopes"
         for instance in instances:
             Draft202012Validator(document, format_checker=FormatChecker()).validate(instance)
     result = {"result": "PASS", "markdown_documents": len(documents), "local_links": links, "operations": len(operations), "implemented_reads": implemented, "live_responses_checked": bool(args.responses)}

@@ -101,3 +101,20 @@ rollback. Never delete old services/state just because process readiness succeed
 Field beta collects local redacted support bundles (manual sharing), client/server
 versions, TCP/UDP/reconnect/policy results and rollback evidence. NoBrand must not
 reach SQLite directly or generate sing-box/Mieru/Xray runtime JSON after migration.
+
+## Phase 4 synthetic TUIC mapping
+
+[TUIC fixture](../../tests/fixtures/nobrand/tuic.json) materializes only synthetic
+UUID/password/CA and native protected file references; real NoBrand was not accessed.
+
+| Logical field | TUIC document |
+|---|---|
+| bind | IP listener.host/port; UDP |
+| public endpoint | independent display_endpoint.host/port |
+| credential | users[].uuid/password together, or omit both to generate |
+| TLS/SNI | shared settings.tls explicit CA and cert/key file references |
+| wire/options | version=5; cubic; native; zero_rtt_handshake=false |
+| disabled identity | enabled Binding; account_enabled Account |
+
+Logical contract only; no production extractor/canary. Policies metadata_only; no
+enforcement. Input/runtime JSON never recovery authority. [Workflow](../development/PHASE_4_TUIC.md).

@@ -10,7 +10,13 @@ import (
 )
 
 func snellRoute(w http.ResponseWriter, r *http.Request, q application.Queries) bool {
-	if r.URL.Path != "/api/v1/inbounds" && !strings.HasPrefix(r.URL.Path, "/api/v1/inbounds/") && !strings.HasPrefix(r.URL.Path, "/api/v1/snell/") && !strings.HasPrefix(r.URL.Path, "/api/v1/hysteria2/") {
+	creationParts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/v1/"), "/")
+	genericCreation := len(creationParts) == 3 && creationParts[0] == "creation"
+	if genericCreation {
+		creationParts = creationParts[1:]
+	}
+	creationRoute := strings.HasPrefix(r.URL.Path, "/api/v1/") && len(creationParts) == 2 && (creationParts[1] == "validate" || creationParts[1] == "plan" || creationParts[1] == "apply")
+	if r.URL.Path != "/api/v1/inbounds" && !strings.HasPrefix(r.URL.Path, "/api/v1/inbounds/") && !creationRoute {
 		return false
 	}
 	s, ok := q.(application.InboundCommands)
@@ -55,26 +61,28 @@ func snellRoute(w http.ResponseWriter, r *http.Request, q application.Queries) b
 		if err == nil {
 			result, err = s.ApplySnell(r.Context(), req)
 		}
-	case "/api/v1/hysteria2/validate", "/api/v1/hysteria2/plan", "/api/v1/hysteria2/apply":
-		hy, ok := q.(application.Hysteria2Commands)
-		if !ok {
-			err = identity.Err(identity.NotImplemented, "Hysteria2 commands unavailable")
+	default:
+		if creationRoute {
+			commands, ok := q.(application.CreationCommands)
+			if !ok {
+				err = identity.Err(identity.NotImplemented, "creation commands unavailable")
+				break
+			}
+			switch creationParts[1] {
+			case "validate":
+				err = commands.ValidateCreation(r.Context(), creationParts[0], body)
+				result = map[string]bool{"valid": true}
+			case "plan":
+				result, err = commands.PlanCreation(r.Context(), creationParts[0], body)
+			case "apply":
+				var req application.ApplyRequest
+				err = application.StrictJSON(body, &req)
+				if err == nil {
+					result, err = commands.ApplyCreation(r.Context(), creationParts[0], req)
+				}
+			}
 			break
 		}
-		switch r.URL.Path {
-		case "/api/v1/hysteria2/validate":
-			err = hy.ValidateHysteria2(r.Context(), body)
-			result = map[string]bool{"valid": true}
-		case "/api/v1/hysteria2/plan":
-			result, err = hy.PlanHysteria2(r.Context(), body)
-		case "/api/v1/hysteria2/apply":
-			var req application.ApplyRequest
-			err = application.StrictJSON(body, &req)
-			if err == nil {
-				result, err = hy.ApplyHysteria2(r.Context(), req)
-			}
-		}
-	default:
 		parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/v1/inbounds/"), "/")
 		id, e := identity.ParseID(parts[0])
 		err = e
@@ -95,7 +103,7 @@ func snellRoute(w http.ResponseWriter, r *http.Request, q application.Queries) b
 					result, err = s.SetDisplay(r.Context(), id, req)
 				}
 			case len(parts) == 2 && parts[1] == "binding":
-				hy, ok := q.(application.Hysteria2Commands)
+				hy, ok := q.(application.BindingCommands)
 				if !ok {
 					err = identity.Err(identity.NotImplemented, "binding mutation unavailable")
 					break

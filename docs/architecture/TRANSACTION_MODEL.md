@@ -110,3 +110,11 @@ request_id, transaction_id and redacted field names. Record attempt/failure and
 commit outcome; mutation success audit is atomic with domain commit. Usage and
 irreversible traffic are independent of config rollback. Backup restore is an
 upgrade recovery operation with its own audit, not a routine mutation rollback.
+
+## Registered creation and TUIC
+
+Shared CreationCodec/resource builder and HMAC bind protocol ID, compact JSON/revision.
+UUID/password/settings, TLS, UDP conflict, compile/start/health/commit failures never
+publish rows. QUIC admission opens after commit; reconcile reconstructs committed
+credentials on failure/recovery. Disabled Account creation/recovery is tested; general
+live Account mutation deferred.

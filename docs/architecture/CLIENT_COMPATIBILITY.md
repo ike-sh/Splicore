@@ -82,3 +82,10 @@ Stable release qualification requires [interop matrix](../testing/INTEROP_MATRIX
 with actual pinned third-party clients, TCP/UDP/auth/reconnect/transfer and failure
 cases. A protocol supporting only a Splicore client is a new native protocol with
 its own specification, not a compatible replacement for an existing protocol.
+
+## TUIC v5 realization
+
+[TUIC](../protocol/TUIC.md) projects typed UUID/password, independent endpoint/SNI/CA,
+h3/QUIC/UDP and v5/cubic/native/no-0RTT options. Pinned Mihomo1.19.30 and sing-box1.14.1
+keep verification enabled and omit v4 token. Surge rejects; URI deferred. Engine
+structs/server keys never enter ClientProfile. [Actual results](../reports/PHASE_4_TUIC_VERTICAL_SLICE_REPORT.md).

@@ -26,8 +26,11 @@ import (
 )
 
 func setupHysteria(t *testing.T, path string, wrap func(ports.MultiBindingRepository) ports.Repository) (*application.Service, *sqlite.Store) {
+	return setupProtocols(t, path, wrap, registry.Phase3)
+}
+func setupProtocols(t *testing.T, path string, wrap func(ports.MultiBindingRepository) ports.Repository, compose func() (*registry.Protocols, *registry.Engines, *registry.Exporters, error)) (*application.Service, *sqlite.Store) {
 	t.Helper()
-	p, e, x, err := registry.Phase3()
+	p, e, x, err := compose()
 	if err != nil {
 		t.Fatal(err)
 	}

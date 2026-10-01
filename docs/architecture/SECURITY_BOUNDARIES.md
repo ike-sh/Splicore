@@ -64,3 +64,10 @@ The native data plane's upstream compatibility APIs must not expose mutation pat
 that bypass the application/revision coordinator. Existing route/security policy
 is preserved; import exposes curated stable controls rather than an arbitrary
 upstream JSON escape hatch.
+
+## TUIC and shared support
+
+UUID/password are both secret values in typed encrypted Credential. No default
+metadata/doctor/journal/error/log reveal; scoped export returns the pair. Shared TLS
+loader/password rules retain Linux owner/mode, trust/SNI/snapshot protection. Wrong
+UUID/password combinations fail before routing. No qualified v4/token/0-RTT/insecure.

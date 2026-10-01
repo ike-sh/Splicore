@@ -7,7 +7,7 @@
 - Responsibility: Transport, security and operation semantics; OpenAPI owns endpoint surface.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-Design maturity: Foundation queries and experimental Snell/Hysteria2 operations
+Design maturity: Foundation queries and experimental Snell/Hysteria2/TUIC operations
 are implemented and marked in OpenAPI. Other paths remain deferred. Protected
 local UDS access authorizes control; no public network bearer surface is enabled.
 
@@ -18,7 +18,7 @@ no generic Idempotency-Key/If-Match promise; requirements below apply to future
 generic routes. Metadata is one bounded committed snapshot (at most 64 Inbounds).
 Display mutation checks resource/global revisions without changing runtime.
 Export POST is explicitly secret-returning; default GET/doctor/journal/errors have
-no PSK/password/private-key contents. Unsupported client combinations return 422. Counters are decimal strings.
+no PSK/UUID/password/private-key contents. Unsupported client combinations return 422. Counters are decimal strings.
 Occupied listeners return `port_conflict` (409) with a fixed safe message through
 API and CLI; this differs from a revision conflict.
 
@@ -89,3 +89,13 @@ for the initiating principal; retry returns same operation, not newly minted sec
 One-time reveal endpoints need explicit delivery/retry/expiry contract before adding
 to OpenAPI. Raw secret credential input is write-only; routine GET never reveals it.
 No subscription/admin token equivalence, commerce/RBAC suite or raw engine API.
+
+## Phase 4 registered commands
+
+/api/v1/creation/{protocol}/validate|plan|apply resolves compiled CreationCodec, with
+uniform plan/applied shapes. Snell/HY2 legacy endpoints and methods remain compatible.
+/api/v1/tuic/validate|plan|apply aliases use generic shapes. Protocol is HMAC-bound;
+cross-protocol replay rejects. TUIC UUID/password supplied together or omitted to
+generate; account_enabled:false disables Account at creation, enabled:false Binding.
+Metadata omits both secrets; explicit export returns them. No HTTP runtime import.
+[OpenAPI](openapi-skeleton.yaml) and [TUIC](../protocol/TUIC.md) own exact contracts.

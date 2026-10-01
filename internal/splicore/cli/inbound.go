@@ -6,6 +6,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/application"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
+	"github.com/sagernet/sing-box/internal/splicore/registry"
 	"github.com/sagernet/sing-box/internal/splicore/secretvault"
 	"github.com/sagernet/sing-box/internal/splicore/transport"
 	"io"
@@ -36,7 +37,7 @@ func inboundCLI(ctx context.Context, args []string, out, errOut io.Writer, deps 
 	id := fs.String("id", "", "inbound ID")
 	format := fs.String("format", "", "client format")
 	client := fs.String("client-version", "", "pinned client version")
-	protocol := fs.String("protocol", "snell", "snell or hysteria2")
+	protocol := fs.String("protocol", "snell", "registered protocol command")
 	binding := fs.String("binding-id", "", "explicit user binding for export")
 	if fs.Parse(args[2:]) != nil || fs.NArg() != 0 {
 		return failure(errOut, identity.Err(identity.Invalid, "invalid arguments"))
@@ -50,16 +51,17 @@ func inboundCLI(ctx context.Context, args []string, out, errOut io.Writer, deps 
 		}
 		return outputJSON(out, map[string]bool{"initialized": true})
 	}
-	if *protocol != "snell" && *protocol != "hysteria2" {
-		return failure(errOut, identity.Err(identity.Invalid, "unsupported protocol"))
-	}
 	if args[1] == "validate" {
 		b, e := boundedFile(*file)
 		if e == nil {
-			if *protocol == "hysteria2" {
-				_, e = application.DecodeHysteria2(b)
-			} else {
-				_, e = application.DecodeSnell(b)
+			p, _, _, er := registry.Phase4()
+			e = er
+			if e == nil {
+				codec, er := p.Creation(*protocol)
+				e = er
+				if e == nil {
+					_, e = codec.DecodeCreation(b)
+				}
 			}
 		}
 		if e != nil {
@@ -82,10 +84,8 @@ func inboundCLI(ctx context.Context, args []string, out, errOut io.Writer, deps 
 	}
 	var result any
 	var err error
-	hy, hyAvailable := s.(application.Hysteria2Commands)
-	if *protocol == "hysteria2" && !hyAvailable {
-		return failure(errOut, identity.Err(identity.NotImplemented, "Hysteria2 commands unavailable"))
-	}
+	commands, creationAvailable := s.(application.CreationCommands)
+	bindings, bindingAvailable := s.(application.BindingCommands)
 	switch args[1] {
 	case "list":
 		result, err = s.Inbounds(ctx)
@@ -93,10 +93,10 @@ func inboundCLI(ctx context.Context, args []string, out, errOut io.Writer, deps 
 		var b []byte
 		b, err = boundedFile(*file)
 		if err == nil {
-			if *protocol == "hysteria2" {
-				result, err = hy.PlanHysteria2(ctx, b)
+			if !creationAvailable {
+				err = identity.Err(identity.NotImplemented, "creation unavailable")
 			} else {
-				result, err = s.PlanSnell(ctx, b)
+				result, err = commands.PlanCreation(ctx, *protocol, b)
 			}
 		}
 	case "apply":
@@ -105,23 +105,15 @@ func inboundCLI(ctx context.Context, args []string, out, errOut io.Writer, deps 
 		if err == nil {
 			p, err = boundedFile(*plan)
 		}
-		var planned application.Plan
+		var planned application.CreationPlan
 		if err == nil {
-			if *protocol == "hysteria2" {
-				var hp application.Hysteria2Plan
-				err = application.StrictJSON(p, &hp)
-				planned.Digest = hp.Digest
-				planned.Revision = hp.Revision
-			} else {
-				err = application.StrictJSON(p, &planned)
-			}
+			err = application.StrictJSON(p, &planned)
 		}
 		if err == nil {
-			req := application.ApplyRequest{Document: b, Digest: planned.Digest, Revision: planned.Revision}
-			if *protocol == "hysteria2" {
-				result, err = hy.ApplyHysteria2(ctx, req)
+			if !creationAvailable {
+				err = identity.Err(identity.NotImplemented, "creation unavailable")
 			} else {
-				result, err = s.ApplySnell(ctx, req)
+				result, err = commands.ApplyCreation(ctx, *protocol, application.ApplyRequest{Document: b, Digest: planned.Digest, Revision: planned.Revision})
 			}
 		}
 	case "get", "export", "display", "binding":
@@ -150,7 +142,7 @@ func inboundCLI(ctx context.Context, args []string, out, errOut io.Writer, deps 
 					result, err = s.SetDisplay(ctx, parsed, r)
 				}
 			case "binding":
-				if !hyAvailable {
+				if !bindingAvailable {
 					err = identity.Err(identity.NotImplemented, "binding mutation unavailable")
 					break
 				}
@@ -161,7 +153,7 @@ func inboundCLI(ctx context.Context, args []string, out, errOut io.Writer, deps 
 					err = application.StrictJSON(b, &req)
 				}
 				if err == nil {
-					result, err = hy.SetBinding(ctx, parsed, req)
+					result, err = bindings.SetBinding(ctx, parsed, req)
 				}
 			}
 		}

@@ -13,8 +13,8 @@ Engine choice is private planning/diagnostic data. Accounts, Subscription and
 Exporter do not branch on Engine names. Administrators may inspect resolved
 placement in a plan but public protocol settings contain no raw engine config.
 
-Phase 3 shares one native Compile and Start/Health/Activate/Close/Stats contract
-for Snell and Hysteria2, dispatched by protocol key. Each Inbound owns one minimal private Box and direct route;
+Phase 4 shares one native Compile and Start/Health/Activate/Close/Stats contract
+for Snell, Hysteria2 and TUIC, dispatched by protocol key. Each Inbound owns one minimal private Box and direct route;
 Xray remains a placeholder. [ADR 0013](../adr/0013-snell-runtime-composition.md)
 documents owned TCP admission/raw socket cleanup and static platform context.
 Upstream constructors/auth/framing/crypto/version semantics remain unchanged.
@@ -81,3 +81,10 @@ fallback to a different wire feature.
 Reserve ExternalEngine as a contract, not a general user-controlled command runner.
 See [runtime lifecycle](RUNTIME_LIFECYCLE.md), [policy limits](POLICY_USAGE.md),
 [Xray API source](https://xtls.github.io/config/api.html).
+
+## Shared QUIC realization
+
+HY2/TUIC use one shared owned handle for Box/router, static TLS, UDP admission/health/
+cancellation/close grace, immutable Binding mapping and meters. Factories own exact
+upstream auth/options and construct users before Start. No unsafe live UpdateUsers,
+wire copy or upstream modifications. [ADR 0015](../adr/0015-tuic-shared-control-plane.md).

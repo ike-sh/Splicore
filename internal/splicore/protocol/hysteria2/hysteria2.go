@@ -3,34 +3,26 @@ package hysteria2
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
 	"crypto/x509"
-	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"github.com/sagernet/sing-box/internal/splicore/clientprofile"
+	"github.com/sagernet/sing-box/internal/splicore/credential"
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	"github.com/sagernet/sing-box/internal/splicore/domain/secret"
 	"github.com/sagernet/sing-box/internal/splicore/jsonstrict"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
-	"strings"
-	"unicode"
-	"unicode/utf8"
+	"github.com/sagernet/sing-box/internal/splicore/tlsconfig"
 )
 
 type Module struct{}
-type TLSSettings struct {
-	ServerName      string `json:"server_name"`
-	CertificateFile string `json:"certificate_file"`
-	PrivateKeyFile  string `json:"private_key_file"`
-	CACertificate   string `json:"ca_certificate"`
-}
+type TLSSettings = tlsconfig.Settings
 
-func (TLSSettings) Format(s fmt.State, verb rune) { _, _ = s.Write([]byte("TLSSettings{[REDACTED]}")) }
+func CAPool(s string) (*x509.CertPool, error) { return tlsconfig.CAPool(s) }
+func CAFingerprint(s string) (string, error)  { return tlsconfig.CAFingerprint(s) }
+func ValidatePassword(s secret.Value) error   { return credential.ValidatePassword(s) }
+func GeneratePassword() (secret.Value, error) { return credential.GeneratePassword() }
 
 type Settings struct {
 	TLS TLSSettings `json:"tls"`
@@ -45,77 +37,12 @@ func Key() access.ProtocolKey {
 func invalid() error {
 	return identity.Err(identity.Invalid, "unsupported Hysteria2 settings or credential")
 }
-func absolute(s string) bool {
-	return len(s) <= 1024 && !strings.ContainsAny(s, "\x00\r\n") && (strings.HasPrefix(s, "/") || len(s) > 2 && s[1] == ':' && (s[2] == '/' || s[2] == '\\'))
-}
 func Decode(b []byte) (Settings, error) {
 	var s Settings
-	if len(b) > 16384 || jsonstrict.Decode(b, &s) != nil {
+	if len(b) > 16384 || jsonstrict.Decode(b, &s) != nil || tlsconfig.Validate(s.TLS) != nil {
 		return s, invalid()
-	}
-	kind, err := access.ParseHost(s.TLS.ServerName)
-	if err != nil || kind != access.DNS || !absolute(s.TLS.CertificateFile) || !absolute(s.TLS.PrivateKeyFile) || len(s.TLS.CACertificate) > 8192 {
-		return s, invalid()
-	}
-	if _, err = CAPool(s.TLS.CACertificate); err != nil {
-		return s, err
 	}
 	return s, nil
-}
-func CAPool(value string) (*x509.CertPool, error) {
-	pool := x509.NewCertPool()
-	rest := []byte(value)
-	n := 0
-	for len(strings.TrimSpace(string(rest))) > 0 {
-		if !strings.HasPrefix(strings.TrimSpace(string(rest)), "-----BEGIN CERTIFICATE-----") {
-			return nil, invalid()
-		}
-		block, next := pem.Decode(rest)
-		if block == nil || block.Type != "CERTIFICATE" || len(block.Headers) != 0 {
-			return nil, invalid()
-		}
-		cert, err := x509.ParseCertificate(block.Bytes)
-		if err != nil || !cert.IsCA {
-			return nil, invalid()
-		}
-		pool.AddCert(cert)
-		rest = next
-		n++
-	}
-	if n != 1 {
-		return nil, invalid()
-	}
-	return pool, nil
-}
-
-// CAFingerprint identifies the sole explicit trust anchor, never the leaf.
-// Mihomo v1.19.30 verifies the leaf chain and SNI when a non-leaf pin matches.
-func CAFingerprint(value string) (string, error) {
-	if _, err := CAPool(value); err != nil {
-		return "", err
-	}
-	block, _ := pem.Decode([]byte(value))
-	sum := sha256.Sum256(block.Bytes)
-	return hex.EncodeToString(sum[:]), nil
-}
-func ValidatePassword(v secret.Value) error {
-	s := v.Reveal()
-	if len(s) < 12 || len(s) > 255 || !utf8.ValidString(s) {
-		return invalid()
-	}
-	for _, c := range s {
-		if unicode.IsControl(c) || unicode.IsSpace(c) {
-			return invalid()
-		}
-	}
-	return nil
-}
-func GeneratePassword() (secret.Value, error) {
-	var b [32]byte
-	if _, err := rand.Read(b[:]); err != nil {
-		return secret.Value{}, identity.Err(identity.Unavailable, "credential entropy unavailable")
-	}
-	return secret.New(base64.RawURLEncoding.EncodeToString(b[:])), nil
 }
 func (Module) Metadata() ports.ProtocolMetadata {
 	return ports.ProtocolMetadata{Key: Key(), ABI: 1, CredentialKinds: []access.CredentialKind{access.Password}, Availability: ports.Compiled, Qualification: "experimental", Provenance: "sing-box v1.14.1 / sing-quic v0.7.0; password identity; static TLS; no obfs"}

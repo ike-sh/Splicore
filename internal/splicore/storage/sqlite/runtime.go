@@ -11,7 +11,7 @@ import (
 )
 
 func (s *Store) BeginOperation(ctx context.Context, expected identity.Revision, actor identity.Actor) (identity.Transaction, error) {
-	return s.BeginRuntimeOperation(ctx, expected, actor, "snell_create")
+	return s.BeginRuntimeOperation(ctx, expected, actor, "runtime_create")
 }
 func (s *Store) BeginRuntimeOperation(ctx context.Context, expected identity.Revision, actor identity.Actor, operation string) (identity.Transaction, error) {
 	if operation != "snell_create" && operation != "runtime_create" && operation != "runtime_replace" {
@@ -207,15 +207,11 @@ func (s *Store) UpdateDisplay(ctx context.Context, id identity.ID, e access.Endp
 	return s.Transact(ctx, global, actor, func(w ports.Writer) error {
 		writer := w.(*writer)
 		var current identity.Revision
-		var protocol string
-		if err := writer.tx.QueryRowContext(ctx, "SELECT revision,protocol FROM inbounds WHERE id=?", id).Scan(&current, &protocol); err != nil {
+		if err := writer.tx.QueryRowContext(ctx, "SELECT revision FROM inbounds WHERE id=?", id).Scan(&current); err != nil {
 			return storageError(err)
 		}
 		if current != resource {
 			return identity.RevisionConflict(current)
-		}
-		if protocol != "snell" && protocol != "hysteria2" {
-			return identity.Err(identity.NotImplemented, "display mutation unsupported")
 		}
 		next, err := current.Next()
 		if err != nil {

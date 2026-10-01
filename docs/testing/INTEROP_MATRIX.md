@@ -7,7 +7,7 @@
 - Responsibility: Planned third-party protocol/client qualification cells and evidence rules.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-Phase 2 has real Snell and Phase 3 has real Hysteria2 traffic qualification below; other profiles remain
+Phases 2–4 have real Snell, Hysteria2 and TUIC qualification below; other profiles remain
 **planned / NOT RUN**. Pin server source/build, client version/digest, feature,
 export contract and OS/network setup for each row. Baseline unit tests are separate.
 
@@ -89,3 +89,29 @@ record the contract/render result separately and keep **Surge live interop unqua
 An unrelated client pass cannot clear this gate. Release manifests contain qualified
 client/profile pairs, limitations and evidence links; capability endpoint reports
 compiled vs qualified distinctly.
+
+## Verified experimental TUIC v5 cells
+
+| Client | Version | SHA256 | User | Endpoint | TCP | UDP | TLS | Result |
+|---|---|---|---|---|---|---|---|---|
+| mihomo | 1.19.30 | `20ba567571d9ca642bedecbb01f8092cab0f1679100087ef1a4a2efac0ed5494` | Alice | 127.0.0.1 | PASS | PASS | CA + tuic.synthetic.test | PASS |
+| mihomo | 1.19.30 | `20ba567571d9ca642bedecbb01f8092cab0f1679100087ef1a4a2efac0ed5494` | Bob | 127.0.0.1 | PASS | PASS | CA + tuic.synthetic.test | PASS |
+| mihomo | 1.19.30 | `20ba567571d9ca642bedecbb01f8092cab0f1679100087ef1a4a2efac0ed5494` | Alice | ::1 | PASS | PASS | CA + tuic.synthetic.test | PASS |
+| mihomo | 1.19.30 | `20ba567571d9ca642bedecbb01f8092cab0f1679100087ef1a4a2efac0ed5494` | Bob | ::1 | PASS | PASS | CA + tuic.synthetic.test | PASS |
+| mihomo | 1.19.30 | `20ba567571d9ca642bedecbb01f8092cab0f1679100087ef1a4a2efac0ed5494` | Alice | localhost | PASS | PASS | CA + tuic.synthetic.test | PASS |
+| mihomo | 1.19.30 | `20ba567571d9ca642bedecbb01f8092cab0f1679100087ef1a4a2efac0ed5494` | Bob | localhost | PASS | PASS | CA + tuic.synthetic.test | PASS |
+| sing-box | 1.14.1 | `9334a1c1fe97234911afaedd37226667ebdb3dab2abe383f2c4ae1387706dad9` | Alice | 127.0.0.1 | PASS | PASS | CA + tuic.synthetic.test | PASS |
+| sing-box | 1.14.1 | `9334a1c1fe97234911afaedd37226667ebdb3dab2abe383f2c4ae1387706dad9` | Bob | 127.0.0.1 | PASS | PASS | CA + tuic.synthetic.test | PASS |
+| sing-box | 1.14.1 | `9334a1c1fe97234911afaedd37226667ebdb3dab2abe383f2c4ae1387706dad9` | Alice | ::1 | PASS | PASS | CA + tuic.synthetic.test | PASS |
+| sing-box | 1.14.1 | `9334a1c1fe97234911afaedd37226667ebdb3dab2abe383f2c4ae1387706dad9` | Bob | ::1 | PASS | PASS | CA + tuic.synthetic.test | PASS |
+| sing-box | 1.14.1 | `9334a1c1fe97234911afaedd37226667ebdb3dab2abe383f2c4ae1387706dad9` | Alice | localhost | PASS | PASS | CA + tuic.synthetic.test | PASS |
+| sing-box | 1.14.1 | `9334a1c1fe97234911afaedd37226667ebdb3dab2abe383f2c4ae1387706dad9` | Bob | localhost | PASS | PASS | CA + tuic.synthetic.test | PASS |
+
+Each native WSL2 cell uses a race-built server, explicit trusted CA and independent
+tuic.synthetic.test SNI, TCP/UDP, 16 concurrent, 4 MiB SHA256 integrity, 32 UDP
+sequence responses, reconnect/abnormal close/stats. Wrong UUID/password/SNI/CA and
+cross-user UUID/password combination reject. Disabled Binding/Account creation and
+SQLite recovery, existing-client reconnect, client kill and UDP release PASS.
+Full HY2 12-cell and Snell nine-cell regression PASS after shared refactor.
+See [Phase 4 report](../reports/PHASE_4_TUIC_VERTICAL_SLICE_REPORT.md) for client archive
+hashes, capability limits, source/platform gates and external cleanup deferral.

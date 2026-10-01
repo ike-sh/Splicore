@@ -10,33 +10,31 @@
 ## Goal and current phase
 
 Splicore is an independent modular server proxy core derived from sing-box.
-Phases 0–3 are locally frozen. **Current scope: Phase 4 branch reserved;
-TUIC implementation NOT STARTED.** Phase 3 passed independent WSL2 acceptance and
-the final freeze review. Snell and HY2
-remain Experimental. TUIC, VLESS/REALITY, Mieru, Xray, Panel and NoBrand production
-integration remain deferred. See [HY2 support](protocol/HYSTERIA2.md),
-[workflow](development/PHASE_3_HYSTERIA2.md) and
-[report](reports/PHASE_3_HYSTERIA2_VERTICAL_SLICE_REPORT.md).
+Phases 0–4 are locally frozen. Phase 4 implements Experimental TUIC v5 and shared
+creation/TLS/QUIC infrastructure. Phase 5 has a reserved branch only;
+VLESS/REALITY implementation is NOT STARTED. Snell/HY2 remain Experimental; no Stable
+release. See [TUIC](protocol/TUIC.md), [workflow](development/PHASE_4_TUIC.md) and
+[report](reports/PHASE_4_TUIC_VERTICAL_SLICE_REPORT.md).
 
 ## Reproducible baseline and authorization
 
 - Upstream v1.14.1: `1ac1a339cb1223e9c70eae14c44411c75033c02d`.
 - Phase 0 freeze: `687425bdbfff6c76f900035068c23a03c4547062`.
-- Phase 1 freeze / Phase 2 parent: `a2ca59e6dbf1a239feae5e471ec1914cae0f1eac`.
-- Phase 2 freeze / Phase 3 parent: `5bc50a69b0df2c3dc9ede86015c9e4a6b86e2981`.
-- Phase 3 is the single commit `feat(protocol): add experimental Hysteria2 vertical slice`
-  containing this freeze record. Its full SHA and Git transition evidence are recorded
-  externally in `D:\splicore-validation\phase3-freeze-20261001` and the final freeze response.
-- `main` is fast-forwarded to Phase 3; current branch is
-  `codex/phase-4-tuic-vertical-slice`, based on that commit with a clean worktree.
-- Sole remote: upstream at `https://github.com/SagerNet/sing-box.git`; no origin.
-- Module remains `github.com/sagernet/sing-box`; upstream runtime changes: 0.
-- The final Phase 3 authorization permits explicit staging, one freeze commit,
-  fast-forward of main and creation of the Phase 4 branch. Stop after that branch
-  creation. TUIC implementation, push, origin creation, tag, release and real
-  NoBrand access/edits are not authorized by this freeze.
-- Historical Phase 0/1/2 reports/evidence and migrations 0001/0002 remain unchanged. Tools/binaries/logs and
-  test state are external. No publication is authorized.
+- Phase 1 freeze: `a2ca59e6dbf1a239feae5e471ec1914cae0f1eac`.
+- Phase 2 freeze: `5bc50a69b0df2c3dc9ede86015c9e4a6b86e2981`.
+- Phase 3 freeze / Phase 4 sole parent: `94555d9608ebcc36c5a396bc06a5743cce4e0788`.
+- Phase 4 freeze: the commit containing this record, with message
+  `feat(protocol): add experimental TUIC vertical slice`; main and
+  `codex/phase-4-tuic-vertical-slice` point to it. Exact SHA and Git evidence live in
+  `D:\splicore-validation\phase4-freeze-20261001`.
+- Reserved branch: `codex/phase-5-vless-reality-vertical-slice`, based on frozen main;
+  working tree CLEAN. Branch creation does not authorize VLESS implementation.
+- Sole remote upstream: https://github.com/SagerNet/sing-box.git; no origin.
+- Phase 4 Freeze authorizes one reviewed commit, main fast-forward with `--ff-only`,
+  and the reserved Phase 5 branch. Stop after branch creation. Push/tag/release NONE;
+  no publication or real NoBrand access/changes.
+- Historical Phase 0/1/2/3 reports/evidence and all migrations unchanged. Fresh
+  outputs/tools/binaries/state external. Module path unchanged; upstream edits 0.
 
 ## Architecture constraints
 
@@ -63,39 +61,25 @@ defines when to update each source.
 
 ## Implemented and deferred scope
 
-Schema 3 SQLite committed state is authority. Snell/HY2 creation shares strict
-validate/plan/pending/build/start/listener-health/commit/admission semantics. Plans bind
-compact JSON and global revision using a daemon-local HMAC; restart requires
-replanning. Snell creates one Account/Binding/PSK; HY2 creates 1–16 distinct
-Account/Binding/password records with optional metadata-only TrafficPolicy. Explicit
-Linux key-file provisioning has no lost-key or plaintext fallback.
+Schema 3 SQLite committed state is authority; no TUIC migration. All implemented
+modules expose registered CreationCodec; shared Application resource builder owns
+Account/Binding/Credential/policies and protocol-bound HMAC plan/pending/start/health/
+commit/admission. Direct Phase4 composition has one native compiler map. Service owns
+display availability/ownership; SQL is generic. Protected Linux UDS API/CLI share
+commands; explicit scoped export returns secrets, ordinary metadata/doctor stays safe.
 
-The protected Linux UDS API exposes metadata, creation, display mutation and
-explicit secret-returning client export. Windows remains a development target.
-Each Inbound owns a private Box, TCP (Snell) or UDP/QUIC (HY2) listener and
-authenticated routing counters. HY2 adds per-Binding stats, static TLS and
-independent listener/public endpoint/SNI/certificate semantics.
-Static platform composition avoids an inherited monitor startup race; see
-[ADR 0013](adr/0013-snell-runtime-composition.md).
+HY2/TUIC share TLS model/load/snapshot, minimal Box/router, UDP ownership/admission/
+health/close grace, immutable Binding identity and payload/session meters. TUIC v5
+UUID/password uses cubic/native/h3/no-0RTT. Both have HotUserUpdate=false and Binding
+restart closes sessions/resets counters. Keys external; Linux mode/owner enforced;
+Windows development only. See [ADR 0015](adr/0015-tuic-shared-control-plane.md) and
+[extension audit](ARCHITECTURE.md#phase-4-third-protocol-realization).
 
-HY2 Binding enable/disable safely reconstructs only its Inbound; HotUserUpdate
-is false. Existing sessions close and counters reset. [ADR 0014](adr/0014-hysteria2-runtime-composition.md)
-records owned socket/service composition and the 100 ms close grace.
-
-Architecture concern: **NON-BLOCKING TECHNICAL DEBT**, extension cost **MEDIUM**.
-Protocol/Engine registries, committed-state authority and separate domain/runtime/
-client models remain effective. Phase 4 must address registered creation commands,
-service-owned display availability, direct composition and relocation of shared
-methods when adding the third protocol. The exact current behavior, affected files,
-counts, justification and triggers are in the
-[architecture disposition](ARCHITECTURE.md#phase-3-extensibility-disposition) and
-[ADR 0014](adr/0014-hysteria2-runtime-composition.md#freeze-review-and-follow-up).
-This records future constraints and does not start that work.
-
-Quota/rate enforcement, Snell userkey multi-user, general Account mutation,
-credential rotation, hot reload/delete, durable usage and generic imports remain deferred. Surge live
-testing is unqualified. Public module ownership and future FinalMask/Sudoku
-provenance remain future decisions.
+Phase 3 extension debt is resolved at its four triggers. General Account mutation,
+credential rotation, quota/rate, durable Account aggregates, delete/hot reload,
+dynamic TLS, Snell userkey multi-user, generic imports and Stable remain deferred.
+VLESS/REALITY, Mieru, Xray, Panel, self-designed protocols and real NoBrand canary
+remain outside current implementation authorization.
 
 ## Forbidden shortcuts
 
@@ -104,37 +88,24 @@ add protocol columns to Account, weaken unsupported policy silently, treat expor
 rendering as interoperability, or call an upstream build a qualified Splicore release.
 Do not globally rename upstream packages/branding or move large package trees
 without a reviewed decision. Preserve LICENSE, copyright and non-affiliation.
-Do not implement Panel or start TUIC under the Phase 3 freeze authorization.
+Do not implement deferred protocols or Panel under the Phase 4 authorization.
 
 ## Validation context
 
-Independent Ubuntu-24.04 WSL2 acceptance passed native builds, unit/race, six fuzz
-smokes, HY2's 12 real client/user/endpoint cells, Snell's nine regression cells,
-fresh HTTP/export-envelope schemas and CLI/API equality. Native runtime state,
-private TLS fixtures and temporary clients were removed. Full upstream root CI
-passed; two extra inherited unsafe.Pointer vet findings remain visible.
-Docker/Redis were not queried or changed in this acceptance round. Their recovery
-and old residue cleanup are DEFERRED EXTERNAL ENVIRONMENT WORK, not a code blocker
-under the latest authorization. Docker Desktop recovery, Redis ownership
-(unconfirmed, likely TeleLedger) and old test residue remain DEFERRED EXTERNAL
-ENVIRONMENT CLEANUP. Do not query/restart Docker or touch Redis/TeleLedger.
-Architecture debt and Experimental limits remain in the report. Publication is not authorized.
+Native Ubuntu-24.04 WSL2 state/TLS/socket and race-built actual traffic are required.
+Clients stay Mihomo1.19.30 and sing-box1.14.1 with archive/binary SHA256. Report owns
+actual unit/race/platform/fuzz/root-CI/doc/live-schema and TUIC/HY2/Snell results.
+Never qualify exporter rendering alone. Snapshot native source and verify functional
+file hashes; logs/tools/binaries outside repository. Phase 4 freeze verifies 131
+functional files against final acceptance, repeats critical TUIC/HY2/Snell smoke,
+Windows/Linux units and builds, own vet and docs/OpenAPI/live schemas. Freeze-only
+changes are report/canonical docs; historical full unit/race/fuzz/33-cell evidence
+remains immutable. New runtime changes require corresponding acceptance again.
 
-Freeze checks repeat Windows unit/both builds/own vet and native WSL unit/critical
-HY2 and Snell smoke/own vet. All 103 owned functional source/test/script/fixture
-files match the independent acceptance manifest. The auxiliary post-run file-list
-FAIL remains historical; its narrowly cache-excluding external helper passes a
-fresh snapshot/test/cache reproduction and is NON-GATING, acceptance impact NONE.
-The two extra unsafe.Pointer vet sites are byte-identical to pristine upstream
-v1.14.1 and Phase 2; no new Splicore findings. See the
-[freeze audit](reports/PHASE_3_HYSTERIA2_VERTICAL_SLICE_REPORT.md#phase-3-freeze-disposition-and-validation).
-
-Historical upstream results include successful builds and qualified Linux root CI,
-Windows integration failures, additional vet findings and unrun optional suites.
-Read the [baseline ledger](architecture/UPSTREAM_BASELINE.md) for exact scope.
-Foundation requires own package tests, Linux race/fuzz, both binaries on Windows
-and Linux, arm64 compilation, repeated upstream regression and docs/OpenAPI/
-inclusive whitespace/secret audits. Known upstream/environment failures stay
-classified; source is not patched to silence them. Archived Phase 0 evidence
-remains part of the freeze; fresh outputs remain external.
-See the [development index](development/README.md).
+Docker Desktop issue and old residue are DEFERRED EXTERNAL ENVIRONMENT CLEANUP.
+Redis/TeleLedger UNTOUCHED: do not query/restart Docker or operate Redis. Existing
+WSL user shell permissions and unrelated `/` repository remain unchanged. Toolchains,
+caches/clients stay on D; runtime/private fixture state native ext4. Two extra inherited
+unsafe.Pointer vet sites are byte-identical upstream and recorded in the
+[baseline ledger](architecture/UPSTREAM_BASELINE.md); do not patch them to silence vet.
+Historical reports/evidence remain intact; [development index](development/README.md).

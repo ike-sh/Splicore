@@ -11,10 +11,11 @@
 
 **Canonical** identifies the maintained source for a topic. It does not mean
 proposed functionality is implemented. Phase 0 establishes designs and baseline
-research; Phases 1–3 are locally frozen. Phase 2 implements experimental Snell with real
+research; Phases 1–4 are locally frozen. Phase 2 implements experimental Snell with real
 Mihomo/sing-box interoperability. Phase 3 adds experimental Hysteria2 with
-trusted-CA multi-user TCP/UDP interoperability; Phase 4 TUIC implementation has not
-started. Other adapters remain deferred.
+trusted-CA multi-user TCP/UDP interoperability; Phase 4 implements experimental TUIC v5 with shared TLS/QUIC and
+registered creation commands. Phase 5's branch is reserved; VLESS/REALITY
+implementation has not started. Other adapters remain deferred.
 No stable Splicore runtime has been released. **Historical** documents
 and **Generated** evidence preserve what was observed at a particular time.
 **Draft** is work that has not yet become an authoritative design.
@@ -43,8 +44,8 @@ README.md                           project introduction
 
 ## Architecture Decision Records
 
-[ADR index](adr/README.md) lists all 14 decisions and their individual status.
-ADR 0001 is accepted for Phase 0; 0002–0014 remain proposed for maintainer review.
+[ADR index](adr/README.md) lists all 15 decisions and their individual status.
+ADR 0001 is accepted for Phase 0; 0002–0015 remain proposed for maintainer review.
 Decision acceptance is separate from implementation and interoperability qualification.
 
 ## Domain Model
@@ -57,6 +58,7 @@ Decision acceptance is separate from implementation and interoperability qualifi
 
 - [Snell support](protocol/SNELL.md): implemented profile and client contracts.
 - [Hysteria2 support](protocol/HYSTERIA2.md): multi-user, TLS, QUIC/UDP and restart limits.
+- [TUIC support](protocol/TUIC.md): v5 UUID/password and shared TLS/QUIC.
 
 - [Protocol and engine index](protocol/README.md): extension path and qualification gates.
 - [Protocol SDK](architecture/PROTOCOL_SDK.md): registry, proposed ports and effective capabilities.
@@ -68,7 +70,7 @@ Decision acceptance is separate from implementation and interoperability qualifi
 
 - [API index](api/README.md): machine contract and semantic documentation responsibilities.
 - [API v1 design](api/API_V1_DESIGN.md): control transport, authorization and operation semantics.
-- [OpenAPI contract skeleton](api/openapi-skeleton.yaml): Foundation reads, Snell/Hysteria2 operations and marked deferred paths, schemas and responses.
+- [OpenAPI contract skeleton](api/openapi-skeleton.yaml): Foundation reads, managed protocol operations and marked deferred paths, schemas and responses.
 
 ## Storage
 
@@ -93,6 +95,8 @@ adds generic password credentials in schema 3. The full ERD remains a future tar
 - [Phase 2 report](reports/PHASE_2_SNELL_VERTICAL_SLICE_REPORT.md): actual verification.
 - [Phase 3 workflow](development/PHASE_3_HYSTERIA2.md): pinned HY2 clients and synthetic TLS.
 - [Phase 3 report](reports/PHASE_3_HYSTERIA2_VERTICAL_SLICE_REPORT.md): HY2 qualification and regression results.
+- [Phase 4 workflow](development/PHASE_4_TUIC.md): native campaigns and third-protocol gates.
+- [Phase 4 report](reports/PHASE_4_TUIC_VERTICAL_SLICE_REPORT.md): TUIC acceptance and extension audit.
 
 - [Test strategy](testing/TEST_STRATEGY.md): unit, contract, failure, migration and release gates.
 - [Interop matrix](testing/INTEROP_MATRIX.md): protocol/client coverage and evidence requirements.

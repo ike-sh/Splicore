@@ -8,7 +8,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	module "github.com/sagernet/sing-box/internal/splicore/protocol/hysteria2"
+	module "github.com/sagernet/sing-box/internal/splicore/tlsconfig"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -16,7 +16,8 @@ import (
 	"time"
 )
 
-func TLS(t testing.TB) module.TLSSettings {
+func TLS(t testing.TB) module.Settings { return TLSForName(t, "hy2.synthetic.test") }
+func TLSForName(t testing.TB, name string) module.Settings {
 	t.Helper()
 	dir := t.TempDir()
 	if err := os.Chmod(dir, 0700); err != nil {
@@ -36,7 +37,7 @@ func TLS(t testing.TB) module.TLSSettings {
 	if err != nil {
 		t.Fatal(err)
 	}
-	leaf := &x509.Certificate{SerialNumber: big.NewInt(2), DNSNames: []string{"hy2.synthetic.test"}, NotBefore: now.Add(-time.Minute), NotAfter: now.Add(time.Hour), KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}
+	leaf := &x509.Certificate{SerialNumber: big.NewInt(2), DNSNames: []string{name}, NotBefore: now.Add(-time.Minute), NotAfter: now.Add(time.Hour), KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}
 	leafDER, err := x509.CreateCertificate(rand.Reader, leaf, ca, &leafKey.PublicKey, caKey)
 	if err != nil {
 		t.Fatal(err)
@@ -52,5 +53,5 @@ func TLS(t testing.TB) module.TLSSettings {
 	if err = os.WriteFile(keyPath, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER}), 0600); err != nil {
 		t.Fatal(err)
 	}
-	return module.TLSSettings{ServerName: "hy2.synthetic.test", CertificateFile: certPath, PrivateKeyFile: keyPath, CACertificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caDER}))}
+	return module.Settings{ServerName: name, CertificateFile: certPath, PrivateKeyFile: keyPath, CACertificate: string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caDER}))}
 }

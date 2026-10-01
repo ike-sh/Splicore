@@ -23,14 +23,17 @@ are frozen acceptance snapshots, not growing development logs.
 ## Current scope
 
 Phase 1 is frozen at `a2ca59e6dbf1a239feae5e471ec1914cae0f1eac`.
-Phase 2 freezes experimental Snell on `codex/phase-2-snell-vertical-slice` and main.
+Phase 2 froze experimental Snell at `5bc50a69b0df2c3dc9ede86015c9e4a6b86e2981`.
 Read [workflow](PHASE_2_SNELL.md) and [report](../reports/PHASE_2_SNELL_VERTICAL_SLICE_REPORT.md).
 
-Phase 3 implements experimental HY2 on `codex/phase-3-hysteria2-vertical-slice`,
-parent/main `5bc50a69b0df2c3dc9ede86015c9e4a6b86e2981`. Read
+Phase 3 froze experimental HY2 at `94555d9608ebcc36c5a396bc06a5743cce4e0788`. Read
 [HY2 workflow](PHASE_3_HYSTERIA2.md) and [report](../reports/PHASE_3_HYSTERIA2_VERTICAL_SLICE_REPORT.md).
-No stage, commit, push, origin, tag or release. Upstream runtime sources and
-historical reports remain unchanged; tools/binaries/logs/state stay external.
+Phase 4 is locally frozen by the commit containing its
+[report](../reports/PHASE_4_TUIC_VERTICAL_SLICE_REPORT.md). Main is fast-forwarded
+to that commit; `codex/phase-5-vless-reality-vertical-slice` is reserved from main.
+VLESS/REALITY implementation is NOT STARTED. No push, origin, tag or release.
+Upstream runtime sources and historical Phase 0–3 reports remain unchanged;
+tools/binaries/logs/state stay external.
 Foundation composition remains for independent placeholder contract tests.
 
 ## Change workflow
@@ -60,8 +63,9 @@ pinned upstream commit as its sole parent. Phase 1 preserves those bytes and
 keeps fresh logs/binaries/tools outside the repository. The Phase 1 freeze
 instruction supersedes the implementation-only staging/commit restriction.
 The Phase 2 freeze request supersedes its implementation-only staging/commit
-restriction. Phase 3 has its own implementation-only authorization; all changes
-remain unstaged and unpublished until review.
+restriction. Phase 3 and Phase 4 freeze requests supersede their respective
+implementation-only staging/commit restrictions. Phase 4 allows one reviewed
+commit, main fast-forward and a reserved Phase 5 branch, then requires stopping.
 
 For Windows, the normal build's PowerShell translation is:
 
@@ -86,3 +90,9 @@ Do not rerun expensive root integrations solely for doc edits. Prior Windows
 integration failures and additional vet findings stay visible in the
 [baseline ledger](../architecture/UPSTREAM_BASELINE.md). Broader implementation
 gates belong to the [test strategy](../testing/TEST_STRATEGY.md).
+
+## Phase 4
+
+[TUIC workflow](PHASE_4_TUIC.md) defines native/shared campaign and local freeze
+gates. Fresh freeze evidence is external at `D:\splicore-validation\phase4-freeze-20261001`.
+The frozen profile remains Experimental; further implementation requires new scope.

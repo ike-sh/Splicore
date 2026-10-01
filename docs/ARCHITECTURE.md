@@ -7,10 +7,11 @@
 - Responsibility: Overall boundaries, dependency direction, invariants and implementation gates.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-## Current Phase 3 implementation
+## Locally frozen Phase 4 implementation
 
 The Account → Binding → Credential → Inbound → Native Engine → stats → ClientProfile/export
-path now supports experimental Snell v5/v6 and Hysteria2. HY2 adds generic encrypted
+path supports experimental Snell v5/v6, Hysteria2 and TUIC v5. Phase 4 is locally
+frozen; Phase 5 reserves a branch without VLESS/REALITY implementation. HY2 adds generic encrypted
 passwords, multiple Bindings, static TLS and owned QUIC/UDP admission. One Native
 Engine dispatches protocol compilers; exporters dispatch protocol keys. Create
 transactions share pending/build/start/health/commit/activate coordination.
@@ -21,59 +22,50 @@ the committed projection on failure. See [HY2 support](protocol/HYSTERIA2.md),
 
 Design maturity: Phase 1 Foundation is implemented and frozen. Domain, storage,
 application, API and CLI have tests. Phase 2 realizes managed Snell; Phase 3 adds
-bounded Hysteria2 with experimental client qualification. Durable accounting,
+bounded Hysteria2; Phase 4 adds TUIC and shared creation/TLS/QUIC support. Durable accounting,
 quota/rate enforcement and other runtime directions remain deferred.
 Decision status lives in the [ADR index](adr/README.md); historical validation
 scope lives in the [Phase 0 report](PHASE_0_ARCHITECTURE_REPORT.md).
 
 ## Phase 3 extensibility disposition
 
-**NON-BLOCKING TECHNICAL DEBT**, reviewed for the local experimental freeze.
-HY2 required generic password persistence, multi-Binding projections, CA trust,
-stats and shared transaction contracts. Account/Binding contain no protocol fields;
-credentials remain typed and encrypted; SQLite committed state remains authority.
-Protocol and Engine registries are used by preparation/recovery, and client exports
-use protocol-key dispatch over separate ClientProfiles. Neither module imports SQL
-or HTTP. CLI/API mutations use the same Application Service; offline validation uses
-its side-effect-free decoder. There is one shared create coordinator and one generic
-replacement path, although some generic methods still live in protocol-named files.
+Original creation-command, storage allowlist, phase-chain and shared-method debt
+counts remain in the immutable [Phase 3 report](reports/PHASE_3_HYSTERIA2_VERTICAL_SLICE_REPORT.md#phase-3-freeze-disposition-and-validation).
+Phase 4 resolves those four triggers below; historical compositions remain fixtures.
 
-Outside normal extension points the change cost is **MEDIUM**: most shared edits
-establish previously missing multi-user/TLS/password contracts, with bounded command
-dispatch growth. A third protocol can reuse the domain, journal, projection, compiler
-and exporter contracts without an architectural rewrite. It still incurs avoidable
-registration/command boilerplate and one storage allowlist edit in the present design.
+## Phase 4 third-protocol realization
 
-Counts exclude tests, comments, method names and credential-kind dispatch. There are
-**2 central protocol-related Go switches**, both HTTP route switches in
-`internal/splicore/api/snell.go:44,64`; **8 central protocol-choice/allowlist if sites**:
-CLI `inbound.go:53,59,86,96,110,121`, API `snell.go:13`, SQLite `runtime.go:217`.
-Runtime compile/recovery/projection protocol switches: **0**; central Engine-choice
-switches: **0**; exporter protocol switches: **0**. Protocol-local format switches:
-**2**, in `exporter/snell.go:60` and `exporter/hysteria2.go:29`; protocol modules
-themselves have **0** switches. Each module and each exporter has one protocol-key
-validation if, rather than central dispatch. Composition separately has two
-placeholder-filter ifs in `registry/phase2.go:17` and `registry/phase3.go:19`.
+[ADR 0015](adr/0015-tuic-shared-control-plane.md) owns rationale. Modules implement
+CreationCodec and typed settings/credentials/runtime/client projection. One service
+builds resources and binds protocol/document/revision in HMAC; pending/start/health/
+commit/admission and recovery/compensation are shared. Generic API/CLI dispatch by
+registered ID. Legacy Snell/HY2 wrappers remain; no TUIC-specific Application branch.
 
-The single new HY2-specific **core** branch is SQLite's display allowlist extension.
-At the transport edges HY2 adds six CLI conditional sites and five API sites/cases
-(prefix guard, route group, three operation cases); composition adds one filter.
-The three generic password cases in domain validation and SQLite encode/decode are
-credential-kind branches, not HY2 or Engine dispatch. Migration 0003 restores the
-existing Snell single-Binding trigger from 0002; no new HY2 SQL branch/column appears.
+[Direct composition](../internal/splicore/registry/phase4.go) registers Snell v5/v6,
+HY2, TUIC and deferred VLESS; one native compiler map and format/protocol exporter
+maps. Generic lifecycle/plan/views/export/Binding methods have bounded common files.
+SQL display updates have no protocol allowlist; service checks resource/module.
 
-| Current debt / affected files | Why acceptable for Phase 3 | Refactor trigger and target |
-|---|---|---|
-| Typed per-protocol documents/resource builders and transport commands: `application/{snell,hysteria2}.go`, `internal/splicore/api/snell.go`, `internal/splicore/cli/inbound.go`, `transport/{snell,hysteria2}.go` | Protocol-specific validation stays explicit; stateful commands share service, revision fences and create coordinator | Phase 4, before copying a third protocol's public command dispatch: introduce a registered validated creation-command port, retaining typed protocol validation and existing API compatibility |
-| Display mutation protocol allowlist: `internal/splicore/storage/sqlite/runtime.go` | Restricts the two implemented profiles; generic SQL does not interpret TLS or Engine settings | Phase 4, when TUIC needs display mutation: put availability/ownership checks in the Application Service/registered contract and make the repository update protocol-neutral |
-| Phase3 calls Phase2 then replaces a placeholder: `internal/splicore/registry/phase3.go` | Immutable duplicate-checked registries remain real dispatch points; no runtime bypass | Phase 4 composition: assemble explicit module/compiler/exporter entries directly, without extending the phase-call chain; retain historical composition fixtures |
-| Generic lifecycle/projection/export/Binding methods remain in `internal/splicore/application/snell.go` / `internal/splicore/application/hysteria2.go` | Shared implementations already exist; filenames do not create a second authority or coordinator | Phase 4, when touching these methods for TUIC: move shared code into bounded runtime/command files, preserving transaction and recovery behavior |
+| Infrastructure | Ownership |
+|---|---|
+| Snell only | PSK/version mapping; pinned service; TCP accept/admission |
+| HY2 only | Password auth; HY2 service parameters/profile |
+| TUIC only | UUID/password auth; v5/cubic/native/no-0RTT; TUIC factory |
+| HY2/TUIC shared | TLS trust/load/snapshot, Box/router, UDP/admission/health/close grace, immutable user map, meters |
+| All protocols shared | Domain/AEAD, creation port/resources, HMAC/journal/commit/recovery/compensation, metadata/export authorization, ClientProfile and registries |
 
-These are Phase 4 work constraints, not permission to start TUIC during this freeze.
-A new protocol requiring broad lifecycle duplication, Engine branches in domain/
-storage/export or protocol columns in Account/Binding would reopen a **BLOCKING**
-architecture review. See [ADR 0014](adr/0014-hysteria2-runtime-composition.md) and
-the [freeze audit](reports/PHASE_3_HYSTERIA2_VERTICAL_SLICE_REPORT.md#phase-3-freeze-disposition-and-validation).
+TUIC adds 0 central protocol switch cases, 0 Engine selection branches, 0 TUIC
+Application branches, 0 storage columns/migrations, 0 Account fields and 0 central
+ClientProfile special cases. Composition entries are registrations, not branches.
+Protocol-neutral action switches and legacy Snell compatibility paths remain.
+Format switches stay local to exporters. No 80% duplicated HY2/TUIC control plane.
+
+Factories preserve pinned wire/options/auth without upstream edits. Shared envelope
+helpers own endpoint/name/policy rules; module owns credential semantics. Fourth
+TLS/QUIC protocol adds module/codec, small factory, exporters, composition, fixtures,
+tests/docs. Different listener requires a bounded adapter; storage/identity/transaction
+remain shared. General Account mutation/rotation/accounting need reviewed contracts.
+See [report](reports/PHASE_4_TUIC_VERTICAL_SLICE_REPORT.md) for measured gates.
 
 Navigation: [docs index](README.md) → this overview →
 [bounded specification map](architecture/README.md) → relevant specifications and ADRs.

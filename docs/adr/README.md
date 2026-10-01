@@ -30,3 +30,5 @@ See [documentation policy](../DOCUMENTATION_POLICY.md) and the
 
 * [0013-snell-runtime-composition — Owned Snell runtime composition](0013-snell-runtime-composition.md) — Proposed for maintainer review
 * [0014-hysteria2-runtime-composition — Owned Hysteria2 service and UDP lifecycle](0014-hysteria2-runtime-composition.md) — Proposed; implemented experimentally
+
+* [0015-tuic-shared-control-plane — Registered creation and shared QUIC control plane](0015-tuic-shared-control-plane.md) — Proposed; implemented experimentally

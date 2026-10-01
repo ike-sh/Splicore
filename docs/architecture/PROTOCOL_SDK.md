@@ -21,11 +21,12 @@ credentials, Start/Health/Activate/Close/Stats and durable journal phases.
 [Phase 2 composition](../../internal/splicore/registry/phase2.go) explicitly
 registers Snell v5/v6. [Phase 3 composition](../../internal/splicore/registry/phase3.go)
 adds Hysteria2, one shared native compiler map and protocol-dispatched exporters.
-TUIC/VLESS remain placeholders; Foundation composition is retained for independent contract tests.
+[Phase 4 composition](../../internal/splicore/registry/phase4.go) directly assembles
+TUIC and previous modules; VLESS remains placeholder. Prior compositions stay fixtures.
 
 The Phase 3 freeze records bounded command/composition/display-allowlist growth as
 [non-blocking technical debt](../ARCHITECTURE.md#phase-3-extensibility-disposition).
-Phase 4 must address those triggers before copying them for a third protocol;
+Phase 4 resolves these with registered creation, direct composition and shared support;
 the Protocol/Engine/runtime and ClientProfile contracts remain reusable.
 
 [Snell module](../../internal/splicore/protocol/snell/snell.go) validates strict
@@ -42,9 +43,10 @@ ClientProfile SNI/endpoint projection. It has no SQL/HTTP/NoBrand dependency.
 |---|---|---|---|---|---|---|---|
 | Snell v5/v6 | yes | yes / no | false | yes / false | false | unavailable | none |
 | Hysteria2 wire 2 | yes | yes / yes | true, 16 configured | yes / true | false | Inbound restart | none |
+| TUIC v5 base | yes | yes / yes | true, 16 configured | yes / true | false | Inbound restart | none |
 
-Both are Experimental and support IPv4/IPv6/domain display endpoints. HY2 requires
-static TLS and one explicit CA; obfs/masquerade/URI remain deferred. Stats mean
+All three are Experimental and support IPv4/IPv6/domain display endpoints. HY2 requires
+static TLS and one explicit CA, reused by TUIC; obfs/masquerade/URI remain deferred. Stats mean
 authenticated payload and routed sessions, not durable Account billing.
 
 Conceptual typed ports below are **design notation**, not production declarations.
@@ -117,3 +119,13 @@ is excluded: OS support, exact toolchain/package-build coupling, deployment,
 unload/security and race tooling complicate a static server. Protocol ABI is an
 internal source contract version, not a promise of binary plugin compatibility.
 Source: [Go plugin restrictions](https://pkg.go.dev/plugin).
+
+## Registered creation realization
+
+[Creation ports](../../internal/splicore/ports/creation.go) expose optional codec/draft
+validation and typed generation. Registry resolves compiled codecs; Application owns
+resource IDs/policies/persistence/lifecycle. Generic API/CLI need no protocol switch.
+Legacy typed methods remain compatible.
+
+[TUIC module](../../internal/splicore/protocol/tuic/tuic.go) owns UUID/password, bounded
+v5 settings and neutral ClientProfile. [Support](../protocol/TUIC.md) records limits.

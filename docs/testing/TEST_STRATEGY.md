@@ -69,3 +69,12 @@ Qualification rules: explicit PASS/FAIL/NOT RUN/SKIP with reason and scope,
 captured commands/toolchain/tags/full SHA/artifact digests, no green by modifying
 upstream. Environment-only integration limitations remain visible. Platform
 mobile/Apple toolchains and Surge license/access are future-specific gates.
+
+## Phase 4 shared infrastructure gates
+
+[TUIC workflow](../development/PHASE_4_TUIC.md) requires native WSL unit/race/both
+builds/arm64, settings/creation/credential/export fuzz, own vet/root CI, 12 TUIC cells
+and full HY2/Snell regressions. Docs/OpenAPI/live responses, secret/diff/index and
+protected-source gates apply. Shared refactors preserve TLS/private files, attribution,
+pending admission, compensation and port release. Account disable uses production
+creation/recovery rather than SQL state mutation.

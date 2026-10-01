@@ -7,14 +7,16 @@
 - Responsibility: Protocol extension navigation and qualification boundaries.
 - Lifecycle: Update when a protocol specification or qualification path changes.
 
-## Current Phase 3 implementation
+## Current Phase 4 implementation
 
-Snell v5/v6 and Hysteria2 are implemented experimentally. See [Snell support](SNELL.md),
-[Hysteria2 support](HYSTERIA2.md), [interop matrix](../testing/INTEROP_MATRIX.md) and
-[Phase 3 report](../reports/PHASE_3_HYSTERIA2_VERTICAL_SLICE_REPORT.md). Other directions below are planned.
+Snell v5/v6, Hysteria2 and TUIC v5 are implemented experimentally. See [Snell support](SNELL.md),
+[Hysteria2 support](HYSTERIA2.md), [TUIC support](TUIC.md), [interop matrix](../testing/INTEROP_MATRIX.md) and
+[Phase 4 report](../reports/PHASE_4_TUIC_VERTICAL_SLICE_REPORT.md). Phases 0–4 are
+locally frozen. Phase 5 reserves a branch only; VLESS/REALITY implementation has
+not started. Other directions below are planned.
 
 Other Splicore protocol integrations are **architecture targets**. Inherited
-upstream implementations remain baseline code outside the managed Snell/HY2 adapters.
+upstream implementations remain baseline code outside the managed Snell/HY2/TUIC adapters.
 This index points to existing bounded specifications in `architecture/`;
 no mass file relocation is needed.
 
