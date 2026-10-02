@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: All developers and reviewers
-- Last reviewed: 2026-10-01
+- Last reviewed: 2026-10-02
 - Owner: Test maintainers
 - Responsibility: Meaningful implementation/interop/failure gates and reporting scope.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -135,3 +135,28 @@ then program-only uninstall, retained-state reinstall and explicit safe purge.
 Symlinks and same-filesystem bind mounts must reject purge before deletion.
 Raw secrets injected into the actual unit journal must be absent from every
 decompressed support-bundle member. No fixture modifies production migrations.
+
+## Phase 10 client gates
+
+Unit/control tests cover canonical node/outbound/local/route references, roles,
+vault ownership, port conflict, injected startup and commit failure, stale revision,
+REST/CLI methods and hostile support redaction. In-process A/B data-path tests prove
+SOCKS→DIRECT and SOCKS→Snell→Splicore with IPv4/IPv6/domain, v5→v4/v6→v6, 4 MiB
+SHA256 integrity, 16 concurrent connections, route/credential generation retention,
+abnormal local/remote close, reconnect, restart and simultaneous server/client traffic.
+Client recovery failure preserves server/API. Adapter UDP and local SOCKS UDP reject
+are separate tests. Deterministic ownership tests use notifications, not sleep/retry.
+
+Run complete owned package tests and default race/checkptr, 10 repeated client
+race runs, affected inherited shared package race tests and owned vet. Bounded
+fuzz covers RemoteNode, Endpoint, Outbound, Route and Snell adapter options only;
+no wire/crypto fuzzing. Windows exercises actual native traffic; Linux arm64 remains
+compile only. Installed-service lab tests use loopback-only namespaces, two owned
+Splicore instances and pinned sing-box reference **servers**; the client is Splicore.
+Retain installed regression smoke for all server protocols plus install/upgrade/
+failed-forward-migration rollback/reinstall, doctor/support and cleanup gates.
+Evidence remains outside the checkout; [interop](INTEROP_MATRIX.md) owns exact fixtures.
+
+The service lab supplies a loopback-only localhost A/AAAA DNS fixture because its
+resolv.conf points to 127.0.0.1. It never forwards queries. Echo serves both address
+families on one target port; remote-domain tests do not depend on address order.

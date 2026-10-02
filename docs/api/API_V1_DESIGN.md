@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: API, CLI and integration developers
-- Last reviewed: 2026-10-01
+- Last reviewed: 2026-10-02
 - Owner: API maintainers
 - Responsibility: Transport, security and operation semantics; OpenAPI owns endpoint surface.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -134,3 +134,21 @@ commands with filesystem and root/owner checks described by
 and build_tags for exact build provenance; OpenAPI remains the field authority.
 Doctor and the [support bundle](../SUPPORT_BUNDLE.md) use safe local summaries;
 raw journal, DB/config and engine JSON never become API or bundle responses.
+
+## Phase 10 client control semantics
+
+Client resource CRUD and lifecycle use the existing protected `/api/v1` transport.
+GET replies return typed canonical state and ETag with the shared committed revision.
+Mutation CRUD requires `If-Match: "<revision>"`; stale revision returns 409. Collection
+reads are bounded arrays (no pagination/query parameters in this phase). Unknown
+paths return 404; wrong methods return 405 with Allow. Request JSON is strict and
+bounded to 64 KiB. The endpoint determines resource/action/ID; callers cannot override
+those fields in CRUD bodies. Generic validate/plan/apply accepts ClientMutation,
+with HMAC digest/global revision as the existing optimistic concurrency boundary.
+
+Create/rotate accepts explicit write-only CredentialInput. Reads expose credential
+IDs and canonical node data, never decrypted payloads. The machine contract owns
+exact paths/schemas. Runtime health is passive; available is not an active probe.
+Client and server share one global revision/journal. Client build/bind/commit failure
+compensates candidates while preserving committed intent and existing server runtimes.
+See [CLI](../CLI.md) and [client runtime](../architecture/CLIENT_RUNTIME.md).

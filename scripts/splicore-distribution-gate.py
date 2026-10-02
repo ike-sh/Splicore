@@ -40,7 +40,9 @@ def inner():
         if check and p.returncode:raise RuntimeError('gate failed: '+label)
         return p
     def install(label,file,check=True):return run(label,'sh','/source/scripts/install.sh','--artifact','/lab/'+file,'--sha256',digest(out/file),'--start',check=check)
-    def smoke(stage):run(stage+'-smoke','python3','/source/scripts/splicore-installed-smoke.py',stage)
+    def smoke(stage):
+        run(stage+'-smoke','python3','/source/scripts/splicore-installed-smoke.py',stage)
+        run(stage+'-client','python3','/source/scripts/splicore-client-smoke.py',stage)
     def system():return s.request('GET','/api/v1/system')
     def page():return s.request('GET','/api/v1/inbounds')
     def unit(*args):

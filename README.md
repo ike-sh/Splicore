@@ -1,11 +1,11 @@
 # Splicore
 
 Splicore is an independent proxy core project derived from sing-box, with a
-modular, extensible server architecture as its target.
+modular client/server architecture as its target.
 
 ## Status
 
-**Early Development / Snell, Hysteria2, TUIC, VLESS and Mieru Experimental.** Phases 0–9 are locally frozen.
+**Early Development / Snell, Hysteria2, TUIC, VLESS and Mieru Experimental.** Phases 0–10 are locally frozen.
 Phase 6 native/Xray VLESS duality is **FROZEN**, with 40 actual client
 traffic cells and default race/checkptr gates passing. See the
 [Phase 6 report](docs/reports/PHASE_6_XRAY_ENGINE_DUALITY_REPORT.md).
@@ -26,6 +26,14 @@ See [installation](docs/INSTALLATION.md), [operations](docs/OPERATIONS.md) and t
 [Phase 9 report](docs/reports/PHASE_9_DISTRIBUTION_SERVICE_FOUNDATION_REPORT.md).
 Ubuntu 24.04 WSL2 amd64 is runtime qualified; arm64 is build only. See the
 [freeze report](docs/reports/PHASE_9_FREEZE_REPORT.md). No public release.
+
+Phase 10 adds an **Experimental Client Runtime** in the same binary/service:
+loopback SOCKS5 TCP → DIRECT or embedded Snell/native → remote server. SQLite
+restores client intent alongside server runtimes. Local SOCKS UDP and advanced
+routing/DNS remain deferred. See [client runtime](docs/architecture/CLIENT_RUNTIME.md)
+and [CLI](docs/CLI.md). Phase 10 is **FROZEN** under the
+[freeze report](docs/reports/PHASE_10_FREEZE_REPORT.md). Phase 11 implementation
+is **NOT STARTED**. No public release.
 
 Phase 2 implements Snell v5/v6 using committed SQLite state, the existing sing-box
 data plane, payload stats, protected Linux API/CLI and client exporters. Pinned
@@ -125,7 +133,7 @@ wording in the unchanged [LICENSE](LICENSE).
 <!--
 Documentation status: Canonical
 Audience: Project visitors and developers
-Last reviewed: 2026-10-02
+Last reviewed: 2026-10-03
 Owner: Project maintainers
 Responsibility: Project identity, development status and documentation entry point.
 Lifecycle: Update with project status and navigation; keep detailed specifications in docs.

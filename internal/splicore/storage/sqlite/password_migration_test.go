@@ -18,7 +18,7 @@ import (
 )
 
 func TestSchema2And3ToCurrentPreservePopulatedSnellStateCiphertextAndConstraints(t *testing.T) {
-	for _, from := range []int{2, 3} {
+	for _, from := range []int{2, 3, 4} {
 		t.Run(fmt.Sprint(from), func(t *testing.T) { testPopulatedForwardMigration(t, from) })
 	}
 }
@@ -87,7 +87,7 @@ func testPopulatedForwardMigration(t *testing.T, from int) {
 	}
 	defer migrated.Close()
 	state, e := migrated.State(ctx)
-	if e != nil || state.Schema != 4 || state.NodeID != node || state.Revision != 1 || state.PendingTransactions != 0 {
+	if e != nil || state.Schema != len(migrations()) || state.NodeID != node || state.Revision != 1 || state.PendingTransactions != 0 {
 		t.Fatal("authority changed", e)
 	}
 	var after []byte

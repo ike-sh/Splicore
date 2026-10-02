@@ -60,7 +60,19 @@ func invalid() error {
 	return identity.Err(identity.Invalid, "unsupported Snell settings or credential")
 }
 func (m Module) Metadata() ports.ProtocolMetadata {
-	return ports.ProtocolMetadata{Key: Key(m.Version), ABI: 1, CredentialKinds: []access.CredentialKind{access.PSK}, Availability: ports.Compiled, Qualification: "experimental", Provenance: "sing-box v1.14.1 constructors; single binding; no QUIC proxy mode"}
+	return ports.ProtocolMetadata{Roles: ports.Roles{Inbound: true, Outbound: true}, Key: Key(m.Version), ABI: 1, CredentialKinds: []access.CredentialKind{access.PSK}, Availability: ports.Compiled, Qualification: "experimental", Provenance: "sing-box v1.14.1 constructors; single binding; no QUIC proxy mode"}
+}
+
+// ClientVersion is the canonical, explicit server-to-client compatibility mapping.
+func ClientVersion(server int) (int, error) {
+	switch server {
+	case 5:
+		return 4, nil
+	case 6:
+		return 6, nil
+	default:
+		return 0, invalid()
+	}
 }
 func (m Module) Capabilities(ports.CapabilityContext) ports.Capabilities {
 	clients := []ports.ClientCompatibility{{Format: ports.SingBox, Client: "sing-box", Version: "1.14.1", Evidence: "docs/reports/PHASE_2_SNELL_VERTICAL_SLICE_REPORT.md; Linux TCP/UDP base profile"}}

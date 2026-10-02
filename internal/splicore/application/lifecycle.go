@@ -94,14 +94,15 @@ func (s *Service) prepare(ctx context.Context, in ports.RuntimeIntent) (ports.Ru
 	return h, nil
 }
 func (s *Service) CloseRuntime(ctx context.Context) error {
+	clientErr := s.CloseClientRuntime(ctx)
 	if s.runtime == nil {
-		return nil
+		return clientErr
 	}
 	r := s.runtime
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.closed = true
-	var err error
+	var err error = clientErr
 	for id, h := range r.handles {
 		if e := h.Close(ctx); e != nil {
 			err = e

@@ -20,7 +20,8 @@ func (e Snell) Describe(p clientprofile.Profile) (ports.ExportDescription, error
 	if err != nil {
 		return ports.ExportDescription{}, unsupported()
 	}
-	v, compat := s.Version, "exact"
+	v, _ := snell.ClientVersion(s.Version)
+	compat := "exact"
 	if v == 5 {
 		v = 4
 		compat = "v4 TCP/UDP client to v5 server; QUIC Proxy Mode unavailable"
@@ -51,10 +52,7 @@ func (e Snell) Export(_ context.Context, p clientprofile.Profile, t ports.Export
 	if t.Format != e.Target {
 		return nil, unsupported()
 	}
-	v := s.Version
-	if v == 5 {
-		v = 4
-	} // Explicit compatibility mapping is returned by the application export envelope.
+	v, _ := snell.ClientVersion(s.Version) // Explicit canonical compatibility mapping.
 	name := "splicore-" + string(p.ID)
 	psk := k.Key.Reveal()
 	switch e.Target {

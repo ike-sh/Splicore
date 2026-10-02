@@ -6,8 +6,10 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/sagernet/sing-box/internal/splicore/application"
+	"github.com/sagernet/sing-box/internal/splicore/clientruntime"
 	"github.com/sagernet/sing-box/internal/splicore/config"
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
+	"github.com/sagernet/sing-box/internal/splicore/domain/client"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
 	"github.com/sagernet/sing-box/internal/splicore/version"
@@ -21,6 +23,11 @@ import (
 )
 
 type hostileSource struct{ secret string }
+
+func (s hostileSource) ClientStatus(context.Context) (clientruntime.Status, error) {
+	id := identity.ID(s.secret)
+	return clientruntime.Status{Health: s.secret, LastError: s.secret, State: client.ProfileState{Nodes: []client.RemoteNode{{ID: id, Name: s.secret, Protocol: access.ProtocolKey{Protocol: s.secret}, Endpoint: access.Endpoint{Host: s.secret, Port: 443}, Options: client.Options{Data: json.RawMessage(`{"password":"` + s.secret + `"}`)}, Metadata: identity.Metadata{"secret": s.secret}}}, Outbounds: []client.Outbound{{ID: id, Name: s.secret, Kind: s.secret, NodeID: &id, Engine: s.secret}}, LocalInbounds: []client.LocalInbound{{Name: s.secret, Kind: s.secret, Listen: access.Endpoint{Host: s.secret, Port: 443}}}}, Outbounds: []clientruntime.OutboundHealth{{ID: id, LastError: s.secret}}}, nil
+}
 
 func (s hostileSource) System(context.Context) (application.System, error) {
 	return application.System{NodeID: identity.ID(s.secret), Health: s.secret, Reasons: []string{s.secret}, Version: version.Info{Version: s.secret}, Engines: []ports.EngineStatus{{Engine: s.secret, Reason: s.secret, InstalledVersion: s.secret, BinarySHA256: s.secret}}}, nil
@@ -93,7 +100,7 @@ func TestSupportBundleBlockingSecretGate(t *testing.T) {
 		}
 		count++
 	}
-	if count != 7 {
+	if count != 8 {
 		t.Fatalf("unexpected bundle inventory %d", count)
 	}
 	if err = SupportBundle(ctx, c, version.Current(), nil, output); err == nil {

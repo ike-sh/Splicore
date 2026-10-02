@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/application"
 	"github.com/sagernet/sing-box/internal/splicore/config"
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
+	"github.com/sagernet/sing-box/internal/splicore/engine/native"
 	"github.com/sagernet/sing-box/internal/splicore/engine/xray"
 	"github.com/sagernet/sing-box/internal/splicore/operations"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
@@ -80,6 +81,13 @@ func Serve(ctx context.Context, c config.Config) error {
 		defer cancel()
 		_ = service.CloseRuntime(shutdown)
 	}()
+	outbounds, err := registry.NewOutbounds(native.SnellOutboundFactory{})
+	if err != nil {
+		return err
+	}
+	if err = service.EnableClientRuntime(ctx, outbounds); err != nil {
+		return err
+	}
 	server := transport.Server(api.Handler(service))
 	done := make(chan struct{})
 	go func() {

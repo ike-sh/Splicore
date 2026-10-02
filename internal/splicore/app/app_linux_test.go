@@ -9,6 +9,7 @@ import (
 
 	"github.com/sagernet/sing-box/internal/splicore/config"
 	"github.com/sagernet/sing-box/internal/splicore/transport"
+	"github.com/sagernet/sing-box/internal/splicore/version"
 )
 
 func TestFoundationDaemonLifecycle(t *testing.T) {
@@ -24,7 +25,7 @@ func TestFoundationDaemonLifecycle(t *testing.T) {
 	for {
 		system, err := client.System(context.Background())
 		if err == nil {
-			if system.DBSchema != 4 || system.Health != "healthy" {
+			if system.DBSchema != version.DatabaseSchema || system.Health != "healthy" || system.ClientRuntime == nil || system.ClientRuntime.Health != "healthy" {
 				t.Fatal("runtime maturity overstated")
 			}
 			break

@@ -107,3 +107,24 @@ Global committed revision and successful transaction state change together.
 This narrower scope follows the explicit Phase 1 request, replacing earlier
 Phase 1 table staging recommendations. Entitlements, usage, candidate change
 records and audit tables are deferred. No payment/order tables exist.
+
+## Schema 5 client relationships
+
+The existing installation `nodes` table is distinct from `remote_nodes`.
+
+```mermaid
+erDiagram
+    remote_nodes ||--|| credentials : owns
+    remote_nodes ||--o{ client_outbounds : used_by
+    client_outbounds ||--o{ local_inbounds : selected_by
+    client_outbounds ||--o| client_routes : default
+    client_profiles ||--|| client_routes : enables
+```
+
+Client tables contain generic identity/reference and canonical document data.
+Credentials have exactly one account_id, inbound_id or remote_node_id owner.
+Node/credential circular references are deferred foreign keys within the same
+commit. Deleting referenced nodes/outbounds rejects in the application. The
+singleton profile enabled flag and route restore at the shared global revision;
+client sessions/counters are ephemeral. Actual constraints are owned by
+[migration 0005](../../internal/splicore/storage/sqlite/migrations/0005_client_runtime.sql).

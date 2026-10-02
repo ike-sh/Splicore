@@ -28,6 +28,7 @@ occurs. Offline generation is supported and marks unavailable information.
 | config.redacted.json | Schema and canonical-path/configured booleans only. |
 | listeners.json | Protocol/engine/health/transport enums, address class, low-port flag and binding count. |
 | journal.summary.json | At most 128 recent unit entries summarized by priority; no MESSAGE, cursor or hostname. |
+| client.redacted.json | Fixed client health/role/count flags, name redaction, endpoint address class/port, engine and outbound availability; no metadata/options/secrets. |
 | crashes.json | At most 16 validated, re-projected exit records. |
 
 No real listener hosts, account/inbound/binding IDs or names, tags, client export,
@@ -40,5 +41,7 @@ The blocking test injects synthetic Snell PSK, HY2/TUIC/Mieru passwords, VLESS
 UUID, REALITY private key and API token into diagnostic input fields and crash
 records, then scans every decompressed file. Installed-system validation also
 injects those values into local journald and verifies the produced archive.
-Changing the bundle contract requires this gate. Operators should still review
+Phase 10 extends the hostile-input gate to every client free-form field, including
+node names/domains/options/metadata/IDs and health errors. Eight projections are
+scanned after decompression. Changing the bundle contract requires this gate. Operators should still review
 the extracted summary before deliberately sharing it.

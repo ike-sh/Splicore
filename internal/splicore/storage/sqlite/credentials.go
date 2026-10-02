@@ -63,6 +63,9 @@ func decodePayload(kind access.CredentialKind, b []byte) (access.Payload, error)
 }
 
 func credentialAAD(c access.Credential) []byte {
+	if c.OwnerNodeID != nil {
+		return []byte(fmt.Sprintf("Splicore/remote-credential/%s/%s/%s/%d", c.ID, *c.OwnerNodeID, c.Kind, c.Schema))
+	}
 	account, inbound := "", ""
 	if c.OwnerAccountID != nil {
 		account = string(*c.OwnerAccountID)
@@ -80,10 +83,10 @@ func (s *Store) RevealCredential(ctx context.Context, id identity.ID) (access.Cr
 		return access.Credential{}, identity.Err(identity.Unavailable, "credential key provisioning is required")
 	}
 	var c access.Credential
-	var account, inbound sql.NullString
+	var account, inbound, node sql.NullString
 	var data []byte
 	var keyID, created, updated string
-	err := s.db.QueryRowContext(ctx, "SELECT id,account_id,inbound_id,kind,schema_version,ciphertext,key_id,state,revision,created_at,updated_at FROM credentials WHERE id=?", id).Scan(&c.ID, &account, &inbound, &c.Kind, &c.Schema, &data, &keyID, &c.State, &c.Revision, &created, &updated)
+	err := s.db.QueryRowContext(ctx, "SELECT id,account_id,inbound_id,kind,schema_version,ciphertext,key_id,state,revision,created_at,updated_at,remote_node_id FROM credentials WHERE id=?", id).Scan(&c.ID, &account, &inbound, &c.Kind, &c.Schema, &data, &keyID, &c.State, &c.Revision, &created, &updated, &node)
 	if err != nil {
 		return c, storageError(err)
 	}
@@ -94,6 +97,10 @@ func (s *Store) RevealCredential(ctx context.Context, id identity.ID) (access.Cr
 	if inbound.Valid {
 		v := identity.ID(inbound.String)
 		c.OwnerInboundID = &v
+	}
+	if node.Valid {
+		v := identity.ID(node.String)
+		c.OwnerNodeID = &v
 	}
 	if keyID != s.options.Cipher.KeyID() {
 		return access.Credential{}, identity.Err(identity.Unavailable, "credential encryption key unavailable")

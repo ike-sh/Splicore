@@ -144,3 +144,12 @@ socket Close, session/destination teardown and worker joins. Per-inbound immutab
 username→Binding maps and payload atomics isolate auth/stats; global upstream meters
 are never billed. Standard direct TCP/UDP routing is the bounded current scope.
 No extra EngineID, hot user update or permanent child. [ADR 0020](../adr/0020-mieru-owned-native-embedding.md).
+
+## Native client outbound ownership
+
+The existing `native` engine supports inbound and outbound roles. SnellOutboundFactory
+owns a private embedded Box and inherited Snell adapter, with the owned static
+platform monitor composition and local DNS transport for remote node domains. No
+external client process, new EngineID or wire implementation. Outbound generations
+retain adapters until their sessions release them; failed candidates close independently.
+Xray remains server inbound only in Phase 10. See [client runtime](CLIENT_RUNTIME.md).

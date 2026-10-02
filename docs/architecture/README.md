@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Core developers and architecture reviewers
-- Last reviewed: 2026-10-01
+- Last reviewed: 2026-10-02
 - Owner: Core maintainers
 - Responsibility: Route architectural changes to the bounded specification that owns them.
 - Lifecycle: Update when specification boundaries or navigation change.
@@ -56,3 +56,8 @@ and create new scoped baseline/source evidence; do not silently rewrite old test
 ## Phase 8 current specifications
 
 [Managed capability matrix](CAPABILITY_MATRIX.md) and [Mieru native contract](../protocol/MIERU.md) refine the retained [roadmap](MIERU_INTEGRATION.md).
+
+## Client runtime specifications
+
+- [Client Runtime](CLIENT_RUNTIME.md): canonical resources, native adapters, lifetime and recovery.
+- [Routing model](ROUTING_MODEL.md): default/selected snapshot and DNS semantics.

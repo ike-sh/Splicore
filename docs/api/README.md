@@ -86,3 +86,14 @@ new network API routes. See [installation](../INSTALLATION.md),
 [operations](../OPERATIONS.md) and [bundle contract](../SUPPORT_BUNDLE.md).
 Optional Version.source_digest/build_tags expose exact build provenance in the
 existing system response; the machine schema is updated with those fields.
+
+## Phase 10 client surface
+
+OpenAPI marks node/outbound/local-inbound CRUD, credential rotation, route,
+client runtime/lifecycle and client validate/plan/apply as `phase10`. These run in
+the same control plane; generic server resource CRUD/subscriptions remain deferred.
+System adds separate server_runtimes/client_runtime projections. Capability roles
+express inbound/outbound support; exact proxy adapters are reported in client status.
+Credentials are write-only inputs and absent from read schemas. See
+[client CLI](../CLI.md), [client runtime](../architecture/CLIENT_RUNTIME.md) and
+[control semantics](API_V1_DESIGN.md#phase-10-client-control-semantics).

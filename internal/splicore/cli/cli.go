@@ -27,6 +27,9 @@ type Dependencies struct {
 }
 
 func Run(ctx context.Context, args []string, out, errOut io.Writer, deps Dependencies) int {
+	if len(args) > 0 && (args[0] == "client" || args[0] == "node" || args[0] == "outbound" || args[0] == "local-inbound" || args[0] == "route") {
+		return clientCLI(ctx, args, out, errOut, deps)
+	}
 	if len(args) > 0 && (args[0] == "service" || args[0] == "state" || args[0] == "package" || args[0] == "support-bundle") {
 		return operationsCLI(ctx, args, out, errOut, deps)
 	}
@@ -163,6 +166,7 @@ func offlineDoctor(ctx context.Context, out io.Writer, c config.Config, v versio
 		return outputJSON(out, d)
 	}
 	d.Checks = append(d.Checks, application.Check{Name: "api_transport", Status: "pass", Detail: "application response received"}, application.Check{Name: "db_schema", Status: "pass", Detail: fmt.Sprint(system.DBSchema)}, application.Check{Name: "foundation_health", Status: "info", Detail: system.Health})
+	d.Checks = append(d.Checks, operations.ClientDoctorChecks(system.ClientRuntime)...)
 	d.Checks = append(d.Checks, application.Check{Name: "database", Status: "pass", Detail: system.Foundation.DatabaseStatus}, application.Check{Name: "migrations", Status: "info", Detail: fmt.Sprint(system.Foundation.PendingMigrations) + " pending"}, application.Check{Name: "transactions", Status: "info", Detail: fmt.Sprint(system.Foundation.PendingTransactions) + " pending"}, application.Check{Name: "engine_registry", Status: "pass", Detail: fmt.Sprint(system.Foundation.Engines) + " engine entries"}, application.Check{Name: "exporter_registry", Status: "pass", Detail: fmt.Sprint(system.Foundation.Exporters) + " compiled exporters"})
 	page, err := q.Capabilities(ctx, "", 200)
 	if err == nil {

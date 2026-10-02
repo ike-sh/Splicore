@@ -2,16 +2,16 @@
 
 - Documentation status: Canonical
 - Audience: Core developers and architecture reviewers
-- Last reviewed: 2026-10-02
+- Last reviewed: 2026-10-03
 - Owner: Core maintainers
 - Responsibility: Overall boundaries, dependency direction, invariants and implementation gates.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-## Phase 8 frozen baseline
+## Frozen runtime baseline
 
 The Account → Binding → Credential → Inbound → Native Engine → stats → ClientProfile/export
 path supports experimental Snell v5/v6, Hysteria2, TUIC v5 and native VLESS/REALITY.
-Phases 0–8 are locally frozen; Phase 5 supports flow-none VLESS/REALITY. Vision
+Phases 0–10 are locally frozen; Phase 5 supports flow-none VLESS/REALITY. Vision
 is DEFERRED / UNSUPPORTED and rejected before runtime construction or export. HY2 adds generic encrypted
 passwords, multiple Bindings, static TLS and owned QUIC/UDP admission. One Native
 Engine dispatches protocol compilers; exporters dispatch protocol keys. Create
@@ -71,7 +71,7 @@ See [report](reports/PHASE_4_TUIC_VERTICAL_SLICE_REPORT.md) for measured gates.
 Navigation: [docs index](README.md) → this overview →
 [bounded specification map](architecture/README.md) → relevant specifications and ADRs.
 
-Splicore is an independent, modular server proxy core. sing-box supplies the
+Splicore is an independent, modular client/server proxy core. sing-box supplies the
 network foundation; stable Splicore domain contracts own identity, authorization,
 policy, state and operations. API, CLI, subscriptions and future Panel use those
 contracts, never upstream runtime JSON as their public model.
@@ -211,7 +211,7 @@ Both features remain Experimental. Phase 8 adds the official embedded Mieru adap
 ## Phase 8 owned native embedding
 
 Phase 8 is locally frozen under the [freeze report](reports/PHASE_8_FREEZE_REPORT.md).
-Mieru remains Experimental; Phase 9 adds a distribution candidate for review.
+Mieru remains Experimental; Phase 9 freezes the local distribution foundation.
 
 [Mieru](protocol/MIERU.md) registers a module/CreationCodec, MieruCompiler in the
 existing Native Engine, ClientProfile/exporters and Phase8 composition. Zero central
@@ -231,3 +231,18 @@ serialize separately from the runtime directory, snapshot a stopped database and
 replace files atomically. Optional Xray stays pinned and managed by the same child
 owner. Operations/diagnostics do not add protocol capability or wire behavior.
 [ADR 0021](adr/0021-linux-local-distribution.md) records these proposed decisions.
+
+## Phase 10 client runtime
+
+Phase 10 is locally frozen under its [freeze report](reports/PHASE_10_FREEZE_REPORT.md).
+Client Runtime remains Experimental. Phase 11 implementation is NOT STARTED.
+
+One daemon owns Server Runtime and Client Runtime with shared Application, domain,
+registry, vault, stats, transactions, API, CLI and SQLite. RemoteNode is separate
+from Outbound and server Account; LocalInbound is separate from remote-facing
+Inbound. Committed ProfileState is separate from exported ClientProfile and runtime
+configuration. The first embedded slice is Local SOCKS5 TCP → immutable route →
+DIRECT or Snell/native → remote server → target. Client failure isolation preserves
+server/API operation. See [client runtime](architecture/CLIENT_RUNTIME.md),
+[routing](architecture/ROUTING_MODEL.md) and [ADR 0022](adr/0022-client-runtime-domain.md).
+No additional binary/service, central client protocol switch or upstream wire edit.

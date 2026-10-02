@@ -191,6 +191,7 @@ type Credential struct {
 	ID             identity.ID    `json:"id"`
 	OwnerAccountID *identity.ID   `json:"owner_account_id,omitempty"`
 	OwnerInboundID *identity.ID   `json:"owner_inbound_id,omitempty"`
+	OwnerNodeID    *identity.ID   `json:"owner_node_id,omitempty"`
 	Kind           CredentialKind `json:"kind"`
 	Schema         int            `json:"schema_version"`
 	State          string         `json:"state"`
@@ -206,10 +207,16 @@ func (c Credential) Validate() error {
 	if err := c.ID.Validate(); err != nil {
 		return err
 	}
-	if (c.OwnerAccountID == nil) == (c.OwnerInboundID == nil) {
+	owners := 0
+	for _, id := range []*identity.ID{c.OwnerAccountID, c.OwnerInboundID, c.OwnerNodeID} {
+		if id != nil {
+			owners++
+		}
+	}
+	if owners != 1 {
 		return identity.Err(identity.Invalid, "credential needs exactly one owner")
 	}
-	for _, id := range []*identity.ID{c.OwnerAccountID, c.OwnerInboundID} {
+	for _, id := range []*identity.ID{c.OwnerAccountID, c.OwnerInboundID, c.OwnerNodeID} {
 		if id != nil {
 			if err := id.Validate(); err != nil {
 				return err

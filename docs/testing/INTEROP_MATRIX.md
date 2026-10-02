@@ -197,3 +197,19 @@ stats stay isolated, restart/reconcile recovery passes. Native 10-cycle tests as
 joined Stop A preserves B and goroutines return to baseline. Source-only embedding
 and quota probes are reference evidence and do not replace this matrix.
 Exact executable hashes, failures retained and platform limits: [Phase 8 report](../reports/PHASE_8_MIERU_NATIVE_INTEGRATION_REPORT.md).
+
+## Phase 10 client direction
+
+| Direction | Qualified profile / evidence boundary |
+| --- | --- |
+| Splicore SOCKS→DIRECT | IPv4/IPv6/domain TCP through real runtime. |
+| Splicore client→Splicore server | Snell server5/client4 and6/6; 4 MiB integrity and 16 concurrency. |
+| Splicore client→sing-box 1.14.1 reference server | Snell v5/v6 loopback installed-service fixture; external process is server only. |
+| Existing third-party clients→Splicore server | All frozen protocol smoke remains required through installed unit. |
+| Native Snell adapter UDP | Actual v5/v6 remote echo, separate from local SOCKS. |
+| Local SOCKS UDP | DEFERRED; UDP ASSOCIATE reply7. |
+
+Pinned sing-box SHA256:
+`9334a1c1fe97234911afaedd37226667ebdb3dab2abe383f2c4ae1387706dad9`.
+Splicore client uses inherited embedded wire code and synthetic credentials only.
+Advanced DNS/routing and other client outbounds are not qualified by server smoke.

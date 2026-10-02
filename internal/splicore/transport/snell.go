@@ -35,7 +35,7 @@ func (c *Client) post(ctx context.Context, path string, b []byte, out any) error
 				return identity.RevisionConflict(*p.Current)
 			}
 			switch p.Code {
-			case identity.Invalid, identity.NotFound, identity.NotImplemented, identity.UnsupportedExport, identity.PortConflict:
+			case identity.Invalid, identity.NotFound, identity.NotImplemented, identity.UnsupportedExport, identity.PortConflict, identity.UnsupportedEngineForProtocol:
 				return identity.Err(p.Code, "control command rejected")
 			}
 		}

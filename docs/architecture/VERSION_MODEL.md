@@ -2,16 +2,16 @@
 
 - Documentation status: Canonical
 - Audience: Core and release developers
-- Last reviewed: 2026-10-01
+- Last reviewed: 2026-10-02
 - Owner: Core maintainers
 - Responsibility: Independent product, build, schema, API and client-qualification identities.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-## Current Phase 2 implementation
+## Current Phase 10 implementation
 
-DatabaseSchema is now 3; ConfigSchema and ProtocolABI stay 1, API stays v1. Bootstrap
-key_file is optional but real credentials require it. Upstream Snell/HY2 wire versions
-are unchanged. The schema increment adds generic password credentials.
+DatabaseSchema is 5; ConfigSchema and ProtocolABI stay 1, API stays v1.
+Migration 0005 adds generic client state and node-owned encrypted credentials.
+Wire versions remain unchanged. Product qualification remains Experimental.
 
 | Identity | Meaning / compatibility rule |
 |---|---|

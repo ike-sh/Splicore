@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Developers, maintainers and returning coding agents
-- Last reviewed: 2026-10-02
+- Last reviewed: 2026-10-03
 - Owner: Project maintainers
 - Responsibility: Current project constraints and the minimum recovery context.
 - Lifecycle: Replace obsolete constraints when reviewed scope changes; never append a diary.
@@ -27,12 +27,15 @@ arm64 is build only. See [distribution](DISTRIBUTION.md) and the
 [Phase 9 report](reports/PHASE_9_DISTRIBUTION_SERVICE_FOUNDATION_REPORT.md).
 The [Phase 9 freeze report](reports/PHASE_9_FREEZE_REPORT.md) records the authorized
 single commit, main fast-forward and clean branch preparation:
-`codex/phase-10-client-runtime-foundation`. Client implementation is **NOT STARTED**;
-begin it only under its separate phase authorization. NoBrand migration is deferred
-until the unified client/server core is complete. Push/tag/release remain prohibited.
+`codex/phase-10-client-runtime-foundation`. Phase 10 freezes an **Experimental Client Runtime** under the maintainer authorization.
+Local SOCKS TCP, DIRECT and Snell/native are implemented; local SOCKS UDP is deferred. NoBrand migration is deferred
+until the unified client/server core is complete. The [Phase 10 freeze report](reports/PHASE_10_FREEZE_REPORT.md)
+records the single commit, main fast-forward and clean
+`codex/phase-11-client-outbound-expansion` branch. Phase 11 implementation is NOT STARTED.
+Push/tag/release remain prohibited.
 
-Splicore is an independent modular server proxy core derived from sing-box.
-Phases 0–9 are locally frozen. Phase 5 implements an Experimental VLESS/REALITY
+Splicore is an independent modular client/server proxy core derived from sing-box.
+Phases 0–10 are locally frozen. Phase 5 implements an Experimental VLESS/REALITY
 Native candidate. Vision is **DEFERRED / UNSUPPORTED** due to pinned dependency
 checkptr and Read/Write defects. Flow-none VLESS/REALITY remains supported;
 its fresh acceptance gates pass with default checkptr and race. The supported
@@ -76,6 +79,13 @@ Snell/Hysteria2/TUIC remain Experimental; no Stable release.
   Stage/commit authorization was limited to this freeze; subsequent work remains
   uncommitted unless separately authorized. Push/tag/release NONE.
 - Sole remote: https://github.com/SagerNet/sing-box.git; no origin.
+- Phase 9 SHA: `d47ef2c584654eaa8eaa965ef26b7acc24881e1f`.
+- The maintainer separately authorized one Phase 10 freeze commit:
+  `feat(client): add client runtime foundation`, sole parent Phase 9,
+  main fast-forward and creation of `codex/phase-11-client-outbound-expansion`.
+  Resolve its full SHA from `git rev-parse codex/phase-10-client-runtime-foundation`;
+  the freeze report cannot embed its own commit SHA. Phase 11 starts CLEAN there.
+  This authorization covers Phase 10 closure only; Phase 11 implementation has not begun.
 - Historical Phase 0–9 reports/evidence and migrations 0001–0004 immutable.
 - Fresh artifacts/tools/logs/binaries/state/caches external; upstream runtime edits 0.
   Phase 8 adds the audited official Mieru module, with no dependency upgrades.
@@ -177,10 +187,25 @@ Windows crash safety qualification and Xray arm64 runtime remain deferred.
 ## Phase 8 current ownership boundary
 
 Frozen branch `codex/phase-8-mieru-native-integration`, Phase 7 parent above.
-Current Phase 9 branch is CLEAN at that checkpoint, with implementation not started.
+Phase 10 started from the frozen Phase 9 commit and is now locally frozen.
 [Mieru](protocol/MIERU.md),
 [ADR 0020](adr/0020-mieru-owned-native-embedding.md),
 [workflow](development/PHASE_8_MIERU.md), [report](reports/PHASE_8_MIERU_NATIVE_INTEGRATION_REPORT.md).
 No permanent mita child, source fork/copy, wire rewrite, new EngineID, shared domain
 fields/migrations/routes or real NoBrand modifications. Docker DO NOT QUERY / DO NOT TOUCH.
 QuotaNative/speed/hot updates/durable accounting unexposed; clients remain Experimental.
+
+## Phase 10 frozen boundary and Phase 11 entry
+
+Frozen branch: `codex/phase-10-client-runtime-foundation`. Its sole parent is Phase 9
+`d47ef2c584654eaa8eaa965ef26b7acc24881e1f`; entry worktree was clean and index empty.
+Schema 5 adds generic client intent and node-owned encrypted credentials, retaining
+migrations 0001–0004. Shared generation lifetime and transactional restart are
+owned in [Client Runtime](architecture/CLIENT_RUNTIME.md). One binary/unit runs both
+roles. Other outbounds, TUN, DNS/policy/subscription and NoBrand migration remain
+deferred. Phase 10 is FROZEN under the [freeze report](reports/PHASE_10_FREEZE_REPORT.md).
+Current prepared branch: `codex/phase-11-client-outbound-expansion`, based on the
+Phase 10 freeze commit, with CLEAN worktree and EMPTY index. Implementation NOT STARTED.
+No new outbound is implemented by this freeze. Push/tag/release NONE; Docker DO NOT QUERY / TOUCH.
+Acceptance evidence: `D:\splicore-validation\phase10-20261002`.
+Freeze evidence: `D:\splicore-validation\phase10-freeze-20261003`.

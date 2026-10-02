@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sagernet/sing-box/internal/splicore/clientruntime"
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
@@ -20,20 +21,29 @@ import (
 )
 
 type System struct {
-	NodeID            identity.ID          `json:"node_id"`
-	InstanceID        identity.ID          `json:"instance_id"`
-	Version           version.Info         `json:"version"`
-	ConfigSchema      int                  `json:"config_schema"`
-	DBSchema          int                  `json:"db_schema"`
-	ProtocolABI       int                  `json:"protocol_abi"`
-	CommittedRevision identity.Revision    `json:"committed_revision"`
-	Health            string               `json:"health"`
-	Reasons           []string             `json:"reasons"`
-	Foundation        Foundation           `json:"foundation"`
-	Engines           []ports.EngineStatus `json:"engines"`
+	ServerRuntimes    []ServerRuntimeSummary `json:"server_runtimes"`
+	ClientRuntime     *clientruntime.Status  `json:"client_runtime,omitempty"`
+	NodeID            identity.ID            `json:"node_id"`
+	InstanceID        identity.ID            `json:"instance_id"`
+	Version           version.Info           `json:"version"`
+	ConfigSchema      int                    `json:"config_schema"`
+	DBSchema          int                    `json:"db_schema"`
+	ProtocolABI       int                    `json:"protocol_abi"`
+	CommittedRevision identity.Revision      `json:"committed_revision"`
+	Health            string                 `json:"health"`
+	Reasons           []string               `json:"reasons"`
+	Foundation        Foundation             `json:"foundation"`
+	Engines           []ports.EngineStatus   `json:"engines"`
 }
 
 // Foundation describes only checks that the daemon has actually completed.
+type ServerRuntimeSummary struct {
+	ID       identity.ID        `json:"id"`
+	Protocol access.ProtocolKey `json:"protocol"`
+	Engine   string             `json:"engine"`
+	Health   string             `json:"health"`
+}
+
 type Foundation struct {
 	DatabaseStatus      string `json:"database_status"`
 	PendingMigrations   int    `json:"pending_migrations"`
@@ -76,6 +86,7 @@ type QualifiedClient struct {
 	Evidence string `json:"evidence"`
 }
 type Capability struct {
+	Roles                 ports.Roles            `json:"roles"`
 	Protocol              string                 `json:"protocol"`
 	WireVersion           string                 `json:"wire_version"`
 	FeatureProfile        string                 `json:"feature_profile"`
@@ -86,6 +97,7 @@ type Capability struct {
 	EngineImplementations []EngineImplementation `json:"engine_implementations"`
 }
 type EngineImplementation struct {
+	Roles              ports.Roles        `json:"roles"`
 	Engine             string             `json:"engine"`
 	Availability       ports.Availability `json:"availability"`
 	RuntimeImplemented bool               `json:"runtime_implemented"`
@@ -102,6 +114,7 @@ type Queries interface {
 	Capabilities(context.Context, string, int) (CapabilityPage, error)
 }
 type Service struct {
+	client      *clientState
 	runtime     *runtimeState
 	repo        ports.Repository
 	protocols   *registry.Protocols
@@ -129,6 +142,8 @@ func New(repo ports.Repository, p *registry.Protocols, e *registry.Engines, x *r
 }
 
 func (s *Service) System(ctx context.Context) (System, error) {
+	servers := []ServerRuntimeSummary{}
+	var clientStatus *clientruntime.Status
 	state, err := s.repo.State(ctx)
 	if err != nil {
 		return System{}, err
@@ -143,17 +158,29 @@ func (s *Service) System(ctx context.Context) (System, error) {
 			return System{}, e
 		}
 		for _, i := range page.Items {
+			servers = append(servers, ServerRuntimeSummary{ID: i.Inbound.ID, Protocol: i.Inbound.Protocol, Engine: i.Inbound.Engine, Health: i.Health})
 			if i.Health != "healthy" {
 				health = "degraded"
 				reasons = append(reasons, "runtime_unhealthy")
 			}
 		}
 	}
+	if s.client != nil {
+		status, err := s.ClientStatus(ctx)
+		if err != nil {
+			return System{}, err
+		}
+		clientStatus = &status
+		if status.Health == "degraded" {
+			health = "degraded"
+			reasons = append(reasons, "client_runtime_unhealthy")
+		}
+	}
 	if state.PendingTransactions > 0 {
 		health = "recovery_required"
 		reasons = append(reasons, "pending_transaction_requires_review")
 	}
-	return System{NodeID: state.NodeID, InstanceID: s.instance, Version: s.build, ConfigSchema: version.ConfigSchema, DBSchema: state.Schema, ProtocolABI: version.ProtocolABI, CommittedRevision: state.Revision, Health: health, Reasons: reasons, Engines: s.engineStatuses(), Foundation: Foundation{DatabaseStatus: "ready", PendingMigrations: state.PendingMigrations, PendingTransactions: state.PendingTransactions, Protocols: len(s.protocols.Keys()), Engines: len(s.engines.Keys()), Exporters: len(s.exporters.Keys())}}, nil
+	return System{ServerRuntimes: servers, ClientRuntime: clientStatus, NodeID: state.NodeID, InstanceID: s.instance, Version: s.build, ConfigSchema: version.ConfigSchema, DBSchema: state.Schema, ProtocolABI: version.ProtocolABI, CommittedRevision: state.Revision, Health: health, Reasons: reasons, Engines: s.engineStatuses(), Foundation: Foundation{DatabaseStatus: "ready", PendingMigrations: state.PendingMigrations, PendingTransactions: state.PendingTransactions, Protocols: len(s.protocols.Keys()), Engines: len(s.engines.Keys()), Exporters: len(s.exporters.Keys())}}, nil
 }
 
 func engineStatus(e ports.Engine) ports.EngineStatus {
@@ -217,7 +244,7 @@ func (s *Service) Capabilities(ctx context.Context, cursor string, limit int) (C
 				clients = append(clients, QualifiedClient{q.Client, q.Version, q.Evidence})
 			}
 		}
-		page.Items = append(page.Items, Capability{Protocol: key.Protocol, WireVersion: key.WireVersion, FeatureProfile: key.FeatureProfile, Availability: m.Availability, Qualification: m.Qualification, Features: Features{Implementation: implementation(m.Qualification), TCP: c.Transport.TCP, UDPTransport: c.Transport.UDPTransport, UDPPayload: c.Transport.UDPPayload, IPv4: c.Transport.IPv4, IPv6: c.Transport.IPv6, DomainEndpoint: c.Transport.DomainEndpoint, NativeMultiUser: c.Identity.MultiUserNative, NativeStats: c.Identity.NativeStats, PerUserStats: c.Identity.PerUserStats, HotUserUpdate: c.Mutation.Users == ports.Hot, AttributedPayload: c.Identity.AttributedPayload, NativeQuota: c.Policy.Quota, NativeSpeedLimit: c.Policy.SpeedLimit, MaxSessions: c.Policy.MaxSessions, UserMutation: c.Mutation.Users, ListenerMutation: c.Mutation.Listener, HotReload: c.Mutation.HotReload, TLS: c.Security.TLS, Reality: c.Security.Reality, Vision: c.Security.Vision, SupportedFlows: c.Security.Flows, SupportedTransports: c.Transport.Kinds, EngineFeatures: ports.CloneFeatures(c.EngineFeatures)}, QualifiedClients: clients})
+		page.Items = append(page.Items, Capability{Roles: m.Roles, Protocol: key.Protocol, WireVersion: key.WireVersion, FeatureProfile: key.FeatureProfile, Availability: m.Availability, Qualification: m.Qualification, Features: Features{Implementation: implementation(m.Qualification), TCP: c.Transport.TCP, UDPTransport: c.Transport.UDPTransport, UDPPayload: c.Transport.UDPPayload, IPv4: c.Transport.IPv4, IPv6: c.Transport.IPv6, DomainEndpoint: c.Transport.DomainEndpoint, NativeMultiUser: c.Identity.MultiUserNative, NativeStats: c.Identity.NativeStats, PerUserStats: c.Identity.PerUserStats, HotUserUpdate: c.Mutation.Users == ports.Hot, AttributedPayload: c.Identity.AttributedPayload, NativeQuota: c.Policy.Quota, NativeSpeedLimit: c.Policy.SpeedLimit, MaxSessions: c.Policy.MaxSessions, UserMutation: c.Mutation.Users, ListenerMutation: c.Mutation.Listener, HotReload: c.Mutation.HotReload, TLS: c.Security.TLS, Reality: c.Security.Reality, Vision: c.Security.Vision, SupportedFlows: c.Security.Flows, SupportedTransports: c.Transport.Kinds, EngineFeatures: ports.CloneFeatures(c.EngineFeatures)}, QualifiedClients: clients})
 		item := &page.Items[len(page.Items)-1]
 		item.EngineImplementations = []EngineImplementation{}
 		for _, engine := range s.engines.Implementations(key.Protocol) {
@@ -231,7 +258,7 @@ func (s *Service) Capabilities(ctx context.Context, cursor string, limit int) (C
 			if availability == ports.Compiled && engine.RuntimeImplemented {
 				features = Features{Implementation: engine.ID, TCP: cap.Transport.TCP, UDPTransport: cap.Transport.UDPTransport, UDPPayload: cap.Transport.UDPPayload, IPv4: cap.Transport.IPv4, IPv6: cap.Transport.IPv6, DomainEndpoint: cap.Transport.DomainEndpoint, NativeMultiUser: cap.Identity.MultiUserNative, NativeStats: cap.Identity.NativeStats, PerUserStats: cap.Identity.PerUserStats, HotUserUpdate: cap.Mutation.Users == ports.Hot, AttributedPayload: cap.Identity.AttributedPayload, NativeQuota: cap.Policy.Quota, NativeSpeedLimit: cap.Policy.SpeedLimit, MaxSessions: cap.Policy.MaxSessions, UserMutation: cap.Mutation.Users, ListenerMutation: cap.Mutation.Listener, HotReload: cap.Mutation.HotReload, TLS: cap.Security.TLS, Reality: cap.Security.Reality, Vision: cap.Security.Vision, SupportedFlows: cap.Security.Flows, SupportedTransports: cap.Transport.Kinds, EngineFeatures: ports.CloneFeatures(cap.EngineFeatures)}
 			}
-			item.EngineImplementations = append(item.EngineImplementations, EngineImplementation{Engine: engine.ID, Availability: availability, RuntimeImplemented: engine.RuntimeImplemented && availability == ports.Compiled, Features: features, NodeStatus: engineStatus(adapter)})
+			item.EngineImplementations = append(item.EngineImplementations, EngineImplementation{Roles: ports.Roles{Inbound: m.Roles.Inbound && engine.Roles.Inbound, Outbound: m.Roles.Outbound && engine.Roles.Outbound}, Engine: engine.ID, Availability: availability, RuntimeImplemented: engine.RuntimeImplemented && availability == ports.Compiled, Features: features, NodeStatus: engineStatus(adapter)})
 		}
 	}
 	if end < len(keys) {

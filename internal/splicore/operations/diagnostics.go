@@ -250,7 +250,8 @@ func SupportBundle(ctx context.Context, c config.Config, v version.Info, q Suppo
 		}
 	}
 	files := map[string]any{
-		"version.json": buildSummary(v), "system.json": system, "doctor.json": checks,
+		"client.redacted.json": clientProjection(ctx, q),
+		"version.json":         buildSummary(v), "system.json": system, "doctor.json": checks,
 		"config.redacted.json": struct {
 			Schema           int  `json:"schema"`
 			StateCanonical   bool `json:"state_canonical"`

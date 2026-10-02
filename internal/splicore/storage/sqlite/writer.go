@@ -135,7 +135,10 @@ func (w *writer) CreateCredential(c access.Credential) error {
 	if err != nil {
 		return err
 	}
-	return w.exec("INSERT INTO credentials VALUES(?,?,?,?,?,?,?,?,?,?,?)", c.ID, c.OwnerAccountID, c.OwnerInboundID, c.Kind, c.Schema, data, w.options.Cipher.KeyID(), c.State, c.Revision, utc(c.CreatedAt), utc(c.UpdatedAt))
+	if c.OwnerNodeID == nil {
+		return w.exec("INSERT INTO credentials(id,account_id,inbound_id,kind,schema_version,ciphertext,key_id,state,revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)", c.ID, c.OwnerAccountID, c.OwnerInboundID, c.Kind, c.Schema, data, w.options.Cipher.KeyID(), c.State, c.Revision, utc(c.CreatedAt), utc(c.UpdatedAt))
+	}
+	return w.exec("INSERT INTO credentials VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", c.ID, c.OwnerAccountID, c.OwnerInboundID, c.Kind, c.Schema, data, w.options.Cipher.KeyID(), c.State, c.Revision, utc(c.CreatedAt), utc(c.UpdatedAt), c.OwnerNodeID)
 }
 
 func (w *writer) CreateBinding(b access.Binding) error {

@@ -110,11 +110,20 @@ def main():
         for method, operation in methods.items():
             if method in {"get", "post", "put", "patch", "delete"}:
                 operations.append(operation["operationId"])
-                assert operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "phase4", "phase5", "deferred"}
-                if operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "phase4", "phase5"}:
+                assert operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "phase4", "phase5", "phase10", "deferred"}
+                if operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "phase4", "phase5", "phase10"}:
                     implemented.append((method, path))
     assert len(operations) == len(set(operations))
-    assert sorted(implemented) == sorted([
+    client_operations = [(method, "/api/v1/" + collection + suffix)
+        for collection in ["nodes", "outbounds", "local-inbounds"]
+        for suffix, methods in [("", ["get", "post"]), ("/{id}", ["get", "put", "delete"])]
+        for method in methods]
+    client_operations += [("post", "/api/v1/nodes/{id}/credential"),
+        ("get", "/api/v1/client/route"), ("put", "/api/v1/client/route"),
+        ("get", "/api/v1/client/runtime")]
+    client_operations += [("post", "/api/v1/client/runtime/" + action) for action in ["start", "stop", "restart"]]
+    client_operations += [("post", "/api/v1/client/" + action) for action in ["validate", "plan", "apply"]]
+    assert sorted(implemented) == sorted(client_operations + [
         ("get", "/api/v1/capabilities"), ("get", "/api/v1/system"),
         ("get", "/api/v1/inbounds"), ("get", "/api/v1/inbounds/{id}"),
         ("post", "/api/v1/snell/validate"), ("post", "/api/v1/snell/plan"),
@@ -124,8 +133,16 @@ def main():
         ("post", "/api/v1/hysteria2/apply"), ("post", "/api/v1/inbounds/{id}/binding")] + [("post", "/api/v1/"+prefix+"/"+action) for prefix in ["tuic","creation/{protocol}"] for action in ["validate","plan","apply"]])
     assert spec["paths"]["/api/v1/inbounds/{id}/export"]["post"]["x-secret-returning"] is True
     assert not {"password", "psk", "token", "uuid", "secret_data"} & set(spec["components"]["schemas"]["Account"]["properties"])
+    assert not {"password", "psk", "token", "value", "secret_data"} & set(spec["components"]["schemas"]["RemoteNode"]["properties"])
+    assert spec["components"]["schemas"]["ClientCredentialInput"]["properties"]["value"]["writeOnly"] is True
     if args.responses:
         pairs=[("system-response.json","System"),("http-system-response.json","System"),("capabilities-response.json","CapabilityPage"),("inbounds-response.json","RuntimeInboundPage"),("inbound-response.json","RuntimeInboundView")]
+        client_pairs = [("client-runtime-response.json", "ClientRuntimeStatus"),
+            ("client-node-response.json", "RemoteNode"), ("client-outbound-response.json", "ClientOutbound"),
+            ("client-local-response.json", "LocalInbound"), ("client-route-response.json", "ClientRoute"),
+            ("client-plan-response.json", "ClientPlan"), ("client-apply-response.json", "ClientResult")]
+        if (args.responses / "client-runtime-response.json").exists():
+            pairs.extend(client_pairs)
         if args.protocol!="snell":
             prefix=args.protocol;schema={"tuic":"TUIC","hysteria2":"Hysteria2","vless":"VLESS","mieru":"Mieru"}[prefix]
             pairs.extend([(("plan-response.json" if prefix=="vless" else prefix+"-plan-response.json"),schema+"Plan"),(("apply-response.json" if prefix=="vless" else prefix+"-apply-response.json"),schema+"Applied"),("binding-transaction-response.json","RuntimeTransaction")])

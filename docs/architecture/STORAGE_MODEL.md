@@ -9,13 +9,15 @@
 
 ## Current committed schema
 
-Schema 4 adds checksummed 0004_private_key after 0003_password, without editing
-migration history. It extends the credential-kind CHECK for generic private-key
-payloads, preserves ciphertext/AAD and Binding FKs, and restores the Snell
-single-Binding trigger. Populated schema-2/schema-3 migrations and encrypted
-password/private-key roundtrips cover these boundaries. Network I/O stays outside
-SQL callbacks. Explicit private Linux master-key files protect credentials.
-See [VLESS support](../protocol/VLESS.md).
+Schema 5 adds checksummed [0005_client_runtime](../../internal/splicore/storage/sqlite/migrations/0005_client_runtime.sql).
+Migrations 0001–0004 remain unchanged. Generic remote_nodes, client_outbounds,
+local_inbounds, client_routes and client_profiles persist canonical documents and
+references; generated engine JSON is never stored as Node authority. Credentials
+gain nullable remote_node_id and an exactly-one-owner constraint. The rebuild
+preserves server ciphertext/AAD, Binding foreign keys and Snell single-Binding rule.
+Populated schema-2/3/4 migration and credential recovery tests cover the transition.
+The shared short commit callback replaces client aggregates and obsolete remote
+credentials only; network I/O occurs outside SQL. See [client runtime](CLIENT_RUNTIME.md).
 
 Scope: storage operations and qualification. The [ERD](DATABASE_ERD.md) owns
 logical entities/relationships/ownership; migration files own actual

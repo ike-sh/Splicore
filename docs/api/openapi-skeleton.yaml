@@ -1399,6 +1399,1294 @@
         },
         "description": " Strict VLESS/Xray quota/rate requests fail closed with unsupported_policy_for_engine before node availability and pending state; explicit metadata_only is unenforced. Phase 8 adds registered native Mieru. No special protocol routes."
       }
+    },
+    "/api/v1/nodes": {
+      "get": {
+        "operationId": "clientNodeList",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RemoteNode"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "clientNodeCreate",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters. If-Match is the shared global committed revision; conflicts return 409.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientNodeBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/nodes/{id}": {
+      "get": {
+        "operationId": "clientNodeGet",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemoteNode"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "operationId": "clientNodeUpdate",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters. If-Match is the shared global committed revision; conflicts return 409.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientNodeBody"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "clientNodeDelete",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters. If-Match is the shared global committed revision; conflicts return 409.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientEmptyBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/outbounds": {
+      "get": {
+        "operationId": "clientOutboundList",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ClientOutbound"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "clientOutboundCreate",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters. If-Match is the shared global committed revision; conflicts return 409.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientOutboundBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/outbounds/{id}": {
+      "get": {
+        "operationId": "clientOutboundGet",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ClientOutboundID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientOutbound"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "operationId": "clientOutboundUpdate",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters. If-Match is the shared global committed revision; conflicts return 409.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ClientOutboundID"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientOutboundBody"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "clientOutboundDelete",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters. If-Match is the shared global committed revision; conflicts return 409.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ClientOutboundID"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientEmptyBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/local-inbounds": {
+      "get": {
+        "operationId": "clientLocalInboundList",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LocalInbound"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "clientLocalInboundCreate",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters. If-Match is the shared global committed revision; conflicts return 409.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientLocalBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/local-inbounds/{id}": {
+      "get": {
+        "operationId": "clientLocalInboundGet",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalInbound"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "operationId": "clientLocalInboundUpdate",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters. If-Match is the shared global committed revision; conflicts return 409.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientLocalBody"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "clientLocalInboundDelete",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters. If-Match is the shared global committed revision; conflicts return 409.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientEmptyBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/nodes/{id}/credential": {
+      "post": {
+        "operationId": "clientNodeRotateCredential",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters. If-Match is the shared global committed revision; conflicts return 409.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientCredentialBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/client/route": {
+      "get": {
+        "operationId": "clientRouteGet",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientRoute"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "operationId": "clientRouteUpdate",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters. If-Match is the shared global committed revision; conflicts return 409.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientRouteBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/client/runtime": {
+      "get": {
+        "operationId": "clientRuntimeStatus",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientRuntimeStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/api/v1/client/runtime/start": {
+      "post": {
+        "operationId": "clientRuntimeStart",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters. If-Match is the shared global committed revision; conflicts return 409.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientEmptyBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/client/runtime/stop": {
+      "post": {
+        "operationId": "clientRuntimeStop",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters. If-Match is the shared global committed revision; conflicts return 409.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientEmptyBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/client/runtime/restart": {
+      "post": {
+        "operationId": "clientRuntimeRestart",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters. If-Match is the shared global committed revision; conflicts return 409.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientEmptyBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/client/validate": {
+      "post": {
+        "operationId": "clientValidate",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientValid"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientMutation"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/client/plan": {
+      "post": {
+        "operationId": "clientPlan",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientPlan"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientMutation"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/client/apply": {
+      "post": {
+        "operationId": "clientApply",
+        "x-implementation-status": "phase10",
+        "description": "Experimental protected local client control; no query parameters.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientApply"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1567,6 +2855,15 @@
             "items": {
               "$ref": "#/components/schemas/EngineStatus"
             }
+          },
+          "server_runtimes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ServerRuntimeStatus"
+            }
+          },
+          "client_runtime": {
+            "$ref": "#/components/schemas/ClientRuntimeStatus"
           }
         },
         "required": [
@@ -1642,6 +2939,9 @@
             "items": {
               "$ref": "#/components/schemas/EngineImplementation"
             }
+          },
+          "roles": {
+            "$ref": "#/components/schemas/Roles"
           }
         },
         "required": [
@@ -1650,7 +2950,8 @@
           "availability",
           "qualification",
           "features",
-          "engine_implementations"
+          "engine_implementations",
+          "roles"
         ]
       },
       "AccountSpec": {
@@ -4100,6 +5401,9 @@
           },
           "node_status": {
             "$ref": "#/components/schemas/EngineStatus"
+          },
+          "roles": {
+            "$ref": "#/components/schemas/Roles"
           }
         },
         "required": [
@@ -4107,7 +5411,8 @@
           "availability",
           "runtime_implemented",
           "features",
-          "node_status"
+          "node_status",
+          "roles"
         ]
       },
       "RealityPublicSettings": {
@@ -4859,6 +6164,843 @@
       },
       "MieruApplied": {
         "$ref": "#/components/schemas/CreationApplied"
+      },
+      "Roles": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "inbound": {
+            "type": "boolean"
+          },
+          "outbound": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "inbound",
+          "outbound"
+        ]
+      },
+      "ClientOutboundID": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ID"
+          },
+          {
+            "const": "direct"
+          }
+        ]
+      },
+      "ClientEndpoint": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "host": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253
+          },
+          "port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          }
+        },
+        "required": [
+          "host",
+          "port"
+        ]
+      },
+      "ClientTransport": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "tcp"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "ClientSecurity": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "none"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "ClientNodeOptions": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schema_version": {
+            "const": 1
+          },
+          "data": {
+            "$ref": "#/components/schemas/SnellSettings"
+          }
+        },
+        "required": [
+          "schema_version",
+          "data"
+        ]
+      },
+      "RemoteNode": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "protocol": {
+            "$ref": "#/components/schemas/ProtocolIdentity"
+          },
+          "endpoint": {
+            "$ref": "#/components/schemas/ClientEndpoint"
+          },
+          "credential_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "transport": {
+            "$ref": "#/components/schemas/ClientTransport"
+          },
+          "security": {
+            "$ref": "#/components/schemas/ClientSecurity"
+          },
+          "options": {
+            "$ref": "#/components/schemas/ClientNodeOptions"
+          },
+          "metadata": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "protocol",
+          "endpoint",
+          "credential_id",
+          "transport",
+          "security",
+          "options",
+          "metadata"
+        ]
+      },
+      "RemoteNodeInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ID"
+              },
+              {
+                "const": ""
+              }
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "protocol": {
+            "$ref": "#/components/schemas/ProtocolIdentity"
+          },
+          "endpoint": {
+            "$ref": "#/components/schemas/ClientEndpoint"
+          },
+          "credential_id": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ID"
+              },
+              {
+                "const": ""
+              }
+            ]
+          },
+          "transport": {
+            "$ref": "#/components/schemas/ClientTransport"
+          },
+          "security": {
+            "$ref": "#/components/schemas/ClientSecurity"
+          },
+          "options": {
+            "$ref": "#/components/schemas/ClientNodeOptions"
+          },
+          "metadata": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          }
+        },
+        "required": [
+          "name",
+          "protocol",
+          "endpoint",
+          "transport",
+          "security",
+          "options"
+        ]
+      },
+      "ClientOutbound": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ClientOutboundID"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "proxy"
+            ]
+          },
+          "node_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "engine": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind"
+        ]
+      },
+      "ClientOutboundInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ClientOutboundID"
+              },
+              {
+                "const": ""
+              }
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "proxy"
+            ]
+          },
+          "node_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "engine": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "name",
+          "kind"
+        ]
+      },
+      "LocalInbound": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "kind": {
+            "const": "socks5"
+          },
+          "listen": {
+            "$ref": "#/components/schemas/ClientEndpoint"
+          },
+          "selected_outbound": {
+            "$ref": "#/components/schemas/ClientOutboundID"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "listen"
+        ]
+      },
+      "LocalInboundInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ID"
+              },
+              {
+                "const": ""
+              }
+            ]
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "socks5",
+              ""
+            ]
+          },
+          "listen": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "host": {
+                "type": "string",
+                "description": "Defaults to 127.0.0.1; loopback IP only."
+              },
+              "port": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              }
+            },
+            "required": [
+              "port"
+            ]
+          },
+          "selected_outbound": {
+            "$ref": "#/components/schemas/ClientOutboundID"
+          }
+        },
+        "required": [
+          "name",
+          "listen"
+        ]
+      },
+      "ClientRoute": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "default_outbound": {
+            "$ref": "#/components/schemas/ClientOutboundID"
+          }
+        },
+        "required": [
+          "default_outbound"
+        ]
+      },
+      "ClientCredentialInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "psk",
+              "password",
+              "uuid"
+            ]
+          },
+          "value": {
+            "type": "string",
+            "minLength": 1,
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "kind",
+          "value"
+        ],
+        "writeOnly": true
+      },
+      "ClientProfileState": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "$ref": "#/components/schemas/Revision"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RemoteNode"
+            }
+          },
+          "outbounds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClientOutbound"
+            }
+          },
+          "local_inbounds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LocalInbound"
+            }
+          },
+          "route": {
+            "$ref": "#/components/schemas/ClientRoute"
+          }
+        },
+        "required": [
+          "revision",
+          "enabled",
+          "nodes",
+          "outbounds",
+          "local_inbounds",
+          "route"
+        ]
+      },
+      "ClientObservation": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/RuntimeStats"
+          }
+        },
+        "required": [
+          "id",
+          "stats"
+        ]
+      },
+      "ClientOutboundHealth": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ClientOutboundID"
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "last_error": {
+            "type": "string",
+            "enum": [
+              "outbound_connection_failed"
+            ]
+          },
+          "stats": {
+            "$ref": "#/components/schemas/RuntimeStats"
+          }
+        },
+        "required": [
+          "id",
+          "configured",
+          "available",
+          "active",
+          "stats"
+        ]
+      },
+      "ClientSession": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "local_inbound_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "outbound_id": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ClientOutboundID"
+              },
+              {
+                "const": ""
+              }
+            ]
+          },
+          "node_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/RuntimeStats"
+          }
+        },
+        "required": [
+          "id",
+          "local_inbound_id",
+          "outbound_id",
+          "stats"
+        ]
+      },
+      "OutboundAdapter": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "protocol": {
+            "type": "string"
+          },
+          "engine": {
+            "type": "string"
+          },
+          "tcp": {
+            "type": "boolean"
+          },
+          "udp": {
+            "type": "boolean"
+          },
+          "qualification": {
+            "type": "string",
+            "enum": [
+              "experimental"
+            ]
+          }
+        },
+        "required": [
+          "protocol",
+          "engine",
+          "tcp",
+          "udp",
+          "qualification"
+        ]
+      },
+      "ClientRuntimeStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/ClientProfileState"
+          },
+          "health": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "degraded",
+              "stopped"
+            ]
+          },
+          "local_socks_tcp": {
+            "type": "boolean"
+          },
+          "local_socks_udp": {
+            "const": "deferred"
+          },
+          "outbound_adapters": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OutboundAdapter"
+            }
+          },
+          "local_inbounds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClientObservation"
+            }
+          },
+          "outbounds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClientOutboundHealth"
+            }
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClientObservation"
+            }
+          },
+          "sessions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClientSession"
+            }
+          },
+          "last_error": {
+            "type": "string",
+            "enum": [
+              "client_recovery_failed"
+            ]
+          }
+        },
+        "required": [
+          "state",
+          "health",
+          "local_socks_tcp",
+          "local_socks_udp",
+          "outbound_adapters",
+          "local_inbounds",
+          "outbounds",
+          "nodes",
+          "sessions"
+        ]
+      },
+      "ServerRuntimeStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "protocol": {
+            "$ref": "#/components/schemas/ProtocolIdentity"
+          },
+          "engine": {
+            "type": "string"
+          },
+          "health": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "protocol",
+          "engine",
+          "health"
+        ]
+      },
+      "ClientMutation": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "resource": {
+            "type": "string",
+            "enum": [
+              "node",
+              "outbound",
+              "local-inbound",
+              "route",
+              "runtime"
+            ]
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "create",
+              "update",
+              "delete",
+              "rotate",
+              "start",
+              "stop",
+              "restart"
+            ]
+          },
+          "id": {
+            "$ref": "#/components/schemas/ClientOutboundID"
+          },
+          "node": {
+            "$ref": "#/components/schemas/RemoteNodeInput"
+          },
+          "outbound": {
+            "$ref": "#/components/schemas/ClientOutboundInput"
+          },
+          "local_inbound": {
+            "$ref": "#/components/schemas/LocalInboundInput"
+          },
+          "route": {
+            "$ref": "#/components/schemas/ClientRoute"
+          },
+          "credential": {
+            "$ref": "#/components/schemas/ClientCredentialInput"
+          }
+        },
+        "required": [
+          "resource",
+          "action"
+        ]
+      },
+      "ClientPlan": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "revision": {
+            "$ref": "#/components/schemas/Revision"
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "resource": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision",
+          "digest",
+          "resource",
+          "action"
+        ]
+      },
+      "ClientApply": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/ClientMutation"
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/Revision"
+          }
+        },
+        "required": [
+          "document",
+          "digest",
+          "revision"
+        ]
+      },
+      "ClientResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ClientOutboundID"
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/RuntimeTransaction"
+          }
+        },
+        "required": [
+          "transaction"
+        ]
+      },
+      "ClientNodeBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "node": {
+            "$ref": "#/components/schemas/RemoteNodeInput"
+          },
+          "credential": {
+            "$ref": "#/components/schemas/ClientCredentialInput"
+          }
+        },
+        "required": [
+          "node"
+        ]
+      },
+      "ClientCredentialBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "credential": {
+            "$ref": "#/components/schemas/ClientCredentialInput"
+          }
+        },
+        "required": [
+          "credential"
+        ]
+      },
+      "ClientOutboundBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "outbound": {
+            "$ref": "#/components/schemas/ClientOutboundInput"
+          }
+        },
+        "required": [
+          "outbound"
+        ]
+      },
+      "ClientLocalBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "local_inbound": {
+            "$ref": "#/components/schemas/LocalInboundInput"
+          }
+        },
+        "required": [
+          "local_inbound"
+        ]
+      },
+      "ClientRouteBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "route": {
+            "$ref": "#/components/schemas/ClientRoute"
+          }
+        },
+        "required": [
+          "route"
+        ]
+      },
+      "ClientEmptyBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {},
+        "required": []
+      },
+      "ClientValid": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "valid": {
+            "const": true
+          }
+        },
+        "required": [
+          "valid"
+        ]
       }
     },
     "parameters": {

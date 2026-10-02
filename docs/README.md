@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Developers, maintainers and integration authors
-- Last reviewed: 2026-10-02
+- Last reviewed: 2026-10-03
 - Owner: Documentation maintainers
 - Responsibility: Complete navigation to Splicore specifications, decisions and history.
 - Lifecycle: Update when owned documents are added, retired or change responsibility.
@@ -11,7 +11,7 @@
 
 **Canonical** identifies the maintained source for a topic. It does not mean
 proposed functionality is implemented. Phase 0 establishes designs and baseline
-research; Phases 0–9 are locally frozen. Phase 2 implements experimental Snell with real
+research; Phases 0–10 are locally frozen. Phase 2 implements experimental Snell with real
 Mihomo/sing-box interoperability. Phase 3 adds experimental Hysteria2 with
 trusted-CA multi-user TCP/UDP interoperability; Phase 4 implements experimental TUIC v5 with shared TLS/QUIC and
 registered creation commands. Phase 5 adds a native VLESS/REALITY candidate with
@@ -45,7 +45,7 @@ README.md                           project introduction
 
 ## Architecture Decision Records
 
-[ADR index](adr/README.md) lists all 21 decisions and their individual status.
+[ADR index](adr/README.md) lists all 22 decisions and their individual status.
 ADR 0001 is accepted for Phase 0; 0002–0015 remain proposed for maintainer review.
 ADR 0016 records the foundation boundary; ADR 0017 defers Vision with explicit re-enable gates.
 Decision acceptance is separate from implementation and interoperability qualification.
@@ -189,4 +189,14 @@ checkpoint. Phase 9 distribution and service is locally frozen under its
 - [Distribution / future NoBrand contract](DISTRIBUTION.md).
 - [ADR 0021](adr/0021-linux-local-distribution.md): local pinned service foundation.
 - [Phase 9 report](reports/PHASE_9_DISTRIBUTION_SERVICE_FOUNDATION_REPORT.md): installed-service acceptance, reproducibility and platform limits.
-- [Phase 9 freeze](reports/PHASE_9_FREEZE_REPORT.md): authorized local checkpoint and clean client-runtime branch preparation; implementation not started.
+- [Phase 9 freeze](reports/PHASE_9_FREEZE_REPORT.md): authorized local checkpoint and clean client-runtime branch preparation.
+
+## Phase 10 Client Runtime
+
+- [Client Runtime](architecture/CLIENT_RUNTIME.md), [routing](architecture/ROUTING_MODEL.md) and [CLI](CLI.md).
+- [ADR 0022](adr/0022-client-runtime-domain.md): identity separation and shared daemon.
+- [Phase 10 report](reports/PHASE_10_CLIENT_RUNTIME_FOUNDATION_REPORT.md): implementation, local acceptance and limits.
+- [Phase 10 freeze](reports/PHASE_10_FREEZE_REPORT.md): authorized local checkpoint, ownership audit and Phase 11 branch preparation.
+- Client remains Experimental; local SOCKS UDP, advanced routing/DNS, other outbounds,
+  TUN and NoBrand migration remain deferred. Phase 10 is FROZEN; Phase 11 implementation
+  is NOT STARTED. No public release.

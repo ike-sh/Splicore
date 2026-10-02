@@ -128,3 +128,22 @@ Upstream synchronized cipher caches retain templates after Stop, so complete sec
 erasure is not claimed. Shared username metrics are excluded from billing and quota
 authority. Owned raw sockets/sessions close on rollback/restart/Stop.
 [Audit and limits](../adr/0020-mieru-owned-native-embedding.md).
+
+## Client listeners and remote secrets
+
+Unauthenticated local SOCKS defaults to 127.0.0.1 and accepts loopback IPs only;
+::1 is qualified where available. Wildcard, LAN and domain listener hosts reject.
+Handshake/dial deadlines and session/resource caps bound admitted work. There is
+no automated LAN exposure, system proxy or remote health probing.
+
+Remote credentials use the same AEAD vault with node-specific authenticated context:
+`Splicore/remote-credential/<credential ID>/<node ID>/<kind>/<schema>`.
+Exactly one owner is enforced; server credential AAD remains unchanged. Creation/
+rotation credential values are explicit write-only inputs. Node/status/plan/CLI
+queries contain references only. Options are adapter-validated; arbitrary secrets
+are not stored as Snell Node fields. Support bundles discard all free-form names,
+domains, metadata, options and errors, retaining fixed enums and address classes.
+Rotation validates before commit; malformed replacement preserves old intent and
+sessions. Passive startup cannot prove a syntactically valid remote key is accepted.
+Remote rejection is observed on actual traffic, without fallback or active probes.
+DNS semantics are documented in [routing](ROUTING_MODEL.md).

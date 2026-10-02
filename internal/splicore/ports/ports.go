@@ -94,6 +94,7 @@ type Capabilities struct {
 	EngineFeatures []EngineFeature
 }
 type ProtocolMetadata struct {
+	Roles           Roles
 	Key             access.ProtocolKey
 	ABI             int
 	CredentialKinds []access.CredentialKind
@@ -129,6 +130,7 @@ type Protocol interface {
 
 // Engine compilers own concrete runtime options. Preparation and handles are deferred.
 type EngineMetadata struct {
+	Roles              Roles
 	ID                 string
 	Availability       Availability
 	RuntimeImplemented bool

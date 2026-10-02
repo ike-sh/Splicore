@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Developers and decision reviewers
-- Last reviewed: 2026-10-02
+- Last reviewed: 2026-10-03
 - Owner: Core maintainers
 - Responsibility: Decision navigation, individual decision status and review lifecycle.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -48,3 +48,8 @@ See [documentation policy](../DOCUMENTATION_POLICY.md) and the
 ## Phase 9 distribution decision
 
 [0021 — Local pinned Linux service distribution](0021-linux-local-distribution.md): proposed for review; canonical layout, dedicated user, one unit, separate pinned Xray and snapshot rollback.
+
+## Phase 10 client decision
+
+[0022 — Client Runtime domain](0022-client-runtime-domain.md): accepted for the Phase 10 Experimental local freeze;
+Node/Outbound separation, shared daemon and SOCKS-first scope.

@@ -180,3 +180,18 @@ ports. UsernamePasswordPayload reuses vault/storage; options are transport/MTU/
 multiplex only. Phase8 composition adds registry entries; no central protocol
 switch or protocol-specific application/storage/API route. Client wire key remains
 mieru/2/base; release 3.38.0 is implementation provenance, not the wire-version string.
+
+## Client role and outbound port
+
+Metadata now declares `Roles{Inbound,Outbound}` under the same ProtocolID.
+Snell declares both; the other implemented protocols declare inbound only. Engine
+implementation roles are the intersection of protocol and engine roles. Native
+declares both; Xray remains inbound only. This does not advertise unimplemented
+HY2/TUIC/VLESS/Mieru outbounds.
+
+OutboundFactory validates canonical RemoteNode/credential and builds ClientDialer.
+The immutable outbound registry rejects duplicate/nil registrations and unsupported
+exact protocol/engine pairs. UDP uses optional ClientPacketDialer separately from
+SOCKS admission. Composition registers Snell/native without adding central protocol
+switches. Protocol credential validation and canonical v5→v4/v6→v6 mapping remain
+in the Snell module. See [client runtime](CLIENT_RUNTIME.md).

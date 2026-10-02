@@ -74,3 +74,15 @@ ExecStopPost records sanitized process exit classification in 0600 JSON under
 component/engine/protocol enums and timestamp, never raw exception text.
 Parent SIGKILL is handled by Xray's existing Linux Pdeathsig and the unit cgroup;
 unrelated Xray processes are outside that ownership boundary.
+
+## Client and server in the installed unit
+
+The same splicore.service restores schema-5 client intent after server restoration.
+No client unit or binary is installed. Use `splicore client status/start/stop/restart`
+with the same bootstrap. Stop releases local listeners and sessions and preserves
+server runtimes; restart rebuilds client adapters in one committed operation.
+Systemctl restart reconstructs both roles from SQLite before READY. Client listener
+recovery failure reports degraded client state while the server/API remain available.
+Remote offline affects that outbound's passive health; DIRECT and server traffic stay
+live. Doctor observes counts/listeners/route without remote probes. Detailed commands:
+[CLI](CLI.md); lifecycle and ownership: [Client Runtime](architecture/CLIENT_RUNTIME.md).
