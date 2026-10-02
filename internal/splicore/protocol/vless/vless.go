@@ -19,15 +19,18 @@ func (m Module) Metadata() ports.ProtocolMetadata {
 	return ports.ProtocolMetadata{Key: Key(m.Security), ABI: 1, CredentialKinds: []access.CredentialKind{access.UUID}, Availability: availability, Qualification: "experimental", Provenance: "sing-box v1.14.1 / sing-vmess v0.2.8; TCP; UUID; XUDP; no flow; Vision deferred/unsupported; REALITY requires with_utls"}
 }
 func (m Module) Capabilities(c ports.CapabilityContext) ports.Capabilities {
-	available := (c.Engine == "" || c.Engine == "native") && m.Metadata().Availability == ports.Compiled
+	available := (c.Engine == "" || c.Engine == "native" || c.Engine == "xray") && m.Metadata().Availability == ports.Compiled
+	stats := available && c.Engine != "xray"
 	flows := []string{string(NoFlow)}
 	support := ports.Unsupported
 	mutation := ports.MutationUnavailable
-	if available {
+	if stats {
 		support = ports.Native
+	}
+	if available {
 		mutation = ports.Restart
 	}
-	return ports.Capabilities{Transport: ports.TransportCapabilities{Kinds: []string{"tcp"}, TCP: available, UDPPayload: available, IPv4: available, IPv6: available, DomainEndpoint: available}, Identity: ports.IdentityCapabilities{MultiUserNative: available, PerUserStats: available, AttributedPayload: support, NativeStats: support, StatsUnits: "authenticated routed payload bytes and sessions; runtime generation"}, Security: ports.SecurityCapabilities{TLS: available && m.Security != Plain, Reality: available && m.Security == Reality, Vision: false, Flows: flows}, Policy: ports.PolicyCapabilities{Quota: ports.Unsupported, SpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported}, Mutation: ports.MutationCapabilities{Users: mutation, Listener: ports.MutationUnavailable}, Clients: []ports.ClientCompatibility{}}
+	return ports.Capabilities{Transport: ports.TransportCapabilities{Kinds: []string{"tcp"}, TCP: available, UDPPayload: available, IPv4: available, IPv6: available, DomainEndpoint: available}, Identity: ports.IdentityCapabilities{MultiUserNative: available, PerUserStats: stats, AttributedPayload: support, NativeStats: support, StatsUnits: "authenticated routed payload bytes and sessions; runtime generation"}, Security: ports.SecurityCapabilities{TLS: available && m.Security != Plain, Reality: available && m.Security == Reality, Vision: false, Flows: flows}, Policy: ports.PolicyCapabilities{Quota: ports.Unsupported, SpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported}, Mutation: ports.MutationCapabilities{Users: mutation, Listener: ports.MutationUnavailable}, Clients: []ports.ClientCompatibility{}}
 }
 func (m Module) ValidateInbound(i access.Inbound) error {
 	if err := i.Validate(); err != nil {

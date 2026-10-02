@@ -20,16 +20,17 @@ import (
 )
 
 type System struct {
-	NodeID            identity.ID       `json:"node_id"`
-	InstanceID        identity.ID       `json:"instance_id"`
-	Version           version.Info      `json:"version"`
-	ConfigSchema      int               `json:"config_schema"`
-	DBSchema          int               `json:"db_schema"`
-	ProtocolABI       int               `json:"protocol_abi"`
-	CommittedRevision identity.Revision `json:"committed_revision"`
-	Health            string            `json:"health"`
-	Reasons           []string          `json:"reasons"`
-	Foundation        Foundation        `json:"foundation"`
+	NodeID            identity.ID          `json:"node_id"`
+	InstanceID        identity.ID          `json:"instance_id"`
+	Version           version.Info         `json:"version"`
+	ConfigSchema      int                  `json:"config_schema"`
+	DBSchema          int                  `json:"db_schema"`
+	ProtocolABI       int                  `json:"protocol_abi"`
+	CommittedRevision identity.Revision    `json:"committed_revision"`
+	Health            string               `json:"health"`
+	Reasons           []string             `json:"reasons"`
+	Foundation        Foundation           `json:"foundation"`
+	Engines           []ports.EngineStatus `json:"engines"`
 }
 
 // Foundation describes only checks that the daemon has actually completed.
@@ -88,6 +89,7 @@ type EngineImplementation struct {
 	Availability       ports.Availability `json:"availability"`
 	RuntimeImplemented bool               `json:"runtime_implemented"`
 	Features           Features           `json:"features"`
+	NodeStatus         ports.EngineStatus `json:"node_status"`
 }
 type CapabilityPage struct {
 	Items            []Capability      `json:"items"`
@@ -142,7 +144,7 @@ func (s *Service) System(ctx context.Context) (System, error) {
 		for _, i := range page.Items {
 			if i.Health != "healthy" {
 				health = "degraded"
-				reasons = append(reasons, "native_listener_unhealthy")
+				reasons = append(reasons, "runtime_unhealthy")
 			}
 		}
 	}
@@ -150,7 +152,23 @@ func (s *Service) System(ctx context.Context) (System, error) {
 		health = "recovery_required"
 		reasons = append(reasons, "pending_transaction_requires_review")
 	}
-	return System{NodeID: state.NodeID, InstanceID: s.instance, Version: s.build, ConfigSchema: version.ConfigSchema, DBSchema: state.Schema, ProtocolABI: version.ProtocolABI, CommittedRevision: state.Revision, Health: health, Reasons: reasons, Foundation: Foundation{DatabaseStatus: "ready", PendingMigrations: state.PendingMigrations, PendingTransactions: state.PendingTransactions, Protocols: len(s.protocols.Keys()), Engines: len(s.engines.Keys()), Exporters: len(s.exporters.Keys())}}, nil
+	return System{NodeID: state.NodeID, InstanceID: s.instance, Version: s.build, ConfigSchema: version.ConfigSchema, DBSchema: state.Schema, ProtocolABI: version.ProtocolABI, CommittedRevision: state.Revision, Health: health, Reasons: reasons, Engines: s.engineStatuses(), Foundation: Foundation{DatabaseStatus: "ready", PendingMigrations: state.PendingMigrations, PendingTransactions: state.PendingTransactions, Protocols: len(s.protocols.Keys()), Engines: len(s.engines.Keys()), Exporters: len(s.exporters.Keys())}}, nil
+}
+
+func engineStatus(e ports.Engine) ports.EngineStatus {
+	if a, ok := e.(ports.EngineAvailability); ok {
+		return a.Status()
+	}
+	m := e.Metadata()
+	return ports.EngineStatus{Engine: m.ID, Available: m.Availability == ports.Compiled && m.RuntimeImplemented}
+}
+func (s *Service) engineStatuses() []ports.EngineStatus {
+	result := []ports.EngineStatus{}
+	for _, id := range s.engines.Keys() {
+		e, _ := s.engines.Get(id)
+		result = append(result, engineStatus(e))
+	}
+	return result
 }
 
 func (s *Service) Capabilities(ctx context.Context, cursor string, limit int) (CapabilityPage, error) {
@@ -202,7 +220,8 @@ func (s *Service) Capabilities(ctx context.Context, cursor string, limit int) (C
 		item := &page.Items[len(page.Items)-1]
 		item.EngineImplementations = []EngineImplementation{}
 		for _, engine := range s.engines.Implementations(key.Protocol) {
-			cap := p.Capabilities(ports.CapabilityContext{Engine: engine.ID, Platform: s.build.Platform})
+			adapter, _ := s.engines.Get(engine.ID)
+			cap := ports.EffectiveCapabilities(p.Capabilities(ports.CapabilityContext{Engine: engine.ID, Platform: s.build.Platform}), adapter.Capabilities())
 			availability := engine.Availability
 			if m.Availability != ports.Compiled {
 				availability = m.Availability
@@ -211,7 +230,7 @@ func (s *Service) Capabilities(ctx context.Context, cursor string, limit int) (C
 			if availability == ports.Compiled && engine.RuntimeImplemented {
 				features = Features{Implementation: engine.ID, TCP: cap.Transport.TCP, UDPTransport: cap.Transport.UDPTransport, UDPPayload: cap.Transport.UDPPayload, IPv4: cap.Transport.IPv4, IPv6: cap.Transport.IPv6, DomainEndpoint: cap.Transport.DomainEndpoint, NativeMultiUser: cap.Identity.MultiUserNative, NativeStats: cap.Identity.NativeStats, PerUserStats: cap.Identity.PerUserStats, HotUserUpdate: cap.Mutation.Users == ports.Hot, AttributedPayload: cap.Identity.AttributedPayload, NativeQuota: cap.Policy.Quota, NativeSpeedLimit: cap.Policy.SpeedLimit, MaxSessions: cap.Policy.MaxSessions, UserMutation: cap.Mutation.Users, ListenerMutation: cap.Mutation.Listener, HotReload: cap.Mutation.HotReload, TLS: cap.Security.TLS, Reality: cap.Security.Reality, Vision: cap.Security.Vision, SupportedFlows: cap.Security.Flows, SupportedTransports: cap.Transport.Kinds}
 			}
-			item.EngineImplementations = append(item.EngineImplementations, EngineImplementation{Engine: engine.ID, Availability: availability, RuntimeImplemented: engine.RuntimeImplemented && availability == ports.Compiled, Features: features})
+			item.EngineImplementations = append(item.EngineImplementations, EngineImplementation{Engine: engine.ID, Availability: availability, RuntimeImplemented: engine.RuntimeImplemented && availability == ports.Compiled, Features: features, NodeStatus: engineStatus(adapter)})
 		}
 	}
 	if end < len(keys) {
@@ -261,7 +280,20 @@ func (s *Service) Doctor(ctx context.Context, transport string) (Doctor, error) 
 	if err != nil {
 		return Doctor{}, err
 	}
-	return Doctor{Version: s.build, Checks: []Check{{"platform", "pass", s.build.Platform}, {"storage", "pass", "committed SQLite available"}, {"db_schema", "pass", strconv.Itoa(state.Schema)}, {"migrations", "pass", strconv.Itoa(state.PendingMigrations) + " pending"}, {"transactions", "info", strconv.Itoa(state.PendingTransactions) + " pending"}, {"protocol_registry", "pass", strconv.Itoa(len(s.protocols.Keys())) + " registered entries"}, {"engine_registry", "pass", strconv.Itoa(len(s.engines.Keys())) + " engine entries"}, {"exporter_registry", "pass", strconv.Itoa(len(s.exporters.Keys())) + " registered entries"}, {"api_transport", "pass", transport}}}, nil
+	d := Doctor{Version: s.build, Checks: []Check{{"platform", "pass", s.build.Platform}, {"storage", "pass", "committed SQLite available"}, {"db_schema", "pass", strconv.Itoa(state.Schema)}, {"migrations", "pass", strconv.Itoa(state.PendingMigrations) + " pending"}, {"transactions", "info", strconv.Itoa(state.PendingTransactions) + " pending"}, {"protocol_registry", "pass", strconv.Itoa(len(s.protocols.Keys())) + " registered entries"}, {"engine_registry", "pass", strconv.Itoa(len(s.engines.Keys())) + " engine entries"}, {"exporter_registry", "pass", strconv.Itoa(len(s.exporters.Keys())) + " registered entries"}, {"api_transport", "pass", transport}}}
+	for _, engine := range s.engineStatuses() {
+		status := "unavailable"
+		detail := engine.Reason
+		if engine.Available {
+			status = "pass"
+			detail = engine.InstalledVersion
+		}
+		if engine.ReferenceVersion != "" {
+			detail += " reference=" + engine.ReferenceVersion
+		}
+		d.Checks = append(d.Checks, Check{"engine_" + engine.Engine, status, detail})
+	}
+	return d, nil
 }
 
 func implementation(q string) string {

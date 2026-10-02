@@ -139,3 +139,14 @@ recover server material for migration. Production canary remains deferred.
 | REALITY private/public key | Write-only server_secret.private_key / derived settings.reality.public_key |
 | Short IDs | settings.reality.short_ids; bounded padded baseline semantics |
 | Server name / target | Independent settings.reality.server_name / target host/port |
+
+## Future Xray selection
+
+Splicore-side imports may select the existing `vless` protocol with `engine: xray`;
+the typed UUID/REALITY fields and Account/Binding/Credential remain unchanged.
+Distributors may provision the reviewed pinned binary and bootstrap path, subject
+to license/source obligations. They must inspect build support and node availability,
+and must never generate Xray runtime JSON, edit SQLite or create xray.service.
+Missing required engine fails unavailable without fallback. Strict policies remain
+unsupported; metadata-only policy is not enforcement. Vision is rejected on both
+engines; FinalMask/Sudoku are NOT IMPLEMENTED. Real NoBrand changes remain NONE.

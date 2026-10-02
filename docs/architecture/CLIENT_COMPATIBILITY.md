@@ -104,3 +104,11 @@ URI supports a bounded plain/REALITY dialect with strict UUID, brackets, query a
 fragment escaping; client URI import remains unqualified. Explicit-CA TLS URI and
 Surge reject with UnsupportedExport. A blocking test traverses all client/API exports
 and requires the server private key to be absent. [VLESS](../protocol/VLESS.md).
+
+## VLESS engine equivalence
+
+Native/Xray placement produces the same canonical ClientProfile from equivalent
+Binding/UUID/Endpoint/security intent. The same Mihomo, sing-box and URI exporter
+renders both. Engine identity never enters client config. TLS explicit-CA URI and
+Surge remain unsupported; Vision remains rejected. Reference versions and actual
+traffic evidence are recorded in the [matrix](../testing/INTEROP_MATRIX.md).

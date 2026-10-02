@@ -77,8 +77,11 @@ func (Module) DecodeCreation(b json.RawMessage) (ports.CreationDraft, error) {
 	names, ids := map[string]bool{}, map[string]bool{}
 	for _, u := range w.Users {
 		id, e := creation.RawField(u.UUID)
-		if e != nil || creation.ValidateUser(u.Name, u.Policy, w.PolicyMode, names) != nil || (id != "" && (ValidateUUID(secret.New(id)) != nil || ids[strings.ToLower(id)])) {
+		if e != nil || (id != "" && (ValidateUUID(secret.New(id)) != nil || ids[strings.ToLower(id)])) {
 			return d, creation.Invalid()
+		}
+		if err := creation.ValidateUser(u.Name, u.Policy, w.PolicyMode, names); err != nil {
+			return d, err
 		}
 		ids[strings.ToLower(id)] = id != ""
 		d.Users = append(d.Users, ports.CreationUser{Name: u.Name, Enabled: creation.Enabled(u.Enabled), AccountEnabled: creation.Enabled(u.AccountEnabled), Payload: access.UUIDPayload{UUID: secret.New(id)}, Policy: u.Policy})

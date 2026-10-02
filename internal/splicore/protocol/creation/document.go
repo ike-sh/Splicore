@@ -29,6 +29,13 @@ func ValidateEnvelope(schema int, name string, listener, display access.Endpoint
 	return nil
 }
 func Invalid() error { return identity.Err(identity.Invalid, "invalid creation document") }
+
+// UnsupportedStrictPolicy preserves domain rejection while allowing the engine
+// selector to report an unsupported enforcement contract for an external engine.
+type UnsupportedStrictPolicy struct{}
+
+func (*UnsupportedStrictPolicy) Error() string { return "invalid: strict traffic policy unsupported" }
+func (*UnsupportedStrictPolicy) Unwrap() error { return Invalid() }
 func Decode(b []byte, v any) error {
 	if len(b) > 65536 {
 		return Invalid()
@@ -41,13 +48,13 @@ func ValidateUser(name string, policy *ports.PolicyDraft, mode string, names map
 	}
 	names[name] = true
 	if policy != nil {
-		if mode != "metadata_only" {
-			return Invalid()
-		}
 		for _, n := range []*int64{policy.QuotaBytes, policy.UploadBps, policy.DownloadBps} {
 			if n != nil && *n < 0 {
 				return Invalid()
 			}
+		}
+		if mode != "metadata_only" {
+			return &UnsupportedStrictPolicy{}
 		}
 	}
 	return nil

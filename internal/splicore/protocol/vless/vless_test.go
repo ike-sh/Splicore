@@ -110,8 +110,8 @@ func TestUUIDGenerationValidationAndCapabilities(t *testing.T) {
 		t.Fatal("build availability mismatch")
 	}
 	x := m.Capabilities(ports.CapabilityContext{Engine: "xray"})
-	if x.Transport.TCP || x.Identity.PerUserStats {
-		t.Fatal("placeholder overclaim")
+	if x.Transport.TCP != RealityCompiled || x.Identity.PerUserStats || x.Security.Vision {
+		t.Fatal("external placement capability mismatch")
 	}
 }
 

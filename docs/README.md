@@ -64,7 +64,7 @@ Decision acceptance is separate from implementation and interoperability qualifi
 
 - [Protocol and engine index](protocol/README.md): extension path and qualification gates.
 - [Protocol SDK](architecture/PROTOCOL_SDK.md): registry, proposed ports and effective capabilities.
-- [Engine model](architecture/ENGINE_MODEL.md): native translation and future private Xray compatibility.
+- [Engine model](architecture/ENGINE_MODEL.md): native translation and owned private Xray compatibility.
 - [Mieru integration](architecture/MIERU_INTEGRATION.md): pinned research and three-stage native roadmap.
 - [Future native protocols](architecture/NATIVE_PROTOCOL_GUIDELINES.md): specification, security and testing requirements.
 
@@ -161,3 +161,7 @@ this project's designs. Upstream documentation site configuration is unchanged.
 - [Initial Phase 5 report](reports/PHASE_5_VLESS_REALITY_NATIVE_VERTICAL_SLICE_REPORT.md): historical Vision safety failures.
 - [Phase 5 final report](reports/PHASE_5_FINAL_ACCEPTANCE_REPORT.md): non-Vision acceptance and fresh evidence.
 - [Phase 5 local freeze](reports/PHASE_5_FREEZE_REPORT.md): authorized checkpoint for Phase 6.
+
+- [Phase 6 Xray workflow](development/PHASE_6_XRAY.md): pinned artifacts, dual placement and runtime gates.
+- [Xray owned child decision](adr/0018-xray-owned-child-engine.md): process/admission/artifact ownership.
+- [Phase 6 duality report](reports/PHASE_6_XRAY_ENGINE_DUALITY_REPORT.md): actual 40-cell acceptance, regressions and platform limits.

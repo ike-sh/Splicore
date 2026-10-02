@@ -121,3 +121,14 @@ Source references: [baseline inbound](../../protocol/vless/inbound.go),
 [REALITY server](../../common/tls/reality_server.go),
 [pinned Mihomo VLESS](https://github.com/MetaCubeX/mihomo/blob/v1.19.30/adapter/outbound/vless.go),
 [pinned dependency Vision](https://github.com/SagerNet/sing-vmess/blob/v0.2.8/vless/vision.go).
+
+## Phase 6 engine placement
+
+One ProtocolID `vless` runs on native or the owned external `xray` engine; no
+vless-xray protocol is introduced. Canonical flow-none plain/TLS/REALITY, UUIDs,
+inbound-owned REALITY secret storage and exporters remain shared. REALITY's existing
+with_utls build gate applies to both placements. Xray supports static users and
+affected-child reconcile; attributed/persistent stats, hot users and strict policies
+are unsupported/deferred. Vision stays rejected under ADR 0017. See
+[process decision](../adr/0018-xray-owned-child-engine.md) and
+[reference workflow](../development/PHASE_6_XRAY.md).

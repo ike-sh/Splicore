@@ -36,3 +36,5 @@ See [documentation policy](../DOCUMENTATION_POLICY.md) and the
 - [0016: VLESS engine placement and inbound server secrets](0016-vless-engine-server-secrets.md): accepted candidate foundation; Vision deferred under ADR 0017.
 
 - [0017: Defer Vision due to dependency safety](0017-defer-vision-dependency-safety.md): accepted for the Phase 5 candidate.
+
+- [0018: Owned Xray compatibility engine](0018-xray-owned-child-engine.md): accepted for the Experimental Phase 6 local freeze.

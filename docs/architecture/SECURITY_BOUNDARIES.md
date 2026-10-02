@@ -89,3 +89,18 @@ auth can invoke camouflage fallback but must not route authenticated user payloa
 Vision's upstream race/checkptr defects require fail-closed rejection before
 commit, TLS material access, runtime construction or export. Capability Vision=false;
 no sanitizer suppression or upstream patch. [Decision](../adr/0017-defer-vision-dependency-safety.md).
+
+## Owned Xray process artifacts
+
+Exact binary digest/version and absolute non-symlink paths are mandatory. Generation
+IDs are random and never formed from unchecked inbound/engine input. An exclusive
+kernel root lease bounds stale cleanup; retained process handles bound termination.
+No recorded PID is trusted for recovery cleanup. Direct exec uses an allowlisted
+environment, fixed arguments and no secrets outside protected configuration.
+Linux generation/config modes are 0700/0600; Windows protects the user/SYSTEM DACL.
+Raw child output is discarded; safe counters and exit codes alone reach status.
+Version capture is capped at 4096 bytes. Config snapshots are handle-owned; mutable
+caller slices and TLS file content cannot change a prepared generation.
+The private loopback listener is inside the trusted local runtime boundary and
+receives loopback source addresses. Public admission remains closed before commit.
+For platform limits and ownership details see [ADR 0018](../adr/0018-xray-owned-child-engine.md).

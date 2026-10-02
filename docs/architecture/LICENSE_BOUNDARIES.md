@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Maintainers and distributors
-- Last reviewed: 2026-10-01
+- Last reviewed: 2026-10-02
 - Owner: Project maintainers
 - Responsibility: Attribution, third-party provenance and future distribution review boundaries.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -38,5 +38,20 @@ Sources: [baseline LICENSE](https://github.com/SagerNet/sing-box/blob/v1.14.1/LI
 [baseline README](https://github.com/SagerNet/sing-box/blob/v1.14.1/README.md),
 [Mieru license](https://github.com/enfein/mieru/blob/b961978c3be9dd26b94158487c760858e19d1db2/LICENSE),
 [Mieru API header](https://github.com/enfein/mieru/blob/b961978c3be9dd26b94158487c760858e19d1db2/apis/server/interface.go),
-[Xray MPL](https://github.com/XTLS/Xray-core/blob/main/LICENSE),
+[Xray MPL](https://github.com/XTLS/Xray-core/blob/v26.3.27/LICENSE),
 [GPL text](https://www.gnu.org/licenses/gpl-3.0.html).
+
+## Phase 6 fixed Xray artifact
+
+The official v26.3.27 archive LICENSE declares MPL-2.0. The inspected Linux archive
+contains LICENSE/README and no NOTICE; Windows additionally ships LICENSE-wintun.txt
+for its optional wintun DLL, which this adapter does not extract/use. No Xray source
+or license text is copied into Splicore and no Xray Go module dependency is added.
+The external binary boundary keeps implementation/source attribution separate;
+it does not remove distribution obligations. Future bundling must preserve supplied
+copyright/license/notice material, provide recipients the corresponding MPL-covered
+source and clear access instructions, identify any modifications, and review other
+bundled component licenses. Supplying an unchanged stock binary must still deliver
+its license/source information. No distributor is authorized to rewrite copyright.
+Future operator-path/installer strategies use reviewed pinned artifacts only;
+Core never downloads. [Exact reference](../development/PHASE_6_XRAY.md).

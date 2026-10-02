@@ -7,7 +7,7 @@
 - Responsibility: Contract authority, semantic references and API change workflow.
 - Lifecycle: Update with contract ownership or API scope changes.
 
-## Current Phase 5 implementation candidate
+## Current Phase 6 implementation candidate
 
 OpenAPI marks Foundation/runtime/Snell/HY2/Binding operations and generic
 registered protocol validate/plan/apply routes, including VLESS. Phase 5 exposes
@@ -57,10 +57,24 @@ See [documentation policy](../DOCUMENTATION_POLICY.md),
 CreationDocument includes typed VLESS settings, UUID users and write-only optional
 server_secret.private_key. Engine is a bounded selector; plans/inbound reads expose
 resolved engine independently of protocol identity. Capabilities list native and
-unavailable xray for vless, with actual build-dependent REALITY support. Vision is
+implemented xray for vless, with actual build-dependent REALITY support and
+separate node_status availability/reference/installed version. Vision is
 DEFERRED / UNSUPPORTED. Canonical flow permits only none; Vision create/import requests
 return typed not_implemented (HTTP 501), exports return unsupported_export (HTTP 422).
 Ordinary inbound settings remain redacted and contain no credential payloads.
 Scoped export may reveal UUID/public key/short ID/SNI; never server private key,
 internal target or actual listener. URI uses vless-uri content_shape. Live safe
 responses and synthetic request schemas are checked with the current OpenAPI.
+
+## Safe engine diagnostics
+
+System engines and capabilities engine_implementations.node_status distinguish
+build support from the last node validation result. Optional Xray absence is
+unavailable without changing native health. Inbound runtime is optional safe
+PID/generation/start/path/health/exit metadata; config content is never returned.
+Doctor/capabilities/status report the same service projections. Xray usage counters
+remain zero with native_stats/attributed_payload unsupported and per_user_stats=false.
+
+Strict VLESS/Xray quota or rate requests return `unsupported_policy_for_engine`
+(HTTP 422) from validate/plan/apply and offline CLI validation. Malformed policies
+remain `invalid` (HTTP 400); explicit metadata_only never claims enforcement.

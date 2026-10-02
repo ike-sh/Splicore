@@ -21,6 +21,12 @@ type Config struct {
 	StateDirectory string `json:"state_directory" yaml:"state_directory"`
 	KeyFile        string `json:"key_file,omitempty" yaml:"key_file,omitempty"`
 	API            API    `json:"api" yaml:"api"`
+	Xray           Xray   `json:"xray,omitempty" yaml:"xray,omitempty"`
+}
+
+type Xray struct {
+	BinaryPath       string `json:"binary_path,omitempty" yaml:"binary_path,omitempty"`
+	RuntimeDirectory string `json:"runtime_directory,omitempty" yaml:"runtime_directory,omitempty"`
 }
 
 func Default() Config {
@@ -75,6 +81,11 @@ func checkNode(n *yaml.Node, depth int) error {
 }
 
 func (c Config) Validate() error {
+	for _, path := range []string{c.Xray.BinaryPath, c.Xray.RuntimeDirectory} {
+		if path != "" && (!filepath.IsAbs(path) || filepath.Clean(path) != path || !identity.Label(path, 1024)) {
+			return identity.Err(identity.Invalid, "Xray bootstrap paths must be clean absolute paths")
+		}
+	}
 	if c.KeyFile != "" && (!filepath.IsAbs(c.KeyFile) || !identity.Label(c.KeyFile, 1024)) {
 		return identity.Err(identity.Invalid, "key file must be an absolute path")
 	}

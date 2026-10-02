@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/application"
 	"github.com/sagernet/sing-box/internal/splicore/config"
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
+	"github.com/sagernet/sing-box/internal/splicore/engine/xray"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
 	"github.com/sagernet/sing-box/internal/splicore/registry"
 	"github.com/sagernet/sing-box/internal/splicore/secretvault"
@@ -29,7 +30,16 @@ func Serve(ctx context.Context, c config.Config) error {
 		return err
 	}
 	defer listener.Close()
-	p, e, x, err := registry.Phase5()
+	runtimeRoot := c.Xray.RuntimeDirectory
+	if runtimeRoot == "" {
+		runtimeRoot = filepath.Join(c.StateDirectory, "engines", "xray")
+	}
+	xrayEngine := xray.New(xray.Options{BinaryPath: c.Xray.BinaryPath, RuntimeDirectory: runtimeRoot})
+	defer xrayEngine.Close(context.Background())
+	// Missing optional artifacts remain a node availability result. Restoration
+	// of a committed xray inbound fails explicitly in EnableRuntime.
+	_ = xrayEngine.ValidateAvailability(ctx)
+	p, e, x, err := registry.Phase6(xrayEngine)
 	if err != nil {
 		return err
 	}

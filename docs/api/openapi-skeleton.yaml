@@ -617,7 +617,14 @@
             "$ref": "#/components/responses/Problem"
           },
           "422": {
-            "$ref": "#/components/responses/Problem"
+            "description": "Unsupported engine/protocol placement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           },
           "503": {
             "$ref": "#/components/responses/Problem"
@@ -661,7 +668,14 @@
             "$ref": "#/components/responses/Problem"
           },
           "422": {
-            "$ref": "#/components/responses/Problem"
+            "description": "Unsupported engine/protocol placement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           },
           "503": {
             "$ref": "#/components/responses/Problem"
@@ -705,7 +719,14 @@
             "$ref": "#/components/responses/Problem"
           },
           "422": {
-            "$ref": "#/components/responses/Problem"
+            "description": "Unsupported engine/protocol placement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           },
           "503": {
             "$ref": "#/components/responses/Problem"
@@ -847,7 +868,14 @@
             "$ref": "#/components/responses/Problem"
           },
           "422": {
-            "$ref": "#/components/responses/Problem"
+            "description": "Unsupported engine/protocol placement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           },
           "503": {
             "$ref": "#/components/responses/Problem"
@@ -891,7 +919,14 @@
             "$ref": "#/components/responses/Problem"
           },
           "422": {
-            "$ref": "#/components/responses/Problem"
+            "description": "Unsupported engine/protocol placement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           },
           "503": {
             "$ref": "#/components/responses/Problem"
@@ -935,7 +970,14 @@
             "$ref": "#/components/responses/Problem"
           },
           "422": {
-            "$ref": "#/components/responses/Problem"
+            "description": "Unsupported engine/protocol placement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           },
           "503": {
             "$ref": "#/components/responses/Problem"
@@ -1027,7 +1069,14 @@
             "$ref": "#/components/responses/Problem"
           },
           "422": {
-            "$ref": "#/components/responses/Problem"
+            "description": "Unsupported engine/protocol placement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           },
           "503": {
             "$ref": "#/components/responses/Problem"
@@ -1086,7 +1135,14 @@
             "$ref": "#/components/responses/Problem"
           },
           "422": {
-            "$ref": "#/components/responses/Problem"
+            "description": "Unsupported engine for protocol or unsupported strict policy for engine (unsupported_engine_for_protocol / unsupported_policy_for_engine).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           },
           "503": {
             "$ref": "#/components/responses/Problem"
@@ -1101,7 +1157,8 @@
               }
             }
           }
-        }
+        },
+        "description": " Strict VLESS/Xray quota/rate requests fail closed with unsupported_policy_for_engine before node availability and pending state; explicit metadata_only is unenforced."
       }
     },
     "/api/v1/tuic/plan": {
@@ -1130,7 +1187,14 @@
             "$ref": "#/components/responses/Problem"
           },
           "422": {
-            "$ref": "#/components/responses/Problem"
+            "description": "Unsupported engine/protocol placement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           },
           "503": {
             "$ref": "#/components/responses/Problem"
@@ -1189,7 +1253,14 @@
             "$ref": "#/components/responses/Problem"
           },
           "422": {
-            "$ref": "#/components/responses/Problem"
+            "description": "Unsupported engine for protocol or unsupported strict policy for engine (unsupported_engine_for_protocol / unsupported_policy_for_engine).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           },
           "503": {
             "$ref": "#/components/responses/Problem"
@@ -1204,7 +1275,8 @@
               }
             }
           }
-        }
+        },
+        "description": " Strict VLESS/Xray quota/rate requests fail closed with unsupported_policy_for_engine before node availability and pending state; explicit metadata_only is unenforced."
       }
     },
     "/api/v1/tuic/apply": {
@@ -1233,7 +1305,14 @@
             "$ref": "#/components/responses/Problem"
           },
           "422": {
-            "$ref": "#/components/responses/Problem"
+            "description": "Unsupported engine/protocol placement",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           },
           "503": {
             "$ref": "#/components/responses/Problem"
@@ -1292,7 +1371,14 @@
             "$ref": "#/components/responses/Problem"
           },
           "422": {
-            "$ref": "#/components/responses/Problem"
+            "description": "Unsupported engine for protocol or unsupported strict policy for engine (unsupported_engine_for_protocol / unsupported_policy_for_engine).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
           },
           "503": {
             "$ref": "#/components/responses/Problem"
@@ -1307,7 +1393,8 @@
               }
             }
           }
-        }
+        },
+        "description": " Strict VLESS/Xray quota/rate requests fail closed with unsupported_policy_for_engine before node availability and pending state; explicit metadata_only is unenforced."
       }
     }
   },
@@ -1463,6 +1550,12 @@
           },
           "foundation": {
             "$ref": "#/components/schemas/Foundation"
+          },
+          "engines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EngineStatus"
+            }
           }
         },
         "required": [
@@ -1473,7 +1566,8 @@
           "db_schema",
           "protocol_abi",
           "committed_revision",
-          "health"
+          "health",
+          "engines"
         ]
       },
       "Capability": {
@@ -2563,7 +2657,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 64,
-            "description": "Implementation placement, independent of protocol identity. xray is a non-running placeholder."
+            "description": "Implementation placement, independent of protocol identity. xray implements the owned external child for vless only; node availability is reported separately."
           }
         },
         "required": [
@@ -2883,7 +2977,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 64,
-            "description": "Implementation placement, independent of protocol identity. xray is a non-running placeholder."
+            "description": "Implementation placement, independent of protocol identity. xray implements the owned external child for vless only; node availability is reported separately."
           }
         },
         "required": [
@@ -2957,6 +3051,9 @@
             "items": {
               "$ref": "#/components/schemas/BindingView"
             }
+          },
+          "runtime": {
+            "$ref": "#/components/schemas/RuntimeStatus"
           }
         },
         "required": [
@@ -3169,7 +3266,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 64,
-            "description": "Implementation placement, independent of protocol identity. xray is a non-running placeholder."
+            "description": "Implementation placement, independent of protocol identity. xray implements the owned external child for vless only; node availability is reported separately."
           }
         },
         "required": [
@@ -3247,7 +3344,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 64,
-            "description": "Implementation placement, independent of protocol identity. xray is a non-running placeholder."
+            "description": "Implementation placement, independent of protocol identity. xray implements the owned external child for vless only; node availability is reported separately."
           }
         },
         "required": [
@@ -3606,7 +3703,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 64,
-            "description": "Implementation placement, independent of protocol identity. xray is a non-running placeholder."
+            "description": "Implementation placement, independent of protocol identity. xray implements the owned external child for vless only; node availability is reported separately."
           }
         },
         "required": [
@@ -3700,7 +3797,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 64,
-            "description": "Implementation placement, independent of protocol identity. xray is a non-running placeholder."
+            "description": "Implementation placement, independent of protocol identity. xray implements the owned external child for vless only; node availability is reported separately."
           }
         },
         "required": [
@@ -3961,7 +4058,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 64,
-            "description": "Implementation placement, independent of protocol identity. xray is a non-running placeholder."
+            "description": "Implementation placement, independent of protocol identity. xray implements the owned external child for vless only; node availability is reported separately."
           },
           "availability": {
             "type": "string",
@@ -3976,13 +4073,17 @@
           },
           "features": {
             "$ref": "#/components/schemas/CapabilityFeatures"
+          },
+          "node_status": {
+            "$ref": "#/components/schemas/EngineStatus"
           }
         },
         "required": [
           "engine",
           "availability",
           "runtime_implemented",
-          "features"
+          "features",
+          "node_status"
         ]
       },
       "RealityPublicSettings": {
@@ -4221,7 +4322,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 64,
-            "description": "Implementation placement, independent of protocol identity. xray is a non-running placeholder."
+            "description": "Implementation placement, independent of protocol identity. xray implements the owned external child for vless only; node availability is reported separately."
           },
           "server_secret": {
             "type": "object",
@@ -4245,13 +4346,106 @@
           "settings",
           "users"
         ],
-        "description": "VLESS wire 0, independent native engine, TCP/XUDP and typed security. No arbitrary transports or raw engine configuration. server_secret is allowed only for REALITY."
+        "description": "VLESS wire 0, independent native/xray engine placement, TCP/XUDP and typed security. No arbitrary transports or raw engine configuration. server_secret is allowed only for REALITY."
       },
       "VLESSPlan": {
         "$ref": "#/components/schemas/CreationPlan"
       },
       "VLESSApplied": {
         "$ref": "#/components/schemas/CreationApplied"
+      },
+      "EngineStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "engine": {
+            "type": "string"
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "reference_version": {
+            "type": "string"
+          },
+          "installed_version": {
+            "type": "string"
+          },
+          "binary_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "restart_policy": {
+            "type": "string",
+            "enum": [
+              "manual"
+            ]
+          }
+        },
+        "required": [
+          "engine",
+          "available"
+        ]
+      },
+      "RuntimeStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "engine": {
+            "const": "xray"
+          },
+          "version": {
+            "type": "string"
+          },
+          "pid": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "generation": {
+            "type": "string"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "runtime_directory": {
+            "type": "string"
+          },
+          "config_artifact": {
+            "type": "string"
+          },
+          "health": {
+            "type": "string",
+            "enum": [
+              "prepared",
+              "starting",
+              "healthy",
+              "failed",
+              "stopped"
+            ]
+          },
+          "exit_code": {
+            "type": "integer"
+          },
+          "discarded_log_bytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1048576
+          }
+        },
+        "required": [
+          "engine",
+          "version",
+          "pid",
+          "generation",
+          "started_at",
+          "runtime_directory",
+          "config_artifact",
+          "health",
+          "discarded_log_bytes"
+        ]
       }
     },
     "parameters": {

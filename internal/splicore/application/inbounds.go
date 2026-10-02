@@ -49,6 +49,10 @@ func (s *Service) views(ctx context.Context) (InboundPage, error) {
 			v.Bindings = append(v.Bindings, bv)
 		}
 		if h := s.runtime.handles[i.ID]; h != nil {
+			if observer, ok := h.(ports.RuntimeObserver); ok {
+				status := observer.RuntimeStatus()
+				v.Runtime = &status
+			}
 			v.Stats = h.Stats()
 			if h.Health(ctx) == nil {
 				v.Health = "healthy"

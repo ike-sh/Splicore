@@ -5,6 +5,7 @@ import (
 	"flag"
 	"github.com/sagernet/sing-box/internal/splicore/application"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	"github.com/sagernet/sing-box/internal/splicore/engine/xray"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
 	"github.com/sagernet/sing-box/internal/splicore/registry"
 	"github.com/sagernet/sing-box/internal/splicore/secretvault"
@@ -54,7 +55,7 @@ func inboundCLI(ctx context.Context, args []string, out, errOut io.Writer, deps 
 	if args[1] == "validate" {
 		b, e := boundedFile(*file)
 		if e == nil {
-			p, engines, _, er := registry.Phase5()
+			p, engines, _, er := registry.Phase6(xray.New(xray.Options{}))
 			e = er
 			if e == nil {
 				_, e = p.DecodeCreation(engines, *protocol, b)

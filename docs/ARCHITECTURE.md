@@ -7,11 +7,11 @@
 - Responsibility: Overall boundaries, dependency direction, invariants and implementation gates.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-## Current Phase 5 implementation candidate
+## Current Phase 6 frozen implementation
 
 The Account → Binding → Credential → Inbound → Native Engine → stats → ClientProfile/export
 path supports experimental Snell v5/v6, Hysteria2, TUIC v5 and native VLESS/REALITY.
-Phases 0–4 are locally frozen; Phase 5 supports flow-none VLESS/REALITY. Vision
+Phases 0–6 are locally frozen; Phase 5 supports flow-none VLESS/REALITY. Vision
 is DEFERRED / UNSUPPORTED and rejected before runtime construction or export. HY2 adds generic encrypted
 passwords, multiple Bindings, static TLS and owned QUIC/UDP admission. One Native
 Engine dispatches protocol compilers; exporters dispatch protocol keys. Create
@@ -88,7 +88,7 @@ Splicore
 │   └── Mieru / new native protocols (future)
 ├── Engine Registry
 │   ├── Native
-│   └── Xray Compatibility (future)
+│   └── Xray Compatibility (owned child)
 ├── Canonical ClientProfile / Exporter Registry
 ├── SQLite domain storage
 └── sing-box derived network foundation
@@ -156,8 +156,9 @@ Foundation scope defers native reference traffic, entitlement, usage, imports,
 runtime compensation and full audit persistence. The combined registry package
 avoids empty per-protocol directories; real adapters can be split when introduced.
 It does not automatically qualify all protocols. Public stable support requires
-third-party traffic tests and usable policy enforcement. No Mieru, Panel, new
-wire protocol, FinalMask/Sudoku port or external supervisor is implemented here.
+third-party traffic tests and usable policy enforcement. Mieru, Panel, new wire
+protocols, FinalMask and Sudoku remain deferred. The Phase 6 external supervisor
+is described below.
 
 ## Phase 5 fourth-protocol realization
 
@@ -165,8 +166,9 @@ wire protocol, FinalMask/Sudoku port or external supervisor is implemented here.
 own the candidate boundary. [Phase5 composition](../internal/splicore/registry/phase5.go)
 registers one VLESS identity with plain/TLS/REALITY feature profiles. Shared engine
 selection and engine metadata permit multiple implementations per protocol. Native
-is executable; xray is a not-compiled placeholder. Domain validation stays neutral,
-while each compiler enforces placement. Contract tests prove this without Xray runtime.
+is executable; Phase6 fills xray with the owned child adapter. Domain validation
+stays neutral; each compiler enforces placement and effective capabilities compose
+protocol/engine support. Historical Phase5 retains its placeholder fixture.
 
 Generic private_key payloads extend the existing inbound-owned credential model.
 Schema 4 adds only the kind CHECK; no protocol columns or Account fields. A separate
@@ -181,3 +183,13 @@ wire/TLS implementations and dependencies remain unchanged. Vision's upstream ch
 and Read/Write defects are isolated by typed rejection at all managed boundaries;
 no dependency or shared concurrency patch is carried. See [ADR 0017](adr/0017-defer-vision-dependency-safety.md)
 and the [final report](reports/PHASE_5_FINAL_ACCEPTANCE_REPORT.md).
+
+## Phase 6 dual engine realization
+
+One VLESS canonical projection selects native or an external pinned Xray process;
+Account/Binding/Credential/Endpoint/ClientProfile/exporters and SQLite remain shared.
+No Xray source or runtime JSON schema enters the public model. The existing
+Start/Health/Commit/Activate lifecycle also governs the child: Splicore owns the
+public TCP gate and forwards unchanged bytes to its private loopback listener.
+Artifact permissions, process ownership, failure handling, node availability and
+unsupported stats/policy limits follow [ADR 0018](adr/0018-xray-owned-child-engine.md).

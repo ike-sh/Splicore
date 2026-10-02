@@ -89,3 +89,14 @@ and dual users, 16 concurrency, 4 MiB integrity, reconnect and abnormal close un
 default race/checkptr. Fixed-version real clients verify the non-Vision matrix and
 secret gates. [Final evidence](../reports/PHASE_5_FINAL_ACCEPTANCE_REPORT.md) owns
 actual outcomes; preserve earlier diagnostic failures and frozen Phase 0–4 reports.
+
+## Phase 6 external engine gates
+
+Process fixtures test precommit admission, OS listener ownership, concurrent
+close/traffic, double lifecycle calls, unrelated child survival, early exit,
+timeout, conflict, exclusive root lease and stale cleanup. The explicit pinned
+integration tag fails if the reference artifact is missing and proves shared
+Account/UUID placement, profile/export equality, transaction compensation and
+SQLite regeneration. Run default race/checkptr, process tests 10x, path/renderer
+fuzzing, fresh protocol regressions, Windows manager/build, arm64 compile,
+secret/doc/OpenAPI/live API and source/dependency/history/index audits.

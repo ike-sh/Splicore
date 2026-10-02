@@ -51,7 +51,8 @@ func (s *Service) SetBinding(ctx context.Context, id identity.ID, req BindingReq
 		}
 	}
 	p, err := s.protocols.Get(i.Protocol)
-	if err != nil || p.Capabilities(ports.CapabilityContext{Engine: i.Engine}).Mutation.Users != ports.Restart {
+	engine, engineErr := s.engines.Get(i.Engine)
+	if err != nil || engineErr != nil || ports.EffectiveCapabilities(p.Capabilities(ports.CapabilityContext{Engine: i.Engine}), engine.Capabilities()).Mutation.Users != ports.Restart {
 		return op, identity.Err(identity.NotImplemented, "binding mutation unsupported")
 	}
 	bs, err := repo.Bindings(ctx, id)

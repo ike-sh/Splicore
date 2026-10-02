@@ -15,6 +15,9 @@ import os
 import pathlib
 import shutil
 import socket
+import socketserver
+import ssl
+import stat
 import struct
 import subprocess
 import sys
@@ -32,6 +35,8 @@ def main():
     root = pathlib.Path(sys.argv[1]).resolve()
     security = sys.argv[2] if len(sys.argv) > 2 else "reality"
     flow = sys.argv[3] if len(sys.argv) > 3 else "none"
+    engine = sys.argv[4] if len(sys.argv) > 4 else "native"
+    assert engine in ("native", "xray")
     assert security in ("reality", "tls", "none")
     if flow != "none":
         raise RuntimeError("requested VLESS flow is unsupported")
@@ -39,8 +44,10 @@ def main():
     assert not root.is_relative_to(repo), "evidence must be external"
     os.umask(0o077)
     prefix=os.environ.get("SPLICORE_INTEROP_RUN_PREFIX", "")
-    assert prefix in ("", "production-", "final-")
+    assert prefix in ("", "production-", "final-", "acceptance-")
     label = prefix + f"vless-{security}-{flow}"
+    if engine == "xray":
+        label = prefix + f"vless-xray-{security}-{flow}"
     work = root / label
     work.mkdir(mode=0o700, exist_ok=False)
     private = work / "private"
@@ -96,6 +103,26 @@ def main():
             except OSError:
                 time.sleep(.05)
         raise RuntimeError("Splicore startup timeout")
+
+    def remove_owned_stale_control_socket():
+        # The product requires operator review of sockets left by SIGKILL.
+        # This campaign owns the exact path and has joined its dead daemon.
+        assert daemon.poll() is not None
+        assert api.parent.resolve() == private.resolve()
+        previous = api.lstat()
+        assert stat.S_ISSOCK(previous.st_mode)
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as probe:
+            probe.settimeout(1)
+            try:
+                probe.connect(str(api))
+            except ConnectionRefusedError:
+                pass
+            else:
+                raise RuntimeError("control socket still has a listener")
+        current = api.lstat()
+        assert stat.S_ISSOCK(current.st_mode)
+        assert (current.st_dev, current.st_ino) == (previous.st_dev, previous.st_ino)
+        api.unlink()
 
     def start_client(client, exported, name):
         port = helper.free_port()
@@ -169,6 +196,11 @@ def main():
     try:
         subprocess.run([exe, "key", "init", "--file", str(key)], check=True, stdout=subprocess.DEVNULL)
         bootstrap.write_text(f"schema: 1\nstate_directory: {state}\nkey_file: {key}\napi:\n  unix_socket: {api}\n", encoding="utf-8")
+        if engine == "xray":
+            xray_binary = pathlib.Path(os.environ["SPLICORE_XRAY_BINARY"]).resolve()
+            assert xray_binary.is_file()
+            with bootstrap.open("a", encoding="utf-8") as file:
+                file.write(f"xray:\n  binary_path: {xray_binary}\n  runtime_directory: {private / 'xray'}\n")
         sni = "target.synthetic.test"
         ca_key, ca_cert = private / "ca.key", private / "ca.pem"
         cert_key, csr, cert = private / "server.key", private / "server.csr", private / "server.pem"
@@ -180,14 +212,32 @@ def main():
             ["openssl", "x509", "-req", "-in", str(csr), "-CA", str(ca_cert), "-CAkey", str(ca_key), "-CAcreateserial", "-out", str(cert), "-days", "1", "-extfile", str(extensions)],
         ]:
             subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        target_port = helper.free_port()
-        decoy = launch(["openssl", "s_server", "-accept", f"127.0.0.1:{target_port}", "-cert", str(cert), "-key", str(cert_key), "-tls1_3", "-groups", "X25519", "-alpn", "h2,http/1.1", "-quiet", "-www"], "synthetic-target")
-        helper.wait_port(target_port, decoy)
+        # A target must serve the reference engine's concurrent TLS probes and
+        # handshakes independently. openssl s_server is a serial test fixture.
+        target_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        target_context.minimum_version = ssl.TLSVersion.TLSv1_3
+        target_context.maximum_version = ssl.TLSVersion.TLSv1_3
+        target_context.set_ecdh_curve("X25519")
+        target_context.set_alpn_protocols(["http/1.1"])
+        target_context.load_cert_chain(str(cert), str(cert_key))
+        class SyntheticTarget(socketserver.BaseRequestHandler):
+            def handle(self):
+                self.request.settimeout(8)
+                try:
+                    with target_context.wrap_socket(self.request, server_side=True) as connection:
+                        if connection.recv(4096):
+                            connection.sendall(b"HTTP/1.1 200 OK\r\nContent-Length: 9\r\nConnection: close\r\n\r\nsynthetic")
+                except (OSError, ssl.SSLError):
+                    pass
+        decoy = helper.EchoTCP(("127.0.0.1",0),SyntheticTarget)
+        servers.append(decoy)
+        target_port = decoy.server_address[1]
+        threading.Thread(target=decoy.serve_forever,daemon=True).start()
         with socket.socket(socket.AF_INET6) as sock:
             sock.bind(("::", 0))
             listen_port = sock.getsockname()[1]
         settings = {"security": security, "flow": flow, "transport": "tcp", "packet_encoding": "xudp"}
-        fixture = {"schema": 1, "engine": "native", "name": label, "listener": {"host": "::", "port": listen_port}, "display_endpoint": {"host": "127.0.0.1", "port": listen_port}, "settings": settings, "users": [{"account_name": "Alice", "uuid": str(uuid.uuid4())}, {"account_name": "Bob", "uuid": str(uuid.uuid4())}]}
+        fixture = {"schema": 1, "engine": engine, "name": label, "listener": {"host": "::", "port": listen_port}, "display_endpoint": {"host": "127.0.0.1", "port": listen_port}, "settings": settings, "users": [{"account_name": "Alice", "uuid": str(uuid.uuid4())}, {"account_name": "Bob", "uuid": str(uuid.uuid4())}]}
         server_key = ""
         if security == "reality":
             der = subprocess.check_output(["openssl", "genpkey", "-algorithm", "X25519", "-outform", "DER"], stderr=subprocess.DEVNULL)
@@ -204,6 +254,13 @@ def main():
                 settings["tls"] = {"server_name": sni, "certificate_file": str(cert), "private_key_file": str(cert_key), "ca_certificate": ca_cert.read_text(encoding="utf-8")}
         forbidden.extend(u["uuid"] for u in fixture["users"])
         daemon = start_server()
+        unrelated = None
+        if engine == "xray":
+            unrelated_path = private / "unrelated-xray.json"
+            unrelated_port = helper.free_port()
+            unrelated_path.write_text(json.dumps({"log":{"loglevel":"none"},"inbounds":[{"listen":"127.0.0.1","port":unrelated_port,"protocol":"vless","settings":{"clients":[],"decryption":"none"},"streamSettings":{"network":"raw","security":"none"}}],"outbounds":[{"protocol":"freedom"}]}))
+            unrelated = launch([str(xray_binary),"run","-config",str(unrelated_path)],"unrelated-xray")
+            helper.wait_port(unrelated_port,unrelated)
         fixture_file = private / "synthetic-nobrand.json"
         fixture_file.write_text(json.dumps(fixture), encoding="utf-8")
         def cli(*args):
@@ -213,7 +270,7 @@ def main():
             return json.loads(result.stdout)
         cli("validate", "--file", str(fixture_file))
         planned = cli("plan", "--file", str(fixture_file), "--config", str(bootstrap))
-        assert planned["engine"] == "native" and planned["protocol"]["protocol"] == "vless"
+        assert planned["engine"] == engine and planned["protocol"]["protocol"] == "vless"
         (work / "plan-response.json").write_text(json.dumps(planned), encoding="utf-8")
         plan_file = private / "plan.json"
         plan_file.write_text(json.dumps(planned), encoding="utf-8")
@@ -243,6 +300,24 @@ def main():
                 for implementation in capability["engine_implementations"]:
                     assert implementation["features"]["vision"] is False
         (work / "vision-rejection-response.json").write_text(json.dumps(rejections, indent=2), encoding="utf-8")
+
+        policy_rejections = []
+        policy_code = "unsupported_policy_for_engine" if engine == "xray" else "invalid"
+        policy_status = 422 if engine == "xray" else 400
+        for limit in ("quota_bytes", "upload_bps", "download_bps"):
+            strict = copy.deepcopy(fixture)
+            strict["users"][0]["traffic_policy"] = {limit: 100}
+            for action in ("validate", "plan", "apply"):
+                body = {"document": strict, "digest": "unused", "revision": baseline_revision} if action == "apply" else strict
+                problem = request("POST", "/api/v1/creation/vless/" + action, body, expected=policy_status)
+                assert problem["code"] == policy_code
+                policy_rejections.append({"limit": limit, "entry": action, "result": "REJECTED", "problem": problem})
+            fixture_file.write_text(json.dumps(strict), encoding="utf-8")
+            rejected = subprocess.run([exe, "inbound", "validate", "--protocol", "vless", "--file", str(fixture_file)], capture_output=True)
+            assert rejected.returncode != 0 and not rejected.stdout and policy_code.encode() in rejected.stderr
+            assert not any(secret in rejected.stderr.decode() for secret in forbidden)
+        assert request("GET", "/api/v1/inbounds")["snapshot_revision"] == baseline_revision
+        (work / "policy-rejection-response.json").write_text(json.dumps(policy_rejections, indent=2), encoding="utf-8")
         fixture_file.write_text("{}", encoding="utf-8")
         endpoints = ("127.0.0.1", "::1", "localhost") if security == "reality" else ("127.0.0.1",)
         for client, version in (("mihomo", "1.19.30"), ("sing-box", "1.14.1")):
@@ -277,10 +352,13 @@ def main():
                     stream.close()
                     counters = snapshot()[identities[user]]
                     delta = {k: counters[k] - before[identities[user]][k] for k in counters}
-                    if delta["upload_bytes"] < sent + large + udp_bytes or delta["download_bytes"] < sent + large + udp_bytes:
+                    if engine == "native" and (delta["upload_bytes"] < sent + large + udp_bytes or delta["download_bytes"] < sent + large + udp_bytes):
                         raise RuntimeError("attributed payload counters incomplete")
+                    if engine == "xray" and any(delta.values()):
+                        raise RuntimeError("external adapter invented attributed stats")
                     row = {"client": client, "version": version, "sha256": next(c["binary_sha256"] for c in json.loads((root / "clients/clients.json").read_text(encoding="utf-8")) if c["client"] == client), "user": user, "endpoint": endpoint, "security": security, "flow": flow, "tcp": "PASS", "udp": "PASS", "concurrent": 16, "large_bytes": large, "udp_packets": 32, "reconnect": "PASS", "abnormal_close": "PASS", "upload_delta": delta["upload_bytes"], "download_delta": delta["download_bytes"], "result": "PASS"}
                     matrix.append(row)
+                    row["engine"] = engine
                     print(json.dumps(row), flush=True)
                 for process, _ in running.values():
                     helper.stop(process)
@@ -322,7 +400,8 @@ def main():
         helper.tcp_payload(proxy, tcp.server_address)
         helper.stop(process)
         after = snapshot()
-        assert after[identities["Alice"]]["upload_bytes"] > before[identities["Alice"]]["upload_bytes"]
+        if engine == "native":
+            assert after[identities["Alice"]]["upload_bytes"] > before[identities["Alice"]]["upload_bytes"]
         assert after[identities["Bob"]]["upload_bytes"] == before[identities["Bob"]]["upload_bytes"]
         pa, ppa = start_client("sing-box", alice, "disable-Alice")
         pb, ppb = start_client("sing-box", bob, "disable-Bob")
@@ -332,7 +411,16 @@ def main():
         denied(ppa)
         reconnect(ppb)
         before_restart = request("GET", "/api/v1/inbounds")
+        runtime_before = view().get("runtime")
+        if runtime_before:
+            artifact = pathlib.Path(runtime_before["config_artifact"])
+            assert artifact.stat().st_mode & 0o777 == 0o600
+            assert artifact.parent.stat().st_mode & 0o777 == 0o700
         helper.stop(daemon)
+        if unrelated:
+            assert unrelated.poll() is None
+        if runtime_before:
+            assert not artifact.exists()
         with socket.socket(socket.AF_INET6) as sock:
             sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
             sock.bind(("::", listen_port))
@@ -340,12 +428,54 @@ def main():
         after_restart = request("GET", "/api/v1/inbounds")
         assert before_restart["snapshot_revision"] == after_restart["snapshot_revision"]
         assert before_restart["items"][0]["inbound"]["id"] == after_restart["items"][0]["inbound"]["id"]
+        if runtime_before:
+            regenerated = view()["runtime"]
+            assert regenerated["generation"] != runtime_before["generation"]
+            assert regenerated["pid"] != runtime_before["pid"]
         denied(ppa)
         reconnect(ppb)
         quic.udp_sequence(ppb, udp.server_address)
         toggle(identities["Alice"], True)
         reconnect(ppa)
         reconnect(ppb)
+        if engine == "xray":
+            child = view()["runtime"]
+            crash_revision = request("GET", "/api/v1/inbounds")["snapshot_revision"]
+            assert pathlib.Path(f"/proc/{child['pid']}/exe").resolve() == xray_binary
+            os.kill(child["pid"], 9)
+            deadline = time.monotonic() + 5
+            while view()["runtime"]["health"] != "failed" or pathlib.Path(child["config_artifact"]).exists():
+                if time.monotonic() >= deadline:
+                    raise RuntimeError("child exit not detected")
+                time.sleep(.05)
+            assert view()["health"] == "degraded"
+            assert request("GET", "/api/v1/system")["health"] == "degraded"
+            assert request("GET", "/api/v1/inbounds")["snapshot_revision"] == crash_revision
+            assert not pathlib.Path(child["config_artifact"]).exists()
+            helper.stop(daemon)
+            daemon = start_server()
+            reconnect(ppa)
+            reconnect(ppb)
+            quic.udp_sequence(ppb, udp.server_address)
+            # Abrupt parent death must terminate its child. Recovery owns stale
+            # config cleanup through the exclusive root lease and SQLite intent.
+            parent_child = view()["runtime"]
+            parent_revision = request("GET", "/api/v1/inbounds")["snapshot_revision"]
+            daemon.kill()
+            daemon.wait(timeout=5)
+            deadline = time.monotonic() + 5
+            while pathlib.Path(f"/proc/{parent_child['pid']}/exe").exists():
+                if time.monotonic() >= deadline:
+                    raise RuntimeError("active child survived parent death")
+                time.sleep(.05)
+            assert unrelated.poll() is None
+            remove_owned_stale_control_socket()
+            daemon = start_server()
+            assert not pathlib.Path(parent_child["config_artifact"]).exists()
+            assert view()["runtime"]["generation"] != parent_child["generation"]
+            assert request("GET", "/api/v1/inbounds")["snapshot_revision"] == parent_revision
+            reconnect(ppa)
+            reconnect(ppb)
         request("POST", "/api/v1/inbounds/" + inbound_id + "/export", {"format": "surge", "client_version": "6.7.0", "binding_id": identities["Alice"]}, expected=422)
         for filename, path in [("system-response.json", "/api/v1/system"), ("http-system-response.json", "/api/v1/system"), ("capabilities-response.json", "/api/v1/capabilities"), ("inbounds-response.json", "/api/v1/inbounds"), ("inbound-response.json", "/api/v1/inbounds/" + inbound_id)]:
             value = request("GET", path)
@@ -360,6 +490,8 @@ def main():
         for process in (pa, pb):
             process.kill();process.wait(timeout=5)
         helper.stop(daemon)
+        if unrelated:
+            assert unrelated.poll() is None
         with socket.socket(socket.AF_INET6) as sock:
             sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
             sock.bind(("::", listen_port))
@@ -370,7 +502,10 @@ def main():
         # Closed DB and WAL contain ciphertext, never the supplied server key or UUIDs.
         for path in state.glob("state.db*"):
             if any(secret.encode() in path.read_bytes() for secret in forbidden): raise RuntimeError("plaintext secret at rest")
-        result = {"matrix": matrix, "negative": negative, "server_binary":binary,"server_sha256":hashlib.sha256(pathlib.Path(exe).read_bytes()).hexdigest(), "security": security, "flow": flow, "secret_leak_gate": "PASS", "credential_identity": "PASS", "binding_reconcile": "PASS", "sqlite_recovery": "PASS", "existing_client_reconnect": "PASS", "forced_client_kill": "PASS", "clean_shutdown": "PASS", "tcp_listener_release": "PASS", "uri": "UnsupportedExport for explicit CA TLS" if security == "tls" else "PASS", "surge": "UnsupportedExport", "cli_api_shared_service": "PASS"}
+        result = {"engine":engine,"matrix": matrix, "negative": negative, "server_binary":binary,"server_sha256":hashlib.sha256(pathlib.Path(exe).read_bytes()).hexdigest(), "security": security, "flow": flow, "secret_leak_gate": "PASS", "credential_identity": "PASS" if engine == "native" else "valid UUID authenticated; attributed stats DEFERRED", "binding_reconcile": "PASS", "sqlite_recovery": "PASS", "child_crash": "PASS" if engine == "xray" else "not applicable", "existing_client_reconnect": "PASS", "forced_client_kill": "PASS", "clean_shutdown": "PASS", "tcp_listener_release": "PASS", "uri": "UnsupportedExport for explicit CA TLS" if security == "tls" else "PASS", "surge": "UnsupportedExport", "cli_api_shared_service": "PASS"}
+        if engine == "xray":
+            result.update({"parent_death_child_exit":"PASS","stale_recovery_cleanup":"PASS","stale_control_socket":"owned operator cleanup after listener review","unrelated_xray_survival":"PASS","restart_policy":"manual","attributed_stats":"DEFERRED"})
+        result.update({"strict_policy_rejection":"PASS", "strict_policy_error":policy_code})
         (work / "interop-results.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
         (work / "export-envelopes-response.json").write_text(json.dumps(envelopes, indent=2) + "\n", encoding="utf-8")
         print(label + " INTEROP PASS", flush=True)

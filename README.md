@@ -5,7 +5,10 @@ modular, extensible server architecture as its target.
 
 ## Status
 
-**Early Development / Snell, Hysteria2, TUIC and VLESS Experimental.** Phases 0–4 are locally frozen.
+**Early Development / Snell, Hysteria2, TUIC and VLESS Experimental.** Phases 0–6 are locally frozen.
+Phase 6 native/Xray VLESS duality is **FROZEN**, with 40 actual client
+traffic cells and default race/checkptr gates passing. See the
+[Phase 6 report](docs/reports/PHASE_6_XRAY_ENGINE_DUALITY_REPORT.md).
 Phase 2 implements Snell v5/v6 using committed SQLite state, the existing sing-box
 data plane, payload stats, protected Linux API/CLI and client exporters. Pinned
 Mihomo and sing-box clients pass actual TCP/UDP tests. Surge has contract tests only.
@@ -28,8 +31,8 @@ and [Phase 4 report](docs/reports/PHASE_4_TUIC_VERTICAL_SLICE_REPORT.md).
 See [Snell support](docs/protocol/SNELL.md), [workflow](docs/development/PHASE_2_SNELL.md)
 and the [Phase 2 report](docs/reports/PHASE_2_SNELL_VERTICAL_SLICE_REPORT.md).
 
-This checkout retains the upstream runtime for baseline verification. The
-architecture described here is not a claim of implemented Splicore support.
+This checkout retains the upstream runtime for baseline verification. Implemented
+Splicore boundaries are listed above; future architecture surfaces remain deferred.
 
 ## Goals
 
@@ -111,3 +114,13 @@ Lifecycle: Update with project status and navigation; keep detailed specificatio
 
 See [VLESS support and blockers](docs/protocol/VLESS.md), [Phase 5 workflow](docs/development/PHASE_5_VLESS.md)
 and [Phase 5 report](docs/reports/PHASE_5_VLESS_REALITY_NATIVE_VERTICAL_SLICE_REPORT.md).
+
+## Xray compatibility engine candidate
+
+Phase 6 implements an Experimental owned external Xray child for the same
+ProtocolID `vless`, selected with EngineID `native` or `xray`. Account/Binding/UUID,
+ClientProfile and exporters stay shared. Vision is DEFERRED / UNSUPPORTED for both.
+FinalMask and Sudoku are NOT IMPLEMENTED. Xray stats and strict policy enforcement
+remain deferred. See [workflow](docs/development/PHASE_6_XRAY.md),
+[process decision](docs/adr/0018-xray-owned-child-engine.md) and
+[acceptance report](docs/reports/PHASE_6_XRAY_ENGINE_DUALITY_REPORT.md).

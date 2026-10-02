@@ -9,8 +9,15 @@
 
 ## Goal and current phase
 
+Phase 6 freezes the Experimental Xray compatibility engine and
+VLESS native/xray duality. The reference and gates follow
+[ADR 0018](adr/0018-xray-owned-child-engine.md).
+The [Phase 6 report](reports/PHASE_6_XRAY_ENGINE_DUALITY_REPORT.md) records passing
+duality/runtime/regression gates and explicit platform limits. Status is PHASE 6
+FROZEN. Phase 7 has a clean branch from this freeze; implementation is not started.
+
 Splicore is an independent modular server proxy core derived from sing-box.
-Phases 0–5 are locally frozen. Phase 5 implements an Experimental VLESS/REALITY
+Phases 0–6 are locally frozen. Phase 5 implements an Experimental VLESS/REALITY
 Native candidate. Vision is **DEFERRED / UNSUPPORTED** due to pinned dependency
 checkptr and Read/Write defects. Flow-none VLESS/REALITY remains supported;
 its fresh acceptance gates pass with default checkptr and race. The supported
@@ -26,20 +33,26 @@ Snell/Hysteria2/TUIC remain Experimental; no Stable release.
 - Phase 1 freeze: `a2ca59e6dbf1a239feae5e471ec1914cae0f1eac`.
 - Phase 2 freeze: `5bc50a69b0df2c3dc9ede86015c9e4a6b86e2981`.
 - Phase 3 freeze: `94555d9608ebcc36c5a396bc06a5743cce4e0788`.
-- Phase 4 freeze / main: `2a9c0f3e14de29050c1228ce013b2f1ad4556946`.
-- Phase 5 freeze: the commit containing the local freeze report.
-- One Phase 5 freeze commit and a Phase 6 branch are authorized by the maintainer.
-- Phase 6 implementation remains unstaged/uncommitted; push/tag/release NONE.
+- Phase 4 freeze: `2a9c0f3e14de29050c1228ce013b2f1ad4556946`.
+- Phase 5 freeze: `afacb248440aedb6ac5a2f0d14ad7defedddb627`.
+- Phase 6 freeze is the commit containing the [Phase 6 report](reports/PHASE_6_XRAY_ENGINE_DUALITY_REPORT.md),
+  with message `feat(engine): add Xray compatibility engine duality` and sole parent Phase 5.
+- The maintainer authorized the missing main fast-forward to Phase 5, one Phase 6
+  freeze commit, main fast-forward to Phase 6 and a clean Phase 7 branch.
+- main and `codex/phase-6-xray-engine-duality` identify the Phase 6 freeze.
+- `codex/phase-7-xray-vless-extensions` starts from Phase 6; implementation NOT STARTED.
+- Push/tag/release NONE. No Phase 7 implementation is authorized by this freeze task.
 - Sole remote: https://github.com/SagerNet/sing-box.git; no origin.
-- Historical Phase 0–4 reports/evidence and migrations 0001–0003 immutable.
+- Historical Phase 0–5 reports/evidence and migrations 0001–0003 immutable.
 - Fresh artifacts/tools/logs/binaries/state/caches external; upstream runtime/dependency edits 0.
-- Phase 5 authorizes native VLESS/REALITY and structural xray metadata only.
-  No Xray download/run/render, FinalMask, Sudoku, Mieru, Panel or real NoBrand access.
+- Phase 6 authorizes official pinned Xray research/download, owned external child,
+  standard flow-none VLESS/REALITY dual placement, tests and documentation.
+  No FinalMask, Sudoku, Vision workaround, Mieru, Panel or real NoBrand access.
 
 ## Architecture constraints
 
 - Protocol and Engine are separate identities. API/domain represent `vless` + `native`;
-  `vless` + `xray` is a valid future placement, currently not compiled/implemented.
+  `vless` + `xray` is an implemented Experimental external child placement.
 - Shared selection defaults to native; unavailable placement rejects before side effects.
   Account/Binding/Subscription/ClientProfile remain independent of engine names.
 - Account, Binding and Credential separate identity, authorization and secret ownership.
@@ -60,7 +73,7 @@ the protected external master key is not stored in SQLite. No protocol columns o
 Account fields. Key rotation/recovery provisioning and Windows production DACLs
 remain deferred. Old migrations, ciphertext/AAD and relationship constraints survive.
 
-Direct Phase5 composition registers four protocols, native compilers and exporters.
+Phase6 composition fills the Phase5 xray slot; historical constructors remain fixtures.
 Shared creation/resource builder owns validate/plan/pending/start/health/commit/admission;
 recovery/reconcile loads committed server secrets through a separate port. Client
 projection cannot read that port. Protected Linux UDS API/CLI share commands.
@@ -100,6 +113,17 @@ Docker/Redis/TeleLedger UNTOUCHED. External cleanup DEFERRED. Real NoBrand untou
 Do not query/restart Docker, operate Redis, repair the WSL default user's shell,
 or alter unrelated `/` Git configuration. Two inherited unsafe.Pointer vet findings
 are tracked in the [baseline ledger](architecture/UPSTREAM_BASELINE.md).
-Fresh final evidence: `D:\splicore-validation\phase5-vision-deferred-20261002` and
-`/root/splicore-validation/phase5-vision-deferred-20261002`. Initial Phase 5 and
-`go-race-triage-20261002` evidence remain preserved; the final report owns current outcomes.
+Phase 6 evidence: `D:\splicore-validation\phase6-20261002` and
+`/root/splicore-p6-20261002`. Phase 5 evidence/reports and original race triage
+remain preserved. [Phase 6 workflow](development/PHASE_6_XRAY.md) owns current gates.
+
+## Xray runtime boundary
+
+Xray v26.3.27 is operator-provided and exact binary SHA/version verified. Core
+never downloads. Missing optional binary leaves native-only startup healthy;
+committed Xray recovery requires that engine and has no fallback. Capability
+API composes engine support and reports last node validation separately.
+Splicore owns public admission and a protected ephemeral generation; child owns
+private loopback VLESS processing. Wait reaps/cleans; crash marks failed/degraded,
+manual recovery only. Hot updates, Xray attributed/persistent stats and strict
+quota/rate/session enforcement are deferred. [ADR 0018](adr/0018-xray-owned-child-engine.md).

@@ -37,7 +37,7 @@ func (e Engine) Metadata() ports.EngineMetadata {
 	return ports.EngineMetadata{ID: "native", Availability: ports.Compiled, RuntimeImplemented: true, ABI: 1, Protocols: protocols}
 }
 func (Engine) Capabilities() ports.Capabilities {
-	return ports.Capabilities{Transport: ports.TransportCapabilities{TCP: true, UDPTransport: true, UDPPayload: true, IPv4: true, IPv6: true, DomainEndpoint: true}, Identity: ports.IdentityCapabilities{MultiUserNative: true, AttributedPayload: ports.Native, NativeStats: ports.Native}, Security: ports.SecurityCapabilities{TLS: true}, Policy: ports.PolicyCapabilities{Quota: ports.Unsupported, SpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported}, Mutation: ports.MutationCapabilities{Users: ports.Restart, Listener: ports.MutationUnavailable}}
+	return ports.Capabilities{Transport: ports.TransportCapabilities{Kinds: []string{"tcp", "quic"}, TCP: true, UDPTransport: true, UDPPayload: true, IPv4: true, IPv6: true, DomainEndpoint: true}, Identity: ports.IdentityCapabilities{MultiUserNative: true, PerUserStats: true, AttributedPayload: ports.Native, NativeStats: ports.Native}, Security: ports.SecurityCapabilities{TLS: true, Reality: true, Flows: []string{"none"}}, Policy: ports.PolicyCapabilities{Quota: ports.Unsupported, SpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported}, Mutation: ports.MutationCapabilities{Users: ports.Restart, Listener: ports.MutationUnavailable}}
 }
 func (e Engine) compiler(in ports.RuntimeIntent) (Compiler, error) {
 	if in.Inbound.Engine != "native" {

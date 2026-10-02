@@ -40,9 +40,22 @@ type BindingCommands interface {
 func (s *Service) creationDraft(protocol string, b json.RawMessage) (ports.CreationDraft, error) {
 	return s.protocols.DecodeCreation(s.engines, protocol, b)
 }
-func (s *Service) ValidateCreation(_ context.Context, protocol string, b json.RawMessage) error {
-	_, err := s.creationDraft(protocol, b)
-	return err
+func (s *Service) ValidateCreation(ctx context.Context, protocol string, b json.RawMessage) error {
+	d, err := s.creationDraft(protocol, b)
+	if err != nil {
+		return err
+	}
+	return s.engineAvailability(ctx, d.Engine)
+}
+func (s *Service) engineAvailability(ctx context.Context, id string) error {
+	e, err := s.engines.Get(id)
+	if err != nil {
+		return err
+	}
+	if a, ok := e.(ports.EngineAvailability); ok {
+		return a.ValidateAvailability(ctx)
+	}
+	return nil
 }
 func (s *Service) creationDigest(protocol string, b json.RawMessage, r identity.Revision) string {
 	data, _ := json.Marshal(struct {
@@ -58,6 +71,9 @@ func (s *Service) PlanCreation(ctx context.Context, protocol string, b json.RawM
 	}
 	if s.runtime == nil {
 		return CreationPlan{}, identity.Err(identity.NotImplemented, "runtime unavailable")
+	}
+	if err = s.engineAvailability(ctx, d.Engine); err != nil {
+		return CreationPlan{}, err
 	}
 	state, err := s.repo.State(ctx)
 	if err != nil {
@@ -168,6 +184,9 @@ func (s *Service) ApplyCreation(ctx context.Context, protocol string, req ApplyR
 	}
 	d, err := s.creationDraft(protocol, req.Document)
 	if err != nil {
+		return out, err
+	}
+	if err = s.engineAvailability(ctx, d.Engine); err != nil {
 		return out, err
 	}
 	if len(req.Digest) != 64 || !hmac.Equal([]byte(req.Digest), []byte(s.creationDigest(protocol, req.Document, req.Revision))) {

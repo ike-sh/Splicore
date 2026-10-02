@@ -1,6 +1,6 @@
 //go:build !windows
 
-package native
+package tlsconfig
 
 import (
 	"os"

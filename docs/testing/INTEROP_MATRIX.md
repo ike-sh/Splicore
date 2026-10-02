@@ -140,4 +140,21 @@ The [final report](../reports/PHASE_5_FINAL_ACCEPTANCE_REPORT.md) records exact 
 matrix cells, versions, executable hashes and regression/platform gates. The
 [initial report](../reports/PHASE_5_VLESS_REALITY_NATIVE_VERTICAL_SLICE_REPORT.md)
 preserves original Vision functional passes and safety failures; they are not part
-of the current supported surface. No Stable declaration or Phase 5 freeze.
+of the current supported surface. Phase 5 is locally frozen; no Stable declaration.
+
+## Phase 6 Xray duality gate
+
+Compare native/xray using the same script, profiles and fixed clients. Per-engine
+campaigns record Alice/Bob TCP/XUDP, REALITY IPv4/IPv6/domain endpoints, concurrency,
+large integrity, negative auth/key/short-ID/SNI, reconcile and SQLite regeneration.
+Xray counters are unsupported and must stay zero; traffic qualification uses echo
+integrity, not native accounting assertions. Actual child crash detection, degraded
+health, secret artifact removal and explicit recovery are additional Xray gates.
+See [workflow](../development/PHASE_6_XRAY.md) for reference hashes and isolation.
+
+Phase 6 acceptance: native/xray REALITY 12 cells each, plain/TLS four cells per
+engine/security, **40/40 PASS** on the same final default-race binary. Snell nine,
+Hysteria2 twelve and TUIC twelve regression cells pass. Parent-death cleanup and
+unrelated-Xray survival also pass on Linux. See the
+[Phase 6 report](../reports/PHASE_6_XRAY_ENGINE_DUALITY_REPORT.md) for exact rows,
+private control-socket review after abrupt exit and platform qualification limits.
