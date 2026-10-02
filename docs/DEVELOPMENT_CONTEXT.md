@@ -13,15 +13,18 @@ Phase 6 freezes the Experimental Xray compatibility engine and
 VLESS native/xray duality. The reference and gates follow
 [ADR 0018](adr/0018-xray-owned-child-engine.md).
 The [Phase 6 report](reports/PHASE_6_XRAY_ENGINE_DUALITY_REPORT.md) records passing
-duality/runtime/regression gates and explicit platform limits. Status is PHASE 7
-FROZEN. Phase 7 freezes Experimental FinalMask/Sudoku from official Xray v26.3.27
+duality/runtime/regression gates and explicit platform limits. Phase 7 freezes
+Experimental FinalMask/Sudoku from official Xray v26.3.27
 without changing the Phase 6 artifact. See [ADR 0019](adr/0019-xray-specialized-feature-boundary.md)
 and [workflow](development/PHASE_7_XRAY_EXTENSIONS.md). The
 [freeze report](reports/PHASE_7_FREEZE_REPORT.md) records the authorized local checkpoint.
-Phase 8 has a clean branch only; Mieru implementation is NOT STARTED.
+Status is **PHASE 8 FROZEN**. Phase 8 freezes Experimental Mieru native embedding
+under its [freeze report](reports/PHASE_8_FREEZE_REPORT.md). The branch
+`codex/phase-9-distribution-service-foundation` is prepared at the Phase 8 commit;
+Phase 9 / Distribution implementation has not started. No release.
 
 Splicore is an independent modular server proxy core derived from sing-box.
-Phases 0–7 are locally frozen. Phase 5 implements an Experimental VLESS/REALITY
+Phases 0–8 are locally frozen. Phase 5 implements an Experimental VLESS/REALITY
 Native candidate. Vision is **DEFERRED / UNSUPPORTED** due to pinned dependency
 checkptr and Read/Write defects. Flow-none VLESS/REALITY remains supported;
 its fresh acceptance gates pass with default checkptr and race. The supported
@@ -49,12 +52,18 @@ Snell/Hysteria2/TUIC remain Experimental; no Stable release.
 - The maintainer authorized one Phase 7 commit, message
   `feat(engine): add experimental Xray VLESS extensions`, sole parent Phase 6,
   main fast-forward and creation of `codex/phase-8-mieru-native-integration`.
-- main and `codex/phase-7-xray-vless-extensions` identify that Phase 7 freeze.
-  Phase 8 starts at the same commit, CLEAN, with implementation NOT STARTED.
-- Push/tag/release NONE. No Mieru work is authorized by the freeze task.
+- `codex/phase-7-xray-vless-extensions` retains Phase 7 at
+  `ca48d8429abb21fcaf7ee21d68e37d1ec5d6ec4d`; Phase 8 began CLEAN there.
+- The maintainer authorized one Phase 8 commit, message
+  `feat(protocol): add experimental Mieru native integration`, sole parent Phase 7,
+  main fast-forward and creation of `codex/phase-9-distribution-service-foundation`.
+  The Phase 8 commit contains the freeze report; obtain its full SHA from
+  `git rev-parse codex/phase-8-mieru-native-integration`. main and Phase 9 start there.
+  Push/tag/release NONE; Phase 9 implementation NOT STARTED.
 - Sole remote: https://github.com/SagerNet/sing-box.git; no origin.
-- Historical Phase 0–6 reports/evidence and migrations 0001–0004 immutable.
-- Fresh artifacts/tools/logs/binaries/state/caches external; upstream runtime/dependency edits 0.
+- Historical Phase 0–7 reports/evidence and migrations 0001–0004 immutable.
+- Fresh artifacts/tools/logs/binaries/state/caches external; upstream runtime edits 0.
+  Phase 8 adds the audited official Mieru module, with no dependency upgrades.
 - Phase 6 authorizes official pinned Xray research/download, owned external child,
   standard flow-none VLESS/REALITY dual placement, tests and documentation.
   Phase 7 adds bounded FinalMask/Sudoku; no Vision workaround, Mieru or Panel.
@@ -149,3 +158,14 @@ Accounts retain UUIDs. A narrow authorized client-secret port excludes private k
 Xray 26.3.27 client JSON is supported; masked Mihomo/sing-box/Surge/URI reject.
 Availability uses exact Phase 6 SHA256/version. Supervisor/stats/policy remain Phase 6.
 Windows crash safety qualification and Xray arm64 runtime remain deferred.
+
+## Phase 8 current ownership boundary
+
+Frozen branch `codex/phase-8-mieru-native-integration`, Phase 7 parent above.
+Current Phase 9 branch is CLEAN at that checkpoint, with implementation not started.
+[Mieru](protocol/MIERU.md),
+[ADR 0020](adr/0020-mieru-owned-native-embedding.md),
+[workflow](development/PHASE_8_MIERU.md), [report](reports/PHASE_8_MIERU_NATIVE_INTEGRATION_REPORT.md).
+No permanent mita child, source fork/copy, wire rewrite, new EngineID, shared domain
+fields/migrations/routes or real NoBrand modifications. Docker DO NOT QUERY / DO NOT TOUCH.
+QuotaNative/speed/hot updates/durable accounting unexposed; clients remain Experimental.

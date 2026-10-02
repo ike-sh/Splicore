@@ -112,3 +112,13 @@ and renderer inputs. Managed API-to-exporter-to-real-Xray traffic is independent
 the preliminary raw reference probe. Fresh native REALITY, Xray standard and three
 old protocol regressions, docs/OpenAPI/live schemas/secret scans/diff audit are gates.
 No Stable, masked UDP or REALITY combination claim follows from TCP acceptance.
+
+## Phase 8 Mieru ownership gates
+
+[Workflow](../development/PHASE_8_MIERU.md) requires native lifecycle 10x with
+joined goroutine/socket cleanup, default race/checkptr, two inbounds/two users,
+commit admission and response-after-upload-EOF regression. Managed official/Mihomo
+binary matrix supplements embedding probes; source/reference quota tests remain
+separate. Fuzz only canonical credentials/import/profile/export adapters. Windows
+units/build, Linux runtime/race/interop, arm64 compile, formal docs/live schemas,
+fresh six old-protocol critical regressions and source/license/secret/Git audits.

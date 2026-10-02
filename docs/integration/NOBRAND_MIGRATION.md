@@ -164,3 +164,14 @@ and Binding. The shared seed is encrypted and inbound-owned. Authorized Xray
 26.3.27 JSON output includes it; other masked client formats reject. Production
 migration is DEFERRED; real NoBrand changes NONE. No config edit, install, scan
 or migration is performed in NoBrand. [Contract](../development/PHASE_7_XRAY_EXTENSIONS.md).
+
+## Phase 8 synthetic Mieru mapping
+
+[Synthetic canonical fixture](../../tests/fixtures/nobrand/mieru.json) maps name
+to inbound name; listener host/port to actual endpoint; display host/port to independent
+DisplayEndpoint; transport/MTU/multiplex to bounded settings; account_name to shared
+Account; username/password to encrypted UsernamePasswordCredential and Binding.
+Quota is not mapped to native enforcement: rolling MiB semantics differ. Explicit
+metadata_only may preserve policy metadata without enforcement. Generic Splicore
+validate/plan/apply consumes this document, never a mita config. No changes to real
+D:/code/NoBrand-OneClick; read-only entry/final hashes and Git state are compared.

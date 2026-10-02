@@ -114,3 +114,14 @@ unsupported_export (422). Capabilities expose engine_features with scope and cli
 support; node_status.features/System engine features report last artifact availability.
 Doctor adds safe feature checks. No endpoints or Account/Binding schema changes.
 [Workflow](../development/PHASE_7_XRAY_EXTENSIONS.md) and OpenAPI own exact fields.
+
+## Phase 8 generic Mieru operations
+
+Existing `/api/v1/creation/{protocol}/{validate,plan,apply}` selects `mieru` with
+the bounded [canonical contract](../protocol/MIERU.md); no Mieru-specific route.
+Capability API returns mieru/native, experimental multi-user TCP/UDP and attributed
+payload stats. Quota/speed/session enforcement remain unsupported; user mutations
+restart only that inbound. Export format mieru requires exact 3.38.0; Mihomo
+1.19.30 requires MTU 1500. Password appears only in protected explicit export,
+never generic reads. OpenAPI documents optional credential-pair generation and
+rejects unsupported settings/formats/version combinations in runtime validation.

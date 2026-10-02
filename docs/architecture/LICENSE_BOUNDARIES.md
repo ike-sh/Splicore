@@ -7,7 +7,7 @@
 - Responsibility: Attribution, third-party provenance and future distribution review boundaries.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-Design maturity: architecture review; no new dependency or third-party code imported.
+Design maturity: Experimental implementations and audited official Mieru dependency; no copied third-party source.
 Primary local evidence: root `LICENSE`, `.fpm_systemd`, `go.mod`,
 copyright headers in `common/ktls`, `transport/v2raygrpc/credentials`, and `constant/goos`.
 The baseline upstream README and unchanged local LICENSE identify GPL version 3
@@ -55,3 +55,21 @@ bundled component licenses. Supplying an unchanged stock binary must still deliv
 its license/source information. No distributor is authorized to rewrite copyright.
 Future operator-path/installer strategies use reviewed pinned artifacts only;
 Core never downloads. [Exact reference](../development/PHASE_6_XRAY.md).
+
+## Phase 8 linked Mieru dependency
+
+Official module v3.38.0/full commit above is now a direct Go dependency. Its API
+headers declare GPL-3.0-or-later; LICENSE retains the GPLv3 text and authors retain
+their copyrights. The GPL-3.0-or-later derivative can embed this library under that
+same license boundary. No source is vendored/copied/modified; importing is not an
+exemption from corresponding-source and notice obligations when conveying builds.
+Preserve root/upstream licenses and each linked dependency's copyright/license/NOTICE.
+
+The actual server import graph adds only Mieru and uses existing google/btree
+(Apache-2.0), x/crypto, x/sys and protobuf (BSD-3-Clause). Its other module
+requirements x/net/x/text (BSD-3-Clause), grpc/genproto/googleapis/rpc (Apache-2.0)
+already exist at the same selected versions and are audited separately; apis/server
+does not import the daemon or gRPC. The concrete
+audit hashes each module's LICENSE/NOTICE/AUTHORS and compares baseline versions.
+No CGO requirement. Binary size/build time and exact selected versions are in
+[Phase 8 report](../reports/PHASE_8_MIERU_NATIVE_INTEGRATION_REPORT.md). No release is authorized.

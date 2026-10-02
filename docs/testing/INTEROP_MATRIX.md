@@ -69,7 +69,7 @@ and [full evidence report](../reports/PHASE_3_HYSTERIA2_VERTICAL_SLICE_REPORT.md
 | Hysteria2 | Mihomo, sing-box; official reference for differential | TLS, auth, UDP and obfuscation variants separately |
 | TUIC | Mihomo, sing-box | UUID/password, UDP modes, congestion/session/reconnect behavior |
 | VLESS/REALITY | Mihomo, compatible Xray client, sing-box reference | UUID/flow/transport/security and public endpoint/SNI/target separation |
-| Mieru (future) | official client; Mihomo only if tested implementation supports it | native embedding and TCP/UDP underlays, auth/MTU/traffic-pattern variants |
+| Mieru additional profiles | official client/Mihomo | Nondefault MTU/multiplex/pattern variants require separate runtime qualification; default Phase 8 matrix below |
 | FinalMask/Sudoku | official Xray 26.3.27 JSON client | bounded plain TCP Sudoku, prefer_ascii/padding0–3; managed Phase 7 gates |
 | New native protocol (future) | independent reference and qualified native client | specification/vectors/security review required |
 
@@ -179,3 +179,21 @@ Mihomo/sing-box/Surge/URI masked exports reject; Vision remains unsupported.
 Fresh Phase 7 regressions: native REALITY12, standard Xray plain4, Snell9,
 Hysteria2 12 and TUIC12 cells PASS. Both features remain Experimental; FinalMask
 qualification covers Sudoku only. [Report](../reports/PHASE_7_XRAY_VLESS_EXTENSIONS_REPORT.md).
+
+## Phase 8 managed Mieru matrix
+
+| Client | Version | Users | Endpoint | Underlays | TCP | UDP | Cells |
+|---|---|---|---|---|---|---|---|
+| Official Mieru | 3.38.0 | Alice / Bob | 127.0.0.1 / ::1 / localhost | TCP / UDP | PASS | PASS | 12 |
+| Mihomo | 1.19.30 | Alice / Bob | 127.0.0.1 / ::1 / localhost | TCP / UDP | PASS | PASS | 12 |
+| sing-box | 1.14.1 | N/A | N/A | N/A | UnsupportedExport | UnsupportedExport | 0 |
+
+Managed Splicore server uses default-race/checkptr build, SQLite creation/export,
+real echo sockets and one-attempt payload tests in a loopback-only namespace.
+Each positive cell sends 4 MiB and checks SHA256, reconnect and abrupt close; each
+client/endpoint/underlay pair carries 16 mixed Alice/Bob transfers simultaneously.
+Two inbounds share usernames but have distinct passwords; cross-inbound auth rejects,
+stats stay isolated, restart/reconcile recovery passes. Native 10-cycle tests assert
+joined Stop A preserves B and goroutines return to baseline. Source-only embedding
+and quota probes are reference evidence and do not replace this matrix.
+Exact executable hashes, failures retained and platform limits: [Phase 8 report](../reports/PHASE_8_MIERU_NATIVE_INTEGRATION_REPORT.md).

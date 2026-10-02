@@ -115,3 +115,13 @@ AES-256-GCM vault and owner/kind/schema-bound AAD. Master key remains external.
 Recovery loads committed inbound credentials through a bounded explicit port; client
 exports cannot read it. Provisioning/rotation/backup/Windows production permissions
 retain the foundation limits. [ADR 0016](../adr/0016-vless-engine-server-secrets.md).
+
+## Phase 8 Mieru storage boundary
+
+Mieru adds no schema/migration or protocol column. Existing username_password
+credential payloads are encrypted with the existing vault. Account/Binding/Inbound
+settings and DisplayEndpoint use shared committed SQLite resources. Runtime private
+protobuf and client configs are derived output, never authority. Recovery rebuilds
+users and listeners solely from committed state; imported files are removed in tests.
+Generation stats reset on restart; persistent usage remains deferred.
+[Contract](../protocol/MIERU.md).

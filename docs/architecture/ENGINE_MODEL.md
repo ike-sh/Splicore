@@ -55,7 +55,7 @@ One process contains sing-box-derived network managers and registered native
 inbounds. Native engine compiles domain projection to private option.Options,
 uses registries and wraps authenticated routing for policy and accounting. It
 owns generation handles; own startup coordinator supplements Box lifecycle.
-Snell/Hysteria2/TUIC/VLESS first; Mieru/new protocols only after their gates.
+Snell/Hysteria2/TUIC/VLESS and Experimental Mieru are registered; new protocols require their own gates.
 
 ## Xray compatibility
 
@@ -135,3 +135,12 @@ safe feature IDs/reasons. Settings choose a bounded single Sudoku mask; Compile
 renders streamSettings.finalmask.tcp with the encrypted shared password. The same
 supervisor and immutable config snapshot handle start, close and regeneration.
 See [workflow](../development/PHASE_7_XRAY_EXTENSIONS.md).
+
+## Phase 8 embedded adapter
+
+The existing Native Engine also dispatches MieruCompiler. A private official Server
+per generation replaces daemon config ownership. Splicore owns admission, actual raw
+socket Close, session/destination teardown and worker joins. Per-inbound immutable
+username→Binding maps and payload atomics isolate auth/stats; global upstream meters
+are never billed. Standard direct TCP/UDP routing is the bounded current scope.
+No extra EngineID, hot user update or permanent child. [ADR 0020](../adr/0020-mieru-owned-native-embedding.md).

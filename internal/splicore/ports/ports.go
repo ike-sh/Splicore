@@ -43,6 +43,7 @@ const (
 	URI     Format = "uri"
 	JSON    Format = "json"
 	Xray    Format = "xray"
+	Mieru   Format = "mieru"
 )
 
 type TransportCapabilities struct {

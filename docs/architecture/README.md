@@ -52,3 +52,7 @@ Splicore functionality. [ADRs](../adr/README.md) own rationale and decision stat
 
 Preserve these snapshots on a future baseline change. Update [current provenance](../UPSTREAM.md)
 and create new scoped baseline/source evidence; do not silently rewrite old test results.
+
+## Phase 8 current specifications
+
+[Managed capability matrix](CAPABILITY_MATRIX.md) and [Mieru native contract](../protocol/MIERU.md) refine the retained [roadmap](MIERU_INTEGRATION.md).

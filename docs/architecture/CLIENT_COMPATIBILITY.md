@@ -137,3 +137,12 @@ VLESS exporters remain shared across native/xray. [Workflow](../development/PHAS
 URI fm is CONTRACT ONLY for the audited NoBrand source/reference dialect. It is
 not implemented by Splicore's masked URI exporter/import and has no managed runtime
 interop qualification. That exporter continues to reject masked profiles explicitly.
+
+## Phase 8 Mieru clients
+
+Mieru 3.38.0 profile core (`mieru-client-config`) and Mihomo 1.19.30 proxies
+fragment (`mihomo-config-fragment`, MTU 1500 only) qualify TCP/UDP, both underlays,
+Alice/Bob and IPv4/IPv6/domain endpoints. Export selects DisplayEndpoint and explicit
+binding_id; default JSON/formatting redact credentials. No server protobuf leaks.
+sing-box 1.14.1 has no Mieru outbound; Surge/URI/Xray/unknown versions reject.
+[Contract](../protocol/MIERU.md), [matrix](../testing/INTEROP_MATRIX.md).

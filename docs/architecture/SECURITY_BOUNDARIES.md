@@ -117,3 +117,14 @@ decrypting; private keys cannot enter that port. Profile/config artifacts remain
 sensitive, transient and protected. Feature availability requires the exact pinned
 artifact; unknown raw JSON/masks/fields reject. No new wire or unsafe pointer code.
 [ADR 0019](../adr/0019-xray-specialized-feature-boundary.md).
+
+## Phase 8 Mieru secrets and globals
+
+Ordinary API, CLI, doctor and profile/runtime formatting redact username/password
+credential material; protected per-binding export explicitly returns it. Private
+protobuf never enters public API or support formatting. The official locked
+NilFormatter suppresses embedded logger output; no fatal/signals/CLI path is used.
+Upstream synchronized cipher caches retain templates after Stop, so complete secret
+erasure is not claimed. Shared username metrics are excluded from billing and quota
+authority. Owned raw sockets/sessions close on rollback/restart/Stop.
+[Audit and limits](../adr/0020-mieru-owned-native-embedding.md).

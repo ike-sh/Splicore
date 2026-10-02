@@ -3,16 +3,16 @@
   "x-documentation": {
     "status": "Canonical",
     "audience": "API, CLI and integration developers",
-    "last_reviewed": "2026-10-01",
+    "last_reviewed": "2026-10-02",
     "owner": "API maintainers",
     "responsibility": "Machine authority for proposed API paths, methods, parameters, schemas and responses.",
     "lifecycle": "Update with API surface changes; Markdown owns design/security/semantics.",
-    "design_maturity": "Thirteen Foundation and experimental Snell/Hysteria2 routes implemented; unrelated routes deferred."
+    "design_maturity": "Shared creation/resources and Experimental native Mieru plus existing Phase 2–7 protocols; unrelated routes deferred."
   },
   "info": {
-    "title": "Splicore API v1 \u2014 Foundation contract",
+    "title": "Splicore API v1 — Foundation contract",
     "version": "0.0.0-foundation",
-    "description": "Splicore API v1: Foundation and experimental Snell/Hysteria2 operations over protected Linux UDS. Marked unrelated routes remain deferred."
+    "description": "Splicore API v1: Foundation and experimental Snell/Hysteria2 operations over protected Linux UDS. Marked unrelated routes remain deferred. Phase 8 Mieru uses generic registered creation routes and protected explicit binding export."
   },
   "servers": [
     {
@@ -1108,7 +1108,8 @@
                 "snell",
                 "hysteria2",
                 "tuic",
-                "vless"
+                "vless",
+                "mieru"
               ]
             }
           }
@@ -1158,7 +1159,7 @@
             }
           }
         },
-        "description": " Strict VLESS/Xray quota/rate requests fail closed with unsupported_policy_for_engine before node availability and pending state; explicit metadata_only is unenforced."
+        "description": " Strict VLESS/Xray quota/rate requests fail closed with unsupported_policy_for_engine before node availability and pending state; explicit metadata_only is unenforced. Phase 8 adds registered native Mieru. No special protocol routes."
       }
     },
     "/api/v1/tuic/plan": {
@@ -1226,7 +1227,8 @@
                 "snell",
                 "hysteria2",
                 "tuic",
-                "vless"
+                "vless",
+                "mieru"
               ]
             }
           }
@@ -1276,7 +1278,7 @@
             }
           }
         },
-        "description": " Strict VLESS/Xray quota/rate requests fail closed with unsupported_policy_for_engine before node availability and pending state; explicit metadata_only is unenforced."
+        "description": " Strict VLESS/Xray quota/rate requests fail closed with unsupported_policy_for_engine before node availability and pending state; explicit metadata_only is unenforced. Phase 8 adds registered native Mieru. No special protocol routes."
       }
     },
     "/api/v1/tuic/apply": {
@@ -1344,7 +1346,8 @@
                 "snell",
                 "hysteria2",
                 "tuic",
-                "vless"
+                "vless",
+                "mieru"
               ]
             }
           }
@@ -1394,7 +1397,7 @@
             }
           }
         },
-        "description": " Strict VLESS/Xray quota/rate requests fail closed with unsupported_policy_for_engine before node availability and pending state; explicit metadata_only is unenforced."
+        "description": " Strict VLESS/Xray quota/rate requests fail closed with unsupported_policy_for_engine before node availability and pending state; explicit metadata_only is unenforced. Phase 8 adds registered native Mieru. No special protocol routes."
       }
     }
   },
@@ -3191,7 +3194,7 @@
             "minLength": 12,
             "maxLength": 255,
             "writeOnly": true,
-            "description": "12\u2013255 UTF-8 bytes, no Unicode whitespace/control characters. Omission generates; null/empty rejects."
+            "description": "12–255 UTF-8 bytes, no Unicode whitespace/control characters. Omission generates; null/empty rejects."
           },
           "traffic_policy": {
             "$ref": "#/components/schemas/PolicyMetadata"
@@ -3477,7 +3480,8 @@
               "sing-box",
               "surge",
               "uri",
-              "xray"
+              "xray",
+              "mieru"
             ]
           },
           "client_version": {
@@ -3490,7 +3494,7 @@
         "required": [
           "format"
         ],
-        "description": "binding_id required when multiple Bindings exist. Disabled/unavailable identities reject. URI accepts an omitted/empty client_version; pinned config clients require their exact version. Xray JSON requires exactly 26.3.27 and plain TCP; only Xray supports the bounded Sudoku mask."
+        "description": "binding_id required when multiple Bindings exist. Disabled/unavailable identities reject. URI accepts an omitted/empty client_version; pinned config clients require their exact version. Xray JSON requires exactly 26.3.27 and plain TCP; only Xray supports the bounded Sudoku mask. Mieru requires exact official client 3.38.0; Mihomo Mieru 1.19.30 supports only MTU 1500; sing-box/Surge/URI/Xray Mieru unsupported."
       },
       "ClientExportResult": {
         "type": "object",
@@ -3523,7 +3527,8 @@
               "surge-declaration",
               "mihomo-config-fragment",
               "vless-uri",
-              "xray-outbound"
+              "xray-outbound",
+              "mieru-client-config"
             ]
           }
         },
@@ -3612,7 +3617,7 @@
             "minLength": 12,
             "maxLength": 255,
             "writeOnly": true,
-            "description": "12\u2013255 UTF-8 bytes, no Unicode whitespace/control characters. Omission generates; null/empty rejects."
+            "description": "12–255 UTF-8 bytes, no Unicode whitespace/control characters. Omission generates; null/empty rejects."
           },
           "traffic_policy": {
             "$ref": "#/components/schemas/PolicyMetadata"
@@ -3732,6 +3737,9 @@
           },
           {
             "$ref": "#/components/schemas/VLESSDocument"
+          },
+          {
+            "$ref": "#/components/schemas/MieruDocument"
           }
         ]
       },
@@ -4677,6 +4685,173 @@
           "id",
           "available"
         ]
+      },
+      "MieruSettings": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "transport": {
+            "type": "string",
+            "enum": [
+              "tcp",
+              "udp"
+            ]
+          },
+          "mtu": {
+            "type": "integer",
+            "anyOf": [
+              {
+                "const": 0
+              },
+              {
+                "minimum": 1280,
+                "maximum": 1500
+              }
+            ],
+            "default": 1500
+          },
+          "multiplex": {
+            "type": "string",
+            "enum": [
+              "default",
+              "off",
+              "low",
+              "middle",
+              "high"
+            ],
+            "default": "default"
+          }
+        },
+        "required": [
+          "transport"
+        ],
+        "description": "Default traffic pattern and quiet embedding only. Unknown, duplicate and explicit-null fields reject. Underlay transport is distinct from UDP payload support."
+      },
+      "MieruUser": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "account_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "enabled": {
+            "type": "boolean",
+            "default": true
+          },
+          "password": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 64,
+            "writeOnly": true,
+            "description": "12–64 UTF-8 bytes, no Unicode whitespace/control. Username/password both supplied or both omitted; omission generates."
+          },
+          "traffic_policy": {
+            "$ref": "#/components/schemas/PolicyMetadata"
+          },
+          "username": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "writeOnly": true,
+            "pattern": "^[^\\x00-\\x20\\x7f]+$",
+            "description": "1–64 UTF-8 bytes; no ASCII space/control. Distinct per inbound."
+          }
+        },
+        "required": [
+          "account_name"
+        ],
+        "dependentRequired": {
+          "username": [
+            "password"
+          ],
+          "password": [
+            "username"
+          ]
+        }
+      },
+      "MieruDocument": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schema": {
+            "const": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "listener": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              }
+            },
+            "required": [
+              "host",
+              "port"
+            ]
+          },
+          "display_endpoint": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 65535
+              }
+            },
+            "required": [
+              "host",
+              "port"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/MieruSettings"
+          },
+          "policy_mode": {
+            "const": "metadata_only"
+          },
+          "users": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 16,
+            "items": {
+              "$ref": "#/components/schemas/MieruUser"
+            }
+          },
+          "engine": {
+            "const": "native"
+          }
+        },
+        "required": [
+          "schema",
+          "name",
+          "listener",
+          "display_endpoint",
+          "settings",
+          "users"
+        ],
+        "description": "One IP listener, separate IPv4/IPv6/domain display endpoint, 1–16 distinct account names/usernames; at least one active user. Explicit metadata_only policy is unenforced. No official runtime protobuf/daemon config."
+      },
+      "MieruPlan": {
+        "$ref": "#/components/schemas/CreationPlan"
+      },
+      "MieruApplied": {
+        "$ref": "#/components/schemas/CreationApplied"
       }
     },
     "parameters": {

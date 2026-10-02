@@ -9,7 +9,8 @@
 
 ## Status
 
-Proposed for maintainer review. Date: 2026-10-01 (Asia/Shanghai).
+Historical staged decision realized by the Phase 8 Experimental local freeze.
+[ADR 0020](0020-mieru-owned-native-embedding.md) records the source audit and actual ownership decision.
 
 ## Context
 
@@ -29,6 +30,7 @@ Need fresh handles on restart, tracked session cleanup, private protobuf transla
 
 ## Future Review
 
-Review only after Stage 1 evidence and Stage 2 readiness; research reference is not a frozen production dependency.
+Stages 1–3 have bounded implementation/qualification evidence in Phase 8.
+Review at every official module pin or lifecycle/global-state change; no Stable claim.
 
 Details: [architecture specification](../architecture/MIERU_INTEGRATION.md).

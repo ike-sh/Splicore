@@ -103,4 +103,11 @@ own the frozen native flow-none VLESS/REALITY scope and Vision rejection gates.
 Subsequent checkpoints follow their explicit freeze authorization; push/tag/release remain NONE.
 
 - [Phase 7 Xray extensions](PHASE_7_XRAY_EXTENSIONS.md): managed FinalMask/Sudoku contract, acceptance and limits.
-- [Phase 7 freeze](../reports/PHASE_7_FREEZE_REPORT.md): local checkpoint and clean Phase 8 branch; Mieru NOT STARTED.
+- [Phase 7 freeze](../reports/PHASE_7_FREEZE_REPORT.md): local checkpoint and clean Phase 8 baseline; current Mieru work follows the Phase 8 workflow.
+
+## Phase 8 qualification
+
+[Mieru workflow](PHASE_8_MIERU.md) covers source/license audit, default race, native ten cycles, managed clients and protected evidence.
+
+[Phase 8 freeze](../reports/PHASE_8_FREEZE_REPORT.md) is the current local checkpoint.
+The Phase 9 branch is prepared at that commit; Distribution implementation has not started.

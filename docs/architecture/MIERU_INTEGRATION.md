@@ -2,16 +2,16 @@
 
 - Documentation status: Canonical
 - Audience: Protocol and runtime developers
-- Last reviewed: 2026-10-01
+- Last reviewed: 2026-10-02
 - Owner: Protocol maintainers
 - Responsibility: Pinned Mieru API research and staged native integration qualification.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-Research only. No Mieru clone/code/dependency/executable is added to this project.
+Historical Phase 0 research is retained below. Phase 8 now embeds the pinned official module; no clone, copied source or production external executable.
 Reference: official stable **v3.38.0**, published 2026-09-24T23:03:15Z, peeled commit
 `b961978c3be9dd26b94158487c760858e19d1db2` (annotated tag object
-`4462e0ef9495bae5bb34a8406b9e92761da59618`). This is a research reference, not a
-chosen Splicore runtime dependency or qualification result.
+`4462e0ef9495bae5bb34a8406b9e92761da59618`). Phase 8 independently verified the current formal release and selected this exact
+module pin. The [implementation](../protocol/MIERU.md) remains Experimental.
 
 ## Actual package boundary
 
@@ -29,7 +29,8 @@ remain Mieru implementation concerns; `pkg/appctl`/CLI persistence/control must
 not become Splicore authority. API validates unsupported native egress settings;
 Splicore should own routing of the accepted destination request.
 
-Important observed limits: Store after Start returns ErrStoreServerConfigAfterStart;
+Corrected source finding: the interface documents ErrStoreServerConfigAfterStart,
+but Store does not enforce it; the adapter must allow Store only before Start;
 repeat Start has undefined behavior; Stop makes server nonreusable and explicitly
 does not terminate established connections. Recreate handles for update/restart,
 and independently track/close/drain authenticated sessions. Do not claim hot user
@@ -77,3 +78,16 @@ Primary sources: [server API](https://github.com/enfein/mieru/blob/b961978c3be9d
 [user context](https://github.com/enfein/mieru/blob/b961978c3be9dd26b94158487c760858e19d1db2/apis/common/user_context.go),
 [operation reference](https://github.com/enfein/mieru/blob/v3.38.0/docs/operation.md),
 [protocol specification](https://github.com/enfein/mieru/blob/v3.38.0/docs/protocol.md).
+
+## Phase 8 canonical current status
+
+Stage 1: official immutable client/source/runtime audit completed. Stage 2: isolated
+embedding with default race/checkptr and ten lifecycle cycles passed; no upstream
+adaptation required. Stage 3: registered native inbound with shared transactions,
+encrypted credentials, recovery, attribution, profiles/exporters and managed
+official/Mihomo 24-cell traffic matrix. Phase 8 is locally frozen; Stable and field
+beta remain deferred. [Freeze report](../reports/PHASE_8_FREEZE_REPORT.md).
+External only serves as the test oracle. No permanent mita, source fork/copy or
+wire rewrite. QuotaNative not exposed; durable usage/rate/hot updates deferred.
+[ADR 0020](../adr/0020-mieru-owned-native-embedding.md) and
+[Phase 8 report](../reports/PHASE_8_MIERU_NATIVE_INTEGRATION_REPORT.md) own actual qualification.

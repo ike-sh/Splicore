@@ -171,3 +171,12 @@ runtime JSON. Password is an encrypted inbound-owned shared credential, selected
 through ClientSharedSecretRepository only after Account/Binding authorization.
 ClientProfile transport requirements carry the client-needed secret without an
 Engine ID. Schema/domain Account/Binding remain unchanged. [ADR 0019](../adr/0019-xray-specialized-feature-boundary.md).
+
+## Phase 8 Mieru extension
+
+[Mieru contract](../protocol/MIERU.md) implements the same Metadata/Capabilities,
+ValidateInbound/ValidateCredential/BuildRuntime/BuildClientProfile and CreationCodec
+ports. UsernamePasswordPayload reuses vault/storage; options are transport/MTU/
+multiplex only. Phase8 composition adds registry entries; no central protocol
+switch or protocol-specific application/storage/API route. Client wire key remains
+mieru/2/base; release 3.38.0 is implementation provenance, not the wire-version string.

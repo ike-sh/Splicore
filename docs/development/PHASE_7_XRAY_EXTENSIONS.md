@@ -89,4 +89,4 @@ Xray arm64 runtime: NOT CERTIFIED; cross compilation is build evidence only.
 Vision, Mieru, Panel, unified enforcement, persistent usage, production NoBrand
 migration and Stable remain deferred. The authorized [local freeze](../reports/PHASE_7_FREEZE_REPORT.md)
 creates one Phase 7 commit and fast-forwards main. Push/tag/release NONE.
-Phase 8 branch creation is complete; Mieru implementation is NOT STARTED.
+The Phase 7 checkpoint created the clean Phase 8 branch. Current Mieru implementation follows [Phase 8](PHASE_8_MIERU.md).

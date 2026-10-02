@@ -5,7 +5,7 @@ modular, extensible server architecture as its target.
 
 ## Status
 
-**Early Development / Snell, Hysteria2, TUIC and VLESS Experimental.** Phases 0–7 are locally frozen.
+**Early Development / Snell, Hysteria2, TUIC, VLESS and Mieru Experimental.** Phases 0–8 are locally frozen.
 Phase 6 native/Xray VLESS duality is **FROZEN**, with 40 actual client
 traffic cells and default race/checkptr gates passing. See the
 [Phase 6 report](docs/reports/PHASE_6_XRAY_ENGINE_DUALITY_REPORT.md).
@@ -14,6 +14,13 @@ shared credential vault and authorized Xray exporter. Scope: plain TCP, flow non
 prefer_ascii, padding 0–3; masked UDP is NOT QUALIFIED, masked TLS/REALITY is UNSUPPORTED.
 See [Phase 7 workflow](docs/development/PHASE_7_XRAY_EXTENSIONS.md) and
 [freeze report](docs/reports/PHASE_7_FREEZE_REPORT.md). Both features remain Experimental.
+
+Phase 8 is **FROZEN** with official Mieru v3.38.0 embedded in the existing Native
+Engine, 24 managed client cells and default race/checkptr gates passing. No permanent
+mita service is required. Quota/rate, hot updates, persistent usage and Mieru arm64
+runtime qualification remain deferred. See [Mieru support](docs/protocol/MIERU.md)
+and the [Phase 8 freeze report](docs/reports/PHASE_8_FREEZE_REPORT.md).
+The Phase 9 branch is prepared; Distribution implementation has not started.
 
 Phase 2 implements Snell v5/v6 using committed SQLite state, the existing sing-box
 data plane, payload stats, protected Linux API/CLI and client exporters. Pinned
@@ -63,7 +70,8 @@ See the [architecture overview](docs/ARCHITECTURE.md) for the design and its lim
 
 ## Protocol Direction
 
-Snell, Hysteria2, TUIC and VLESS have bounded experimental profiles. Other rows are planned targets.
+Snell, Hysteria2, TUIC, VLESS and FinalMask/Sudoku have bounded experimental profiles.
+Mieru is also Experimental within the qualified default profile.
 
 | Protocol / capability | Planned engine |
 | --- | --- |
@@ -71,7 +79,7 @@ Snell, Hysteria2, TUIC and VLESS have bounded experimental profiles. Other rows 
 | Hysteria2 | Native: static TLS, password multi-user, TCP/UDP; experimental |
 | TUIC | Native: v5, static TLS, UUID/password, cubic/native UDP; experimental |
 | VLESS / REALITY | Native: TCP/XUDP, UUID, plain/static TLS/REALITY; experimental; Vision deferred/unsupported |
-| Mieru | Planned native integration |
+| Mieru | Native: official v3.38.0 embedding, username/password multi-user, TCP/UDP; Experimental |
 | FinalMask / Sudoku | Xray v26.3.27: bounded plain TCP Sudoku mask; Experimental |
 
 Details and qualification gates: [protocol and engine index](docs/protocol/README.md).

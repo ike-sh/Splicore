@@ -37,8 +37,8 @@ no mass file relocation is needed.
 
 FinalMask/Sudoku are Experimental engine features of existing vless/xray, using
 verified official v26.3.27. Only the bounded plain TCP Sudoku profile is exposed;
-see [Phase 7](../development/PHASE_7_XRAY_EXTENSIONS.md). Mieru research
-does not qualify user updates, complete shutdown or strict policy hooks.
+see [Phase 7](../development/PHASE_7_XRAY_EXTENSIONS.md). Mieru native implementation
+qualifies owned shutdown and binding restart; strict policy and hot updates remain unsupported.
 
 ## Decisions and review
 
@@ -54,3 +54,7 @@ columns. Unsupported policy or client features reject explicitly. See
 [policy](../DOCUMENTATION_POLICY.md) and [architecture map](../architecture/README.md).
 
 - [ADR 0016](../adr/0016-vless-engine-server-secrets.md): candidate engine placement and generic server-secret boundary.
+
+## Phase 8 native module
+
+Experimental [Mieru](MIERU.md) is implemented in Native Engine with shared resources and owned lifecycle. Official/Mihomo clients qualify; strict policy/hot updates/durable usage remain deferred.

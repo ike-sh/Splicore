@@ -22,7 +22,7 @@ def main():
     parser.add_argument("root", type=pathlib.Path)
     parser.add_argument("inventory", type=pathlib.Path)
     parser.add_argument("--responses", type=pathlib.Path)
-    parser.add_argument("--protocol", choices=["snell","hysteria2","tuic","vless"],default="hysteria2")
+    parser.add_argument("--protocol", choices=["snell","hysteria2","tuic","vless","mieru"],default="hysteria2")
     args = parser.parse_args()
     root = args.root.resolve()
     inventory = json.loads(args.inventory.read_text(encoding="utf-8-sig"))
@@ -127,7 +127,7 @@ def main():
     if args.responses:
         pairs=[("system-response.json","System"),("http-system-response.json","System"),("capabilities-response.json","CapabilityPage"),("inbounds-response.json","RuntimeInboundPage"),("inbound-response.json","RuntimeInboundView")]
         if args.protocol!="snell":
-            prefix=args.protocol;schema={"tuic":"TUIC","hysteria2":"Hysteria2","vless":"VLESS"}[prefix]
+            prefix=args.protocol;schema={"tuic":"TUIC","hysteria2":"Hysteria2","vless":"VLESS","mieru":"Mieru"}[prefix]
             pairs.extend([(("plan-response.json" if prefix=="vless" else prefix+"-plan-response.json"),schema+"Plan"),(("apply-response.json" if prefix=="vless" else prefix+"-apply-response.json"),schema+"Applied"),("binding-transaction-response.json","RuntimeTransaction")])
         for filename,schema in pairs:
             instance = json.loads((args.responses / filename).read_text(encoding="utf-8-sig"))

@@ -7,11 +7,11 @@
 - Responsibility: Overall boundaries, dependency direction, invariants and implementation gates.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-## Current Phase 7 frozen implementation
+## Phase 8 frozen baseline
 
 The Account → Binding → Credential → Inbound → Native Engine → stats → ClientProfile/export
 path supports experimental Snell v5/v6, Hysteria2, TUIC v5 and native VLESS/REALITY.
-Phases 0–7 are locally frozen; Phase 5 supports flow-none VLESS/REALITY. Vision
+Phases 0–8 are locally frozen; Phase 5 supports flow-none VLESS/REALITY. Vision
 is DEFERRED / UNSUPPORTED and rejected before runtime construction or export. HY2 adds generic encrypted
 passwords, multiple Bindings, static TLS and owned QUIC/UDP admission. One Native
 Engine dispatches protocol compilers; exporters dispatch protocol keys. Create
@@ -85,7 +85,7 @@ Splicore
 │   └── API transports / CLI
 ├── Protocol Registry
 │   ├── Snell / Hysteria2 / TUIC / VLESS
-│   └── Mieru / new native protocols (future)
+│   └── Mieru / new native protocols
 ├── Engine Registry
 │   ├── Native
 │   └── Xray Compatibility (owned child)
@@ -156,8 +156,7 @@ Foundation scope defers native reference traffic, entitlement, usage, imports,
 runtime compensation and full audit persistence. The combined registry package
 avoids empty per-protocol directories; real adapters can be split when introduced.
 It does not automatically qualify all protocols. Public stable support requires
-third-party traffic tests and usable policy enforcement. Mieru, Panel, new wire
-protocols remain deferred. FinalMask/Sudoku use the bounded Phase 7 feature contract. The Phase 6 external supervisor
+third-party traffic tests and usable policy enforcement. Panel and new wire protocols remain deferred; Mieru is Experimental in Phase 8. FinalMask/Sudoku use the bounded Phase 7 feature contract. The Phase 6 external supervisor
 is described below.
 
 ## Phase 5 fourth-protocol realization
@@ -207,4 +206,18 @@ decryption. No new protocol ID, central protocol switch, engine exporter branch,
 supervisor or wire implementation. [ADR 0019](adr/0019-xray-specialized-feature-boundary.md).
 
 Phase 7 is locally frozen under the [freeze report](reports/PHASE_7_FREEZE_REPORT.md).
-Both features remain Experimental. Phase 8 branch creation adds no Mieru implementation.
+Both features remain Experimental. Phase 8 adds the official embedded Mieru adapter.
+
+## Phase 8 owned native embedding
+
+Phase 8 is locally frozen under the [freeze report](reports/PHASE_8_FREEZE_REPORT.md).
+Mieru remains Experimental; Distribution / Phase 9 implementation has not started.
+
+[Mieru](protocol/MIERU.md) registers a module/CreationCodec, MieruCompiler in the
+existing Native Engine, ClientProfile/exporters and Phase8 composition. Zero central
+protocol switch cases, Application protocol branches, DB columns/migrations,
+Account fields or special API routes. Official server/session code owns wire;
+Splicore owns raw sockets, generations, identity and one attributed payload path.
+Direct TCP/UDP egress is the bounded current adapter scope, with no configurable
+egress policy in RuntimeIntent. [ADR 0020](adr/0020-mieru-owned-native-embedding.md)
+records global logger/cache/metrics and shutdown constraints. No upstream runtime edits.

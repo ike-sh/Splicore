@@ -11,7 +11,7 @@
 
 **Canonical** identifies the maintained source for a topic. It does not mean
 proposed functionality is implemented. Phase 0 establishes designs and baseline
-research; Phases 0–7 are locally frozen. Phase 2 implements experimental Snell with real
+research; Phases 0–8 are locally frozen. Phase 2 implements experimental Snell with real
 Mihomo/sing-box interoperability. Phase 3 adds experimental Hysteria2 with
 trusted-CA multi-user TCP/UDP interoperability; Phase 4 implements experimental TUIC v5 with shared TLS/QUIC and
 registered creation commands. Phase 5 adds a native VLESS/REALITY candidate with
@@ -45,7 +45,7 @@ README.md                           project introduction
 
 ## Architecture Decision Records
 
-[ADR index](adr/README.md) lists all 19 decisions and their individual status.
+[ADR index](adr/README.md) lists all 20 decisions and their individual status.
 ADR 0001 is accepted for Phase 0; 0002–0015 remain proposed for maintainer review.
 ADR 0016 records the foundation boundary; ADR 0017 defers Vision with explicit re-enable gates.
 Decision acceptance is separate from implementation and interoperability qualification.
@@ -172,3 +172,11 @@ this project's designs. Upstream documentation site configuration is unchanged.
 - [ADR 0019](adr/0019-xray-specialized-feature-boundary.md): unchanged official artifact, feature composition and secret ownership.
 - [Phase 7 report](reports/PHASE_7_XRAY_VLESS_EXTENSIONS_REPORT.md): actual managed traffic, regressions, gates and deferred qualification.
 - [Phase 7 freeze](reports/PHASE_7_FREEZE_REPORT.md): authorized local checkpoint, unchanged acceptance source and Phase 8 branch only.
+
+## Phase 8 navigation
+
+[Mieru contract](protocol/MIERU.md), [workflow](development/PHASE_8_MIERU.md), [implementation ADR](adr/0020-mieru-owned-native-embedding.md), [capability matrix](architecture/CAPABILITY_MATRIX.md), [report](reports/PHASE_8_MIERU_NATIVE_INTEGRATION_REPORT.md).
+
+[Phase 8 freeze](reports/PHASE_8_FREEZE_REPORT.md) records the local Experimental
+checkpoint. Phase 9 branch preparation is complete; Distribution implementation
+has not started.
