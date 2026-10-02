@@ -44,3 +44,7 @@ See [documentation policy](../DOCUMENTATION_POLICY.md) and the
 ## Phase 8 implementation decision
 
 [0020 — Mieru owned native embedding](0020-mieru-owned-native-embedding.md): accepted for the Phase 8 Experimental local freeze; official dependency, raw/session ownership, global metrics exclusion and policy limits.
+
+## Phase 9 distribution decision
+
+[0021 — Local pinned Linux service distribution](0021-linux-local-distribution.md): proposed for review; canonical layout, dedicated user, one unit, separate pinned Xray and snapshot rollback.

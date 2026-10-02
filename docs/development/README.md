@@ -22,6 +22,13 @@ are frozen acceptance snapshots, not growing development logs.
 
 ## Current scope
 
+Current work is Phase 9 Distribution & Service Foundation on
+`codex/phase-9-distribution-service-foundation`, at Phase 8 freeze
+`bd141f98e28d9499a88fe610ba3fc49aca48bf14`. See [distribution](../DISTRIBUTION.md)
+and [operations](../OPERATIONS.md). No stage/commit/push/tag/release. Historical
+Phase 0–8 reports and migrations are immutable. Docker is not queried or touched;
+NoBrand remains read-only. The entries below preserve earlier scoped workflows.
+
 Phase 1 is frozen at `a2ca59e6dbf1a239feae5e471ec1914cae0f1eac`.
 Phase 2 froze experimental Snell at `5bc50a69b0df2c3dc9ede86015c9e4a6b86e2981`.
 Read [workflow](PHASE_2_SNELL.md) and [report](../reports/PHASE_2_SNELL_VERTICAL_SLICE_REPORT.md).
@@ -110,4 +117,10 @@ Subsequent checkpoints follow their explicit freeze authorization; push/tag/rele
 [Mieru workflow](PHASE_8_MIERU.md) covers source/license audit, default race, native ten cycles, managed clients and protected evidence.
 
 [Phase 8 freeze](../reports/PHASE_8_FREEZE_REPORT.md) is the current local checkpoint.
-The Phase 9 branch is prepared at that commit; Distribution implementation has not started.
+Phase 9 distribution and service is locally frozen under the
+[freeze report](../reports/PHASE_9_FREEZE_REPORT.md).
+See the [distribution gate](../DISTRIBUTION.md) and
+[acceptance report](../reports/PHASE_9_DISTRIBUTION_SERVICE_FOUNDATION_REPORT.md).
+The clean `codex/phase-10-client-runtime-foundation` branch starts there;
+client implementation is not started. NoBrand migration remains deferred until
+the unified client/server core is complete.

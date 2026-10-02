@@ -122,3 +122,16 @@ binary matrix supplements embedding probes; source/reference quota tests remain
 separate. Fuzz only canonical credentials/import/profile/export adapters. Windows
 units/build, Linux runtime/race/interop, arm64 compile, formal docs/live schemas,
 fresh six old-protocol critical regressions and source/license/secret/Git audits.
+
+## Phase 9 installed-service gates
+
+The [distribution gate](../DISTRIBUTION.md#distribution-gate) builds deterministic
+amd64/arm64 packages and Windows binaries, verifies inventories/checksums and runs
+default race/checkptr plus support secret tests. A disposable nested systemd lab
+tests first initialization, non-root low TCP/UDP ports, all installed protocol
+smokes, restart, parent/managed-child crash and unrelated Xray survival. It performs
+an ordinary update and an external schema5 failure fixture with snapshot rollback,
+then program-only uninstall, retained-state reinstall and explicit safe purge.
+Symlinks and same-filesystem bind mounts must reject purge before deletion.
+Raw secrets injected into the actual unit journal must be absent from every
+decompressed support-bundle member. No fixture modifies production migrations.

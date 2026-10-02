@@ -15,6 +15,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/application"
 	"github.com/sagernet/sing-box/internal/splicore/config"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	"github.com/sagernet/sing-box/internal/splicore/operations"
 	"github.com/sagernet/sing-box/internal/splicore/transport"
 	"github.com/sagernet/sing-box/internal/splicore/version"
 )
@@ -26,6 +27,9 @@ type Dependencies struct {
 }
 
 func Run(ctx context.Context, args []string, out, errOut io.Writer, deps Dependencies) int {
+	if len(args) > 0 && (args[0] == "service" || args[0] == "state" || args[0] == "package" || args[0] == "support-bundle") {
+		return operationsCLI(ctx, args, out, errOut, deps)
+	}
 	if len(args) > 0 && (args[0] == "inbound" || args[0] == "key") {
 		return inboundCLI(ctx, args, out, errOut, deps)
 	}
@@ -34,6 +38,9 @@ func Run(ctx context.Context, args []string, out, errOut io.Writer, deps Depende
 		return 0
 	}
 	if args[0] == "version" {
+		if len(args) == 2 && args[1] == "--json" {
+			return outputJSON(out, deps.Build)
+		}
 		if len(args) != 1 {
 			return failure(errOut, identity.Err(identity.Invalid, "version takes no arguments"))
 		}
@@ -131,6 +138,7 @@ func readConfig(path string) (config.Config, error) {
 
 func offlineDoctor(ctx context.Context, out io.Writer, c config.Config, v version.Info, q application.Queries) int {
 	d := application.Doctor{Version: v, Checks: []application.Check{{Name: "platform", Status: "pass", Detail: runtime.GOOS + "/" + runtime.GOARCH}}}
+	d.Checks = append(d.Checks, operations.PathChecks(c)...)
 	if info, err := os.Stat(c.StateDirectory); err == nil && info.IsDir() {
 		d.Checks = append(d.Checks, application.Check{Name: "storage_path", Status: "pass", Detail: "directory exists"})
 	} else {

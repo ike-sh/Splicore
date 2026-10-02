@@ -19,6 +19,8 @@ var (
 	Commit         = ""
 	Dirty          = ""
 	BuildTime      = "unknown"
+	SourceDigest   = ""
+	BuildTags      = ""
 )
 
 type Info struct {
@@ -33,10 +35,13 @@ type Info struct {
 	UpstreamCommit string `json:"upstream_commit"`
 	Channel        string `json:"channel"`
 	APIVersion     string `json:"api_version"`
+	SourceDigest   string `json:"source_digest,omitempty"`
+	BuildTags      string `json:"build_tags,omitempty"`
 }
 
 func Current() Info {
 	i := Info{Product: "Splicore", Version: ProductVersion, Commit: Commit, Dirty: Dirty == "true", BuildTime: BuildTime, GoVersion: runtime.Version(), Platform: runtime.GOOS + "/" + runtime.GOARCH, UpstreamTag: "v1.14.1", UpstreamCommit: "1ac1a339cb1223e9c70eae14c44411c75033c02d", Channel: "development", APIVersion: APIVersion}
+	i.SourceDigest, i.BuildTags = SourceDigest, BuildTags
 	if build, ok := debug.ReadBuildInfo(); ok {
 		for _, s := range build.Settings {
 			switch s.Key {

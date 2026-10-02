@@ -125,3 +125,12 @@ restart only that inbound. Export format mieru requires exact 3.38.0; Mihomo
 1.19.30 requires MTU 1500. Password appears only in protected explicit export,
 never generic reads. OpenAPI documents optional credential-pair generation and
 rejects unsupported settings/formats/version combinations in runtime validation.
+
+## Phase 9 local operations
+
+No HTTP route is added. Package/service/backup/support operations are local CLI
+commands with filesystem and root/owner checks described by
+[distribution](../DISTRIBUTION.md). System Version optionally adds source_digest
+and build_tags for exact build provenance; OpenAPI remains the field authority.
+Doctor and the [support bundle](../SUPPORT_BUNDLE.md) use safe local summaries;
+raw journal, DB/config and engine JSON never become API or bundle responses.

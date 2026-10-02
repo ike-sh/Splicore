@@ -1,0 +1,7 @@
+schema: 1
+state_directory: /var/lib/splicore
+key_file: /var/lib/splicore/master.key
+api:
+  unix_socket: /run/splicore/splicore.sock
+xray:
+  runtime_directory: /run/splicore/xray

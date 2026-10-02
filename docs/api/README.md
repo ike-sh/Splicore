@@ -78,3 +78,11 @@ remain zero with native_stats/attributed_payload unsupported and per_user_stats=
 Strict VLESS/Xray quota or rate requests return `unsupported_policy_for_engine`
 (HTTP 422) from validate/plan/apply and offline CLI validation. Malformed policies
 remain `invalid` (HTTP 400); explicit metadata_only never claims enforcement.
+
+## Local service/distribution operations
+
+Phase 9 introduces local service/package/backup/support CLI commands, with no
+new network API routes. See [installation](../INSTALLATION.md),
+[operations](../OPERATIONS.md) and [bundle contract](../SUPPORT_BUNDLE.md).
+Optional Version.source_digest/build_tags expose exact build provenance in the
+existing system response; the machine schema is updated with those fields.

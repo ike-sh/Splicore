@@ -5,7 +5,7 @@ modular, extensible server architecture as its target.
 
 ## Status
 
-**Early Development / Snell, Hysteria2, TUIC, VLESS and Mieru Experimental.** Phases 0–8 are locally frozen.
+**Early Development / Snell, Hysteria2, TUIC, VLESS and Mieru Experimental.** Phases 0–9 are locally frozen.
 Phase 6 native/Xray VLESS duality is **FROZEN**, with 40 actual client
 traffic cells and default race/checkptr gates passing. See the
 [Phase 6 report](docs/reports/PHASE_6_XRAY_ENGINE_DUALITY_REPORT.md).
@@ -20,7 +20,12 @@ Engine, 24 managed client cells and default race/checkptr gates passing. No perm
 mita service is required. Quota/rate, hot updates, persistent usage and Mieru arm64
 runtime qualification remain deferred. See [Mieru support](docs/protocol/MIERU.md)
 and the [Phase 8 freeze report](docs/reports/PHASE_8_FREEZE_REPORT.md).
-The Phase 9 branch is prepared; Distribution implementation has not started.
+Phase 9 is **FROZEN** with an **Experimental installable Linux service**, local pinned
+packages, one hardened systemd unit, upgrade/rollback and redacted diagnostics.
+See [installation](docs/INSTALLATION.md), [operations](docs/OPERATIONS.md) and the
+[Phase 9 report](docs/reports/PHASE_9_DISTRIBUTION_SERVICE_FOUNDATION_REPORT.md).
+Ubuntu 24.04 WSL2 amd64 is runtime qualified; arm64 is build only. See the
+[freeze report](docs/reports/PHASE_9_FREEZE_REPORT.md). No public release.
 
 Phase 2 implements Snell v5/v6 using committed SQLite state, the existing sing-box
 data plane, payload stats, protected Linux API/CLI and client exporters. Pinned

@@ -18,13 +18,21 @@ Experimental FinalMask/Sudoku from official Xray v26.3.27
 without changing the Phase 6 artifact. See [ADR 0019](adr/0019-xray-specialized-feature-boundary.md)
 and [workflow](development/PHASE_7_XRAY_EXTENSIONS.md). The
 [freeze report](reports/PHASE_7_FREEZE_REPORT.md) records the authorized local checkpoint.
-Status is **PHASE 8 FROZEN**. Phase 8 freezes Experimental Mieru native embedding
-under its [freeze report](reports/PHASE_8_FREEZE_REPORT.md). The branch
-`codex/phase-9-distribution-service-foundation` is prepared at the Phase 8 commit;
-Phase 9 / Distribution implementation has not started. No release.
+Phase 8 is **FROZEN**. It freezes Experimental Mieru native embedding
+under its [freeze report](reports/PHASE_8_FREEZE_REPORT.md).
+Phase 9 / Distribution is **FROZEN**, with local pinned packages, a
+dedicated user, one systemd unit, snapshot upgrade/rollback and redacted diagnostics.
+Installed-service lifecycle and protocol gates pass on Ubuntu 24.04 WSL2 amd64;
+arm64 is build only. See [distribution](DISTRIBUTION.md) and the
+[Phase 9 report](reports/PHASE_9_DISTRIBUTION_SERVICE_FOUNDATION_REPORT.md).
+The [Phase 9 freeze report](reports/PHASE_9_FREEZE_REPORT.md) records the authorized
+single commit, main fast-forward and clean branch preparation:
+`codex/phase-10-client-runtime-foundation`. Client implementation is **NOT STARTED**;
+begin it only under its separate phase authorization. NoBrand migration is deferred
+until the unified client/server core is complete. Push/tag/release remain prohibited.
 
 Splicore is an independent modular server proxy core derived from sing-box.
-Phases 0–8 are locally frozen. Phase 5 implements an Experimental VLESS/REALITY
+Phases 0–9 are locally frozen. Phase 5 implements an Experimental VLESS/REALITY
 Native candidate. Vision is **DEFERRED / UNSUPPORTED** due to pinned dependency
 checkptr and Read/Write defects. Flow-none VLESS/REALITY remains supported;
 its fresh acceptance gates pass with default checkptr and race. The supported
@@ -59,9 +67,16 @@ Snell/Hysteria2/TUIC remain Experimental; no Stable release.
   main fast-forward and creation of `codex/phase-9-distribution-service-foundation`.
   The Phase 8 commit contains the freeze report; obtain its full SHA from
   `git rev-parse codex/phase-8-mieru-native-integration`. main and Phase 9 start there.
-  Push/tag/release NONE; Phase 9 implementation NOT STARTED.
+  Phase 8 SHA: `bd141f98e28d9499a88fe610ba3fc49aca48bf14`.
+- The maintainer explicitly authorized one Phase 9 freeze commit:
+  `feat(dist): add Linux service distribution foundation`, sole parent Phase 8,
+  main fast-forward and creation of `codex/phase-10-client-runtime-foundation`.
+  Resolve its full SHA from `git rev-parse codex/phase-9-distribution-service-foundation`;
+  the freeze report cannot embed its own commit SHA. Phase 10 starts CLEAN there.
+  Stage/commit authorization was limited to this freeze; subsequent work remains
+  uncommitted unless separately authorized. Push/tag/release NONE.
 - Sole remote: https://github.com/SagerNet/sing-box.git; no origin.
-- Historical Phase 0–7 reports/evidence and migrations 0001–0004 immutable.
+- Historical Phase 0–9 reports/evidence and migrations 0001–0004 immutable.
 - Fresh artifacts/tools/logs/binaries/state/caches external; upstream runtime edits 0.
   Phase 8 adds the audited official Mieru module, with no dependency upgrades.
 - Phase 6 authorizes official pinned Xray research/download, owned external child,

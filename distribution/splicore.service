@@ -1,0 +1,45 @@
+[Unit]
+Description=Splicore Experimental proxy core
+After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=notify
+NotifyAccess=main
+User=splicore
+Group=splicore
+UMask=0077
+StateDirectory=splicore
+StateDirectoryMode=0700
+RuntimeDirectory=splicore
+RuntimeDirectoryMode=0700
+WorkingDirectory=/var/lib/splicore
+ExecStartPre=/usr/local/bin/splicore service initialize --config /etc/splicore/splicore.yaml
+ExecStart=/usr/local/bin/splicore run --config /etc/splicore/splicore.yaml
+ExecStopPost=/usr/local/bin/splicore service record-exit --config /etc/splicore/splicore.yaml
+Restart=on-failure
+RestartSec=2
+TimeoutStartSec=30
+TimeoutStopSec=30
+KillMode=mixed
+KillSignal=SIGTERM
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+LimitNOFILE=65536
+StandardOutput=journal
+StandardError=journal
+LogRateLimitIntervalSec=30s
+LogRateLimitBurst=2000
+
+[Install]
+WantedBy=multi-user.target

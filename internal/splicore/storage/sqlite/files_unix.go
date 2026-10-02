@@ -47,3 +47,20 @@ func safeFile(path string) error {
 }
 func lockFile(f *os.File) error { return unix.Flock(int(f.Fd()), unix.LOCK_EX|unix.LOCK_NB) }
 func unlockFile(f *os.File)     { _ = unix.Flock(int(f.Fd()), unix.LOCK_UN) }
+
+// Root may create a stopped-service backup without changing database ownership.
+func maintenanceFile(path string) error {
+	resolved, err := filepath.EvalSymlinks(path)
+	if err != nil || resolved != filepath.Clean(path) {
+		return identity.Err(identity.Invalid, "unsafe maintenance path")
+	}
+	i, err := os.Lstat(path)
+	if err != nil || !i.Mode().IsRegular() || i.Mode().Perm()&0077 != 0 {
+		return identity.Err(identity.Invalid, "unsafe maintenance file")
+	}
+	s, ok := i.Sys().(*syscall.Stat_t)
+	if !ok || os.Geteuid() != 0 && s.Uid != uint32(os.Geteuid()) {
+		return identity.Err(identity.Invalid, "maintenance owner mismatch")
+	}
+	return nil
+}

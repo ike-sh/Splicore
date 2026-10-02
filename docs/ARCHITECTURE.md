@@ -211,7 +211,7 @@ Both features remain Experimental. Phase 8 adds the official embedded Mieru adap
 ## Phase 8 owned native embedding
 
 Phase 8 is locally frozen under the [freeze report](reports/PHASE_8_FREEZE_REPORT.md).
-Mieru remains Experimental; Distribution / Phase 9 implementation has not started.
+Mieru remains Experimental; Phase 9 adds a distribution candidate for review.
 
 [Mieru](protocol/MIERU.md) registers a module/CreationCodec, MieruCompiler in the
 existing Native Engine, ClientProfile/exporters and Phase8 composition. Zero central
@@ -221,3 +221,13 @@ Splicore owns raw sockets, generations, identity and one attributed payload path
 Direct TCP/UDP egress is the bounded current adapter scope, with no configurable
 egress policy in RuntimeIntent. [ADR 0020](adr/0020-mieru-owned-native-embedding.md)
 records global logger/cache/metrics and shutdown constraints. No upstream runtime edits.
+
+## Phase 9 distribution boundary
+
+The [distribution contract](DISTRIBUTION.md) owns layout, package provenance and
+future NoBrand pinning. One hardened systemd unit uses a dedicated non-login user;
+SQLite and the original master key remain authoritative. Local package operations
+serialize separately from the runtime directory, snapshot a stopped database and
+replace files atomically. Optional Xray stays pinned and managed by the same child
+owner. Operations/diagnostics do not add protocol capability or wire behavior.
+[ADR 0021](adr/0021-linux-local-distribution.md) records these proposed decisions.

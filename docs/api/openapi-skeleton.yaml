@@ -1500,6 +1500,13 @@
           "dirty": {
             "type": "boolean",
             "description": "Source worktree had uncommitted changes when built."
+          },
+          "source_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "build_tags": {
+            "type": "string"
           }
         },
         "required": [

@@ -1,0 +1,57 @@
+name: Splicore Distribution Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      qualified_fixture_root:
+        description: Absolute pre-provisioned private fixture directory on the isolated Linux runner
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  distribution:
+    # Dedicated disposable qualification runner, with systemd/cgroup v2 and
+    # exact pinned Go/module/reference-client cache. Never a production host.
+    runs-on: [self-hosted, linux, x64, splicore-disposable]
+    timeout-minutes: 30
+    env:
+      GOPROXY: 'off'
+      GOSUMDB: 'off'
+      GOTOOLCHAIN: local
+      FIXTURES: ${{ inputs.qualified_fixture_root }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - name: Default race/checkptr and blocking secret tests
+        run: go test -race -tags with_quic,with_utls ./internal/splicore/... ./cmd/splicore
+      - name: Build all platforms twice and verify deterministic bytes
+        run: |
+          output="$RUNNER_TEMP/splicore-distribution-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          mkdir -m 700 "$output"
+          echo "OUTPUT=$output" >> "$GITHUB_ENV"
+          python3 scripts/splicore-package.py --output "$output/a" --epoch 1790899200
+          python3 scripts/splicore-package.py --output "$output/repeat" --epoch 1790899200
+          cmp "$output/a/update.json" "$output/repeat/update.json"
+          for file in "$output/a/"*.tar.gz "$output/a/"*.exe; do
+            cmp "$file" "$output/repeat/${file##*/}"
+          done
+          python3 scripts/splicore-package.py --output "$output/b" --epoch 1790899200 --version 0.0.0-dev.1 --platform linux/amd64
+      - name: Build private migration failure fixture
+        run: |
+          python3 scripts/splicore-migration-fixture.py --output "$OUTPUT/fault" \
+            --base-package "$OUTPUT/b/splicore-0.0.0-dev.1-linux-amd64.tar.gz"
+      - name: Actual isolated systemd install and upgrade smoke
+        run: |
+          a="$OUTPUT/a/splicore-0.0.0-dev-linux-amd64.tar.gz"
+          b="$OUTPUT/b/splicore-0.0.0-dev.1-linux-amd64.tar.gz"
+          fault="$OUTPUT/fault/fault-migration.tar.gz"
+          sudo --preserve-env=PATH python3 scripts/splicore-distribution-gate.py \
+            --output "$OUTPUT/service-lab" \
+            --package-a "$a" --sha256-a "$(sha256sum "$a" | cut -d ' ' -f 1)" \
+            --package-b "$b" --sha256-b "$(sha256sum "$b" | cut -d ' ' -f 1)" \
+            --fault-package "$fault" --sha256-fault "$(sha256sum "$fault" | cut -d ' ' -f 1)" \
+            --clients "$FIXTURES/clients" --xray "$FIXTURES/xray"
+      # Private evidence remains on the disposable runner for review. No upload,
+      # tag, release or publication step exists in this development gate.

@@ -13,6 +13,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/config"
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
 	"github.com/sagernet/sing-box/internal/splicore/engine/xray"
+	"github.com/sagernet/sing-box/internal/splicore/operations"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
 	"github.com/sagernet/sing-box/internal/splicore/registry"
 	"github.com/sagernet/sing-box/internal/splicore/secretvault"
@@ -90,6 +91,10 @@ func Serve(ctx context.Context, c config.Config) error {
 		case <-done:
 		}
 	}()
+	if err = operations.NotifyReady(); err != nil {
+		close(done)
+		return err
+	}
 	err = server.Serve(listener)
 	close(done)
 	if errors.Is(err, http.ErrServerClosed) {
