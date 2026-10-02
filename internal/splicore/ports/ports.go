@@ -42,6 +42,7 @@ const (
 	Surge   Format = "surge"
 	URI     Format = "uri"
 	JSON    Format = "json"
+	Xray    Format = "xray"
 )
 
 type TransportCapabilities struct {
@@ -83,12 +84,13 @@ type ClientCompatibility struct {
 	Evidence string
 }
 type Capabilities struct {
-	Transport TransportCapabilities
-	Identity  IdentityCapabilities
-	Policy    PolicyCapabilities
-	Mutation  MutationCapabilities
-	Security  SecurityCapabilities
-	Clients   []ClientCompatibility
+	Transport      TransportCapabilities
+	Identity       IdentityCapabilities
+	Policy         PolicyCapabilities
+	Mutation       MutationCapabilities
+	Security       SecurityCapabilities
+	Clients        []ClientCompatibility
+	EngineFeatures []EngineFeature
 }
 type ProtocolMetadata struct {
 	Key             access.ProtocolKey
@@ -110,9 +112,10 @@ type RuntimeIntent struct {
 	Revision          identity.Revision
 }
 type AuthorizedBinding struct {
-	Binding    access.Binding
-	Inbound    access.Inbound
-	Credential access.Credential
+	Binding                 access.Binding
+	Inbound                 access.Inbound
+	Credential              access.Credential
+	ClientSharedCredentials []access.Credential
 }
 type Protocol interface {
 	Metadata() ProtocolMetadata

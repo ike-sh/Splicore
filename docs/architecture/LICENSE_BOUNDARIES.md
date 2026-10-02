@@ -20,7 +20,7 @@ headers exactly; do not replace original copyright with Splicore copyright.
 |---|---|
 | sing-box derived source | Preserve GPL and notices, mark modifications, deliver required corresponding source and build/install material when conveying binaries. Product name is Splicore; no official sing-box or endorsement claim. |
 | Mieru embedded source/library | Research v3.38.0, commit `b961978c3be9dd26b94158487c760858e19d1db2`; its API headers state GPL-3.0-or-later and LICENSE includes GPLv3 text. Embedding entails retaining Mieru notices and qualifying linked dependencies before distribution. |
-| Xray external process | Official XTLS/Xray-core LICENSE is MPL-2.0. Keep executable/process boundary; retain its notices and satisfy covered-source duties for any Xray files modified/distributed. A fork supplying FinalMask/Sudoku needs its own provenance review. |
+| Xray external process | Official XTLS/Xray-core LICENSE is MPL-2.0. Keep executable/process boundary; retain its notices and satisfy covered-source duties for any Xray files modified/distributed. Phase 7 FinalMask/Sudoku use verified official v26.3.27; no fork or new artifact. MPL-2.0 and the existing external process boundary remain unchanged. |
 | Future protocol code | Record repo, exact commit, license, copied/modified files, transitive linked libraries, notices and source delivery requirements before accepting code. Reject missing or incompatible licensing. |
 | Go dependencies / copied stdlib | Inspect linked build graph and file headers, including BSD/Apache notices; root GPL label does not erase individual notices. |
 

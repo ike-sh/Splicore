@@ -81,7 +81,7 @@ Real canary/production rollout and stable qualification remain deferred.
 | B | `migration.hysteria2`, `migration.tuic` independently: QUIC/UDP/families/congestion/policy and endpoint checks |
 | C | `migration.vless_reality`: UUID/flow/SNI/public key/target and third-party compatibility |
 | D | `migration.mieru`: only after native Stage 3 and official-client gate |
-| Special | `engine.xray_compatibility`: FinalMask/Sudoku only with identified reference fork and child lifecycle/stats/policy gates |
+| Special | `vless` + `engine:xray`: audited official v26.3.27 FinalMask/Sudoku, bounded typed options and client/lifecycle gates |
 
 Defaults off until qualification; flags are Splicore/installer rollout selection,
 not hidden runtime bypasses. Track node/account/protocol migration state and source
@@ -149,4 +149,18 @@ to license/source obligations. They must inspect build support and node availabi
 and must never generate Xray runtime JSON, edit SQLite or create xray.service.
 Missing required engine fails unavailable without fallback. Strict policies remain
 unsupported; metadata-only policy is not enforcement. Vision is rejected on both
-engines; FinalMask/Sudoku are NOT IMPLEMENTED. Real NoBrand changes remain NONE.
+engines. FinalMask/Sudoku now use the bounded Phase 7 typed profile; see below.
+Real NoBrand changes remain NONE.
+
+## Audited Sudoku migration contract
+
+The read-only source audit found FinalMask TCP/Sudoku on official Xray v26.3.27;
+no fork is required. Splicore public input uses engine_options.finalmask.tcp with
+one type=sudoku, ascii=prefer_ascii, padding_min=0, padding_max=3. This maps to
+Xray streamSettings.finalmask.tcp with camelCase paddingMin/paddingMax internally.
+Import the exact existing 32 hex-character password through write-only top-level
+transport_secret.password; never hex-decode or change case. Keep UUID per Account
+and Binding. The shared seed is encrypted and inbound-owned. Authorized Xray
+26.3.27 JSON output includes it; other masked client formats reject. Production
+migration is DEFERRED; real NoBrand changes NONE. No config edit, install, scan
+or migration is performed in NoBrand. [Contract](../development/PHASE_7_XRAY_EXTENSIONS.md).

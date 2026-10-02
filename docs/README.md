@@ -11,7 +11,7 @@
 
 **Canonical** identifies the maintained source for a topic. It does not mean
 proposed functionality is implemented. Phase 0 establishes designs and baseline
-research; Phases 1–4 are locally frozen. Phase 2 implements experimental Snell with real
+research; Phases 0–7 are locally frozen. Phase 2 implements experimental Snell with real
 Mihomo/sing-box interoperability. Phase 3 adds experimental Hysteria2 with
 trusted-CA multi-user TCP/UDP interoperability; Phase 4 implements experimental TUIC v5 with shared TLS/QUIC and
 registered creation commands. Phase 5 adds a native VLESS/REALITY candidate with
@@ -45,7 +45,7 @@ README.md                           project introduction
 
 ## Architecture Decision Records
 
-[ADR index](adr/README.md) lists all 16 decisions and their individual status.
+[ADR index](adr/README.md) lists all 19 decisions and their individual status.
 ADR 0001 is accepted for Phase 0; 0002–0015 remain proposed for maintainer review.
 ADR 0016 records the foundation boundary; ADR 0017 defers Vision with explicit re-enable gates.
 Decision acceptance is separate from implementation and interoperability qualification.
@@ -165,3 +165,10 @@ this project's designs. Upstream documentation site configuration is unchanged.
 - [Phase 6 Xray workflow](development/PHASE_6_XRAY.md): pinned artifacts, dual placement and runtime gates.
 - [Xray owned child decision](adr/0018-xray-owned-child-engine.md): process/admission/artifact ownership.
 - [Phase 6 duality report](reports/PHASE_6_XRAY_ENGINE_DUALITY_REPORT.md): actual 40-cell acceptance, regressions and platform limits.
+
+## Phase 7 specialized Xray features
+
+- [Phase 7 workflow](development/PHASE_7_XRAY_EXTENSIONS.md): bounded typed FinalMask/Sudoku contract and reproducible managed gates.
+- [ADR 0019](adr/0019-xray-specialized-feature-boundary.md): unchanged official artifact, feature composition and secret ownership.
+- [Phase 7 report](reports/PHASE_7_XRAY_VLESS_EXTENSIONS_REPORT.md): actual managed traffic, regressions, gates and deferred qualification.
+- [Phase 7 freeze](reports/PHASE_7_FREEZE_REPORT.md): authorized local checkpoint, unchanged acceptance source and Phase 8 branch only.

@@ -5,10 +5,16 @@ modular, extensible server architecture as its target.
 
 ## Status
 
-**Early Development / Snell, Hysteria2, TUIC and VLESS Experimental.** Phases 0–6 are locally frozen.
+**Early Development / Snell, Hysteria2, TUIC and VLESS Experimental.** Phases 0–7 are locally frozen.
 Phase 6 native/Xray VLESS duality is **FROZEN**, with 40 actual client
 traffic cells and default race/checkptr gates passing. See the
 [Phase 6 report](docs/reports/PHASE_6_XRAY_ENGINE_DUALITY_REPORT.md).
+Phase 7 is **FROZEN**, with typed FinalMask/Sudoku options and the same pinned Xray child,
+shared credential vault and authorized Xray exporter. Scope: plain TCP, flow none,
+prefer_ascii, padding 0–3; masked UDP is NOT QUALIFIED, masked TLS/REALITY is UNSUPPORTED.
+See [Phase 7 workflow](docs/development/PHASE_7_XRAY_EXTENSIONS.md) and
+[freeze report](docs/reports/PHASE_7_FREEZE_REPORT.md). Both features remain Experimental.
+
 Phase 2 implements Snell v5/v6 using committed SQLite state, the existing sing-box
 data plane, payload stats, protected Linux API/CLI and client exporters. Pinned
 Mihomo and sing-box clients pass actual TCP/UDP tests. Surge has contract tests only.
@@ -66,7 +72,7 @@ Snell, Hysteria2, TUIC and VLESS have bounded experimental profiles. Other rows 
 | TUIC | Native: v5, static TLS, UUID/password, cubic/native UDP; experimental |
 | VLESS / REALITY | Native: TCP/XUDP, UUID, plain/static TLS/REALITY; experimental; Vision deferred/unsupported |
 | Mieru | Planned native integration |
-| FinalMask / Sudoku | Future Xray compatibility engine |
+| FinalMask / Sudoku | Xray v26.3.27: bounded plain TCP Sudoku mask; Experimental |
 
 Details and qualification gates: [protocol and engine index](docs/protocol/README.md).
 
@@ -120,7 +126,7 @@ and [Phase 5 report](docs/reports/PHASE_5_VLESS_REALITY_NATIVE_VERTICAL_SLICE_RE
 Phase 6 implements an Experimental owned external Xray child for the same
 ProtocolID `vless`, selected with EngineID `native` or `xray`. Account/Binding/UUID,
 ClientProfile and exporters stay shared. Vision is DEFERRED / UNSUPPORTED for both.
-FinalMask and Sudoku are NOT IMPLEMENTED. Xray stats and strict policy enforcement
+Phase 7 adds Experimental FinalMask with one bounded Sudoku TCP mask. Xray stats and strict policy enforcement
 remain deferred. See [workflow](docs/development/PHASE_6_XRAY.md),
 [process decision](docs/adr/0018-xray-owned-child-engine.md) and
 [acceptance report](docs/reports/PHASE_6_XRAY_ENGINE_DUALITY_REPORT.md).

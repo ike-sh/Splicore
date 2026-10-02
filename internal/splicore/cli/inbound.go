@@ -55,7 +55,7 @@ func inboundCLI(ctx context.Context, args []string, out, errOut io.Writer, deps 
 	if args[1] == "validate" {
 		b, e := boundedFile(*file)
 		if e == nil {
-			p, engines, _, er := registry.Phase6(xray.New(xray.Options{}))
+			p, engines, _, er := registry.Phase7(xray.New(xray.Options{}))
 			e = er
 			if e == nil {
 				_, e = p.DecodeCreation(engines, *protocol, b)

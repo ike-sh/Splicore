@@ -1418,7 +1418,8 @@
         "additionalProperties": false,
         "properties": {
           "code": {
-            "type": "string"
+            "type": "string",
+            "description": "Includes unsupported_engine_feature (422), unsupported_export (422), invalid (400), not_implemented (501); messages exclude supplied secrets."
           },
           "message": {
             "type": "string"
@@ -3475,7 +3476,8 @@
               "mihomo",
               "sing-box",
               "surge",
-              "uri"
+              "uri",
+              "xray"
             ]
           },
           "client_version": {
@@ -3488,7 +3490,7 @@
         "required": [
           "format"
         ],
-        "description": "binding_id required when multiple Bindings exist. Disabled/unavailable identities reject. URI accepts an omitted/empty client_version; pinned config clients require their exact version."
+        "description": "binding_id required when multiple Bindings exist. Disabled/unavailable identities reject. URI accepts an omitted/empty client_version; pinned config clients require their exact version. Xray JSON requires exactly 26.3.27 and plain TCP; only Xray supports the bounded Sudoku mask."
       },
       "ClientExportResult": {
         "type": "object",
@@ -3520,7 +3522,8 @@
               "sing-box-outbound",
               "surge-declaration",
               "mihomo-config-fragment",
-              "vless-uri"
+              "vless-uri",
+              "xray-outbound"
             ]
           }
         },
@@ -4024,6 +4027,12 @@
             "items": {
               "type": "string"
             }
+          },
+          "engine_features": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EngineFeature"
+            }
           }
         },
         "required": [
@@ -4149,6 +4158,9 @@
               },
               "packet_encoding": {
                 "const": "xudp"
+              },
+              "engine_options": {
+                "$ref": "#/components/schemas/VLESSEngineOptions"
               }
             },
             "required": [
@@ -4336,6 +4348,10 @@
               }
             },
             "required": []
+          },
+          "transport_secret": {
+            "$ref": "#/components/schemas/TransportSecret",
+            "writeOnly": true
           }
         },
         "required": [
@@ -4346,7 +4362,49 @@
           "settings",
           "users"
         ],
-        "description": "VLESS wire 0, independent native/xray engine placement, TCP/XUDP and typed security. No arbitrary transports or raw engine configuration. server_secret is allowed only for REALITY."
+        "description": "VLESS wire 0, independent native/xray engine placement, TCP/XUDP and typed security. No arbitrary transports or raw engine configuration. server_secret is allowed only for REALITY. Masked options require explicit engine=xray; transport_secret is only allowed with masked options. UDP unqualified for mask.",
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "settings": {
+                  "required": [
+                    "engine_options"
+                  ]
+                }
+              },
+              "required": [
+                "settings"
+              ]
+            },
+            "then": {
+              "properties": {
+                "engine": {
+                  "const": "xray"
+                }
+              },
+              "required": [
+                "engine"
+              ]
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "transport_secret"
+              ]
+            },
+            "then": {
+              "properties": {
+                "settings": {
+                  "required": [
+                    "engine_options"
+                  ]
+                }
+              }
+            }
+          }
+        ]
       },
       "VLESSPlan": {
         "$ref": "#/components/schemas/CreationPlan"
@@ -4382,6 +4440,12 @@
             "enum": [
               "manual"
             ]
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeatureAvailability"
+            }
           }
         },
         "required": [
@@ -4445,6 +4509,173 @@
           "config_artifact",
           "health",
           "discarded_log_bytes"
+        ]
+      },
+      "SudokuOptions": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "ascii": {
+            "const": "prefer_ascii"
+          },
+          "padding_min": {
+            "const": 0
+          },
+          "padding_max": {
+            "const": 3
+          }
+        },
+        "required": [
+          "ascii",
+          "padding_min",
+          "padding_max"
+        ]
+      },
+      "TCPMask": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "const": "sudoku"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/SudokuOptions"
+          }
+        },
+        "required": [
+          "type",
+          "settings"
+        ]
+      },
+      "FinalMaskOptions": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "tcp": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/TCPMask"
+            }
+          }
+        },
+        "required": [
+          "tcp"
+        ]
+      },
+      "VLESSEngineOptions": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "finalmask": {
+            "$ref": "#/components/schemas/FinalMaskOptions"
+          }
+        },
+        "required": [
+          "finalmask"
+        ]
+      },
+      "TransportSecret": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "password": {
+            "type": "string",
+            "pattern": "^[0-9A-Fa-f]{32}$",
+            "writeOnly": true,
+            "description": "Exact string seed; preserve case. Encrypted inbound-owned client-needed password."
+          }
+        },
+        "required": [
+          "password"
+        ]
+      },
+      "FeatureClient": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "client": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "support": {
+            "enum": [
+              "supported",
+              "unsupported",
+              "contract_only"
+            ]
+          }
+        },
+        "required": [
+          "client",
+          "support"
+        ]
+      },
+      "EngineFeature": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "enum": [
+              "finalmask",
+              "sudoku"
+            ]
+          },
+          "supported": {
+            "type": "boolean"
+          },
+          "transport": {
+            "const": "tcp"
+          },
+          "security": {
+            "const": "none"
+          },
+          "flow": {
+            "const": "none"
+          },
+          "udp_qualified": {
+            "type": "boolean"
+          },
+          "clients": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FeatureClient"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "supported",
+          "transport",
+          "security",
+          "flow",
+          "udp_qualified",
+          "clients"
+        ]
+      },
+      "FeatureAvailability": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "enum": [
+              "finalmask",
+              "sudoku"
+            ]
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "available"
         ]
       }
     },

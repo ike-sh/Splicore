@@ -8,13 +8,14 @@ import (
 
 // EngineStatus separates adapter compilation from a node's installed artifact.
 type EngineStatus struct {
-	Engine           string `json:"engine"`
-	Available        bool   `json:"available"`
-	ReferenceVersion string `json:"reference_version,omitempty"`
-	InstalledVersion string `json:"installed_version,omitempty"`
-	BinarySHA256     string `json:"binary_sha256,omitempty"`
-	Reason           string `json:"reason,omitempty"`
-	RestartPolicy    string `json:"restart_policy,omitempty"`
+	Engine           string                `json:"engine"`
+	Available        bool                  `json:"available"`
+	ReferenceVersion string                `json:"reference_version,omitempty"`
+	InstalledVersion string                `json:"installed_version,omitempty"`
+	BinarySHA256     string                `json:"binary_sha256,omitempty"`
+	Reason           string                `json:"reason,omitempty"`
+	RestartPolicy    string                `json:"restart_policy,omitempty"`
+	Features         []FeatureAvailability `json:"features,omitempty"`
 }
 type EngineAvailability interface {
 	ValidateAvailability(context.Context) error
@@ -40,6 +41,7 @@ type RuntimeObserver interface{ RuntimeStatus() RuntimeStatus }
 func EffectiveCapabilities(p, e Capabilities) Capabilities {
 	result := p
 	result.Clients = slices.Clone(p.Clients)
+	result.EngineFeatures = intersectFeatures(p.EngineFeatures, e.EngineFeatures)
 	result.Transport.TCP = p.Transport.TCP && e.Transport.TCP
 	result.Transport.UDPTransport = p.Transport.UDPTransport && e.Transport.UDPTransport
 	result.Transport.UDPPayload = p.Transport.UDPPayload && e.Transport.UDPPayload

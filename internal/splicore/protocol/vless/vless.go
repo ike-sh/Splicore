@@ -6,6 +6,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
+	"github.com/sagernet/sing-box/internal/splicore/transportmask"
 	"strings"
 )
 
@@ -30,7 +31,7 @@ func (m Module) Capabilities(c ports.CapabilityContext) ports.Capabilities {
 	if available {
 		mutation = ports.Restart
 	}
-	return ports.Capabilities{Transport: ports.TransportCapabilities{Kinds: []string{"tcp"}, TCP: available, UDPPayload: available, IPv4: available, IPv6: available, DomainEndpoint: available}, Identity: ports.IdentityCapabilities{MultiUserNative: available, PerUserStats: stats, AttributedPayload: support, NativeStats: support, StatsUnits: "authenticated routed payload bytes and sessions; runtime generation"}, Security: ports.SecurityCapabilities{TLS: available && m.Security != Plain, Reality: available && m.Security == Reality, Vision: false, Flows: flows}, Policy: ports.PolicyCapabilities{Quota: ports.Unsupported, SpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported}, Mutation: ports.MutationCapabilities{Users: mutation, Listener: ports.MutationUnavailable}, Clients: []ports.ClientCompatibility{}}
+	return ports.Capabilities{EngineFeatures: TransportFeatures(available && m.Security == Plain), Transport: ports.TransportCapabilities{Kinds: []string{"tcp"}, TCP: available, UDPPayload: available, IPv4: available, IPv6: available, DomainEndpoint: available}, Identity: ports.IdentityCapabilities{MultiUserNative: available, PerUserStats: stats, AttributedPayload: support, NativeStats: support, StatsUnits: "authenticated routed payload bytes and sessions; runtime generation"}, Security: ports.SecurityCapabilities{TLS: available && m.Security != Plain, Reality: available && m.Security == Reality, Vision: false, Flows: flows}, Policy: ports.PolicyCapabilities{Quota: ports.Unsupported, SpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported}, Mutation: ports.MutationCapabilities{Users: mutation, Listener: ports.MutationUnavailable}, Clients: []ports.ClientCompatibility{}}
 }
 func (m Module) ValidateInbound(i access.Inbound) error {
 	if err := i.Validate(); err != nil {
@@ -44,6 +45,9 @@ func (m Module) ValidateInbound(i access.Inbound) error {
 		return invalid()
 	}
 	// Engine-neutral protocol validation permits future registered implementations.
+	if s.EngineOptions != nil && i.Engine != "xray" {
+		return unsupportedFeature()
+	}
 	return nil
 }
 func (Module) ValidateCredential(c access.Credential) error {
@@ -97,6 +101,10 @@ func (m Module) BuildRuntime(_ context.Context, in ports.RuntimeIntent) (ports.R
 		if err != nil || pub != s.Reality.PublicKey {
 			return in, invalid()
 		}
+	} else if s, _ := Decode(in.Inbound.Settings.Data); s.EngineOptions != nil {
+		if _, err := sharedPassword(in.Inbound.ID, in.ServerCredentials); err != nil {
+			return in, err
+		}
 	} else if len(in.ServerCredentials) != 0 {
 		return in, invalid()
 	}
@@ -111,6 +119,16 @@ func (m Module) BuildClientProfile(_ context.Context, b ports.AuthorizedBinding)
 	}
 	s, _ := Decode(b.Inbound.Settings.Data)
 	p := clientprofile.Profile{ID: b.Binding.ID, Schema: 1, Protocol: Key(s.Security), Endpoint: b.Inbound.DisplayEndpoints[0].Endpoint, Credentials: b.Credential.Payload, Transport: clientprofile.Transport{Kind: "tcp"}, UDPPayload: true, Options: access.Settings{Schema: 1, Data: clientOptions(s)}, Metadata: identity.Metadata{}}
+	if s.EngineOptions != nil {
+		password, err := sharedPassword(b.Inbound.ID, b.ClientSharedCredentials)
+		if err != nil {
+			return clientprofile.Profile{}, err
+		}
+		p.TransportRequirements = &transportmask.ClientRequirements{Options: *s.EngineOptions, Password: password.Password}
+		p.UDPPayload = false // Masked UDP/XUDP is not qualified by this bounded phase.
+	} else if len(b.ClientSharedCredentials) != 0 {
+		return clientprofile.Profile{}, invalid()
+	}
 	if s.Security == TLS {
 		p.TLS = clientprofile.TLS{Enabled: true, ServerName: s.TLS.ServerName, Trust: "explicit_ca", CACertificate: s.TLS.CACertificate}
 	}
@@ -118,4 +136,16 @@ func (m Module) BuildClientProfile(_ context.Context, b ports.AuthorizedBinding)
 		p.TLS = clientprofile.TLS{Enabled: true, ServerName: s.Reality.ServerName, Trust: "reality", RealityPublicKey: string(s.Reality.PublicKey), RealityShortID: string(s.Reality.ShortIDs[0])}
 	}
 	return p, p.Validate()
+}
+
+func sharedPassword(id identity.ID, credentials []access.Credential) (access.PasswordPayload, error) {
+	if len(credentials) != 1 {
+		return access.PasswordPayload{}, invalid()
+	}
+	c := credentials[0]
+	p, ok := c.Payload.(access.PasswordPayload)
+	if !ok || c.Kind != access.Password || c.Validate() != nil || c.State != "active" || c.OwnerInboundID == nil || *c.OwnerInboundID != id || transportmask.ValidatePassword(p.Password) != nil {
+		return access.PasswordPayload{}, invalid()
+	}
+	return p, nil
 }

@@ -112,6 +112,9 @@ func writeError(w http.ResponseWriter, err error) {
 		case identity.UnsupportedPolicyForEngine:
 			status = http.StatusUnprocessableEntity
 			message = "unsupported policy for engine"
+		case identity.UnsupportedEngineFeature:
+			status = http.StatusUnprocessableEntity
+			message = "unsupported engine feature combination"
 		case identity.PortConflict:
 			status = http.StatusConflict
 			message = "listener port is already in use"

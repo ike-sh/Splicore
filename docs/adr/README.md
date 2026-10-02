@@ -38,3 +38,5 @@ See [documentation policy](../DOCUMENTATION_POLICY.md) and the
 - [0017: Defer Vision due to dependency safety](0017-defer-vision-dependency-safety.md): accepted for the Phase 5 candidate.
 
 - [0018: Owned Xray compatibility engine](0018-xray-owned-child-engine.md): accepted for the Experimental Phase 6 local freeze.
+
+- [0019: Xray specialized feature boundary](0019-xray-specialized-feature-boundary.md): accepted for the Experimental Phase 7 local freeze, official source and shared transport secret scope.

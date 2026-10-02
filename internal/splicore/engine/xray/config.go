@@ -44,10 +44,24 @@ type client struct {
 	Email string `json:"email"`
 }
 type streamConfig struct {
-	Network  string         `json:"network"`
-	Security string         `json:"security"`
-	Reality  *realityConfig `json:"realitySettings,omitempty"`
-	TLS      *tlsConfig     `json:"tlsSettings,omitempty"`
+	Network   string           `json:"network"`
+	Security  string           `json:"security"`
+	Reality   *realityConfig   `json:"realitySettings,omitempty"`
+	TLS       *tlsConfig       `json:"tlsSettings,omitempty"`
+	FinalMask *finalMaskConfig `json:"finalmask,omitempty"`
+}
+type finalMaskConfig struct {
+	TCP []tcpMaskConfig `json:"tcp"`
+}
+type tcpMaskConfig struct {
+	Type     string       `json:"type"`
+	Settings sudokuConfig `json:"settings"`
+}
+type sudokuConfig struct {
+	Password   string `json:"password"`
+	ASCII      string `json:"ascii"`
+	PaddingMin int    `json:"paddingMin"`
+	PaddingMax int    `json:"paddingMax"`
 }
 type realityConfig struct {
 	Target      string   `json:"target"`
@@ -93,6 +107,12 @@ func render(in ports.RuntimeIntent, endpoint access.Endpoint) ([]byte, error) {
 		Settings: userConfig{Clients: []client{}, Decryption: "none"}, Stream: streamConfig{Network: "raw", Security: string(s.Security)}}
 	for n, b := range in.Bindings {
 		node.Settings.Clients = append(node.Settings.Clients, client{ID: in.Credentials[n].Payload.(access.UUIDPayload).UUID.Reveal(), Email: string(b.ID)})
+	}
+	if s.EngineOptions != nil {
+		mask := s.EngineOptions.FinalMask.TCP[0]
+		password := in.ServerCredentials[0].Payload.(access.PasswordPayload).Password.Reveal()
+		node.Stream.FinalMask = &finalMaskConfig{TCP: []tcpMaskConfig{{Type: mask.Type, Settings: sudokuConfig{
+			Password: password, ASCII: mask.Settings.ASCII, PaddingMin: mask.Settings.PaddingMin, PaddingMax: mask.Settings.PaddingMax}}}}
 	}
 	if s.Security == v.Reality {
 		ids := make([]string, len(s.Reality.ShortIDs))

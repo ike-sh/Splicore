@@ -7,11 +7,11 @@
 - Responsibility: Overall boundaries, dependency direction, invariants and implementation gates.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-## Current Phase 6 frozen implementation
+## Current Phase 7 frozen implementation
 
 The Account → Binding → Credential → Inbound → Native Engine → stats → ClientProfile/export
 path supports experimental Snell v5/v6, Hysteria2, TUIC v5 and native VLESS/REALITY.
-Phases 0–6 are locally frozen; Phase 5 supports flow-none VLESS/REALITY. Vision
+Phases 0–7 are locally frozen; Phase 5 supports flow-none VLESS/REALITY. Vision
 is DEFERRED / UNSUPPORTED and rejected before runtime construction or export. HY2 adds generic encrypted
 passwords, multiple Bindings, static TLS and owned QUIC/UDP admission. One Native
 Engine dispatches protocol compilers; exporters dispatch protocol keys. Create
@@ -157,7 +157,7 @@ runtime compensation and full audit persistence. The combined registry package
 avoids empty per-protocol directories; real adapters can be split when introduced.
 It does not automatically qualify all protocols. Public stable support requires
 third-party traffic tests and usable policy enforcement. Mieru, Panel, new wire
-protocols, FinalMask and Sudoku remain deferred. The Phase 6 external supervisor
+protocols remain deferred. FinalMask/Sudoku use the bounded Phase 7 feature contract. The Phase 6 external supervisor
 is described below.
 
 ## Phase 5 fourth-protocol realization
@@ -193,3 +193,18 @@ Start/Health/Commit/Activate lifecycle also governs the child: Splicore owns the
 public TCP gate and forwards unchanged bytes to its private loopback listener.
 Artifact permissions, process ownership, failure handling, node availability and
 unsupported stats/policy limits follow [ADR 0018](adr/0018-xray-owned-child-engine.md).
+
+## Phase 7 specialized feature realization
+
+[Phase7 composition](../internal/splicore/registry/phase7.go) reuses Phase6 and adds
+the existing VLESS exporter for Xray client JSON. Typed transport requirements and
+engine features remain outside Account/Binding/Endpoint. Generic settings JSON and
+encrypted inbound Password reuse existing storage; no migration. Feature validation
+precedes artifact probing and pending. Runtime compile snapshots config bytes and
+uses the original child supervisor, admission and recovery. A narrow client secret
+port authorizes password projection while excluding server private keys before
+decryption. No new protocol ID, central protocol switch, engine exporter branch,
+supervisor or wire implementation. [ADR 0019](adr/0019-xray-specialized-feature-boundary.md).
+
+Phase 7 is locally frozen under the [freeze report](reports/PHASE_7_FREEZE_REPORT.md).
+Both features remain Experimental. Phase 8 branch creation adds no Mieru implementation.

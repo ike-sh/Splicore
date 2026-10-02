@@ -139,7 +139,14 @@ func (s *Service) ExportClient(ctx context.Context, id identity.ID, req ExportRe
 	if e != nil {
 		return ExportResult{}, e
 	}
-	profile, e := p.BuildClientProfile(ctx, ports.AuthorizedBinding{Inbound: i, Binding: b, Credential: c})
+	authorized := ports.AuthorizedBinding{Inbound: i, Binding: b, Credential: c}
+	if secrets, ok := r.repo.(ports.ClientSharedSecretRepository); ok {
+		authorized.ClientSharedCredentials, e = secrets.RevealClientSharedCredentials(ctx, i.ID)
+		if e != nil {
+			return ExportResult{}, e
+		}
+	}
+	profile, e := p.BuildClientProfile(ctx, authorized)
 	if e != nil {
 		return ExportResult{}, e
 	}

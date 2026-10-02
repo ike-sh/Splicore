@@ -25,6 +25,7 @@ const (
 	UnsupportedExport            Code = "unsupported_export"
 	UnsupportedEngineForProtocol Code = "unsupported_engine_for_protocol"
 	UnsupportedPolicyForEngine   Code = "unsupported_policy_for_engine"
+	UnsupportedEngineFeature     Code = "unsupported_engine_feature"
 	PortConflict                 Code = "port_conflict"
 	Unavailable                  Code = "unavailable"
 	Corrupt                      Code = "corrupt_state"

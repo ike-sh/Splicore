@@ -16,6 +16,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
+	v "github.com/sagernet/sing-box/internal/splicore/protocol/vless"
 )
 
 const ReferenceVersion = "26.3.27"
@@ -54,15 +55,25 @@ func (*Engine) Metadata() ports.EngineMetadata {
 }
 func (*Engine) Capabilities() ports.Capabilities {
 	return ports.Capabilities{
-		Transport: ports.TransportCapabilities{Kinds: []string{"tcp"}, TCP: true, UDPPayload: true, IPv4: true, IPv6: true, DomainEndpoint: true},
-		Security:  ports.SecurityCapabilities{TLS: true, Reality: true, Flows: []string{"none"}},
-		Identity:  ports.IdentityCapabilities{MultiUserNative: true, NativeStats: ports.Unsupported, AttributedPayload: ports.Unsupported},
-		Policy:    ports.PolicyCapabilities{Quota: ports.Unsupported, SpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported},
-		Mutation:  ports.MutationCapabilities{Users: ports.Restart, Listener: ports.MutationUnavailable},
+		EngineFeatures: v.TransportFeatures(binaryDigest() != ""),
+		Transport:      ports.TransportCapabilities{Kinds: []string{"tcp"}, TCP: true, UDPPayload: true, IPv4: true, IPv6: true, DomainEndpoint: true},
+		Security:       ports.SecurityCapabilities{TLS: true, Reality: true, Flows: []string{"none"}},
+		Identity:       ports.IdentityCapabilities{MultiUserNative: true, NativeStats: ports.Unsupported, AttributedPayload: ports.Unsupported},
+		Policy:         ports.PolicyCapabilities{Quota: ports.Unsupported, SpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported},
+		Mutation:       ports.MutationCapabilities{Users: ports.Restart, Listener: ports.MutationUnavailable},
 	}
 }
-func (e *Engine) Status() ports.EngineStatus { e.mu.Lock(); defer e.mu.Unlock(); return e.status }
-func (e *Engine) Version() string            { return e.Status().InstalledVersion }
+func (e *Engine) Status() ports.EngineStatus {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	status := e.status
+	status.Features = featureAvailability(status.Available, status.Reason)
+	return status
+}
+func featureAvailability(available bool, reason string) []ports.FeatureAvailability {
+	return []ports.FeatureAvailability{{ID: "finalmask", Available: available, Reason: reason}, {ID: "sudoku", Available: available, Reason: reason}}
+}
+func (e *Engine) Version() string { return e.Status().InstalledVersion }
 func (e *Engine) ValidateAvailability(ctx context.Context) error {
 	status := ports.EngineStatus{Engine: "xray", ReferenceVersion: ReferenceVersion, RestartPolicy: "manual"}
 	reason := e.inspect(ctx, &status)

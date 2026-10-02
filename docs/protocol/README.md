@@ -35,8 +35,9 @@ no mass file relocation is needed.
 - [Runtime lifecycle](../architecture/RUNTIME_LIFECYCLE.md): handles, listener ownership and future children.
 - [Security boundaries](../architecture/SECURITY_BOUNDARIES.md): secrets, bounded inputs and executable trust.
 
-FinalMask/Sudoku remain future compatibility profiles requiring exact fork/spec
-provenance. They are not assumed capabilities of stock Xray. Mieru research
+FinalMask/Sudoku are Experimental engine features of existing vless/xray, using
+verified official v26.3.27. Only the bounded plain TCP Sudoku profile is exposed;
+see [Phase 7](../development/PHASE_7_XRAY_EXTENSIONS.md). Mieru research
 does not qualify user updates, complete shutdown or strict policy hooks.
 
 ## Decisions and review

@@ -39,7 +39,7 @@ func Serve(ctx context.Context, c config.Config) error {
 	// Missing optional artifacts remain a node availability result. Restoration
 	// of a committed xray inbound fails explicitly in EnableRuntime.
 	_ = xrayEngine.ValidateAvailability(ctx)
-	p, e, x, err := registry.Phase6(xrayEngine)
+	p, e, x, err := registry.Phase7(xrayEngine)
 	if err != nil {
 		return err
 	}

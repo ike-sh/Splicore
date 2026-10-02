@@ -99,4 +99,8 @@ The frozen profile remains Experimental; further implementation requires new sco
 ## Current Phase 5
 
 [Workflow](PHASE_5_VLESS.md), [support](../protocol/VLESS.md) and [report](../reports/PHASE_5_FINAL_ACCEPTANCE_REPORT.md)
-own the native flow-none VLESS/REALITY candidate and Vision rejection gates. No stage/commit/push/tag/release.
+own the frozen native flow-none VLESS/REALITY scope and Vision rejection gates.
+Subsequent checkpoints follow their explicit freeze authorization; push/tag/release remain NONE.
+
+- [Phase 7 Xray extensions](PHASE_7_XRAY_EXTENSIONS.md): managed FinalMask/Sudoku contract, acceptance and limits.
+- [Phase 7 freeze](../reports/PHASE_7_FREEZE_REPORT.md): local checkpoint and clean Phase 8 branch; Mieru NOT STARTED.

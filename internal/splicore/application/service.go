@@ -45,29 +45,30 @@ type Foundation struct {
 
 // Features is a typed wire projection of grouped internal capabilities.
 type Features struct {
-	Implementation      string         `json:"implementation"`
-	TCP                 bool           `json:"tcp"`
-	UDPTransport        bool           `json:"udp_transport"`
-	UDPPayload          bool           `json:"udp_payload"`
-	IPv4                bool           `json:"ipv4"`
-	IPv6                bool           `json:"ipv6"`
-	DomainEndpoint      bool           `json:"domain_endpoint"`
-	NativeMultiUser     bool           `json:"multi_user_native"`
-	NativeStats         ports.Support  `json:"native_stats"`
-	PerUserStats        bool           `json:"per_user_stats"`
-	HotUserUpdate       bool           `json:"hot_user_update"`
-	AttributedPayload   ports.Support  `json:"attributed_payload"`
-	NativeQuota         ports.Support  `json:"quota"`
-	NativeSpeedLimit    ports.Support  `json:"speed_limit"`
-	MaxSessions         ports.Support  `json:"max_sessions"`
-	UserMutation        ports.Mutation `json:"user_mutation"`
-	ListenerMutation    ports.Mutation `json:"listener_mutation"`
-	HotReload           bool           `json:"hot_reload"`
-	TLS                 bool           `json:"tls"`
-	Reality             bool           `json:"reality"`
-	Vision              bool           `json:"vision"`
-	SupportedFlows      []string       `json:"supported_flows,omitempty"`
-	SupportedTransports []string       `json:"supported_transports,omitempty"`
+	Implementation      string                `json:"implementation"`
+	TCP                 bool                  `json:"tcp"`
+	UDPTransport        bool                  `json:"udp_transport"`
+	UDPPayload          bool                  `json:"udp_payload"`
+	IPv4                bool                  `json:"ipv4"`
+	IPv6                bool                  `json:"ipv6"`
+	DomainEndpoint      bool                  `json:"domain_endpoint"`
+	NativeMultiUser     bool                  `json:"multi_user_native"`
+	NativeStats         ports.Support         `json:"native_stats"`
+	PerUserStats        bool                  `json:"per_user_stats"`
+	HotUserUpdate       bool                  `json:"hot_user_update"`
+	AttributedPayload   ports.Support         `json:"attributed_payload"`
+	NativeQuota         ports.Support         `json:"quota"`
+	NativeSpeedLimit    ports.Support         `json:"speed_limit"`
+	MaxSessions         ports.Support         `json:"max_sessions"`
+	UserMutation        ports.Mutation        `json:"user_mutation"`
+	ListenerMutation    ports.Mutation        `json:"listener_mutation"`
+	HotReload           bool                  `json:"hot_reload"`
+	TLS                 bool                  `json:"tls"`
+	Reality             bool                  `json:"reality"`
+	Vision              bool                  `json:"vision"`
+	SupportedFlows      []string              `json:"supported_flows,omitempty"`
+	SupportedTransports []string              `json:"supported_transports,omitempty"`
+	EngineFeatures      []ports.EngineFeature `json:"engine_features,omitempty"`
 }
 type QualifiedClient struct {
 	Client   string `json:"client"`
@@ -216,7 +217,7 @@ func (s *Service) Capabilities(ctx context.Context, cursor string, limit int) (C
 				clients = append(clients, QualifiedClient{q.Client, q.Version, q.Evidence})
 			}
 		}
-		page.Items = append(page.Items, Capability{Protocol: key.Protocol, WireVersion: key.WireVersion, FeatureProfile: key.FeatureProfile, Availability: m.Availability, Qualification: m.Qualification, Features: Features{Implementation: implementation(m.Qualification), TCP: c.Transport.TCP, UDPTransport: c.Transport.UDPTransport, UDPPayload: c.Transport.UDPPayload, IPv4: c.Transport.IPv4, IPv6: c.Transport.IPv6, DomainEndpoint: c.Transport.DomainEndpoint, NativeMultiUser: c.Identity.MultiUserNative, NativeStats: c.Identity.NativeStats, PerUserStats: c.Identity.PerUserStats, HotUserUpdate: c.Mutation.Users == ports.Hot, AttributedPayload: c.Identity.AttributedPayload, NativeQuota: c.Policy.Quota, NativeSpeedLimit: c.Policy.SpeedLimit, MaxSessions: c.Policy.MaxSessions, UserMutation: c.Mutation.Users, ListenerMutation: c.Mutation.Listener, HotReload: c.Mutation.HotReload, TLS: c.Security.TLS, Reality: c.Security.Reality, Vision: c.Security.Vision, SupportedFlows: c.Security.Flows, SupportedTransports: c.Transport.Kinds}, QualifiedClients: clients})
+		page.Items = append(page.Items, Capability{Protocol: key.Protocol, WireVersion: key.WireVersion, FeatureProfile: key.FeatureProfile, Availability: m.Availability, Qualification: m.Qualification, Features: Features{Implementation: implementation(m.Qualification), TCP: c.Transport.TCP, UDPTransport: c.Transport.UDPTransport, UDPPayload: c.Transport.UDPPayload, IPv4: c.Transport.IPv4, IPv6: c.Transport.IPv6, DomainEndpoint: c.Transport.DomainEndpoint, NativeMultiUser: c.Identity.MultiUserNative, NativeStats: c.Identity.NativeStats, PerUserStats: c.Identity.PerUserStats, HotUserUpdate: c.Mutation.Users == ports.Hot, AttributedPayload: c.Identity.AttributedPayload, NativeQuota: c.Policy.Quota, NativeSpeedLimit: c.Policy.SpeedLimit, MaxSessions: c.Policy.MaxSessions, UserMutation: c.Mutation.Users, ListenerMutation: c.Mutation.Listener, HotReload: c.Mutation.HotReload, TLS: c.Security.TLS, Reality: c.Security.Reality, Vision: c.Security.Vision, SupportedFlows: c.Security.Flows, SupportedTransports: c.Transport.Kinds, EngineFeatures: ports.CloneFeatures(c.EngineFeatures)}, QualifiedClients: clients})
 		item := &page.Items[len(page.Items)-1]
 		item.EngineImplementations = []EngineImplementation{}
 		for _, engine := range s.engines.Implementations(key.Protocol) {
@@ -228,7 +229,7 @@ func (s *Service) Capabilities(ctx context.Context, cursor string, limit int) (C
 			}
 			features := Features{Implementation: "placeholder", NativeStats: ports.Unsupported, AttributedPayload: ports.Unsupported, NativeQuota: ports.Unsupported, NativeSpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported, UserMutation: ports.MutationUnavailable, ListenerMutation: ports.MutationUnavailable}
 			if availability == ports.Compiled && engine.RuntimeImplemented {
-				features = Features{Implementation: engine.ID, TCP: cap.Transport.TCP, UDPTransport: cap.Transport.UDPTransport, UDPPayload: cap.Transport.UDPPayload, IPv4: cap.Transport.IPv4, IPv6: cap.Transport.IPv6, DomainEndpoint: cap.Transport.DomainEndpoint, NativeMultiUser: cap.Identity.MultiUserNative, NativeStats: cap.Identity.NativeStats, PerUserStats: cap.Identity.PerUserStats, HotUserUpdate: cap.Mutation.Users == ports.Hot, AttributedPayload: cap.Identity.AttributedPayload, NativeQuota: cap.Policy.Quota, NativeSpeedLimit: cap.Policy.SpeedLimit, MaxSessions: cap.Policy.MaxSessions, UserMutation: cap.Mutation.Users, ListenerMutation: cap.Mutation.Listener, HotReload: cap.Mutation.HotReload, TLS: cap.Security.TLS, Reality: cap.Security.Reality, Vision: cap.Security.Vision, SupportedFlows: cap.Security.Flows, SupportedTransports: cap.Transport.Kinds}
+				features = Features{Implementation: engine.ID, TCP: cap.Transport.TCP, UDPTransport: cap.Transport.UDPTransport, UDPPayload: cap.Transport.UDPPayload, IPv4: cap.Transport.IPv4, IPv6: cap.Transport.IPv6, DomainEndpoint: cap.Transport.DomainEndpoint, NativeMultiUser: cap.Identity.MultiUserNative, NativeStats: cap.Identity.NativeStats, PerUserStats: cap.Identity.PerUserStats, HotUserUpdate: cap.Mutation.Users == ports.Hot, AttributedPayload: cap.Identity.AttributedPayload, NativeQuota: cap.Policy.Quota, NativeSpeedLimit: cap.Policy.SpeedLimit, MaxSessions: cap.Policy.MaxSessions, UserMutation: cap.Mutation.Users, ListenerMutation: cap.Mutation.Listener, HotReload: cap.Mutation.HotReload, TLS: cap.Security.TLS, Reality: cap.Security.Reality, Vision: cap.Security.Vision, SupportedFlows: cap.Security.Flows, SupportedTransports: cap.Transport.Kinds, EngineFeatures: ports.CloneFeatures(cap.EngineFeatures)}
 			}
 			item.EngineImplementations = append(item.EngineImplementations, EngineImplementation{Engine: engine.ID, Availability: availability, RuntimeImplemented: engine.RuntimeImplemented && availability == ports.Compiled, Features: features, NodeStatus: engineStatus(adapter)})
 		}
@@ -292,6 +293,13 @@ func (s *Service) Doctor(ctx context.Context, transport string) (Doctor, error) 
 			detail += " reference=" + engine.ReferenceVersion
 		}
 		d.Checks = append(d.Checks, Check{"engine_" + engine.Engine, status, detail})
+		for _, feature := range engine.Features {
+			featureStatus := "unavailable"
+			if feature.Available {
+				featureStatus = "pass"
+			}
+			d.Checks = append(d.Checks, Check{"engine_" + engine.Engine + "_feature_" + feature.ID, featureStatus, feature.Reason})
+		}
 	}
 	return d, nil
 }

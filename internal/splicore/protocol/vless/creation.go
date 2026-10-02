@@ -7,19 +7,21 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/secret"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
 	"github.com/sagernet/sing-box/internal/splicore/protocol/creation"
+	"github.com/sagernet/sing-box/internal/splicore/transportmask"
 	"strings"
 )
 
 func (Module) DecodeCreation(b json.RawMessage) (ports.CreationDraft, error) {
 	var w struct {
-		Schema       int             `json:"schema"`
-		Name         string          `json:"name"`
-		Listener     access.Endpoint `json:"listener"`
-		Display      access.Endpoint `json:"display_endpoint"`
-		Settings     json.RawMessage `json:"settings"`
-		PolicyMode   string          `json:"policy_mode,omitempty"`
-		ServerSecret json.RawMessage `json:"server_secret,omitempty"`
-		Users        []struct {
+		Schema          int             `json:"schema"`
+		Name            string          `json:"name"`
+		Listener        access.Endpoint `json:"listener"`
+		Display         access.Endpoint `json:"display_endpoint"`
+		Settings        json.RawMessage `json:"settings"`
+		PolicyMode      string          `json:"policy_mode,omitempty"`
+		ServerSecret    json.RawMessage `json:"server_secret,omitempty"`
+		TransportSecret json.RawMessage `json:"transport_secret,omitempty"`
+		Users           []struct {
 			Name           string             `json:"account_name"`
 			Enabled        creation.Flag      `json:"enabled,omitempty"`
 			AccountEnabled creation.Flag      `json:"account_enabled,omitempty"`
@@ -63,6 +65,29 @@ func (Module) DecodeCreation(b json.RawMessage) (ports.CreationDraft, error) {
 			}
 			s.Reality.PublicKey = pub
 		} else if s.Reality.PublicKey != "" {
+			return d, invalid()
+		}
+		d.ServerPayloads = []access.Payload{p}
+	}
+	if s.EngineOptions == nil && len(w.TransportSecret) != 0 {
+		return d, invalid()
+	}
+	if s.EngineOptions != nil {
+		var input struct {
+			Password json.RawMessage `json:"password"`
+		}
+		if len(w.TransportSecret) != 0 && (string(w.TransportSecret) == "null" || creation.Decode(w.TransportSecret, &input) != nil) {
+			return d, invalid()
+		}
+		value := ""
+		if len(w.TransportSecret) != 0 {
+			value, err = creation.RawField(input.Password)
+			if err != nil || value == "" {
+				return d, invalid()
+			}
+		}
+		p := access.PasswordPayload{Password: secret.New(value)}
+		if value != "" && transportmask.ValidatePassword(p.Password) != nil {
 			return d, invalid()
 		}
 		d.ServerPayloads = []access.Payload{p}
@@ -111,6 +136,28 @@ func (Module) MaterializeCreation(d ports.CreationDraft) (ports.CreationDraft, e
 		return d, err
 	}
 	if s.Security != Reality {
+		if s.EngineOptions != nil {
+			if err := (Module{}).ValidateEngineFeatures(d); err != nil {
+				return d, err
+			}
+			if len(d.ServerPayloads) != 1 {
+				return d, invalid()
+			}
+			p, ok := d.ServerPayloads[0].(access.PasswordPayload)
+			if !ok {
+				return d, invalid()
+			}
+			if p.Password.Empty() {
+				p.Password, err = transportmask.GeneratePassword()
+			}
+			if err != nil {
+				return d, err
+			}
+			if transportmask.ValidatePassword(p.Password) != nil {
+				return d, invalid()
+			}
+			d.ServerPayloads = []access.Payload{p}
+		}
 		return d, nil
 	}
 	if len(d.ServerPayloads) != 1 {
@@ -133,4 +180,29 @@ func (Module) MaterializeCreation(d ports.CreationDraft) (ports.CreationDraft, e
 	d.Settings, _ = json.Marshal(s)
 	d.ServerPayloads = []access.Payload{p}
 	return d, nil
+}
+
+func unsupportedFeature() error {
+	return identity.Err(identity.UnsupportedEngineFeature, "unsupported engine feature combination")
+}
+func (Module) ValidateEngineFeatures(d ports.CreationDraft) error {
+	var selection struct {
+		EngineOptions json.RawMessage `json:"engine_options"`
+	}
+	if len(d.Settings) > 16384 || json.Unmarshal(d.Settings, &selection) != nil {
+		return invalid()
+	}
+	// Leave base-protocol validation at its existing boundaries. This additional
+	// gate only handles an explicitly selected engine feature.
+	if len(selection.EngineOptions) == 0 {
+		return nil
+	}
+	s, err := decode(d.Settings, false)
+	if err != nil {
+		return err
+	}
+	if s.EngineOptions != nil && d.Engine != "xray" {
+		return unsupportedFeature()
+	}
+	return nil
 }

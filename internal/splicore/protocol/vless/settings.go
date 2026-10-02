@@ -14,6 +14,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/secret"
 	"github.com/sagernet/sing-box/internal/splicore/jsonstrict"
 	"github.com/sagernet/sing-box/internal/splicore/tlsconfig"
+	"github.com/sagernet/sing-box/internal/splicore/transportmask"
 	"strings"
 )
 
@@ -71,12 +72,13 @@ type RealitySettings struct {
 	Target     access.Endpoint `json:"target"`
 }
 type Settings struct {
-	Security       Security            `json:"security"`
-	Flow           Flow                `json:"flow"`
-	Transport      string              `json:"transport"`
-	PacketEncoding string              `json:"packet_encoding"`
-	TLS            *tlsconfig.Settings `json:"tls,omitempty"`
-	Reality        *RealitySettings    `json:"reality,omitempty"`
+	Security       Security               `json:"security"`
+	Flow           Flow                   `json:"flow"`
+	Transport      string                 `json:"transport"`
+	PacketEncoding string                 `json:"packet_encoding"`
+	TLS            *tlsconfig.Settings    `json:"tls,omitempty"`
+	Reality        *RealitySettings       `json:"reality,omitempty"`
+	EngineOptions  *transportmask.Options `json:"engine_options,omitempty"`
 }
 
 func (Settings) Format(s fmt.State, v rune) { _, _ = s.Write([]byte("VLESSSettings{[REDACTED]}")) }
@@ -143,6 +145,14 @@ func validateSettings(s Settings, publicRequired bool) error {
 	if s.Transport != "tcp" || s.PacketEncoding != "xudp" {
 		return invalid()
 	}
+	if s.EngineOptions != nil {
+		if err := s.EngineOptions.Validate(); err != nil {
+			return err
+		}
+		if s.Security != Plain {
+			return unsupportedFeature()
+		}
+	}
 	switch s.Security {
 	case Plain:
 		if s.TLS != nil || s.Reality != nil || s.Flow != NoFlow {
@@ -180,6 +190,11 @@ func validateSettings(s Settings, publicRequired bool) error {
 func decode(b []byte, publicRequired bool) (Settings, error) {
 	var s Settings
 	if len(b) > 16384 || jsonstrict.Decode(b, &s) != nil {
+		return Settings{}, invalid()
+	}
+	var fields map[string]json.RawMessage
+	_ = json.Unmarshal(b, &fields)
+	if raw, ok := fields["engine_options"]; ok && string(raw) == "null" {
 		return Settings{}, invalid()
 	}
 	if err := validateSettings(s, publicRequired); err != nil {

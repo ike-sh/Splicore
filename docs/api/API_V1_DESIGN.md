@@ -99,3 +99,18 @@ cross-protocol replay rejects. TUIC UUID/password supplied together or omitted t
 generate; account_enabled:false disables Account at creation, enabled:false Binding.
 Metadata omits both secrets; explicit export returns them. No HTTP runtime import.
 [OpenAPI](openapi-skeleton.yaml) and [TUIC](../protocol/TUIC.md) own exact contracts.
+
+## Phase 7 engine features
+
+Existing registered VLESS validate/plan/apply accepts typed settings.engine_options
+for one FinalMask TCP Sudoku mask: plain/flow-none/prefer_ascii/padding0–3, engine=xray.
+Native/TLS/REALITY reject unsupported_engine_feature (422); Vision remains
+not_implemented (501), malformed/unknown/null fields invalid (400). Rejection is
+before availability, secret materialization and pending. No raw Xray config API.
+Optional write-only transport_secret.password imports the exact shared seed;
+omission generates. Ordinary responses omit it. Authorized format=xray, version
+26.3.27 export returns sensitive xray-outbound content. Masked other formats reject
+unsupported_export (422). Capabilities expose engine_features with scope and client
+support; node_status.features/System engine features report last artifact availability.
+Doctor adds safe feature checks. No endpoints or Account/Binding schema changes.
+[Workflow](../development/PHASE_7_XRAY_EXTENSIONS.md) and OpenAPI own exact fields.

@@ -55,5 +55,10 @@ func (p *Protocols) DecodeCreation(engines *Engines, protocol string, b json.Raw
 		return d, identity.Err(identity.NotImplemented, "selected engine implementation unavailable")
 	}
 	d.Engine = engine
+	if validator, ok := codec.(ports.EngineFeatureValidator); ok {
+		if err := validator.ValidateEngineFeatures(d); err != nil {
+			return d, err
+		}
+	}
 	return d, err
 }

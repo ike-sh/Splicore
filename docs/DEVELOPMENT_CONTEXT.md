@@ -13,11 +13,15 @@ Phase 6 freezes the Experimental Xray compatibility engine and
 VLESS native/xray duality. The reference and gates follow
 [ADR 0018](adr/0018-xray-owned-child-engine.md).
 The [Phase 6 report](reports/PHASE_6_XRAY_ENGINE_DUALITY_REPORT.md) records passing
-duality/runtime/regression gates and explicit platform limits. Status is PHASE 6
-FROZEN. Phase 7 has a clean branch from this freeze; implementation is not started.
+duality/runtime/regression gates and explicit platform limits. Status is PHASE 7
+FROZEN. Phase 7 freezes Experimental FinalMask/Sudoku from official Xray v26.3.27
+without changing the Phase 6 artifact. See [ADR 0019](adr/0019-xray-specialized-feature-boundary.md)
+and [workflow](development/PHASE_7_XRAY_EXTENSIONS.md). The
+[freeze report](reports/PHASE_7_FREEZE_REPORT.md) records the authorized local checkpoint.
+Phase 8 has a clean branch only; Mieru implementation is NOT STARTED.
 
 Splicore is an independent modular server proxy core derived from sing-box.
-Phases 0–6 are locally frozen. Phase 5 implements an Experimental VLESS/REALITY
+Phases 0–7 are locally frozen. Phase 5 implements an Experimental VLESS/REALITY
 Native candidate. Vision is **DEFERRED / UNSUPPORTED** due to pinned dependency
 checkptr and Read/Write defects. Flow-none VLESS/REALITY remains supported;
 its fresh acceptance gates pass with default checkptr and race. The supported
@@ -39,15 +43,22 @@ Snell/Hysteria2/TUIC remain Experimental; no Stable release.
   with message `feat(engine): add Xray compatibility engine duality` and sole parent Phase 5.
 - The maintainer authorized the missing main fast-forward to Phase 5, one Phase 6
   freeze commit, main fast-forward to Phase 6 and a clean Phase 7 branch.
-- main and `codex/phase-6-xray-engine-duality` identify the Phase 6 freeze.
-- `codex/phase-7-xray-vless-extensions` starts from Phase 6; implementation NOT STARTED.
-- Push/tag/release NONE. No Phase 7 implementation is authorized by this freeze task.
+- `codex/phase-6-xray-engine-duality` retains Phase 6 at `438b1096b9ec357cddb163cf89f78935e711bf3d`.
+- `codex/phase-7-xray-vless-extensions` starts at `438b1096b9ec357cddb163cf89f78935e711bf3d`.
+- The maintainer authorized Phase 7 integration after the preliminary source audit.
+- The maintainer authorized one Phase 7 commit, message
+  `feat(engine): add experimental Xray VLESS extensions`, sole parent Phase 6,
+  main fast-forward and creation of `codex/phase-8-mieru-native-integration`.
+- main and `codex/phase-7-xray-vless-extensions` identify that Phase 7 freeze.
+  Phase 8 starts at the same commit, CLEAN, with implementation NOT STARTED.
+- Push/tag/release NONE. No Mieru work is authorized by the freeze task.
 - Sole remote: https://github.com/SagerNet/sing-box.git; no origin.
-- Historical Phase 0–5 reports/evidence and migrations 0001–0003 immutable.
+- Historical Phase 0–6 reports/evidence and migrations 0001–0004 immutable.
 - Fresh artifacts/tools/logs/binaries/state/caches external; upstream runtime/dependency edits 0.
 - Phase 6 authorizes official pinned Xray research/download, owned external child,
   standard flow-none VLESS/REALITY dual placement, tests and documentation.
-  No FinalMask, Sudoku, Vision workaround, Mieru, Panel or real NoBrand access.
+  Phase 7 adds bounded FinalMask/Sudoku; no Vision workaround, Mieru or Panel.
+  NoBrand source audit is read-only; production changes remain NONE.
 
 ## Architecture constraints
 
@@ -115,7 +126,7 @@ or alter unrelated `/` Git configuration. Two inherited unsafe.Pointer vet findi
 are tracked in the [baseline ledger](architecture/UPSTREAM_BASELINE.md).
 Phase 6 evidence: `D:\splicore-validation\phase6-20261002` and
 `/root/splicore-p6-20261002`. Phase 5 evidence/reports and original race triage
-remain preserved. [Phase 6 workflow](development/PHASE_6_XRAY.md) owns current gates.
+remain preserved. [Phase 7 workflow](development/PHASE_7_XRAY_EXTENSIONS.md) owns current gates.
 
 ## Xray runtime boundary
 
@@ -127,3 +138,14 @@ Splicore owns public admission and a protected ephemeral generation; child owns
 private loopback VLESS processing. Wait reaps/cleans; crash marks failed/degraded,
 manual recovery only. Hot updates, Xray attributed/persistent stats and strict
 quota/rate/session enforcement are deferred. [ADR 0018](adr/0018-xray-owned-child-engine.md).
+
+## Phase 7 boundary
+
+FinalMask is the framework; Sudoku is the single qualified TCP mask. Protocol vless,
+Engine xray, plain/flow none, prefer_ascii/padding0–3. Masked UDP NOT QUALIFIED,
+TLS/REALITY combinations UNSUPPORTED. Typed engine options persist in existing
+settings JSON, schema 4 unchanged. Inbound-owned shared Password uses the vault;
+Accounts retain UUIDs. A narrow authorized client-secret port excludes private keys.
+Xray 26.3.27 client JSON is supported; masked Mihomo/sing-box/Surge/URI reject.
+Availability uses exact Phase 6 SHA256/version. Supervisor/stats/policy remain Phase 6.
+Windows crash safety qualification and Xray arm64 runtime remain deferred.

@@ -112,3 +112,28 @@ Binding/UUID/Endpoint/security intent. The same Mihomo, sing-box and URI exporte
 renders both. Engine identity never enters client config. TLS explicit-CA URI and
 Surge remain unsupported; Vision remains rejected. Reference versions and actual
 traffic evidence are recorded in the [matrix](../testing/INTEROP_MATRIX.md).
+
+## FinalMask / Sudoku client requirements
+
+ClientProfile keeps endpoint/UUID/TCP core and adds typed transport requirements.
+Its password is a client-needed shared secret, excluded from JSON/formatting and
+returned only by authorized exporter output. It never contains REALITY private keys.
+The existing VLESS exporter maps requirements to the target format, with no Engine ID branch.
+
+| Masked client / format | Version | Status |
+|---|---|---|
+| Xray JSON outbound | 26.3.27 | Supported for plain TCP, Sudoku prefer_ascii/padding0–3 |
+| Mihomo | 1.19.30 | Unsupported |
+| sing-box | 1.14.1 | Unsupported |
+| Surge | Any | Unsupported |
+| VLESS URI | Any | Unsupported |
+| Unknown Xray version | Any other | Unsupported |
+
+format=xray returns content_shape=xray-outbound. No standard VLESS fallback drops
+the mask. FinalMask describes the framework with Sudoku only; other masks/chains
+and TLS/REALITY combinations reject. Masked UDP/XUDP is NOT QUALIFIED. Standard
+VLESS exporters remain shared across native/xray. [Workflow](../development/PHASE_7_XRAY_EXTENSIONS.md).
+
+URI fm is CONTRACT ONLY for the audited NoBrand source/reference dialect. It is
+not implemented by Splicore's masked URI exporter/import and has no managed runtime
+interop qualification. That exporter continues to reject masked profiles explicitly.

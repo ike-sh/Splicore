@@ -100,3 +100,15 @@ Account/UUID placement, profile/export equality, transaction compensation and
 SQLite regeneration. Run default race/checkptr, process tests 10x, path/renderer
 fuzzing, fresh protocol regressions, Windows manager/build, arm64 compile,
 secret/doc/OpenAPI/live API and source/dependency/history/index audits.
+
+## Phase 7 specialized extension gates
+
+[Phase 7 workflow](../development/PHASE_7_XRAY_EXTENSIONS.md) requires typed parser,
+feature intersection/version/hash, renderer-owned config snapshot, profile/exporter,
+secret filtering/redaction, transaction admission/compensation and SQLite recovery.
+Default race/checkptr run over full Splicore and affected shared packages; supervisor
+and pinned masked transaction/recovery tests repeat ten times. Fuzz bounded parser
+and renderer inputs. Managed API-to-exporter-to-real-Xray traffic is independent of
+the preliminary raw reference probe. Fresh native REALITY, Xray standard and three
+old protocol regressions, docs/OpenAPI/live schemas/secret scans/diff audit are gates.
+No Stable, masked UDP or REALITY combination claim follows from TCP acceptance.

@@ -30,6 +30,8 @@ class UnixHTTP(http.client.HTTPConnection):
 class EchoTCP(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
     daemon_threads = True
+    # Accept the declared 16-client campaign without saturating the echo fixture.
+    request_queue_size = 64
 class Echo(socketserver.BaseRequestHandler):
     def handle(self):
         try:

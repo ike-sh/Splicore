@@ -60,10 +60,10 @@ Snell/Hysteria2/TUIC/VLESS first; Mieru/new protocols only after their gates.
 ## Xray compatibility
 
 Internal adapter renders version-pinned child configuration, validates with that
-exact child, supervises lifecycle, health, logs, stats and bounded restart/backoff,
-and provides engine version/digest evidence. FinalMask/Sudoku are future feature
-profiles requiring an identified fork/spec and qualified client, not inferred
-capabilities of stock Xray. No code or executable is added in Phase 0.
+exact child and supervises lifecycle, health and safe status. Restart is manual;
+Xray attributed stats remain unsupported. Phase 7 bounds FinalMask/Sudoku to
+the independently audited official v26.3.27 source and existing exact artifacts.
+[ADR 0019](../adr/0019-xray-specialized-feature-boundary.md) defines the typed scope.
 
 Ports: public listeners assigned explicitly; private management endpoints loopback
 or protected socket; child-only rendered files 0600 under private state directory.
@@ -124,3 +124,14 @@ The external VLESS selection preserves domain rejection of strict policy and
 returns UnsupportedPolicyForEngine (`unsupported_policy_for_engine`, HTTP 422)
 before binary availability or pending state. Native retains its existing invalid
 request contract; metadata_only is explicit and remains unenforced.
+
+## Specialized feature availability
+
+FinalMask/Sudoku descriptors scope TCP/plain/flow-none and exact client support;
+EffectiveCapabilities intersects protocol/engine descriptors with owned snapshots.
+node_status.features reports last exact artifact validation independently of build
+support. Wrong version/hash/missing binary means unavailable. API/CLI/doctor expose
+safe feature IDs/reasons. Settings choose a bounded single Sudoku mask; Compile
+renders streamSettings.finalmask.tcp with the encrypted shared password. The same
+supervisor and immutable config snapshot handle start, close and regeneration.
+See [workflow](../development/PHASE_7_XRAY_EXTENSIONS.md).

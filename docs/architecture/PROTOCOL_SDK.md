@@ -154,3 +154,20 @@ engine_implementations features; node_status is a separate artifact validation r
 Native statistics must not imply Xray statistics. Engine selection changes neither
 credential kinds nor ClientProfile; client exporters have no engine branch.
 Vision remains rejected at creation/runtime/render/export boundaries for both engines.
+
+## Engine feature capability matrix
+
+| Pair | REALITY | FinalMask/Sudoku | Vision | Masked UDP |
+|---|---|---|---|---|
+| vless/native | Yes, with_utls | Unsupported | Unsupported | Unsupported |
+| vless/xray standard | Yes, with_utls and exact artifact | Explicit selection only | Unsupported | N/A |
+| vless/xray masked | Unsupported combination | Experimental plain TCP Sudoku, prefer_ascii, padding0–3 | Unsupported | Not qualified |
+
+EngineFeatureValidator is an optional codec port after generic placement selection,
+before availability/pending. Feature descriptors include transport/security/flow,
+UDP qualification and exact supported clients. Unknown support fails closed.
+Canonical engine_options uses concrete transportmask structs; no arbitrary raw
+runtime JSON. Password is an encrypted inbound-owned shared credential, selected
+through ClientSharedSecretRepository only after Account/Binding authorization.
+ClientProfile transport requirements carry the client-needed secret without an
+Engine ID. Schema/domain Account/Binding remain unchanged. [ADR 0019](../adr/0019-xray-specialized-feature-boundary.md).

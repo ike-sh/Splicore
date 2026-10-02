@@ -70,7 +70,7 @@ and [full evidence report](../reports/PHASE_3_HYSTERIA2_VERTICAL_SLICE_REPORT.md
 | TUIC | Mihomo, sing-box | UUID/password, UDP modes, congestion/session/reconnect behavior |
 | VLESS/REALITY | Mihomo, compatible Xray client, sing-box reference | UUID/flow/transport/security and public endpoint/SNI/target separation |
 | Mieru (future) | official client; Mihomo only if tested implementation supports it | native embedding and TCP/UDP underlays, auth/MTU/traffic-pattern variants |
-| FinalMask/Sudoku (future) | exact fork-compatible reference client | identify provenance/wire spec first; not stock Xray assumed support |
+| FinalMask/Sudoku | official Xray 26.3.27 JSON client | bounded plain TCP Sudoku, prefer_ascii/padding0–3; managed Phase 7 gates |
 | New native protocol (future) | independent reference and qualified native client | specification/vectors/security review required |
 
 Every supported cell covers TCP, UDP **payload** where supported, IPv4, IPv6,
@@ -158,3 +158,24 @@ Hysteria2 twelve and TUIC twelve regression cells pass. Parent-death cleanup and
 unrelated-Xray survival also pass on Linux. See the
 [Phase 6 report](../reports/PHASE_6_XRAY_ENGINE_DUALITY_REPORT.md) for exact rows,
 private control-socket review after abrupt exit and platform qualification limits.
+
+## Phase 7 managed FinalMask / Sudoku acceptance
+
+| Client | Version | SHA256 | Feature | REALITY | User | TCP | UDP | Result |
+|---|---|---|---|---|---|---|---|---|
+| Xray | 26.3.27 | `8255dd939c34cf966cc91517b6324dd3c8d0bcf49ffac8beca049a38c46845ed` | FinalMask TCP / Sudoku | Unsupported combination | Alice | PASS | NOT QUALIFIED | PASS |
+| Xray | 26.3.27 | `8255dd939c34cf966cc91517b6324dd3c8d0bcf49ffac8beca049a38c46845ed` | FinalMask TCP / Sudoku | Unsupported combination | Bob | PASS | NOT QUALIFIED | PASS |
+
+These cells use Splicore canonical API creation and authorized exporter output,
+the existing pinned child supervisor and a default-race Splicore binary on native
+ext4 in a loopback-only namespace. Plain TCP, flow none, prefer_ascii, padding0–3;
+32 KiB, concurrency16, 4 MiB integrity, reconnect and abnormal close PASS.
+Missing mask/wrong password/wrong UUID reject payload; unknown mask rejects config.
+Binding reconcile, SQLite ephemeral regeneration, child crash/manual recovery,
+ordinary API/CLI secret redaction and socket release PASS. The new managed feature
+harness has no payload retry or sleep. Raw reference probes are excluded.
+Mihomo/sing-box/Surge/URI masked exports reject; Vision remains unsupported.
+
+Fresh Phase 7 regressions: native REALITY12, standard Xray plain4, Snell9,
+Hysteria2 12 and TUIC12 cells PASS. Both features remain Experimental; FinalMask
+qualification covers Sudoku only. [Report](../reports/PHASE_7_XRAY_VLESS_EXTENSIONS_REPORT.md).

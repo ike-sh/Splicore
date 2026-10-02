@@ -16,7 +16,10 @@ func (e VLESS) Format() ports.Format { return e.Target }
 func vlessProfile(p clientprofile.Profile) (access.UUIDPayload, module.ClientOptions, error) {
 	credential, ok := p.Credentials.(access.UUIDPayload)
 	o, err := module.DecodeClientOptions(p.Options.Data)
-	if !ok || p.Validate() != nil || module.ValidateUUID(credential.UUID) != nil || err != nil || p.Protocol != module.Key(o.Security) || !p.UDPPayload || p.Transport.Kind != "tcp" || p.Transport.Path != "" || p.Transport.Host != "" || len(p.TLS.ALPN) != 0 {
+	if !ok || p.Validate() != nil || module.ValidateUUID(credential.UUID) != nil || err != nil || p.Protocol != module.Key(o.Security) || (!p.UDPPayload && p.TransportRequirements == nil) || p.Transport.Kind != "tcp" || p.Transport.Path != "" || p.Transport.Host != "" || len(p.TLS.ALPN) != 0 {
+		return credential, o, unsupported()
+	}
+	if p.TransportRequirements != nil && (o.Security != module.Plain || p.UDPPayload) {
 		return credential, o, unsupported()
 	}
 	switch o.Security {
@@ -52,8 +55,25 @@ func (e VLESS) Export(_ context.Context, p clientprofile.Profile, t ports.Export
 	if err != nil || t.Format != e.Target {
 		return nil, unsupported()
 	}
+	if p.TransportRequirements != nil && e.Target != ports.Xray {
+		return nil, unsupported()
+	}
 	name := "splicore-" + string(p.ID)
 	switch e.Target {
+	case ports.Xray:
+		if t.ClientVersion != "26.3.27" || o.Security != module.Plain {
+			return nil, unsupported()
+		}
+		stream := map[string]any{"network": "raw", "security": "none"}
+		if p.TransportRequirements != nil {
+			mask := p.TransportRequirements.Options.FinalMask.TCP[0]
+			stream["finalmask"] = map[string]any{"tcp": []any{map[string]any{"type": mask.Type, "settings": map[string]any{
+				"password": p.TransportRequirements.Password.Reveal(), "ascii": mask.Settings.ASCII,
+				"paddingMin": mask.Settings.PaddingMin, "paddingMax": mask.Settings.PaddingMax}}}}
+		}
+		node := map[string]any{"tag": name, "protocol": "vless", "settings": map[string]any{"vnext": []any{
+			map[string]any{"address": p.Endpoint.Host, "port": p.Endpoint.Port, "users": []any{map[string]any{"id": credential.UUID.Reveal(), "encryption": "none"}}}}}, "streamSettings": stream}
+		return json.Marshal(node)
 	case ports.Mihomo:
 		if t.ClientVersion != "1.19.30" {
 			return nil, unsupported()
@@ -103,7 +123,16 @@ func (e VLESS) Describe(p clientprofile.Profile) (ports.ExportDescription, error
 		return ports.ExportDescription{}, err
 	}
 	shape := "sing-box-outbound"
+	if p.TransportRequirements != nil && e.Target != ports.Xray {
+		return ports.ExportDescription{}, unsupported()
+	}
 	switch e.Target {
+	case ports.Xray:
+		o, err := module.DecodeClientOptions(p.Options.Data)
+		if err != nil || o.Security != module.Plain {
+			return ports.ExportDescription{}, unsupported()
+		}
+		return ports.ExportDescription{Compatibility: "VLESS wire 0; plain TCP; FinalMask Sudoku when selected; Xray 26.3.27; UDP unqualified for mask", ContentShape: "xray-outbound"}, nil
 	case ports.Mihomo:
 		shape = "mihomo-config-fragment"
 	case ports.URI:

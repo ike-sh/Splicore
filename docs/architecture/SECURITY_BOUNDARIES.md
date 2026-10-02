@@ -104,3 +104,16 @@ caller slices and TLS file content cannot change a prepared generation.
 The private loopback listener is inside the trusted local runtime boundary and
 receives loopback source addresses. Public admission remains closed before commit.
 For platform limits and ownership details see [ADR 0018](../adr/0018-xray-owned-child-engine.md).
+
+## Shared transport secrets
+
+Sudoku password is inbound-owned and client-needed; it is distinct from per-Account
+UUID and server-only REALITY private key. Exact 32 hex-character import preserves
+case; omission generates with crypto/rand before pending. Existing authenticated
+encrypted vault/AAD persistence is reused. No plaintext settings, ordinary API,
+logs, argv or environment. Explicit authorized Xray export returns the shared seed.
+ClientSharedSecretRepository filters active inbound-owned Password rows before
+decrypting; private keys cannot enter that port. Profile/config artifacts remain
+sensitive, transient and protected. Feature availability requires the exact pinned
+artifact; unknown raw JSON/masks/fields reject. No new wire or unsafe pointer code.
+[ADR 0019](../adr/0019-xray-specialized-feature-boundary.md).
