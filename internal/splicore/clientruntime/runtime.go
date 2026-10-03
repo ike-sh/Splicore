@@ -21,8 +21,8 @@ import (
 )
 
 type counter struct {
-	upload, download, total, active atomic.Int64
-	health                          atomic.Pointer[passiveHealth]
+	upload, download, total, active             atomic.Int64
+	udpTotal, udpActive, packetsUp, packetsDown atomic.Int64
 }
 type passiveHealth struct {
 	available bool
@@ -32,13 +32,9 @@ type passiveHealth struct {
 var succeededHealth = &passiveHealth{available: true}
 var failedHealth = &passiveHealth{lastError: "outbound_connection_failed"}
 
-func (c *counter) stats() ports.Stats {
-	return ports.Stats{Upload: c.upload.Load(), Download: c.download.Load(), Sessions: c.total.Load(), Active: c.active.Load()}
+func (c *counter) stats() TrafficStats {
+	return TrafficStats{Stats: ports.Stats{Upload: c.upload.Load(), Download: c.download.Load(), Sessions: c.total.Load(), Active: c.active.Load()}, UDPAssociations: c.udpTotal.Load(), UDPActive: c.udpActive.Load(), PacketsUpload: c.packetsUp.Load(), PacketsDownload: c.packetsDown.Load()}
 }
-func (c *counter) failed() {
-	c.health.Store(failedHealth)
-}
-func (c *counter) success() { c.health.Store(succeededHealth) }
 
 type snapshot struct {
 	state                                 client.ProfileState
@@ -66,7 +62,10 @@ type session struct {
 	id                      identity.ID
 	inbound, outbound, node identity.ID
 	local                   net.Conn
-	remote                  net.Conn // assigned only while holding Manager.mu
+	remote                  net.Conn       // assigned only while holding Manager.mu
+	packet                  net.PacketConn // assigned only while holding Manager.mu
+	kind                    string
+	dialer                  ports.ClientDialer
 	cancel                  context.CancelFunc
 	stats                   counter
 }
@@ -81,10 +80,11 @@ type Manager struct {
 	wg                           sync.WaitGroup
 	closed                       bool
 	changed                      chan struct{}
+	udpIdle                      time.Duration
 }
 
 func New() *Manager {
-	return &Manager{listeners: map[identity.ID]*localListener{}, sessions: map[identity.ID]*session{}, inStats: map[identity.ID]*counter{}, outStats: map[identity.ID]*counter{}, nodeStats: map[identity.ID]*counter{}, changed: make(chan struct{})}
+	return &Manager{listeners: map[identity.ID]*localListener{}, sessions: map[identity.ID]*session{}, inStats: map[identity.ID]*counter{}, outStats: map[identity.ID]*counter{}, nodeStats: map[identity.ID]*counter{}, changed: make(chan struct{}), udpIdle: 2 * time.Minute}
 }
 
 type Prepared struct {
@@ -139,12 +139,16 @@ func Validate(state client.ProfileState, credentials map[identity.ID]access.Cred
 	return nil
 }
 func (m *Manager) Prepare(ctx context.Context, state client.ProfileState, credentials map[identity.ID]access.Credential, registry *registry.Outbounds) (p *Prepared, err error) {
+	return m.PrepareWithRestart(ctx, state, credentials, registry, false)
+}
+func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileState, credentials map[identity.ID]access.Credential, registry *registry.Outbounds, restart bool) (p *Prepared, err error) {
 	if err = Validate(state, credentials, registry); err != nil {
 		return nil, err
 	}
 	s := &snapshot{state: state.Clone(), outbounds: map[identity.ID]ports.ClientDialer{}, routes: map[identity.ID]identity.ID{}}
 	s.refs.Store(1)
 	p = &Prepared{m: m, s: s, listeners: map[identity.ID]*localListener{}}
+	p.restartSessions = restart
 	defer func() {
 		if err != nil {
 			p.Abort()
@@ -163,7 +167,23 @@ func (m *Manager) Prepare(ctx context.Context, state client.ProfileState, creden
 	for _, n := range state.Nodes {
 		nodes[n.ID] = n
 	}
+	oldGeneration := m.acquire()
+	if oldGeneration != nil {
+		defer oldGeneration.release()
+	}
 	for _, o := range state.Outbounds {
+		var n client.RemoteNode
+		if o.NodeID != nil {
+			n = nodes[*o.NodeID]
+		}
+		key := effectiveKey(o, n)
+		if !restart && oldGeneration != nil {
+			if lease, ok := oldGeneration.outbounds[o.ID].(*dialerLease); ok && lease.key == key {
+				lease.refs.Add(1)
+				s.outbounds[o.ID] = lease
+				continue
+			}
+		}
 		var d ports.ClientDialer
 		if o.Kind == "direct" {
 			d = directDialer{}
@@ -175,7 +195,9 @@ func (m *Manager) Prepare(ctx context.Context, state client.ProfileState, creden
 				return p, err
 			}
 		}
-		s.outbounds[o.ID] = d
+		lease := &dialerLease{dialer: d, key: key}
+		lease.refs.Store(1)
+		s.outbounds[o.ID] = lease
 	}
 	for _, i := range state.LocalInbounds {
 		selected := i.SelectedOutbound
@@ -287,6 +309,10 @@ func (p *Prepared) Activate() {
 	}
 	closing := []*session{}
 	for _, s := range m.sessions {
+		if s.kind == "udp_association" && (p.s.routes[s.inbound] != s.outbound || p.s.outbounds[s.outbound] != s.dialer) {
+			closing = append(closing, s)
+			continue
+		}
 		if p.restartSessions {
 			closing = append(closing, s)
 			continue
@@ -352,9 +378,13 @@ func (m *Manager) closeSession(s *session) {
 	_ = s.local.Close()
 	m.mu.Lock()
 	remote := s.remote
+	packet := s.packet
 	m.mu.Unlock()
 	if remote != nil {
 		_ = remote.Close()
+	}
+	if packet != nil {
+		_ = packet.Close()
 	}
 }
 func (m *Manager) serve(ctx context.Context, s *session) {
@@ -399,12 +429,12 @@ func (m *Manager) serve(ctx context.Context, s *session) {
 	reply := func(code byte) {
 		_ = socks5.WriteResponse(s.local, socks5.Response{ReplyCode: code, Bind: M.SocksaddrFromNet(s.local.LocalAddr())})
 	}
-	if req.Command != socks5.CommandConnect {
+	if req.Command != socks5.CommandConnect && req.Command != socks5.CommandUDPAssociate {
 		reply(socks5.ReplyCodeUnsupported)
 		return
 	}
 	target := access.Endpoint{Host: req.Destination.AddrString(), Port: req.Destination.Port}
-	if target.Validate() != nil {
+	if req.Command == socks5.CommandConnect && target.Validate() != nil {
 		reply(socks5.ReplyCodeAddressTypeUnsupported)
 		return
 	}
@@ -427,15 +457,25 @@ func (m *Manager) serve(ctx context.Context, s *session) {
 	m.mu.Lock()
 	s.outbound = oid
 	s.node = node
+	s.dialer = gen.outbounds[oid]
+	s.kind = "tcp"
+	if req.Command == socks5.CommandUDPAssociate {
+		s.kind = "udp_association"
+	}
 	oc := gen.outCounters[oid]
 	ic := gen.inCounters[s.inbound]
 	nc := gen.nodeCounters[node]
 	m.mu.Unlock()
+	adapter := gen.outbounds[oid].(*dialerLease)
+	if req.Command == socks5.CommandUDPAssociate {
+		m.serveUDP(ctx, s, reader, req.Destination, gen.outbounds[oid], []*counter{&s.stats, ic, oc, nc}, adapter)
+		return
+	}
 	dialCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	remote, err := gen.outbounds[oid].DialContext(dialCtx, target)
 	cancel()
 	if err != nil {
-		oc.failed()
+		adapter.failed()
 		reply(socks5.ReplyCodeForError(err))
 		return
 	}
@@ -467,7 +507,7 @@ func (m *Manager) serve(ctx context.Context, s *session) {
 	counters := []*counter{&s.stats, ic, oc, nc}
 	done := make(chan error, 2)
 	copyStream := func(dst net.Conn, src io.Reader, upload bool) {
-		_, e := io.Copy(&countWriter{writer: dst, counters: counters, upload: upload, onRead: oc.success}, src)
+		_, e := io.Copy(&countWriter{writer: dst, counters: counters, upload: upload, onRead: adapter.success}, src)
 		if e == nil {
 			if h, ok := dst.(interface{ CloseWrite() error }); ok {
 				e = h.CloseWrite()
@@ -482,13 +522,16 @@ func (m *Manager) serve(ctx context.Context, s *session) {
 	first := <-done
 	if first != nil {
 		if ctx.Err() == nil {
-			oc.failed()
+			adapter.failed()
 		}
 		m.closeSession(s)
 	}
 	second := <-done
 	if second != nil && ctx.Err() == nil {
-		oc.failed()
+		adapter.failed()
+	}
+	if ctx.Err() == nil && s.stats.download.Load() == 0 {
+		adapter.failed()
 	}
 }
 

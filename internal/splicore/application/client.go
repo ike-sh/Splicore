@@ -464,12 +464,10 @@ func (s *Service) ApplyClient(ctx context.Context, req ApplyRequest) (result Cli
 	if err != nil {
 		return result, err
 	}
-	prepared, err = c.manager.Prepare(ctx, candidate.state, credentials, c.factories)
+	restart := candidate.mutation.Resource == "runtime" && candidate.mutation.Action == "restart"
+	prepared, err = c.manager.PrepareWithRestart(ctx, candidate.state, credentials, c.factories, restart)
 	if err != nil {
 		return result, err
-	}
-	if candidate.mutation.Resource == "runtime" && candidate.mutation.Action == "restart" {
-		prepared.RestartSessions()
 	}
 	err = c.repo.CommitOperation(ctx, op, func(w ports.Writer) error {
 		cw, ok := w.(ports.ClientWriter)

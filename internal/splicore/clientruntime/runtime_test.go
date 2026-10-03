@@ -134,6 +134,7 @@ func TestRetiredGenerationClosesAfterSessionConnection(t *testing.T) {
 		t.Fatal("echo", err)
 	}
 	state.Route.DefaultOutbound = client.Direct
+	state.Outbounds = state.Outbounds[:1]
 	p, err = m.Prepare(ctx, state, nil, factories)
 	if err != nil {
 		t.Fatal(err)

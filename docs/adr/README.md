@@ -53,3 +53,8 @@ See [documentation policy](../DOCUMENTATION_POLICY.md) and the
 
 [0022 — Client Runtime domain](0022-client-runtime-domain.md): accepted for the Phase 10 Experimental local freeze;
 Node/Outbound separation, shared daemon and SOCKS-first scope.
+
+## Phase 11 ownership decision
+
+[0023 — Client UDP and adapter ownership](0023-client-udp-ownership.md): accepted
+for the Phase 11 Experimental local freeze; bounded SOCKS association lifetime and per-adapter leases.

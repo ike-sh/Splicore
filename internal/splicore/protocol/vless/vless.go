@@ -17,7 +17,7 @@ func (m Module) Metadata() ports.ProtocolMetadata {
 	if m.Security == Reality && !RealityCompiled {
 		availability = ports.NotCompiled
 	}
-	return ports.ProtocolMetadata{Roles: ports.Roles{Inbound: true}, Key: Key(m.Security), ABI: 1, CredentialKinds: []access.CredentialKind{access.UUID}, Availability: availability, Qualification: "experimental", Provenance: "sing-box v1.14.1 / sing-vmess v0.2.8; TCP; UUID; XUDP; no flow; Vision deferred/unsupported; REALITY requires with_utls"}
+	return ports.ProtocolMetadata{Roles: ports.Roles{Inbound: true, Outbound: true}, Key: Key(m.Security), ABI: 1, CredentialKinds: []access.CredentialKind{access.UUID}, Availability: availability, Qualification: "experimental", Provenance: "sing-box v1.14.1 / sing-vmess v0.2.8; TCP; UUID; XUDP; no flow; Vision deferred/unsupported; REALITY requires with_utls"}
 }
 func (m Module) Capabilities(c ports.CapabilityContext) ports.Capabilities {
 	available := (c.Engine == "" || c.Engine == "native" || c.Engine == "xray") && m.Metadata().Availability == ports.Compiled

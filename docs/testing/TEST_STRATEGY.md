@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: All developers and reviewers
-- Last reviewed: 2026-10-02
+- Last reviewed: 2026-10-03
 - Owner: Test maintainers
 - Responsibility: Meaningful implementation/interop/failure gates and reporting scope.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -144,8 +144,8 @@ REST/CLI methods and hostile support redaction. In-process A/B data-path tests p
 SOCKS→DIRECT and SOCKS→Snell→Splicore with IPv4/IPv6/domain, v5→v4/v6→v6, 4 MiB
 SHA256 integrity, 16 concurrent connections, route/credential generation retention,
 abnormal local/remote close, reconnect, restart and simultaneous server/client traffic.
-Client recovery failure preserves server/API. Adapter UDP and local SOCKS UDP reject
-are separate tests. Deterministic ownership tests use notifications, not sleep/retry.
+Client recovery failure preserves server/API. Phase 11 adds local SOCKS UDP admission
+and ownership tests alongside adapter packet tests. Deterministic ownership tests use notifications, not sleep/retry.
 
 Run complete owned package tests and default race/checkptr, 10 repeated client
 race runs, affected inherited shared package race tests and owned vet. Bounded
@@ -160,3 +160,17 @@ Evidence remains outside the checkout; [interop](INTEROP_MATRIX.md) owns exact f
 The service lab supplies a loopback-only localhost A/AAAA DNS fixture because its
 resolv.conf points to 127.0.0.1. It never forwards queries. Echo serves both address
 families on one target port; remote-domain tests do not depend on address order.
+
+## Phase 11 expansion gates
+
+Run the owned suite with `-race -count=1 -tags with_quic,with_utls,splicore_xray_integration`
+and the exact pinned Xray artifact. No GODEBUG/checkptr/race suppression. Shared
+common/protocol/adapter packages retain their own race gate. UDP, Mieru and Xray
+lifecycle tests each run ten times. Canonical options/public security/SOCKS address
+parsers receive bounded fuzzing only; wire/crypto implementations are not fuzzed.
+
+Self interop proves each adapter, REALITY negatives, credentials, IPv4/IPv6/domain,
+4 MiB, 16 TCP/UDP mixed sessions, rotation and reconnect. The disposable installed
+unit additionally runs all outbounds alongside eight frozen server fixtures, service
+restart/crash/upgrade/rollback/reinstall and pinned sing-box reference servers. All
+fixtures/artifacts/evidence stay external; no host or third-party targets are used.

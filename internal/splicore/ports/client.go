@@ -13,11 +13,20 @@ type Roles struct {
 	Outbound bool `json:"outbound"`
 }
 type OutboundCapability struct {
-	Protocol      string `json:"protocol"`
-	Engine        string `json:"engine"`
-	TCP           bool   `json:"tcp"`
-	UDP           bool   `json:"udp"`
-	Qualification string `json:"qualification"`
+	Protocol            string   `json:"protocol"`
+	Engine              string   `json:"engine"`
+	TCP                 bool     `json:"tcp"`
+	UDP                 bool     `json:"udp"`
+	Role                string   `json:"role"`
+	IPv4                bool     `json:"ipv4"`
+	IPv6                bool     `json:"ipv6"`
+	Domain              bool     `json:"domain"`
+	TLS                 bool     `json:"tls"`
+	QUIC                bool     `json:"quic"`
+	Reality             bool     `json:"reality"`
+	Flows               []string `json:"flows"`
+	UDPDomainResolution string   `json:"udp_domain_resolution"`
+	Qualification       string   `json:"qualification"`
 }
 type ClientDialer interface {
 	DialContext(context.Context, access.Endpoint) (net.Conn, error)

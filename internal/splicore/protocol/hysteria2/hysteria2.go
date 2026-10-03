@@ -45,7 +45,7 @@ func Decode(b []byte) (Settings, error) {
 	return s, nil
 }
 func (Module) Metadata() ports.ProtocolMetadata {
-	return ports.ProtocolMetadata{Roles: ports.Roles{Inbound: true}, Key: Key(), ABI: 1, CredentialKinds: []access.CredentialKind{access.Password}, Availability: ports.Compiled, Qualification: "experimental", Provenance: "sing-box v1.14.1 / sing-quic v0.7.0; password identity; static TLS; no obfs"}
+	return ports.ProtocolMetadata{Roles: ports.Roles{Inbound: true, Outbound: true}, Key: Key(), ABI: 1, CredentialKinds: []access.CredentialKind{access.Password}, Availability: ports.Compiled, Qualification: "experimental", Provenance: "sing-box v1.14.1 / sing-quic v0.7.0; password identity; static TLS; no obfs"}
 }
 func (Module) Capabilities(ports.CapabilityContext) ports.Capabilities {
 	return ports.Capabilities{

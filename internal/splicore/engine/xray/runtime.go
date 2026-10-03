@@ -22,6 +22,7 @@ import (
 type Handle struct {
 	engine       *Engine
 	endpoint     access.Endpoint
+	clientRole   bool // same process owner/reaper for private client SOCKS generations
 	lifecycle    sync.Mutex
 	mu           sync.Mutex
 	config       []byte // immutable snapshot until Start writes and clears it
@@ -89,19 +90,32 @@ func (h *Handle) Start(ctx context.Context) (result error) {
 	if err := h.engine.ValidateAvailability(ctx); err != nil {
 		return err
 	}
-	listener, err := net.Listen("tcp", net.JoinHostPort(h.endpoint.Host, strconv.Itoa(int(h.endpoint.Port))))
-	if err != nil {
-		return identity.Err(identity.PortConflict, "Xray public listener unavailable")
+	var listener net.Listener
+	var err error
+	if !h.clientRole {
+		listener, err = net.Listen("tcp", net.JoinHostPort(h.endpoint.Host, strconv.Itoa(int(h.endpoint.Port))))
+		if err != nil {
+			return identity.Err(identity.PortConflict, "Xray public listener unavailable")
+		}
+		h.mu.Lock()
+		h.listener = listener
+		h.mu.Unlock()
 	}
-	h.mu.Lock()
-	h.listener = listener
-	h.mu.Unlock()
-	reservation, err := net.Listen("tcp4", "127.0.0.1:0")
+	var reservation net.Listener
+	var udpReservation net.PacketConn
+	if h.clientRole {
+		reservation, udpReservation, err = reserveClientListeners()
+	} else {
+		reservation, err = net.Listen("tcp4", "127.0.0.1:0")
+	}
 	if err != nil {
 		return unavailable("Xray private listener unavailable")
 	}
 	defer reservation.Close()
 	port := uint16(reservation.Addr().(*net.TCPAddr).Port)
+	if udpReservation != nil {
+		defer udpReservation.Close()
+	}
 	id, dir, err := h.engine.generation()
 	if err != nil {
 		return err
@@ -161,6 +175,9 @@ func (h *Handle) Start(ctx context.Context) (result error) {
 		return unavailable("Xray process ownership unavailable")
 	}
 	_ = reservation.Close()
+	if udpReservation != nil {
+		_ = udpReservation.Close()
+	}
 	if err = cmd.Start(); err != nil {
 		child.release()
 		return unavailable("Xray child start failed")
@@ -177,9 +194,13 @@ func (h *Handle) Start(ctx context.Context) (result error) {
 	h.status.PID = cmd.Process.Pid
 	h.status.StartedAt = time.Now().UTC()
 	h.status.Health = "starting"
-	h.workers.Add(1)
+	if listener != nil {
+		h.workers.Add(1)
+	}
 	h.mu.Unlock()
-	go h.accept(listener)
+	if listener != nil {
+		go h.accept(listener)
+	}
 	go h.wait(cmd, child)
 	// Health observes readiness with a deadline; it never restarts a failed child.
 	ready, cancel := context.WithTimeout(ctx, 5*time.Second)

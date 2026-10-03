@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Engine and runtime developers
-- Last reviewed: 2026-10-02
+- Last reviewed: 2026-10-03
 - Owner: Engine maintainers
 - Responsibility: Private native/compatibility execution contracts and enforcement limits.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -152,4 +152,10 @@ owns a private embedded Box and inherited Snell adapter, with the owned static
 platform monitor composition and local DNS transport for remote node domains. No
 external client process, new EngineID or wire implementation. Outbound generations
 retain adapters until their sessions release them; failed candidates close independently.
-Xray remains server inbound only in Phase 10. See [client runtime](CLIENT_RUNTIME.md).
+Phase 11 uses the same Xray Engine instance, Handle, process owner/reaper and
+artifact registry for server and client roles. Client generations expose only a
+private loopback SOCKS TCP/UDP projection; no public relay listener or client unit.
+Native HY2/TUIC/VLESS each own an embedded Box. Official Mieru Client owns a private
+profile/mux, while the adapter owns logical and underlay sockets and cancels/joins
+its injected operations. The SDK exposes no join for client underlay RunEventLoop;
+its raw sockets are closed and repeated lifecycle stack checks qualify exit. See [client runtime](CLIENT_RUNTIME.md).

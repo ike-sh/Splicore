@@ -10,7 +10,7 @@ os.environ['OPENSSL_CONF']='/dev/null'
 root=pathlib.Path('/lab');work=root/'installed';work.mkdir(mode=0o700,exist_ok=True)
 spec=importlib.util.spec_from_file_location('helper',pathlib.Path(__file__).with_name('splicore-snell-interop.py'));h=importlib.util.module_from_spec(spec);spec.loader.exec_module(h)
 exe='/usr/local/bin/splicore';config='/etc/splicore/splicore.yaml';api='/run/splicore/splicore.sock'
-rows=[];children=[];logs=[];secret_values=[]
+rows=[];children=[];logs=[];secret_values=[];server_documents={}
 def run(*args,check=True,name=None):
  p=subprocess.run(args,capture_output=True,timeout=100)
  if name:(work/(name+'.log')).write_bytes(p.stdout+p.stderr)
@@ -24,6 +24,7 @@ def request(method,path,data=None):
   return json.loads(b)
  finally:c.close()
 def create(protocol,doc,label):
+ server_documents[label]=copy.deepcopy(doc)
  existing=next((i for i in request('GET','/api/v1/inbounds')['items'] if i['inbound']['name']==doc['name']),None)
  if existing:
   rows.append({'label':label,'protocol':protocol,'inbound_id':existing['inbound']['id'],'binding_id':existing['bindings'][0]['binding_id'],'port':doc['listener']['port']});return
@@ -89,7 +90,8 @@ def setup():
  for args in [('openssl','req','-x509','-newkey','ec','-pkeyopt','ec_paramgen_curve:P-256','-nodes','-keyout',str(cak),'-out',str(ca),'-days','1','-subj','/CN=Splicore Synthetic CA','-addext','basicConstraints=critical,CA:TRUE'),('openssl','req','-new','-newkey','ec','-pkeyopt','ec_paramgen_curve:P-256','-nodes','-keyout',str(key),'-out',str(csr),'-subj','/CN='+sni),('openssl','x509','-req','-in',str(csr),'-CA',str(ca),'-CAkey',str(cak),'-CAcreateserial','-out',str(cert),'-days','1','-extfile',str(ext))]:run(*args)
  for p in (cert,key):os.chown(p,uid,gid);os.chmod(p,0o600)
  base={'schema':1,'listener':{'host':'127.0.0.1','port':80},'display_endpoint':{'host':'127.0.0.1','port':80}}
- snell=dict(copy.deepcopy(base),name='installed-snell',account_name='SnellUser',settings={'version':6});create('snell',snell,'snell')
+ psk='SyntheticInstalledSnellPhase11PSK123456';secret_values.append(psk)
+ snell=dict(copy.deepcopy(base),name='installed-snell',account_name='SnellUser',settings={'version':6},psk=psk);create('snell',snell,'snell')
  for protocol,port in [('hysteria2',443),('tuic',444)]:
   password='Synthetic-'+protocol+'-Password-Phase9';secret_values.append(password)
   doc=dict(copy.deepcopy(base),name='installed-'+protocol,users=[{'account_name':protocol+'User','password':password}],settings={'tls':{'server_name':sni,'certificate_file':str(cert),'private_key_file':str(key),'ca_certificate':ca.read_text()}})
@@ -110,6 +112,7 @@ def setup():
   doc['listener']['port']=doc['display_endpoint']['port']=port;create('mieru',doc,'mieru-'+transport)
  (work/'inbounds.json').write_text(json.dumps(rows,indent=2)+'\n')
  (work/'synthetic-secrets.json').write_text(json.dumps(secret_values))
+ (work/'server-documents.json').write_text(json.dumps(server_documents,indent=2)+'\n')
 def main():
  parser=argparse.ArgumentParser();parser.add_argument('stage');a=parser.parse_args()
  os.umask(0o077)

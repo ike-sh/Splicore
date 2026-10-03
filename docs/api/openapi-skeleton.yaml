@@ -6216,7 +6216,12 @@
         "additionalProperties": false,
         "properties": {
           "kind": {
-            "const": "tcp"
+            "type": "string",
+            "enum": [
+              "tcp",
+              "quic",
+              "udp"
+            ]
           }
         },
         "required": [
@@ -6228,7 +6233,15 @@
         "additionalProperties": false,
         "properties": {
           "kind": {
-            "const": "none"
+            "type": "string",
+            "enum": [
+              "none",
+              "tls",
+              "reality"
+            ]
+          },
+          "tls": {
+            "$ref": "#/components/schemas/ClientTLS"
           }
         },
         "required": [
@@ -6243,13 +6256,33 @@
             "const": 1
           },
           "data": {
-            "$ref": "#/components/schemas/SnellSettings"
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/SnellSettings"
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {},
+                "required": []
+              },
+              {
+                "$ref": "#/components/schemas/ClientTUICOptions"
+              },
+              {
+                "$ref": "#/components/schemas/ClientVLESSOptions"
+              },
+              {
+                "$ref": "#/components/schemas/MieruSettings"
+              }
+            ]
           }
         },
         "required": [
           "schema_version",
           "data"
-        ]
+        ],
+        "description": "Schema 1, at most 16 KiB encoded data. The selected registry adapter validates protocol/transport/security consistency; no secrets or raw engine config."
       },
       "RemoteNode": {
         "type": "object",
@@ -6545,13 +6578,17 @@
             "enum": [
               "psk",
               "password",
-              "uuid"
+              "uuid",
+              "uuid_password",
+              "username_password"
             ]
           },
           "value": {
             "type": "string",
             "minLength": 1,
-            "writeOnly": true
+            "writeOnly": true,
+            "maxLength": 16384,
+            "description": "For pair kinds, strict JSON string {uuid,password} or {username,password}. Write-only canonical credential, not an engine config."
           }
         },
         "required": [
@@ -6609,7 +6646,7 @@
             "$ref": "#/components/schemas/ID"
           },
           "stats": {
-            "$ref": "#/components/schemas/RuntimeStats"
+            "$ref": "#/components/schemas/ClientTrafficStats"
           }
         },
         "required": [
@@ -6640,7 +6677,7 @@
             ]
           },
           "stats": {
-            "$ref": "#/components/schemas/RuntimeStats"
+            "$ref": "#/components/schemas/ClientTrafficStats"
           }
         },
         "required": [
@@ -6675,14 +6712,22 @@
             "$ref": "#/components/schemas/ID"
           },
           "stats": {
-            "$ref": "#/components/schemas/RuntimeStats"
+            "$ref": "#/components/schemas/ClientTrafficStats"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "tcp",
+              "udp_association"
+            ]
           }
         },
         "required": [
           "id",
           "local_inbound_id",
           "outbound_id",
-          "stats"
+          "stats",
+          "kind"
         ]
       },
       "OutboundAdapter": {
@@ -6706,6 +6751,43 @@
             "enum": [
               "experimental"
             ]
+          },
+          "ipv4": {
+            "type": "boolean"
+          },
+          "ipv6": {
+            "type": "boolean"
+          },
+          "domain": {
+            "type": "boolean"
+          },
+          "tls": {
+            "type": "boolean"
+          },
+          "quic": {
+            "type": "boolean"
+          },
+          "reality": {
+            "type": "boolean"
+          },
+          "role": {
+            "const": "client_outbound"
+          },
+          "flows": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "const": "none"
+            }
+          },
+          "udp_domain_resolution": {
+            "type": "string",
+            "enum": [
+              "local",
+              "remote"
+            ]
           }
         },
         "required": [
@@ -6713,7 +6795,16 @@
           "engine",
           "tcp",
           "udp",
-          "qualification"
+          "qualification",
+          "ipv4",
+          "ipv6",
+          "domain",
+          "tls",
+          "quic",
+          "reality",
+          "role",
+          "flows",
+          "udp_domain_resolution"
         ]
       },
       "ClientRuntimeStatus": {
@@ -6735,7 +6826,7 @@
             "type": "boolean"
           },
           "local_socks_udp": {
-            "const": "deferred"
+            "const": "supported"
           },
           "outbound_adapters": {
             "type": "array",
@@ -7001,6 +7092,153 @@
         "required": [
           "valid"
         ]
+      },
+      "ClientTLS": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "server_name": {
+            "type": "string",
+            "maxLength": 253
+          },
+          "alpn": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "maxItems": 8,
+            "items": {
+              "type": "string",
+              "maxLength": 255
+            }
+          },
+          "trust": {
+            "type": "string",
+            "enum": [
+              "",
+              "system",
+              "explicit_ca",
+              "reality"
+            ]
+          },
+          "ca_certificate": {
+            "type": "string",
+            "maxLength": 65536
+          },
+          "reality_public_key": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "reality_short_id": {
+            "type": "string",
+            "maxLength": 16
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "description": "Public client material only; private keys cannot be represented. Adapter validates required fields and combinations."
+      },
+      "ClientTUICOptions": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "version": {
+            "const": 5
+          },
+          "congestion_control": {
+            "const": "cubic"
+          },
+          "udp_relay_mode": {
+            "const": "native"
+          },
+          "zero_rtt_handshake": {
+            "const": false
+          }
+        },
+        "required": [
+          "version",
+          "congestion_control",
+          "udp_relay_mode"
+        ],
+        "description": "0-RTT defaults false; fixed auth 3s, heartbeat 10s, UDP timeout 5s."
+      },
+      "ClientVLESSOptions": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "security": {
+            "type": "string",
+            "enum": [
+              "none",
+              "tls",
+              "reality"
+            ]
+          },
+          "flow": {
+            "const": "none"
+          },
+          "packet_encoding": {
+            "const": "xudp"
+          }
+        },
+        "required": [
+          "security",
+          "flow",
+          "packet_encoding"
+        ]
+      },
+      "ClientTrafficStats": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "upload_bytes": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "download_bytes": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "sessions_total": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "sessions_active": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "udp_associations_total": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "udp_associations_active": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "udp_packets_upload": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "udp_packets_download": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$"
+          }
+        },
+        "required": [
+          "upload_bytes",
+          "download_bytes",
+          "sessions_total",
+          "sessions_active",
+          "udp_associations_total",
+          "udp_associations_active",
+          "udp_packets_upload",
+          "udp_packets_download"
+        ],
+        "description": "Payload bytes only. TCP sessions and UDP association/packet dimensions are distinct. Do not sum Node/Outbound/LocalInbound/Session views."
       }
     },
     "parameters": {

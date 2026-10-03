@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: API, CLI and integration developers
-- Last reviewed: 2026-10-02
+- Last reviewed: 2026-10-03
 - Owner: API maintainers
 - Responsibility: Contract authority, semantic references and API change workflow.
 - Lifecycle: Update with contract ownership or API scope changes.
@@ -97,3 +97,12 @@ express inbound/outbound support; exact proxy adapters are reported in client st
 Credentials are write-only inputs and absent from read schemas. See
 [client CLI](../CLI.md), [client runtime](../architecture/CLIENT_RUNTIME.md) and
 [control semantics](API_V1_DESIGN.md#phase-10-client-control-semantics).
+
+## Phase 11 client expansion
+
+Existing generic node/outbound APIs support six registered protocol/engine pairs.
+No protocol-specific route is added. Public client TLS fields, bounded adapter options,
+credential-pair inputs, role-specific capability dimensions and eight decimal-string
+client counters are documented in the machine schema. Server RuntimeStats is unchanged.
+Local SOCKS UDP status is `supported`; session kind is `tcp` or `udp_association`.
+See [control semantics](API_V1_DESIGN.md#phase-11-client-observations).

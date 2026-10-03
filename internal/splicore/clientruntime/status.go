@@ -8,23 +8,24 @@ import (
 )
 
 type Observation struct {
-	ID    identity.ID `json:"id"`
-	Stats ports.Stats `json:"stats"`
+	ID    identity.ID  `json:"id"`
+	Stats TrafficStats `json:"stats"`
 }
 type OutboundHealth struct {
-	ID         identity.ID `json:"id"`
-	Configured bool        `json:"configured"`
-	Available  bool        `json:"available"`
-	Active     bool        `json:"active"`
-	LastError  string      `json:"last_error,omitempty"`
-	Stats      ports.Stats `json:"stats"`
+	ID         identity.ID  `json:"id"`
+	Configured bool         `json:"configured"`
+	Available  bool         `json:"available"`
+	Active     bool         `json:"active"`
+	LastError  string       `json:"last_error,omitempty"`
+	Stats      TrafficStats `json:"stats"`
 }
 type SessionView struct {
-	ID         identity.ID `json:"id"`
-	InboundID  identity.ID `json:"local_inbound_id"`
-	OutboundID identity.ID `json:"outbound_id"`
-	NodeID     identity.ID `json:"node_id,omitempty"`
-	Stats      ports.Stats `json:"stats"`
+	ID         identity.ID  `json:"id"`
+	InboundID  identity.ID  `json:"local_inbound_id"`
+	OutboundID identity.ID  `json:"outbound_id"`
+	NodeID     identity.ID  `json:"node_id,omitempty"`
+	Kind       string       `json:"kind"`
+	Stats      TrafficStats `json:"stats"`
 }
 type Status struct {
 	State            client.ProfileState        `json:"state"`
@@ -40,7 +41,7 @@ type Status struct {
 }
 
 func (m *Manager) Status(state client.ProfileState, capabilities []ports.OutboundCapability) Status {
-	out := Status{State: state.Clone(), Health: "stopped", LocalSOCKSTCP: true, LocalSOCKSUDP: "deferred", OutboundAdapters: capabilities, LocalStats: []Observation{}, Outbounds: []OutboundHealth{}, Nodes: []Observation{}, Sessions: []SessionView{}}
+	out := Status{State: state.Clone(), Health: "stopped", LocalSOCKSTCP: true, LocalSOCKSUDP: "supported", OutboundAdapters: capabilities, LocalStats: []Observation{}, Outbounds: []OutboundHealth{}, Nodes: []Observation{}, Sessions: []SessionView{}}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if !m.closed && m.current.Load() != nil && state.Enabled {
@@ -63,10 +64,14 @@ func (m *Manager) Status(state client.ProfileState, capabilities []ports.Outboun
 		v := OutboundHealth{ID: o.ID, Configured: true}
 		if c := m.outStats[o.ID]; c != nil {
 			v.Stats = c.stats()
-			v.Active = v.Stats.Active > 0
-			if h := c.health.Load(); h != nil {
-				v.Available = h.available
-				v.LastError = h.lastError
+			v.Active = v.Stats.Active > 0 || v.Stats.UDPActive > 0
+		}
+		if current := m.current.Load(); current != nil {
+			if lease, ok := current.outbounds[o.ID].(*dialerLease); ok {
+				if h := lease.health.Load(); h != nil {
+					v.Available = h.available
+					v.LastError = h.lastError
+				}
 			}
 		}
 		out.Outbounds = append(out.Outbounds, v)
@@ -79,7 +84,7 @@ func (m *Manager) Status(state client.ProfileState, capabilities []ports.Outboun
 		out.Nodes = append(out.Nodes, v)
 	}
 	for _, s := range m.sessions {
-		out.Sessions = append(out.Sessions, SessionView{ID: s.id, InboundID: s.inbound, OutboundID: s.outbound, NodeID: s.node, Stats: s.stats.stats()})
+		out.Sessions = append(out.Sessions, SessionView{ID: s.id, InboundID: s.inbound, OutboundID: s.outbound, NodeID: s.node, Kind: s.kind, Stats: s.stats.stats()})
 	}
 	sort.Slice(out.Sessions, func(i, j int) bool { return out.Sessions[i].ID < out.Sessions[j].ID })
 	return out

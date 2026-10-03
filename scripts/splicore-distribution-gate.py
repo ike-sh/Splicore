@@ -43,6 +43,7 @@ def inner():
     def smoke(stage):
         run(stage+'-smoke','python3','/source/scripts/splicore-installed-smoke.py',stage)
         run(stage+'-client','python3','/source/scripts/splicore-client-smoke.py',stage)
+        run(stage+'-expansion','python3','/source/scripts/splicore-client-expansion-smoke.py',stage)
     def system():return s.request('GET','/api/v1/system')
     def page():return s.request('GET','/api/v1/inbounds')
     def unit(*args):
@@ -94,6 +95,11 @@ def inner():
         db_snapshot();smoke('crash-recovery');results['parent_child_crash']='PASS';results['unrelated_xray']='UNAFFECTED'
     finally:s.h.stop(unrelated)
     before=db_snapshot();key=digest('/var/lib/splicore/master.key');bootstrap=digest('/etc/splicore/splicore.yaml')
+    # Each campaign deliberately restarts the same disposable unit repeatedly.
+    # Reset only its start counter between independent install scenarios; leave
+    # production unit policy intact and never retry a failed operation.
+    unit('reset-failed','splicore.service')
+    results['campaign_start_counter']='reset between independent lab scenarios; production policy unchanged'
     install('normal-upgrade','package-b.tar.gz');assert db_snapshot()==before;assert digest('/var/lib/splicore/master.key')==key;assert digest('/etc/splicore/splicore.yaml')==bootstrap
     smoke('upgrade');results['upgrade']='PASS'
     files={p:digest(p) for p in ['/usr/local/bin/splicore','/etc/systemd/system/splicore.service','/etc/splicore/install.json','/etc/splicore/splicore.yaml','/var/lib/splicore/master.key']};before=db_snapshot()
@@ -115,6 +121,7 @@ def inner():
         for member in tar:
             data=tar.extractfile(member).read();assert not any(value.encode() in data for value in secrets),'BLOCKING support secret gate'
     assert archive.stat().st_mode&0o777==0o600;shutil.copyfile(archive,out/'support.tar.gz');(out/'support.tar.gz').chmod(0o600);results['support_secret_gate']='PASS'
+    unit('reset-failed','splicore.service')
     before=db_snapshot();run('uninstall','/usr/local/bin/splicore','package','uninstall');assert not pathlib.Path('/usr/local/bin/splicore').exists();assert db_snapshot()==before;assert digest('/var/lib/splicore/master.key')==key
     install('reinstall','package-b.tar.gz');assert db_snapshot()==before;smoke('reinstall');results['uninstall_retains_state']='PASS';results['reinstall']='PASS'
     # Symlink and same-filesystem bind mounts cannot become purge targets.

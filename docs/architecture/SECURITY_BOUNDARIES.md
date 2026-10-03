@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: All developers and security reviewers
-- Last reviewed: 2026-10-02
+- Last reviewed: 2026-10-03
 - Owner: Security maintainers
 - Responsibility: Secret handling, transport authorization, imports, files and executable trust.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -147,3 +147,18 @@ Rotation validates before commit; malformed replacement preserves old intent and
 sessions. Passive startup cannot prove a syntactically valid remote key is accepted.
 Remote rejection is observed on actual traffic, without fallback or active probes.
 DNS semantics are documented in [routing](ROUTING_MODEL.md).
+
+## Client UDP and public security
+
+SOCKS TCP and UDP bind the configured loopback IP only. An association accepts only
+its TCP peer IP, then its requested source port or the first valid packet's port.
+Foreign IP/port, invalid reserved bytes and fragments cannot claim or use the relay.
+TCP EOF, idle expiry, changed route/adapter, stop and daemon shutdown close flows
+and join workers before releasing generation ownership. Limits are 32 target flows
+per association and a two-minute idle timeout; no unauthenticated LAN relay is exposed.
+
+ClientTLS cannot represent certificate keys or a REALITY private key. Xray client
+artifacts contain UUID/public client fields, are 0600 in 0700 private generations,
+and never enter argv, logs, doctor or support archives. The original supervisor
+owns all child cleanup. Passive health is per adapter lease so retired traffic
+cannot mark a replacement adapter healthy. Client FinalMask/Sudoku and Vision reject.

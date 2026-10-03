@@ -11,7 +11,7 @@
 
 The Account → Binding → Credential → Inbound → Native Engine → stats → ClientProfile/export
 path supports experimental Snell v5/v6, Hysteria2, TUIC v5 and native VLESS/REALITY.
-Phases 0–10 are locally frozen; Phase 5 supports flow-none VLESS/REALITY. Vision
+Phases 0–11 are locally frozen; Phase 5 supports flow-none VLESS/REALITY. Vision
 is DEFERRED / UNSUPPORTED and rejected before runtime construction or export. HY2 adds generic encrypted
 passwords, multiple Bindings, static TLS and owned QUIC/UDP admission. One Native
 Engine dispatches protocol compilers; exporters dispatch protocol keys. Create
@@ -235,7 +235,7 @@ owner. Operations/diagnostics do not add protocol capability or wire behavior.
 ## Phase 10 client runtime
 
 Phase 10 is locally frozen under its [freeze report](reports/PHASE_10_FREEZE_REPORT.md).
-Client Runtime remains Experimental. Phase 11 implementation is NOT STARTED.
+Client Runtime remains Experimental. Phase 11 expands the existing adapter registry.
 
 One daemon owns Server Runtime and Client Runtime with shared Application, domain,
 registry, vault, stats, transactions, API, CLI and SQLite. RemoteNode is separate
@@ -246,3 +246,19 @@ DIRECT or Snell/native → remote server → target. Client failure isolation pr
 server/API operation. See [client runtime](architecture/CLIENT_RUNTIME.md),
 [routing](architecture/ROUTING_MODEL.md) and [ADR 0022](adr/0022-client-runtime-domain.md).
 No additional binary/service, central client protocol switch or upstream wire edit.
+
+## Phase 11 client outbound expansion
+
+The existing registry adds HY2/native, TUIC v5/native, VLESS flow-none/native or
+Xray, and official embedded Mieru/native alongside Snell. One canonical VLESS node
+can back two outbounds with different engines. ClientTLS contains public trust and
+REALITY public fields only. Protocol-owned option decoders are reused; exporter
+strings never become runtime input. No new engine, supervisor, protocol switch,
+Application protocol branch or database migration is added.
+
+SOCKS5 UDP associations own a loopback socket, TCP control connection and bounded
+per-target packet flows. Immutable adapter leases retain established TCP sessions
+and avoid rebuilding unrelated adapters. UDP route/adapter changes close affected
+associations. See [ADR 0023](adr/0023-client-udp-ownership.md) and the
+[Phase 11 report](reports/PHASE_11_CLIENT_OUTBOUND_EXPANSION_REPORT.md) and
+[local freeze](reports/PHASE_11_FREEZE_REPORT.md). Phase 12 implementation is NOT STARTED.

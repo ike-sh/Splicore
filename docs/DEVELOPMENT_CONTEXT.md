@@ -28,14 +28,17 @@ arm64 is build only. See [distribution](DISTRIBUTION.md) and the
 The [Phase 9 freeze report](reports/PHASE_9_FREEZE_REPORT.md) records the authorized
 single commit, main fast-forward and clean branch preparation:
 `codex/phase-10-client-runtime-foundation`. Phase 10 freezes an **Experimental Client Runtime** under the maintainer authorization.
-Local SOCKS TCP, DIRECT and Snell/native are implemented; local SOCKS UDP is deferred. NoBrand migration is deferred
+Local SOCKS TCP, DIRECT and Snell/native are implemented. Phase 11 adds standard
+SOCKS UDP ASSOCIATE and HY2/TUIC/VLESS native or Xray/Mieru outbounds. NoBrand migration is deferred
 until the unified client/server core is complete. The [Phase 10 freeze report](reports/PHASE_10_FREEZE_REPORT.md)
 records the single commit, main fast-forward and clean
-`codex/phase-11-client-outbound-expansion` branch. Phase 11 implementation is NOT STARTED.
+`codex/phase-11-client-outbound-expansion` branch. Phase 11 is **FROZEN** under its
+[freeze report](reports/PHASE_11_FREEZE_REPORT.md). The prepared branch is
+`codex/phase-12-routing-dns-policy`; Phase 12 implementation is **NOT STARTED**.
 Push/tag/release remain prohibited.
 
 Splicore is an independent modular client/server proxy core derived from sing-box.
-Phases 0–10 are locally frozen. Phase 5 implements an Experimental VLESS/REALITY
+Phases 0–11 are locally frozen. Phase 5 implements an Experimental VLESS/REALITY
 Native candidate. Vision is **DEFERRED / UNSUPPORTED** due to pinned dependency
 checkptr and Read/Write defects. Flow-none VLESS/REALITY remains supported;
 its fresh acceptance gates pass with default checkptr and race. The supported
@@ -85,8 +88,14 @@ Snell/Hysteria2/TUIC remain Experimental; no Stable release.
   main fast-forward and creation of `codex/phase-11-client-outbound-expansion`.
   Resolve its full SHA from `git rev-parse codex/phase-10-client-runtime-foundation`;
   the freeze report cannot embed its own commit SHA. Phase 11 starts CLEAN there.
-  This authorization covers Phase 10 closure only; Phase 11 implementation has not begun.
-- Historical Phase 0–9 reports/evidence and migrations 0001–0004 immutable.
+  Phase 10 SHA: `463cb8ea4fc497d684b0f4ff8923015009d1187e`.
+- The maintainer separately authorized one Phase 11 freeze commit:
+  `feat(client): expand protocol outbounds and SOCKS UDP`, sole parent Phase 10,
+  main fast-forward and creation of `codex/phase-12-routing-dns-policy`, then stop.
+  Resolve its full SHA from `git rev-parse codex/phase-11-client-outbound-expansion`;
+  the freeze report cannot embed its own commit SHA. Phase 12 starts CLEAN there.
+  This authorization covers Phase 11 closure only; Phase 12 implementation is NOT STARTED.
+- Historical Phase 0–10 reports/evidence and migrations 0001–0005 immutable.
 - Fresh artifacts/tools/logs/binaries/state/caches external; upstream runtime edits 0.
   Phase 8 adds the audited official Mieru module, with no dependency upgrades.
 - Phase 6 authorizes official pinned Xray research/download, owned external child,
@@ -195,17 +204,34 @@ No permanent mita child, source fork/copy, wire rewrite, new EngineID, shared do
 fields/migrations/routes or real NoBrand modifications. Docker DO NOT QUERY / DO NOT TOUCH.
 QuotaNative/speed/hot updates/durable accounting unexposed; clients remain Experimental.
 
-## Phase 10 frozen boundary and Phase 11 entry
+## Phase 10 frozen boundary
 
 Frozen branch: `codex/phase-10-client-runtime-foundation`. Its sole parent is Phase 9
 `d47ef2c584654eaa8eaa965ef26b7acc24881e1f`; entry worktree was clean and index empty.
 Schema 5 adds generic client intent and node-owned encrypted credentials, retaining
 migrations 0001–0004. Shared generation lifetime and transactional restart are
 owned in [Client Runtime](architecture/CLIENT_RUNTIME.md). One binary/unit runs both
-roles. Other outbounds, TUN, DNS/policy/subscription and NoBrand migration remain
-deferred. Phase 10 is FROZEN under the [freeze report](reports/PHASE_10_FREEZE_REPORT.md).
-Current prepared branch: `codex/phase-11-client-outbound-expansion`, based on the
-Phase 10 freeze commit, with CLEAN worktree and EMPTY index. Implementation NOT STARTED.
-No new outbound is implemented by this freeze. Push/tag/release NONE; Docker DO NOT QUERY / TOUCH.
+roles. TUN, DNS/policy/subscription and NoBrand migration remain deferred. Phase 10 is FROZEN under the [freeze report](reports/PHASE_10_FREEZE_REPORT.md).
+Phase 11 entry branch: `codex/phase-11-client-outbound-expansion`, based on the
+Phase 10 freeze commit `463cb8ea4fc497d684b0f4ff8923015009d1187e`. Entry worktree
+was CLEAN with EMPTY index. Phase 11 now implements the six outbound adapter pairs
+and local SOCKS UDP, locally frozen under its authorized single commit.
+Push/tag/release NONE; Docker DO NOT QUERY / TOUCH.
 Acceptance evidence: `D:\splicore-validation\phase10-20261002`.
 Freeze evidence: `D:\splicore-validation\phase10-freeze-20261003`.
+
+## Phase 11 frozen boundary and Phase 12 entry
+
+Default race/checkptr is required without sanitizer suppression. Evidence is outside
+the checkout at `D:\splicore-validation\phase11-20261003`. Source/NoBrand/historical
+reports/migrations and unrelated refs match the entry manifest. Freeze evidence is
+`D:\splicore-validation\phase11-freeze-20261003`; exact-file staging and one commit
+were separately authorized. main fast-forwards to Phase 11, and the final action
+creates `codex/phase-12-routing-dns-policy`. Worktree CLEAN; index EMPTY.
+No Phase 12 implementation, push, tag or release.
+Client capability qualification remains Experimental; Vision rejects all engines,
+FinalMask/Sudoku client runtime remains deferred, and frozen server scopes remain.
+See [client runtime](architecture/CLIENT_RUNTIME.md) and
+[report](reports/PHASE_11_CLIENT_OUTBOUND_EXPANSION_REPORT.md) and
+[freeze](reports/PHASE_11_FREEZE_REPORT.md). Windows tests/build PASS, race NOT EXECUTED;
+Linux arm64 BUILD ONLY/runtime NOT CERTIFIED; Xray TCP half-close NOT QUALIFIED.

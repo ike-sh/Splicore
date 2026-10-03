@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: API, CLI and integration developers
-- Last reviewed: 2026-10-02
+- Last reviewed: 2026-10-03
 - Owner: API maintainers
 - Responsibility: Transport, security and operation semantics; OpenAPI owns endpoint surface.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -152,3 +152,18 @@ exact paths/schemas. Runtime health is passive; available is not an active probe
 Client and server share one global revision/journal. Client build/bind/commit failure
 compensates candidates while preserving committed intent and existing server runtimes.
 See [CLI](../CLI.md) and [client runtime](../architecture/CLIENT_RUNTIME.md).
+
+## Phase 11 client observations
+
+Credential pair writes use the existing generic input: kind `uuid_password` or
+`username_password`, value a strict JSON string with the canonical two fields. No
+secret is returned in node/outbound reads. ClientSecurity adds public ClientTLS;
+adapters validate the protocol/transport/security/options combination. Options are
+schema 1, strict bounded JSON objects of at most 16 KiB, never engine configuration.
+
+ClientTrafficStats has decimal-string upload/download payload bytes, TCP total/active
+sessions, UDP total/active associations and upload/download packets. A session's kind
+distinguishes streams from associations. LocalInbound, Outbound, Node and Session are
+views of the same payload; adding views would double count. UDP headers/control bytes
+are excluded. Passive health belongs to the current adapter lease and uses a fixed
+redacted error. Existing ETag, If-Match, journal and apply semantics remain shared.

@@ -193,8 +193,8 @@ func TestSnellOutboundRemoteUDPIsSeparateFromLocalSOCKSUDP(t *testing.T) {
 			}
 			_, _ = conn.Write([]byte{5, 3, 0, 1, 127, 0, 0, 1, 0, 0})
 			reply := make([]byte, 10)
-			if _, err = io.ReadFull(conn, reply); err != nil || reply[1] != 7 {
-				t.Fatal("local UDP must reject", err)
+			if _, err = io.ReadFull(conn, reply); err != nil || reply[1] != 0 {
+				t.Fatal("local UDP association must succeed", err)
 			}
 		})
 	}

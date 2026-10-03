@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Protocol and adapter developers
-- Last reviewed: 2026-10-02
+- Last reviewed: 2026-10-03
 - Owner: Protocol maintainers
 - Responsibility: Proposed protocol ports, compiled registry and effective capabilities.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -184,14 +184,14 @@ mieru/2/base; release 3.38.0 is implementation provenance, not the wire-version 
 ## Client role and outbound port
 
 Metadata now declares `Roles{Inbound,Outbound}` under the same ProtocolID.
-Snell declares both; the other implemented protocols declare inbound only. Engine
-implementation roles are the intersection of protocol and engine roles. Native
-declares both; Xray remains inbound only. This does not advertise unimplemented
-HY2/TUIC/VLESS/Mieru outbounds.
+Snell, HY2, TUIC, VLESS and Mieru declare both roles. Engine implementation roles
+are the intersection of protocol and engine roles; native and Xray declare both.
+Outbound capability is scoped to the exact protocol/engine pair and role, with
+TCP/UDP, IPv4/IPv6/domain, TLS/QUIC/REALITY, flow and UDP resolution dimensions.
 
 OutboundFactory validates canonical RemoteNode/credential and builds ClientDialer.
 The immutable outbound registry rejects duplicate/nil registrations and unsupported
 exact protocol/engine pairs. UDP uses optional ClientPacketDialer separately from
-SOCKS admission. Composition registers Snell/native without adding central protocol
-switches. Protocol credential validation and canonical v5→v4/v6→v6 mapping remain
+SOCKS admission. Composition registers six adapter pairs without adding central
+protocol switches. Protocol credential validation and canonical v5→v4/v6→v6 mapping remain
 in the Snell module. See [client runtime](CLIENT_RUNTIME.md).

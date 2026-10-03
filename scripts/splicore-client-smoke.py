@@ -80,7 +80,7 @@ def main():
  bootstrap.write_text(f'schema: 1\nstate_directory: {private}\nkey_file: {key}\napi:\n  unix_socket: {aapi}\n')
  aLog=(WORK/(args.stage+'-a.log')).open('wb');rLog=(WORK/(args.stage+'-reference.log')).open('wb')
  a=subprocess.Popen([EXE,'run','--config',str(bootstrap)],stdout=aLog,stderr=subprocess.STDOUT)
- reference=None;targets=[];result={'stage':args.stage,'result':'PASS','local_socks_udp':'DEFERRED','external_client_processes':0}
+ reference=None;targets=[];result={'stage':args.stage,'result':'PASS','external_client_processes':0}
  try:
   dns=h.EchoUDP(('127.0.0.1',53),LocalDNS);targets.append(dns);threading.Thread(target=dns.serve_forever,daemon=True).start()
   wait_api(str(aapi),a)
@@ -99,10 +99,10 @@ def main():
   if initial:
    cfg['node_ids']={};cfg['outbound_ids']={}
    own=next(i for i in request(API,'GET','/api/v1/inbounds')['items'] if i['inbound']['protocol']['protocol']=='snell')
-   projection=request(API,'POST','/api/v1/inbounds/'+own['inbound']['id']+'/export',{'format':'sing-box','client_version':'1.14.1','binding_id':own['bindings'][0]['binding_id']})
-   own_config=json.loads(projection['content']);cfg['self_psk']=own_config['psk']
+   # Runtime input comes from the canonical fixture, never an exporter parse.
+   own_doc=json.loads((ROOT/'installed/server-documents.json').read_text())['snell'];cfg['self_psk']=own_doc['psk']
    for kind in ['a5','a6','ref5','ref6','self6']:
-    v=int(kind[-1]);port=own_config['server_port'] if kind=='self6' else cfg['a_ports' if kind[0]=='a' else 'reference_ports'][str(v)]
+    v=int(kind[-1]);port=own_doc['listener']['port'] if kind=='self6' else cfg['a_ports' if kind[0]=='a' else 'reference_ports'][str(v)]
     node={'name':'synthetic-'+kind,'protocol':{'protocol':'snell','wire_version':str(v),'feature_profile':'base'},'endpoint':{'host':'localhost','port':port},'transport':{'kind':'tcp'},'security':{'kind':'none'},'options':{'schema_version':1,'data':{'version':v}},'metadata':{}}
     nid=mutate(API,{'resource':'node','action':'create','node':node,'credential':{'kind':'psk','value':cfg['self_psk'] if kind=='self6' else cfg['psk']}})['id'];cfg['node_ids'][kind]=nid
     oid=mutate(API,{'resource':'outbound','action':'create','outbound':{'name':'synthetic-'+kind,'kind':'proxy','node_id':nid,'engine':'native'}})['id'];cfg['outbound_ids'][kind]=oid

@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Storage and deployment developers
-- Last reviewed: 2026-10-02
+- Last reviewed: 2026-10-03
 - Owner: Storage maintainers
 - Responsibility: Driver qualification, durability, migration mechanics, backup and corruption recovery.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -127,3 +127,12 @@ protobuf and client configs are derived output, never authority. Recovery rebuil
 users and listeners solely from committed state; imported files are removed in tests.
 Generation stats reset on restart; persistent usage remains deferred.
 [Contract](../protocol/MIERU.md).
+
+## Phase 11 reuse
+
+Schema remains 5; migrations 0001–0005 and generic tables are unchanged. Public
+ClientTLS fields and bounded protocol options live in existing canonical node JSON.
+Credentials retain the existing PSK/Password/UUID/UUIDPassword/UsernamePassword
+payloads and encrypted node ownership. A credential pair is a write-only JSON string
+inside generic CredentialInput.value, with no client-only account schema. Generation
+leases, UDP flows, counters and passive health are ephemeral and never database authority.

@@ -14,7 +14,8 @@ type Transport struct {
 	Kind string `json:"kind"`
 }
 type Security struct {
-	Kind string `json:"kind"`
+	Kind string           `json:"kind"`
+	TLS  access.ClientTLS `json:"tls"`
 }
 
 // Options are bounded and adapter-validated. Secrets have a separate reference.
@@ -49,7 +50,11 @@ func (n RemoteNode) Validate() error {
 	if err := n.Endpoint.Validate(); err != nil {
 		return err
 	}
-	if n.Transport.Kind != "tcp" || n.Security.Kind != "none" || n.Options.Schema != 1 || len(n.Options.Data) > 16384 || !json.Valid(n.Options.Data) {
+	if (n.Transport.Kind != "tcp" && n.Transport.Kind != "quic" && n.Transport.Kind != "udp") || n.Security.TLS.Validate(n.Security.Kind) != nil || n.Options.Schema != 1 || len(n.Options.Data) > 16384 || !json.Valid(n.Options.Data) {
+		return invalid()
+	}
+	var object map[string]json.RawMessage
+	if json.Unmarshal(n.Options.Data, &object) != nil || object == nil {
 		return invalid()
 	}
 	return n.Metadata.Validate()

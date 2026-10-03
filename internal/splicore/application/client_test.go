@@ -126,6 +126,8 @@ func waitIdle(t *testing.T, s *application.Service) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := s.WaitClientIdle(ctx); err != nil {
+		status, _ := s.ClientStatus(context.Background())
+		t.Logf("pending client sessions: %+v", status.Sessions)
 		t.Fatal("session cleanup", err)
 	}
 }
@@ -180,7 +182,7 @@ func TestClientDIRECTAddressesLifecycleAndStats(t *testing.T) {
 	if err != nil || status.Outbounds[0].Stats.Active != 0 || status.Outbounds[0].Stats.Sessions != 3 || status.LocalStats[0].Stats != status.Outbounds[0].Stats {
 		t.Fatal("stats", status, err)
 	}
-	if !status.Outbounds[0].Available || !status.LocalSOCKSTCP || status.LocalSOCKSUDP != "deferred" {
+	if !status.Outbounds[0].Available || !status.LocalSOCKSTCP || status.LocalSOCKSUDP != "supported" {
 		t.Fatal("capabilities/health", status)
 	}
 	c, err := socksConn(port, target)

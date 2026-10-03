@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Linux operators and service maintainers
-- Last reviewed: 2026-10-02
+- Last reviewed: 2026-10-03
 - Owner: Distribution maintainers
 - Responsibility: Main-unit lifecycle, permissions, diagnostics and hardening.
 - Lifecycle: Update with systemd unit and service behavior.
@@ -86,3 +86,15 @@ recovery failure reports degraded client state while the server/API remain avail
 Remote offline affects that outbound's passive health; DIRECT and server traffic stay
 live. Doctor observes counts/listeners/route without remote probes. Detailed commands:
 [CLI](CLI.md); lifecycle and ownership: [Client Runtime](architecture/CLIENT_RUNTIME.md).
+
+## Phase 11 client operations
+
+The same unit restores every enabled adapter from schema-5 SQLite state. Offline
+remote nodes do not fail startup; actual traffic sets that lease's passive health.
+Other adapters, DIRECT, server listeners and management stay available. Node endpoint
+or credential changes rebuild only affected leases; label/route changes reuse adapters.
+Established TCP streams retain their generation, while affected UDP associations close
+on committed route/adapter changes. Explicit client restart rebuilds adapters and closes
+old sessions after commit. Mieru uses official APIs in-process; Xray uses the existing
+engine child boundary with no extra unit. Snell/Mieru UDP domains use per-flow local
+resolution; other proxy UDP domains resolve remotely. See [client runtime](architecture/CLIENT_RUNTIME.md).

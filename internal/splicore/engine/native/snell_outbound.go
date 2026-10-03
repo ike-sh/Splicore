@@ -4,13 +4,6 @@ import (
 	"context"
 	box "github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/adapter/certificate"
-	"github.com/sagernet/sing-box/adapter/endpoint"
-	"github.com/sagernet/sing-box/adapter/inbound"
-	"github.com/sagernet/sing-box/adapter/outbound"
-	boxservice "github.com/sagernet/sing-box/adapter/service"
-	"github.com/sagernet/sing-box/dns"
-	"github.com/sagernet/sing-box/dns/transport/local"
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
 	"github.com/sagernet/sing-box/internal/splicore/domain/client"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
@@ -19,19 +12,24 @@ import (
 	"github.com/sagernet/sing-box/option"
 	upstream "github.com/sagernet/sing-box/protocol/snell"
 	M "github.com/sagernet/sing/common/metadata"
-	"github.com/sagernet/sing/service"
 	"net"
+	"strconv"
 )
 
 // SnellOutboundFactory belongs to the existing native engine; no wire implementation.
 type SnellOutboundFactory struct{}
 
 func (SnellOutboundFactory) Capability() ports.OutboundCapability {
-	return ports.OutboundCapability{Protocol: "snell", Engine: "native", TCP: true, UDP: true, Qualification: "experimental"}
+	c := clientCapability("snell", false, false, false)
+	c.UDPDomainResolution = "local"
+	return c
 }
 func (SnellOutboundFactory) Validate(n client.RemoteNode, c access.Credential) error {
 	if err := n.Validate(); err != nil {
 		return err
+	}
+	if n.Transport.Kind != "tcp" || n.Security.Kind != "none" {
+		return identity.Err(identity.Invalid, "unsupported Snell client settings")
 	}
 	s, err := module.Decode(n.Options.Data)
 	if err != nil {
@@ -48,37 +46,20 @@ func (f SnellOutboundFactory) Build(ctx context.Context, n client.RemoteNode, c 
 	}
 	s, _ := module.Decode(n.Options.Data)
 	v, _ := module.ClientVersion(s.Version)
-	runtimeCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
-	runtimeCtx = service.ContextWith[adapter.PlatformInterface](runtimeCtx, serverPlatform{})
-	or := outbound.NewRegistry()
-	upstream.RegisterOutbound(or)
-	dr := dns.NewTransportRegistry()
-	local.RegisterTransport(dr)
-	runtimeCtx = box.Context(runtimeCtx, inbound.NewRegistry(), or, endpoint.NewRegistry(), dr, boxservice.NewRegistry(), certificate.NewRegistry())
+
 	opts := &option.SnellOutboundOptions{AbstractSnellOutboundOptions: option.AbstractSnellOutboundOptions{ServerOptions: option.ServerOptions{Server: n.Endpoint.Host, ServerPort: n.Endpoint.Port}, PSK: c.Payload.(access.PSKPayload).Key.Reveal()}, Version: v}
-	b, err := box.New(box.Options{Context: runtimeCtx, Options: option.Options{Log: &option.LogOptions{Disabled: true}, DNS: &option.DNSOptions{RawDNSOptions: option.RawDNSOptions{Servers: []option.DNSServerOptions{{Type: "local", Tag: "local", Options: &option.LocalDNSServerOptions{}}}}}, Outbounds: []option.Outbound{{Type: "snell", Tag: "managed", Options: opts}}}})
-	if err != nil {
-		cancel()
-		return nil, identity.Err(identity.Unavailable, "native outbound construction failed")
+	d, err := buildClientBox(ctx, "snell", opts, upstream.RegisterOutbound)
+	if err == nil {
+		d.(*snellDialer).resolveUDP = true
 	}
-	if err = b.Start(); err != nil {
-		_ = b.Close()
-		cancel()
-		return nil, identity.Err(identity.Unavailable, "native outbound start failed")
-	}
-	o, ok := b.Outbound().Outbound("managed")
-	if !ok {
-		_ = b.Close()
-		cancel()
-		return nil, identity.Err(identity.Unavailable, "native outbound unavailable")
-	}
-	return &snellDialer{box: b, outbound: o, cancel: cancel}, nil
+	return d, err
 }
 
 type snellDialer struct {
-	box      *box.Box
-	outbound adapter.Outbound
-	cancel   context.CancelFunc
+	box        *box.Box
+	outbound   adapter.Outbound
+	cancel     context.CancelFunc
+	resolveUDP bool
 }
 
 func (d *snellDialer) DialContext(ctx context.Context, e access.Endpoint) (net.Conn, error) {
@@ -86,5 +67,32 @@ func (d *snellDialer) DialContext(ctx context.Context, e access.Endpoint) (net.C
 }
 func (d *snellDialer) Close() error { d.cancel(); return d.box.Close() }
 func (d *snellDialer) ListenPacket(ctx context.Context, e access.Endpoint) (net.PacketConn, error) {
+	if d.resolveUDP && net.ParseIP(e.Host) == nil {
+		// The frozen native server path unmaps a domain response into a domain
+		// address which Snell's IP-only response framing cannot encode. Resolve
+		// this client flow once; preserve the canonical domain and the wire codec.
+		address, err := net.DefaultResolver.LookupNetIP(ctx, "ip", e.Host)
+		if err != nil {
+			return nil, err
+		}
+		if len(address) == 0 {
+			return nil, net.InvalidAddrError("domain has no addresses")
+		}
+		target := M.ParseSocksaddr(net.JoinHostPort(address[0].String(), strconv.Itoa(int(e.Port))))
+		pc, err := d.outbound.ListenPacket(ctx, target)
+		if err != nil {
+			return nil, err
+		}
+		return &resolvedClientPacket{PacketConn: pc, target: target}, nil
+	}
 	return d.outbound.ListenPacket(ctx, M.ParseSocksaddrHostPort(e.Host, e.Port))
+}
+
+type resolvedClientPacket struct {
+	net.PacketConn
+	target net.Addr
+}
+
+func (p *resolvedClientPacket) WriteTo(b []byte, _ net.Addr) (int, error) {
+	return p.PacketConn.WriteTo(b, p.target)
 }

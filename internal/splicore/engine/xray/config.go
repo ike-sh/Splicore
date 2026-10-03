@@ -38,6 +38,9 @@ type inboundConfig struct {
 type userConfig struct {
 	Clients    []client `json:"clients"`
 	Decryption string   `json:"decryption"`
+	Auth       string   `json:"auth,omitempty"`
+	UDP        bool     `json:"udp,omitempty"`
+	IP         string   `json:"ip,omitempty"`
 }
 type client struct {
 	ID    string `json:"id"`
@@ -79,8 +82,10 @@ type certificateConfig struct {
 	Key         []string `json:"key"`
 }
 type outboundConfig struct {
-	Protocol string `json:"protocol"`
-	Tag      string `json:"tag"`
+	Protocol string                 `json:"protocol"`
+	Tag      string                 `json:"tag"`
+	Settings *vlessOutboundSettings `json:"settings,omitempty"`
+	Stream   *clientStreamConfig    `json:"streamSettings,omitempty"`
 }
 
 func validateIntent(in ports.RuntimeIntent) (v.Settings, error) {

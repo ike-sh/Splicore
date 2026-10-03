@@ -42,6 +42,14 @@ func mieruIntent(t *testing.T, transport string) ports.RuntimeIntent {
 	}
 	port := uint16(l.Addr().(*net.TCPAddr).Port)
 	l.Close()
+	if transport == "udp" {
+		packet, err := net.ListenPacket("udp4", "127.0.0.1:0")
+		if err != nil {
+			t.Fatal(err)
+		}
+		port = uint16(packet.LocalAddr().(*net.UDPAddr).Port)
+		_ = packet.Close()
+	}
 	data, _ := json.Marshal(module.Settings{Transport: transport, MTU: 1500, Multiplex: "default"})
 	in := ports.RuntimeIntent{Inbound: access.Inbound{ID: id(), NodeID: id(), Name: "synthetic-mieru", Protocol: module.Key(), Engine: "native", Enabled: true, Listeners: []access.Listener{{ID: id(), Transport: transport, Endpoint: access.Endpoint{Host: "127.0.0.1", Port: port}}}, DisplayEndpoints: []access.DisplayEndpoint{{ID: id(), Endpoint: access.Endpoint{Host: "localhost", Port: port}}}, Settings: access.Settings{Schema: 1, Data: data}, Stamp: stamp}}
 	for _, name := range []string{"Alice", "Bob"} {

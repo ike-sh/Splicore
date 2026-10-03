@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Client and exporter developers
-- Last reviewed: 2026-10-02
+- Last reviewed: 2026-10-03
 - Owner: Client maintainers
 - Responsibility: ClientProfile projection, exporter responsibility and client/version checks.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -146,3 +146,18 @@ Alice/Bob and IPv4/IPv6/domain endpoints. Export selects DisplayEndpoint and exp
 binding_id; default JSON/formatting redact credentials. No server protobuf leaks.
 sing-box 1.14.1 has no Mieru outbound; Surge/URI/Xray/unknown versions reject.
 [Contract](../protocol/MIERU.md), [matrix](../testing/INTEROP_MATRIX.md).
+
+## Phase 11 Splicore client runtime
+
+Export qualification above and client-runtime acceptance are separate. The six
+runtime adapter pairs are Snell/native, HY2/native, TUIC v5/native, VLESS flow-none/
+native, VLESS flow-none/xray and Mieru/native. All support local SOCKS TCP and UDP,
+IPv4/IPv6/domain payload targets within their tested feature scopes. VLESS REALITY
+uses public client fields only; Vision rejects. Mieru uses official v3.38.0 APIs,
+with no external mita client. Client FinalMask/Sudoku is deferred.
+
+Snell and Mieru UDP resolve a target locally per flow because their frozen response
+contracts accept IP addresses; canonical domains remain unchanged. HY2/TUIC/VLESS
+preserve remote UDP target resolution. TCP target domains resolve remotely for
+proxy adapters. These semantics add no DNS engine. Actual self/reference/platform
+qualification belongs to the [Phase 11 report](../reports/PHASE_11_CLIENT_OUTBOUND_EXPANSION_REPORT.md).

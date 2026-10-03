@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Operators and integration developers
-- Last reviewed: 2026-10-02
+- Last reviewed: 2026-10-03
 - Owner: Control-plane maintainers
 - Responsibility: Client resource commands and shared daemon control.
 - Lifecycle: Update with implemented CLI behavior.
@@ -49,3 +49,14 @@ the native data path and in-process control transport; Linux UDS/systemd install
 is not a Windows-service claim. Existing server creation/export/service/key/backup/
 support commands remain available. See [API](api/README.md), [operations](OPERATIONS.md)
 and [client runtime](architecture/CLIENT_RUNTIME.md).
+
+## Phase 11 options and observations
+
+The same node/outbound/local-inbound/client commands handle every registered adapter.
+Select `engine` on Outbound; VLESS nodes can be referenced by native and Xray. Generic
+CredentialInput.kind also accepts `uuid_password` and `username_password`; value is
+a private JSON string containing the canonical pair. Public TLS/REALITY trust fields
+belong in Node.security.tls, never server private material. Unknown adapter options,
+Vision and client masks reject before commit. Status reports UDP associations/packets
+separately from TCP sessions; dimensions must not be summed. No protocol-specific
+command group, service or configuration file is added.

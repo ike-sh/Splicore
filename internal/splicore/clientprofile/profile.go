@@ -10,15 +10,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/transportmask"
 )
 
-type TLS struct {
-	Enabled          bool     `json:"enabled"`
-	ServerName       string   `json:"server_name,omitempty"`
-	ALPN             []string `json:"alpn,omitempty"`
-	Trust            string   `json:"trust,omitempty"`
-	CACertificate    string   `json:"ca_certificate,omitempty"`
-	RealityPublicKey string   `json:"reality_public_key,omitempty"`
-	RealityShortID   string   `json:"reality_short_id,omitempty"`
-}
+type TLS = access.ClientTLS
 type Transport struct {
 	Kind string `json:"kind"`
 	Path string `json:"path,omitempty"`

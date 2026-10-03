@@ -29,17 +29,21 @@ and measured qualification are separate. Exact profile/client boundaries:
 | Capability | State / scope |
 | --- | --- |
 | Local SOCKS5 TCP CONNECT | SUPPORTED; no-auth loopback IP only, configurable port, IPv4/IPv6. |
-| Local SOCKS UDP ASSOCIATE | DEFERRED; explicit unsupported response. |
-| DIRECT | SUPPORTED; IPv4/IPv6/domain TCP via the client runtime. |
-| Snell/native outbound | Experimental / SUPPORTED TCP; server5→client4,6→6, no silent downgrade. |
+| Local SOCKS UDP ASSOCIATE | SUPPORTED; loopback relay, TCP peer IP/source-port ownership and bounded flows. |
+| DIRECT | SUPPORTED; IPv4/IPv6/domain TCP and UDP. |
+| Snell/native outbound | Experimental / TCP+UDP; server5→client4,6→6; UDP domains resolve locally. |
 | Remote Snell outbound UDP | SUPPORTED through optional adapter port; separate from local SOCKS. |
 | Minimal routing | Committed default outbound plus local selected override. |
 | Health / stats | Passive configured/available/active/error; ephemeral payload/session dimensions. |
-| Other protocol outbounds | HY2/TUIC/VLESS native or Xray/Mieru DEFERRED. |
+| HY2/native, TUIC v5/native | Experimental / TCP+UDP, TLS/QUIC, IPv4/IPv6/domain. |
+| VLESS/native and VLESS/xray | Experimental / flow-none TCP+XUDP, plain/TLS/REALITY; Vision rejects. |
+| Mieru/native | Experimental / official v3.38.0, TCP/UDP underlays and payloads; UDP domains resolve locally. |
+| Client FinalMask/Sudoku | DEFERRED; server support does not imply client support. |
 | Advanced routing / DNS / health probes | DEFERRED. |
 | TUN / subscriptions / policy groups / providers | NOT IMPLEMENTED. |
 
-Snell protocol and native engine have both roles. Other implemented protocols and
-Xray have inbound role only. Server capabilities above remain Experimental within
+All implemented protocols and native/Xray engines declare both roles. Exact outbound
+capabilities distinguish role, address families, domain, TLS/QUIC/REALITY and flows.
+Server capabilities above remain Experimental within
 their frozen feature scopes. No additional service/binary; no NoBrand migration.
 See [client runtime](CLIENT_RUNTIME.md) and [routing](ROUTING_MODEL.md).

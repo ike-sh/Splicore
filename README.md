@@ -5,7 +5,7 @@ modular client/server architecture as its target.
 
 ## Status
 
-**Early Development / Snell, Hysteria2, TUIC, VLESS and Mieru Experimental.** Phases 0–10 are locally frozen.
+**Early Development / Snell, Hysteria2, TUIC, VLESS and Mieru Experimental.** Phases 0–11 are locally frozen.
 Phase 6 native/Xray VLESS duality is **FROZEN**, with 40 actual client
 traffic cells and default race/checkptr gates passing. See the
 [Phase 6 report](docs/reports/PHASE_6_XRAY_ENGINE_DUALITY_REPORT.md).
@@ -29,11 +29,13 @@ Ubuntu 24.04 WSL2 amd64 is runtime qualified; arm64 is build only. See the
 
 Phase 10 adds an **Experimental Client Runtime** in the same binary/service:
 loopback SOCKS5 TCP → DIRECT or embedded Snell/native → remote server. SQLite
-restores client intent alongside server runtimes. Local SOCKS UDP and advanced
-routing/DNS remain deferred. See [client runtime](docs/architecture/CLIENT_RUNTIME.md)
+restores client intent alongside server runtimes. Phase 11 adds local SOCKS UDP and HY2/TUIC/VLESS native or Xray/Mieru outbounds;
+advanced routing/DNS remain deferred. See [client runtime](docs/architecture/CLIENT_RUNTIME.md)
 and [CLI](docs/CLI.md). Phase 10 is **FROZEN** under the
-[freeze report](docs/reports/PHASE_10_FREEZE_REPORT.md). Phase 11 implementation
-is **NOT STARTED**. No public release.
+[freeze report](docs/reports/PHASE_10_FREEZE_REPORT.md). Phase 11 is **FROZEN** under its
+[freeze report](docs/reports/PHASE_11_FREEZE_REPORT.md). Client features remain Experimental;
+Windows race is NOT EXECUTED, arm64 runtime is NOT CERTIFIED, and Xray TCP half-close
+is NOT QUALIFIED. Phase 12 implementation is **NOT STARTED**. No public release.
 
 Phase 2 implements Snell v5/v6 using committed SQLite state, the existing sing-box
 data plane, payload stats, protected Linux API/CLI and client exporters. Pinned

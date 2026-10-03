@@ -51,7 +51,7 @@ func (*Engine) Metadata() ports.EngineMetadata {
 	if runtime.GOOS != "linux" && runtime.GOOS != "windows" {
 		a = ports.UnsupportedPlatform
 	}
-	return ports.EngineMetadata{Roles: ports.Roles{Inbound: true}, ID: "xray", Availability: a, RuntimeImplemented: a == ports.Compiled, ABI: 1, Protocols: []string{"vless"}}
+	return ports.EngineMetadata{Roles: ports.Roles{Inbound: true, Outbound: true}, ID: "xray", Availability: a, RuntimeImplemented: a == ports.Compiled, ABI: 1, Protocols: []string{"vless"}}
 }
 func (*Engine) Capabilities() ports.Capabilities {
 	return ports.Capabilities{

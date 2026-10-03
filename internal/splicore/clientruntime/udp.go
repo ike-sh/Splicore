@@ -1,0 +1,225 @@
+package clientruntime
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"github.com/sagernet/sing-box/internal/splicore/domain/access"
+	"github.com/sagernet/sing-box/internal/splicore/ports"
+	"github.com/sagernet/sing/common/buf"
+	M "github.com/sagernet/sing/common/metadata"
+	"github.com/sagernet/sing/protocol/socks/socks5"
+	"io"
+	"net"
+	"strconv"
+	"sync"
+	"time"
+)
+
+var errUDPPacket = errors.New("invalid SOCKS UDP datagram")
+
+const maxAssociationFlows = 32
+
+func parseUDPPacket(b []byte) (access.Endpoint, []byte, error) {
+	if len(b) < 4 || b[0] != 0 || b[1] != 0 || b[2] != 0 {
+		return access.Endpoint{}, nil, errUDPPacket
+	}
+	r := bytes.NewReader(b[3:])
+	a, err := M.SocksaddrSerializer.ReadAddrPort(r)
+	if err != nil {
+		return access.Endpoint{}, nil, errUDPPacket
+	}
+	e := access.Endpoint{Host: a.AddrString(), Port: a.Port}
+	if e.Validate() != nil {
+		return e, nil, errUDPPacket
+	}
+	return e, b[len(b)-r.Len():], nil
+}
+func encodeUDPPacket(a net.Addr, p []byte) ([]byte, error) {
+	target := M.SocksaddrFromNet(a)
+	b := buf.NewSize(3 + M.SocksaddrSerializer.AddrPortLen(target) + len(p))
+	defer b.Release()
+	if err := b.WriteZeroN(3); err != nil {
+		return nil, err
+	}
+	if err := M.SocksaddrSerializer.WriteAddrPort(b, target); err != nil {
+		return nil, err
+	}
+	_, _ = b.Write(p)
+	return append([]byte(nil), b.Bytes()...), nil
+}
+
+func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, requested M.Socksaddr, d ports.ClientDialer, counters []*counter, health *dialerLease) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	reply := func(code byte, addr net.Addr) error {
+		return socks5.WriteResponse(s.local, socks5.Response{ReplyCode: code, Bind: M.SocksaddrFromNet(addr)})
+	}
+	peer := s.local.RemoteAddr().(*net.TCPAddr).AddrPort().Addr().Unmap()
+	if requested.IsFqdn() || requested.Addr.IsValid() && !requested.Addr.IsUnspecified() && requested.Addr.Unmap() != peer {
+		_ = reply(socks5.ReplyCodeNotAllowed, s.local.LocalAddr())
+		return
+	}
+	pd, ok := d.(ports.ClientPacketDialer)
+	if !ok {
+		_ = reply(socks5.ReplyCodeUnsupported, s.local.LocalAddr())
+		return
+	}
+	localIP := s.local.LocalAddr().(*net.TCPAddr).IP
+	relay, err := net.ListenUDP("udp", &net.UDPAddr{IP: localIP})
+	if err != nil {
+		_ = reply(socks5.ReplyCodeFailure, s.local.LocalAddr())
+		return
+	}
+	m.mu.Lock()
+	s.packet = relay
+	closed := m.closed || ctx.Err() != nil
+	m.mu.Unlock()
+	if closed {
+		_ = relay.Close()
+		return
+	}
+	stop := context.AfterFunc(ctx, func() { _ = relay.Close(); _ = s.local.Close() })
+	defer stop()
+	flows := map[access.Endpoint]net.PacketConn{}
+	finished := make(chan access.Endpoint, maxAssociationFlows)
+	var workers sync.WaitGroup
+	// Only this receive loop creates flows and adds workers. It finishes before
+	// cleanup begins Wait, so no flow can be registered during shutdown.
+	defer func() {
+		cancel()
+		_ = relay.Close()
+		_ = s.local.Close()
+		for _, pc := range flows {
+			_ = pc.Close()
+		}
+		workers.Wait()
+	}()
+	for _, c := range counters {
+		if c != nil {
+			c.udpTotal.Add(1)
+			c.udpActive.Add(1)
+		}
+	}
+	defer func() {
+		for _, c := range counters {
+			if c != nil {
+				c.udpActive.Add(-1)
+			}
+		}
+	}()
+	if reply(socks5.ReplyCodeSuccess, relay.LocalAddr()) != nil {
+		return
+	}
+	_ = s.local.SetDeadline(time.Time{})
+	workers.Add(1)
+	go func() { defer workers.Done(); _, _ = io.Copy(io.Discard, reader); cancel(); _ = relay.Close() }()
+	b := make([]byte, 65535)
+	pinnedPort := int(requested.Port)
+	_ = relay.SetReadDeadline(time.Now().Add(m.udpIdle))
+	for {
+		n, source, err := relay.ReadFromUDP(b)
+		if err != nil {
+			return
+		}
+		if source.AddrPort().Addr().Unmap() != peer || pinnedPort != 0 && source.Port != pinnedPort {
+			continue
+		}
+		target, payload, err := parseUDPPacket(b[:n])
+		if err != nil {
+			continue
+		}
+		if pinnedPort == 0 {
+			pinnedPort = source.Port
+		}
+		_ = relay.SetReadDeadline(time.Now().Add(m.udpIdle))
+		for draining := true; draining; {
+			select {
+			case key := <-finished:
+				delete(flows, key)
+			default:
+				draining = false
+			}
+		}
+		pc := flows[target]
+		if pc == nil {
+			if len(flows) >= maxAssociationFlows {
+				continue
+			}
+			dialCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			pc, err = pd.ListenPacket(dialCtx, target)
+			cancel()
+			if err != nil {
+				health.failed()
+				continue
+			}
+			if ctx.Err() != nil {
+				_ = pc.Close()
+				return
+			}
+			flows[target] = pc
+			destination := *source // immutable per-association destination, never scratch state
+			workers.Add(1)
+			go func(pc net.PacketConn, key access.Endpoint) {
+				defer workers.Done()
+				defer func() { _ = pc.Close(); finished <- key }()
+				response := make([]byte, 65535)
+				for {
+					_ = pc.SetReadDeadline(time.Now().Add(m.udpIdle))
+					n, addr, err := pc.ReadFrom(response)
+					if err != nil {
+						if ctx.Err() == nil {
+							health.failed()
+						}
+						return
+					}
+					frame, err := encodeUDPPacket(addr, response[:n])
+					if err != nil {
+						continue
+					}
+					sent, err := relay.WriteToUDP(frame, &destination)
+					if err != nil {
+						return
+					}
+					if sent != len(frame) {
+						continue
+					}
+					health.success()
+					for _, c := range counters {
+						if c != nil {
+							c.download.Add(int64(n))
+							c.packetsDown.Add(1)
+						}
+					}
+				}
+			}(pc, target)
+		}
+		_ = pc.SetWriteDeadline(time.Now().Add(5 * time.Second))
+		written, err := pc.WriteTo(payload, M.ParseSocksaddrHostPort(target.Host, target.Port))
+		if err != nil {
+			health.failed()
+			continue
+		}
+		// Some inherited packet wrappers return frame bytes; account only payload.
+		written = min(written, len(payload))
+		for _, c := range counters {
+			if c != nil {
+				c.upload.Add(int64(written))
+				c.packetsUp.Add(1)
+			}
+		}
+	}
+}
+
+// DIRECT resolves only this target flow, retaining the canonical domain in SQLite.
+func (directDialer) ListenPacket(ctx context.Context, e access.Endpoint) (net.PacketConn, error) {
+	c, err := (&net.Dialer{}).DialContext(ctx, "udp", net.JoinHostPort(e.Host, strconv.Itoa(int(e.Port))))
+	if err != nil {
+		return nil, err
+	}
+	return &directPacket{c.(*net.UDPConn)}, nil
+}
+
+type directPacket struct{ *net.UDPConn }
+
+func (c *directPacket) WriteTo(p []byte, _ net.Addr) (int, error) { return c.Write(p) }
