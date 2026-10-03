@@ -55,8 +55,8 @@ func (c *Client) get(ctx context.Context, path string, out any) error {
 	if response.Header.Get("Content-Type") != "application/json" {
 		return identity.Err(identity.Unavailable, "invalid control response type")
 	}
-	b, err := io.ReadAll(io.LimitReader(response.Body, 1<<20+1))
-	if err != nil || len(b) > 1<<20 {
+	b, err := io.ReadAll(io.LimitReader(response.Body, 4<<20+1))
+	if err != nil || len(b) > 4<<20 {
 		return identity.Err(identity.Unavailable, "control response exceeds limit")
 	}
 	if json.Unmarshal(b, out) != nil {

@@ -136,3 +136,14 @@ Credentials retain the existing PSK/Password/UUID/UUIDPassword/UsernamePassword
 payloads and encrypted node ownership. A credential pair is a write-only JSON string
 inside generic CredentialInput.value, with no client-only account schema. Generation
 leases, UDP flows, counters and passive health are ephemeral and never database authority.
+
+## Phase 12 canonical graph
+
+Schema 6 adds only client_network_profiles(singleton, document), a generic strict
+JSON aggregate. Migrations 0001–0005 remain unchanged. Reads enforce 2 MiB, duplicate/
+unknown-field rejection and full reference/graph validation. Replace runs inside the
+existing transaction with no network I/O; revision/audit and rollback remain shared.
+Selector choice, rules/sets/groups/DNS are authority. Compiled matches, DNS LRU,
+automatic health/RR observations are never persisted. Schema 5→6/reopen/corruption/
+rollback tests qualify the aggregate. Invalid committed graph degrades the client and
+preserves the database for operator recovery; server/control stay available.

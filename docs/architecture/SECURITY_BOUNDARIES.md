@@ -162,3 +162,15 @@ artifacts contain UUID/public client fields, are 0600 in 0700 private generation
 and never enter argv, logs, doctor or support archives. The original supervisor
 owns all child cleanup. Passive health is per adapter lease so retired traffic
 cannot mark a replacement adapter healthy. Client FinalMask/Sudoku and Vision reject.
+
+## Phase 12 resolver and policy boundary
+
+Operator-controlled HTTP/HTTPS probes disallow userinfo/redirects/non-HTTP schemes,
+have bounded timeout/body/workers and never attach proxy credentials to target headers.
+They have no public default URL. DoT verifies configured server name and trust; no
+insecure skip is available. DoH is deferred pending bounded response allocation.
+Explicit DNS detour failures never fall back to DIRECT/System. Separate bootstrap
+requires System or IP-only DIRECT UDP/TCP and cannot depend on unresolved proxy itself.
+Domain RuleSets cannot smuggle IP/source rules into DNS. UUID references/cycles and
+canonical size/depth bounds validate before activation. General API/status/support
+remain redacted; graph intent contains no credential payload fields.

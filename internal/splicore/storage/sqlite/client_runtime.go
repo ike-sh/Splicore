@@ -7,6 +7,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
 	"github.com/sagernet/sing-box/internal/splicore/domain/client"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	"github.com/sagernet/sing-box/internal/splicore/jsonstrict"
 )
 
 func (s *Store) ClientState(ctx context.Context) (client.ProfileState, error) {
@@ -26,6 +27,13 @@ func (s *Store) ClientState(ctx context.Context) (client.ProfileState, error) {
 	}
 	if err = tx.QueryRowContext(ctx, "SELECT default_outbound FROM client_routes WHERE singleton=1").Scan(&state.Route.DefaultOutbound); err != nil {
 		return state, storageError(err)
+	}
+	var networkDocument []byte
+	if err = tx.QueryRowContext(ctx, "SELECT document FROM client_network_profiles WHERE singleton=1").Scan(&networkDocument); err != nil {
+		return state, storageError(err)
+	}
+	if jsonstrict.DecodeLimit(networkDocument, &state.Network, 2<<20) != nil {
+		return state, identity.Err(identity.Corrupt, "invalid committed network configuration")
 	}
 	state.Outbounds = []client.Outbound{}
 	for _, read := range []struct {
@@ -162,6 +170,13 @@ func (w *writer) ReplaceClient(state client.ProfileState, secrets []access.Crede
 		}
 	}
 	if err = w.exec("INSERT INTO client_routes VALUES(1,?)", state.Route.DefaultOutbound); err != nil {
+		return err
+	}
+	networkDocument, err := json.Marshal(state.Network)
+	if err != nil {
+		return identity.Err(identity.Invalid, "invalid canonical network configuration")
+	}
+	if err = w.exec("UPDATE client_network_profiles SET document=? WHERE singleton=1", string(networkDocument)); err != nil {
 		return err
 	}
 	return w.exec("UPDATE client_profiles SET enabled=? WHERE singleton=1", state.Enabled)

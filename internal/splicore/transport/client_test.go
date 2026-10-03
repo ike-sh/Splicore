@@ -16,7 +16,7 @@ func TestAbsentAndInvalidResponses(t *testing.T) {
 	if _, err := c.System(context.Background()); !errors.Is(err, ErrNotRunning) {
 		t.Fatal("absent daemon classification", err)
 	}
-	for _, body := range []string{"dummy-secret", strings.Repeat("x", 1<<20+1)} {
+	for _, body := range []string{"dummy-secret", strings.Repeat("x", 4<<20+1)} {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(body))

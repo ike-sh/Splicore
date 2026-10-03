@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: API, protocol and operations developers
-- Last reviewed: 2026-10-02
+- Last reviewed: 2026-10-03
 - Owner: Protocol maintainers
 - Responsibility: Current experimental managed capabilities and policy limits.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -39,8 +39,8 @@ and measured qualification are separate. Exact profile/client boundaries:
 | VLESS/native and VLESS/xray | Experimental / flow-none TCP+XUDP, plain/TLS/REALITY; Vision rejects. |
 | Mieru/native | Experimental / official v3.38.0, TCP/UDP underlays and payloads; UDP domains resolve locally. |
 | Client FinalMask/Sudoku | DEFERRED; server support does not imply client support. |
-| Advanced routing / DNS / health probes | DEFERRED. |
-| TUN / subscriptions / policy groups / providers | NOT IMPLEMENTED. |
+| Routing / DNS / policy | Experimental Phase 12; ordered domain/IP/port/network/local/RuleSet rules, System/UDP/TCP/DoT, typed groups and outbound HTTP probes. |
+| TUN / subscriptions / providers / FakeIP / DoH / regex / Geo | DEFERRED. |
 
 All implemented protocols and native/Xray engines declare both roles. Exact outbound
 capabilities distinguish role, address families, domain, TLS/QUIC/REALITY and flows.

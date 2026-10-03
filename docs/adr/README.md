@@ -58,3 +58,9 @@ Node/Outbound separation, shared daemon and SOCKS-first scope.
 
 [0023 — Client UDP and adapter ownership](0023-client-udp-ownership.md): accepted
 for the Phase 11 Experimental local freeze; bounded SOCKS association lifetime and per-adapter leases.
+
+## Phase 12 decisions
+
+[0024 routing](0024-routing-snapshot-match-semantics.md), [0025 policy](0025-policy-selection-health.md),
+[0026 DNS bootstrap](0026-dns-bootstrap-dependency.md): accepted for the Experimental
+Phase 12 local freeze; ordered snapshots, typed selection/health and explicit bootstrap.

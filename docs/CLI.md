@@ -60,3 +60,19 @@ belong in Node.security.tls, never server private material. Unknown adapter opti
 Vision and client masks reject before commit. Status reports UDP associations/packets
 separately from TCP sessions; dimensions must not be summed. No protocol-specific
 command group, service or configuration file is added.
+
+## Phase 12 routing, policy and DNS
+
+| Group | Operations |
+| --- | --- |
+| network | export/status; validate/plan/apply canonical Config or network-replace mutation |
+| route | status; explain --file query.json (no network I/O); existing legacy default commands remain |
+| route-rule / rule-set | list/export; validate/plan/apply typed ClientMutation |
+| policy | list/status; validate/plan/apply; select --id UUID --file action.json |
+| dns | list/status; validate/plan/apply; lookup --domain synthetic.local; flush |
+
+All use the existing --config protected UDS or Application directly in tests.
+Network export can be imported with network validate/plan/apply; plan digest binds the
+normalized network-replace command and revision. Files are at most 2 MiB. Policy select
+plans/applies atomically; existing sessions remain. DNS lookup performs a real query,
+while explain reads supplied metadata only. No new service/binary or protocol command.

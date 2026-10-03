@@ -98,3 +98,18 @@ on committed route/adapter changes. Explicit client restart rebuilds adapters an
 old sessions after commit. Mieru uses official APIs in-process; Xray uses the existing
 engine child boundary with no extra unit. Snell/Mieru UDP domains use per-flow local
 resolution; other proxy UDP domains resolve remotely. See [client runtime](architecture/CLIENT_RUNTIME.md).
+
+## Phase 12 graph recovery
+
+Review a canonical network export, validate, save plan, then apply via the existing
+core. No daemon restart is needed for route/selector/DNS updates or DNS cache flush.
+Existing TCP/UDP keep their old snapshot; new sessions use the committed graph.
+Node hostname bootstrap is distinct from destination DNS and must be explicit.
+Offline detours/group failure do not imply DIRECT. Inspect policy status, DNS stats
+and a no-I/O route explain before explicitly running dns lookup.
+
+Systemd restart/upgrade/rollback rebuilds rules/sets/groups/DNS and persistent selector
+from schema 6 SQLite. Health, compiled matches and cache are memory only; restart removes
+them without losing canonical intent. Corrupt committed graph reports degraded client
+health; server/API stay live, data is preserved. Stop, back up and restore a verified
+database rather than deleting user intent. TUN/DNS hijack/system proxy remain deferred.

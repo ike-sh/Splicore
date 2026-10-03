@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	"github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
 	"net/netip"
 )
 
@@ -127,12 +128,13 @@ type Route struct {
 	DefaultOutbound identity.ID `json:"default_outbound"`
 }
 type ProfileState struct {
-	Revision      identity.Revision `json:"revision"`
-	Enabled       bool              `json:"enabled"`
-	Nodes         []RemoteNode      `json:"nodes"`
-	Outbounds     []Outbound        `json:"outbounds"`
-	LocalInbounds []LocalInbound    `json:"local_inbounds"`
-	Route         Route             `json:"route"`
+	Revision      identity.Revision    `json:"revision"`
+	Enabled       bool                 `json:"enabled"`
+	Nodes         []RemoteNode         `json:"nodes"`
+	Outbounds     []Outbound           `json:"outbounds"`
+	LocalInbounds []LocalInbound       `json:"local_inbounds"`
+	Route         Route                `json:"route"`
+	Network       networkpolicy.Config `json:"network"`
 }
 
 func Empty() ProfileState {
@@ -179,7 +181,7 @@ func (s ProfileState) Validate() error {
 		ids[i.ID] = true
 		listeners[i.Listen] = true
 	}
-	return nil
+	return s.Network.Validate(out, ids)
 }
 
 // Clone copies all mutable containers before publishing intent to a runtime.

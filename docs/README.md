@@ -207,5 +207,15 @@ checkpoint. Phase 9 distribution and service is locally frozen under its
 - [Phase 11 freeze](reports/PHASE_11_FREEZE_REPORT.md): authorized checkpoint, source match and Phase 12 branch preparation.
 - Client remains Experimental. Vision and client FinalMask/Sudoku are deferred;
   Xray TCP half-close is NOT QUALIFIED, Windows race is NOT EXECUTED and arm64
-  runtime is NOT CERTIFIED. Routing/DNS/policy, TUN and NoBrand migration remain
-  deferred. Phase 12 implementation is NOT STARTED. No public release.
+  runtime is NOT CERTIFIED. The historical Phase 11 report preserves its boundary;
+  routing/DNS/policy are the Experimental Phase 12 scope below. TUN and NoBrand
+  migration remain deferred. No public release.
+
+## Phase 12 local freeze
+
+[Routing](architecture/ROUTING_MODEL.md), [DNS](architecture/DNS_MODEL.md),
+[policy](architecture/POLICY_MODEL.md) and [acceptance report](reports/PHASE_12_ROUTING_DNS_POLICY_REPORT.md).
+[Freeze report](reports/PHASE_12_FREEZE_REPORT.md): authorized checkpoint, source
+match, fresh gates and clean Phase 13 branch preparation. Routing/DNS/policy remain
+Experimental; System/UDP/TCP/verified DoT and round-robin are the qualified scope.
+DoH/FakeIP/TUN/system proxy remain deferred; Phase 13 implementation is NOT STARTED.

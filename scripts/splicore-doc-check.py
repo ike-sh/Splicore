@@ -110,8 +110,8 @@ def main():
         for method, operation in methods.items():
             if method in {"get", "post", "put", "patch", "delete"}:
                 operations.append(operation["operationId"])
-                assert operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "phase4", "phase5", "phase10", "deferred"}
-                if operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "phase4", "phase5", "phase10"}:
+                assert operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "phase4", "phase5", "phase10", "phase12", "deferred"}
+                if operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "phase4", "phase5", "phase10", "phase12"}:
                     implemented.append((method, path))
     assert len(operations) == len(set(operations))
     client_operations = [(method, "/api/v1/" + collection + suffix)
@@ -123,6 +123,15 @@ def main():
         ("get", "/api/v1/client/runtime")]
     client_operations += [("post", "/api/v1/client/runtime/" + action) for action in ["start", "stop", "restart"]]
     client_operations += [("post", "/api/v1/client/" + action) for action in ["validate", "plan", "apply"]]
+    client_operations += [(method, "/api/v1/"+collection+suffix)
+        for collection in ["route-rules","rule-sets","policy-groups","dns/servers","dns/rules"]
+        for suffix, methods in [("",["get","post"]),("/{id}",["get","put","delete"])]
+        for method in methods]
+    client_operations += [(method,path) for path,methods in {
+        "/api/v1/routes":["get","put"],"/api/v1/routes/explain":["post"],
+        "/api/v1/policy-groups/status":["get"],"/api/v1/policy-groups/{id}/select":["post"],
+        "/api/v1/dns/profile":["get","put"],"/api/v1/dns/lookup":["post"],
+        "/api/v1/dns/cache/status":["get"],"/api/v1/dns/cache/flush":["post"]}.items() for method in methods]
     assert sorted(implemented) == sorted(client_operations + [
         ("get", "/api/v1/capabilities"), ("get", "/api/v1/system"),
         ("get", "/api/v1/inbounds"), ("get", "/api/v1/inbounds/{id}"),

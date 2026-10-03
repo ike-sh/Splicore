@@ -8,6 +8,8 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
 	"github.com/sagernet/sing-box/internal/splicore/domain/client"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	P "github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
+	"github.com/sagernet/sing-box/internal/splicore/networkruntime"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
 	"github.com/sagernet/sing-box/internal/splicore/registry"
 	M "github.com/sagernet/sing/common/metadata"
@@ -27,6 +29,7 @@ type counter struct {
 type passiveHealth struct {
 	available bool
 	lastError string
+	at        time.Time
 }
 
 var succeededHealth = &passiveHealth{available: true}
@@ -37,6 +40,8 @@ func (c *counter) stats() TrafficStats {
 }
 
 type snapshot struct {
+	onReleased                            func()
+	network                               *networkruntime.Engine
 	state                                 client.ProfileState
 	outbounds                             map[identity.ID]ports.ClientDialer
 	routes                                map[identity.ID]identity.ID
@@ -46,8 +51,16 @@ type snapshot struct {
 
 func (s *snapshot) release() {
 	if s.refs.Add(-1) == 0 {
+		if s.network != nil {
+			s.network.Close()
+		}
 		for _, o := range s.outbounds {
-			_ = o.Close()
+			if o != nil {
+				_ = o.Close()
+			}
+		}
+		if s.onReleased != nil {
+			s.onReleased()
 		}
 	}
 }
@@ -75,6 +88,7 @@ type Manager struct {
 	current                      atomic.Pointer[snapshot]
 	mu                           sync.Mutex
 	listeners                    map[identity.ID]*localListener
+	networkOwners                map[*networkruntime.Engine]bool
 	sessions                     map[identity.ID]*session
 	inStats, outStats, nodeStats map[identity.ID]*counter
 	wg                           sync.WaitGroup
@@ -84,7 +98,7 @@ type Manager struct {
 }
 
 func New() *Manager {
-	return &Manager{listeners: map[identity.ID]*localListener{}, sessions: map[identity.ID]*session{}, inStats: map[identity.ID]*counter{}, outStats: map[identity.ID]*counter{}, nodeStats: map[identity.ID]*counter{}, changed: make(chan struct{}), udpIdle: 2 * time.Minute}
+	return &Manager{listeners: map[identity.ID]*localListener{}, networkOwners: map[*networkruntime.Engine]bool{}, sessions: map[identity.ID]*session{}, inStats: map[identity.ID]*counter{}, outStats: map[identity.ID]*counter{}, nodeStats: map[identity.ID]*counter{}, changed: make(chan struct{}), udpIdle: 2 * time.Minute}
 }
 
 type Prepared struct {
@@ -154,6 +168,19 @@ func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileSt
 			p.Abort()
 		}
 	}()
+	localIDs := make([]identity.ID, 0, len(state.LocalInbounds))
+	declared := map[identity.ID]ports.ClientDialer{}
+	for _, o := range state.Outbounds {
+		declared[o.ID] = nil
+	}
+	for _, i := range state.LocalInbounds {
+		localIDs = append(localIDs, i.ID)
+	}
+	bootstrap, err := networkruntime.New(state.Network, declared, nil, localIDs...)
+	if err != nil {
+		return p, err
+	}
+	defer bootstrap.Close()
 	m.mu.Lock()
 	closed := m.closed
 	m.mu.Unlock()
@@ -161,7 +188,25 @@ func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileSt
 		return p, identity.Err(identity.Unavailable, "client runtime closed")
 	}
 	if !state.Enabled {
-		return p, nil
+		s.network, err = networkruntime.New(state.Network, declared, func(id identity.ID) networkruntime.Passive {
+			lease, ok := s.outbounds[id].(*dialerLease)
+			if !ok {
+				return networkruntime.Passive{State: "unknown"}
+			}
+			h := lease.health.Load()
+			if h == nil {
+				return networkruntime.Passive{State: "unknown"}
+			}
+			if h.available {
+				return networkruntime.Passive{State: "healthy", At: h.at}
+			}
+			return networkruntime.Passive{State: "unhealthy", At: h.at}
+		}, localIDs...)
+		if err != nil {
+			return p, err
+		}
+
+		return p, err
 	}
 	nodes := map[identity.ID]client.RemoteNode{}
 	for _, n := range state.Nodes {
@@ -177,6 +222,7 @@ func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileSt
 			n = nodes[*o.NodeID]
 		}
 		key := effectiveKey(o, n)
+		key += bootstrapKey(state.Network, n)
 		if !restart && oldGeneration != nil {
 			if lease, ok := oldGeneration.outbounds[o.ID].(*dialerLease); ok && lease.key == key {
 				lease.refs.Add(1)
@@ -189,6 +235,13 @@ func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileSt
 			d = directDialer{}
 		} else {
 			n := nodes[*o.NodeID]
+			if state.Network.DNS.Enabled && net.ParseIP(n.Endpoint.Host) == nil {
+				addresses, resolveErr := bootstrap.Bootstrap(ctx, n.Endpoint.Host)
+				if resolveErr != nil || len(addresses) == 0 {
+					return p, identity.Err(identity.Unavailable, "remote node bootstrap resolution failed")
+				}
+				n.Endpoint.Host = addresses[0].String()
+			}
 			f, _ := registry.Get(n.Protocol.Protocol, o.Engine)
 			d, err = f.Build(ctx, n, credentials[n.CredentialID])
 			if err != nil {
@@ -198,6 +251,27 @@ func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileSt
 		lease := &dialerLease{dialer: d, key: key}
 		lease.refs.Store(1)
 		s.outbounds[o.ID] = lease
+	}
+	s.network, err = networkruntime.New(state.Network, s.outbounds, func(id identity.ID) networkruntime.Passive {
+		lease, ok := s.outbounds[id].(*dialerLease)
+		if !ok {
+			return networkruntime.Passive{State: "unknown"}
+		}
+		h := lease.health.Load()
+		if h == nil {
+			return networkruntime.Passive{State: "unknown"}
+		}
+		if h.available {
+			return networkruntime.Passive{State: "healthy", At: h.at}
+		}
+		return networkruntime.Passive{State: "unhealthy", At: h.at}
+	}, localIDs...)
+	if err != nil {
+		return p, err
+	}
+
+	if oldGeneration != nil {
+		s.network.Inherit(oldGeneration.network)
 	}
 	for _, i := range state.LocalInbounds {
 		selected := i.SelectedOutbound
@@ -249,6 +323,8 @@ func (p *Prepared) Activate() {
 	p.used = true
 	m := p.m
 	m.mu.Lock()
+	m.networkOwners[p.s.network] = true
+	p.s.onReleased = func() { m.mu.Lock(); delete(m.networkOwners, p.s.network); m.mu.Unlock() }
 	removed := []*localListener{}
 	for id, l := range m.listeners {
 		if p.listeners[id] != l {
@@ -309,10 +385,6 @@ func (p *Prepared) Activate() {
 	}
 	closing := []*session{}
 	for _, s := range m.sessions {
-		if s.kind == "udp_association" && (p.s.routes[s.inbound] != s.outbound || p.s.outbounds[s.outbound] != s.dialer) {
-			closing = append(closing, s)
-			continue
-		}
 		if p.restartSessions {
 			closing = append(closing, s)
 			continue
@@ -325,6 +397,9 @@ func (p *Prepared) Activate() {
 		}
 	}
 	m.mu.Unlock()
+	if p.s.state.Enabled {
+		p.s.network.Start()
+	}
 	for _, l := range removed {
 		_ = l.socket.Close()
 	}
@@ -332,6 +407,11 @@ func (p *Prepared) Activate() {
 		m.closeSession(s)
 	}
 	if old != nil {
+		if !p.s.state.Enabled || p.restartSessions {
+			old.network.Close()
+		} else {
+			old.network.StopScheduler()
+		}
 		old.release()
 	}
 }
@@ -448,6 +528,24 @@ func (m *Manager) serve(ctx context.Context, s *session) {
 		reply(socks5.ReplyCodeFailure)
 		return
 	}
+	if req.Command == socks5.CommandUDPAssociate {
+		m.mu.Lock()
+		s.kind = "udp_association"
+		m.mu.Unlock()
+		m.serveUDP(ctx, s, reader, req.Destination, gen)
+		return
+	}
+	selected, resolved, routeErr := selectRoute(ctx, gen, s.inbound, target, "tcp", nil)
+	if routeErr != nil {
+		reply(socks5.ReplyCodeFailure)
+		return
+	}
+	if selected.Selected.Kind == P.Reject {
+		reply(socks5.ReplyCodeNotAllowed)
+		return
+	}
+	oid = selectedOutbound(selected.Selected)
+	target = resolved
 	var node identity.ID
 	for _, o := range gen.state.Outbounds {
 		if o.ID == oid && o.NodeID != nil {
@@ -467,10 +565,6 @@ func (m *Manager) serve(ctx context.Context, s *session) {
 	nc := gen.nodeCounters[node]
 	m.mu.Unlock()
 	adapter := gen.outbounds[oid].(*dialerLease)
-	if req.Command == socks5.CommandUDPAssociate {
-		m.serveUDP(ctx, s, reader, req.Destination, gen.outbounds[oid], []*counter{&s.stats, ic, oc, nc}, adapter)
-		return
-	}
 	dialCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	remote, err := gen.outbounds[oid].DialContext(dialCtx, target)
 	cancel()
@@ -521,13 +615,13 @@ func (m *Manager) serve(ctx context.Context, s *session) {
 	go copyStream(s.local, remote, false)
 	first := <-done
 	if first != nil {
-		if ctx.Err() == nil {
+		if ctx.Err() == nil && s.stats.download.Load() == 0 {
 			adapter.failed()
 		}
 		m.closeSession(s)
 	}
 	second := <-done
-	if second != nil && ctx.Err() == nil {
+	if second != nil && ctx.Err() == nil && s.stats.download.Load() == 0 {
 		adapter.failed()
 	}
 	if ctx.Err() == nil && s.stats.download.Load() == 0 {
@@ -578,14 +672,23 @@ func (m *Manager) Close(ctx context.Context) error {
 	for _, s := range m.sessions {
 		sessions = append(sessions, s)
 	}
+	owners := make([]*networkruntime.Engine, 0, len(m.networkOwners))
+	for owner := range m.networkOwners {
+		owners = append(owners, owner)
+	}
 	m.mu.Unlock()
 	for _, s := range sessions {
 		m.closeSession(s)
+	}
+	// Also cancel control queries retaining a retired generation after a route update.
+	for _, owner := range owners {
+		owner.Close()
 	}
 	m.routeMu.Lock()
 	old := m.current.Swap(nil)
 	m.routeMu.Unlock()
 	if old != nil {
+		old.network.StopScheduler()
 		old.release()
 	}
 	done := make(chan struct{})

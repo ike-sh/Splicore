@@ -27,6 +27,9 @@ type Dependencies struct {
 }
 
 func Run(ctx context.Context, args []string, out, errOut io.Writer, deps Dependencies) int {
+	if len(args) > 0 && (args[0] == "network" || args[0] == "policy" || args[0] == "dns" || args[0] == "rule-set" || args[0] == "route-rule" || args[0] == "route" && len(args) > 1 && (args[1] == "explain" || args[1] == "status")) {
+		return networkCLI(ctx, args, out, errOut, deps)
+	}
 	if len(args) > 0 && (args[0] == "client" || args[0] == "node" || args[0] == "outbound" || args[0] == "local-inbound" || args[0] == "route") {
 		return clientCLI(ctx, args, out, errOut, deps)
 	}

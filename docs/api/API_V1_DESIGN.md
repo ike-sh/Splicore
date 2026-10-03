@@ -142,7 +142,7 @@ GET replies return typed canonical state and ETag with the shared committed revi
 Mutation CRUD requires `If-Match: "<revision>"`; stale revision returns 409. Collection
 reads are bounded arrays (no pagination/query parameters in this phase). Unknown
 paths return 404; wrong methods return 405 with Allow. Request JSON is strict and
-bounded to 64 KiB. The endpoint determines resource/action/ID; callers cannot override
+bounded to 2 MiB for client/network commands (server creation remains 64 KiB). The endpoint determines resource/action/ID; callers cannot override
 those fields in CRUD bodies. Generic validate/plan/apply accepts ClientMutation,
 with HMAC digest/global revision as the existing optimistic concurrency boundary.
 
@@ -167,3 +167,19 @@ distinguishes streams from associations. LocalInbound, Outbound, Node and Sessio
 views of the same payload; adding views would double count. UDP headers/control bytes
 are excluded. Passive health belongs to the current adapter lease and uses a fixed
 redacted error. Existing ETag, If-Match, journal and apply semantics remain shared.
+
+## Phase 12 network API
+
+The protected existing Application/API owns routes, route-rules, rule-sets,
+policy-groups, dns/servers, dns/rules and dns/profile. Collections GET/POST;
+individual IDs GET/PUT/DELETE. Routes/profile GET/PUT; policy-groups/{id}/select POST
+with typed selected action. Mutations use If-Match and the common plan/apply transaction.
+Body wrappers are route_rule/rule_set/policy_group/dns_server/dns_rule/route_profile/
+dns_profile/selected; endpoint determines resource/action/ID.
+
+POST routes/explain takes original domain/IP, optional resolved_ips, destination
+port/network/local inbound; no DNS or outbound I/O. POST dns/lookup explicitly queries.
+GET dns/cache/status and POST dns/cache/flush expose bounded observations/flush.
+GET policy-groups/status exposes selected/member health/count. Aggregate network
+replace uses existing client/validate, client/plan, client/apply with ClientMutation.
+See the machine OpenAPI contract for exact paths/schemas; no protocol-specific API.

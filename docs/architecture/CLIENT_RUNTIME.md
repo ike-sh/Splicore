@@ -7,11 +7,11 @@
 - Responsibility: Client intent, adapters, socket ownership and runtime recovery.
 - Lifecycle: Update with client domain or lifecycle changes.
 
-## Experimental Phase 11 boundary
+## Experimental Phase 12 boundary
 
 One daemon runs server and client roles with shared SQLite, Application, encrypted
 credentials, journal, registries, API and CLI. Loopback SOCKS5 supports TCP CONNECT
-and UDP ASSOCIATE. Advanced routing, DNS, TUN, subscriptions and providers are deferred.
+and UDP ASSOCIATE. Ordered routing, policy groups and managed DNS are Experimental. TUN, subscriptions and providers are deferred.
 
 ```mermaid
 flowchart LR
@@ -78,7 +78,7 @@ node/outbound/credential settings select reuse. Labels, metadata and route chang
 reuse unchanged adapters; endpoint/credential changes rebuild only affected leases.
 Abort releases candidate references. Explicit restart forces rebuild and closes old
 sessions after commit. TCP streams survive normal reconcile on their old generation;
-affected UDP associations close on committed route/adapter changes. Passive health
+UDP associations also retain their old graph/member across route/adapter changes. Passive health
 belongs to a lease, preventing retired traffic from affecting replacement health.
 
 Narrow locks protect refs/admission/maps; payload I/O takes no manager lock. Counters
@@ -95,9 +95,11 @@ discarded. Fragments cannot claim the port. There are at most 32 independent tar
 flows. Adapters provide packet I/O with normal SOCKS framing.
 
 The association owns its receive buffer; each flow worker owns another. Pool encoding
-copies before release. Control EOF, two-minute idle expiry, reconcile, stop or shutdown
+copies before release. Control EOF, two-minute idle expiry, listener removal, explicit stop/restart or shutdown
 cancels admission, closes sockets, joins workers and finally releases the generation.
 Flow creation/WaitGroup.Add finish before cleanup Wait. Pending dials are bounded.
+
+With managed DNS disabled, Phase 11 semantics remain:
 
 | UDP domain target | Resolution |
 | --- | --- |
@@ -108,11 +110,13 @@ Flow creation/WaitGroup.Add finish before cleanup Wait. Pending dials are bounde
 
 Canonical domains remain unchanged. TCP proxy targets resolve remotely. Mieru TCP
 underlays retain the original server domain for normal net.Dialer address selection.
-No DNS engine, fake DNS, interception or resolver policy is added.
+Managed DNS centralizes resolution while preserving original domain metadata. See
+[DNS](DNS_MODEL.md), [routing](ROUTING_MODEL.md) and [policy](POLICY_MODEL.md).
+FakeIP/interception remains deferred.
 
 ## Recovery, stats and health
 
-Schema 5 restores clients after server recovery in the same unit. Client socket/build
+Schema 6 restores clients after server recovery in the same unit. Client socket/build
 failure marks degraded while server/API remain live. Offline nodes do not prevent
 startup and affect only their lease; next connections recover without daemon restart.
 Shutdown cancels operations, closes sockets and joins owned workers. Handshake/remote
@@ -128,3 +132,17 @@ not a probe.
 See [storage](STORAGE_MODEL.md), [security](SECURITY_BOUNDARIES.md), [API](../api/README.md),
 [CLI](../CLI.md), [operations](../OPERATIONS.md), [ADR 0023](../adr/0023-client-udp-ownership.md)
 and the [acceptance report](../reports/PHASE_11_CLIENT_OUTBOUND_EXPANSION_REPORT.md).
+
+## Phase 12 graph ownership
+
+ProfileState.network stores canonical routes/sets/groups/DNS. Complete graph compilation
+precedes commit and atomic publication. Active schedulers stop/join on retirement;
+established TCP/UDP retain old network/adapters until final release. Shutdown tracks
+every live generation owner, including a retired generation held only by an API DNS
+query, and cancels/joins all query sockets. Groups own narrow locked observations and
+atomic RR counters; UDP affinity belongs to one association. No shared scratch buffer,
+global payload mutex or unsafe pointer is introduced.
+
+Malformed committed network JSON/references report client_committed_state_invalid and
+degraded health without deleting intent or disabling server/control. Restore a verified
+backup before importing valid configuration through Application.

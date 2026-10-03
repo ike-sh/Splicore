@@ -258,7 +258,23 @@ Application protocol branch or database migration is added.
 
 SOCKS5 UDP associations own a loopback socket, TCP control connection and bounded
 per-target packet flows. Immutable adapter leases retain established TCP sessions
-and avoid rebuilding unrelated adapters. UDP route/adapter changes close affected
-associations. See [ADR 0023](adr/0023-client-udp-ownership.md) and the
+and avoid rebuilding unrelated adapters. Phase 11 closed affected UDP associations
+on route/adapter changes; Phase 12 graph updates retain their old generation and
+affinity. Explicit stop/restart and listener removal still close sessions.
+See [ADR 0023](adr/0023-client-udp-ownership.md) and the
 [Phase 11 report](reports/PHASE_11_CLIENT_OUTBOUND_EXPANSION_REPORT.md) and
-[local freeze](reports/PHASE_11_FREEZE_REPORT.md). Phase 12 implementation is NOT STARTED.
+[local freeze](reports/PHASE_11_FREEZE_REPORT.md). Phase 12 freezes the
+Experimental routing/DNS/policy scope described below.
+
+## Phase 12 independent network graph
+
+ProfileState.network contains canonical RouteRule/RuleMatch/RouteAction/RouteProfile,
+RuleSet, typed PolicyGroup and independent DNS models. Application compiles the complete
+graph before existing SQLite commit/revision/audit and atomically publishes it.
+Data paths read owned snapshots, retaining TCP/UDP affinity through updates.
+DNS bootstrap cuts endpoint/probe dependencies; caches/health are ephemeral.
+No protocol-specific routing/DNS/storage field, new binary or service is added.
+Contracts: [routing](architecture/ROUTING_MODEL.md), [DNS](architecture/DNS_MODEL.md),
+[policy](architecture/POLICY_MODEL.md); [Phase 12 report](reports/PHASE_12_ROUTING_DNS_POLICY_REPORT.md)
+and [local freeze](reports/PHASE_12_FREEZE_REPORT.md). Phase 13 is branch preparation
+only; TUN, system proxy, DNS hijack, FakeIP and DoH remain unimplemented/deferred.

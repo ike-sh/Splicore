@@ -34,7 +34,9 @@ until the unified client/server core is complete. The [Phase 10 freeze report](r
 records the single commit, main fast-forward and clean
 `codex/phase-11-client-outbound-expansion` branch. Phase 11 is **FROZEN** under its
 [freeze report](reports/PHASE_11_FREEZE_REPORT.md). The prepared branch is
-`codex/phase-12-routing-dns-policy`; Phase 12 implementation is **NOT STARTED**.
+`codex/phase-12-routing-dns-policy`; Phase 12 is **FROZEN** under its
+[freeze report](reports/PHASE_12_FREEZE_REPORT.md). The prepared next branch is
+`codex/phase-13-tun-system-integration`, based on Phase 12. Implementation NOT STARTED.
 Push/tag/release remain prohibited.
 
 Splicore is an independent modular client/server proxy core derived from sing-box.
@@ -94,8 +96,16 @@ Snell/Hysteria2/TUIC remain Experimental; no Stable release.
   main fast-forward and creation of `codex/phase-12-routing-dns-policy`, then stop.
   Resolve its full SHA from `git rev-parse codex/phase-11-client-outbound-expansion`;
   the freeze report cannot embed its own commit SHA. Phase 12 starts CLEAN there.
-  This authorization covers Phase 11 closure only; Phase 12 implementation is NOT STARTED.
-- Historical Phase 0–10 reports/evidence and migrations 0001–0005 immutable.
+  That authorization covered Phase 11 closure only. The subsequent Phase 12 request
+  authorized implementation and local acceptance gates.
+- Phase 11 SHA: `5397f8e6ef8e28981099b14b9e09400593048b7e`.
+- The maintainer separately authorized one Phase 12 freeze commit:
+  `feat(client): add routing DNS and policy engines`, sole parent Phase 11,
+  main fast-forward and creation of `codex/phase-13-tun-system-integration`, then stop.
+  Resolve Phase 12 SHA from `git rev-parse codex/phase-12-routing-dns-policy`;
+  the report cannot embed its own commit SHA. Stage/commit authorization is limited
+  to this freeze. TUN/system proxy/NoBrand work is not authorized by this closure.
+- Historical Phase 0–11 reports/evidence and migrations 0001–0005 immutable.
 - Fresh artifacts/tools/logs/binaries/state/caches external; upstream runtime edits 0.
   Phase 8 adds the audited official Mieru module, with no dependency upgrades.
 - Phase 6 authorizes official pinned Xray research/download, owned external child,
@@ -227,11 +237,34 @@ the checkout at `D:\splicore-validation\phase11-20261003`. Source/NoBrand/histor
 reports/migrations and unrelated refs match the entry manifest. Freeze evidence is
 `D:\splicore-validation\phase11-freeze-20261003`; exact-file staging and one commit
 were separately authorized. main fast-forwards to Phase 11, and the final action
-creates `codex/phase-12-routing-dns-policy`. Worktree CLEAN; index EMPTY.
-No Phase 12 implementation, push, tag or release.
+creates `codex/phase-12-routing-dns-policy`. At that entry, worktree CLEAN; index EMPTY.
+The subsequent Phase 12 request implemented routing/DNS/policy; its separately
+authorized local freeze is recorded below.
+Push, tag and release NONE.
 Client capability qualification remains Experimental; Vision rejects all engines,
 FinalMask/Sudoku client runtime remains deferred, and frozen server scopes remain.
 See [client runtime](architecture/CLIENT_RUNTIME.md) and
 [report](reports/PHASE_11_CLIENT_OUTBOUND_EXPANSION_REPORT.md) and
 [freeze](reports/PHASE_11_FREEZE_REPORT.md). Windows tests/build PASS, race NOT EXECUTED;
 Linux arm64 BUILD ONLY/runtime NOT CERTIFIED; Xray TCP half-close NOT QUALIFIED.
+
+## Phase 12 boundaries
+
+Canonical graph lives in SQLite schema 6; owned immutable snapshots and ephemeral
+health/cache are runtime artifacts. Ordered domain/IP/port/network/local/set rules,
+Selector/URL-Test/Fallback/RR and System/UDP/TCP/verified DoT are implemented.
+DoH, regex, FakeIP/TUN, Geo data, providers/subscriptions and automation remain deferred.
+The unchanged Phase 12 acceptance report owns its review-time evidence. The
+[freeze report](reports/PHASE_12_FREEZE_REPORT.md) records exact-file staging,
+one authorized commit and main fast-forward. Push/tag/release NONE.
+[Routing](architecture/ROUTING_MODEL.md), [DNS](architecture/DNS_MODEL.md),
+[policy](architecture/POLICY_MODEL.md), [report](reports/PHASE_12_ROUTING_DNS_POLICY_REPORT.md).
+
+## Phase 13 prepared boundary
+
+Branch `codex/phase-13-tun-system-integration`, base PHASE_12_COMMIT, CLEAN/index EMPTY.
+Implementation NOT STARTED. Branch creation is the final authorized action; stop.
+DoH/FakeIP/TUN/system proxy/DNS hijack/providers/subscriptions/Vision and NoBrand
+migration remain deferred. Windows race NOT EXECUTED; arm64 BUILD ONLY/runtime
+NOT CERTIFIED; Xray TCP half-close NOT QUALIFIED. Freeze evidence stays external:
+`D:\splicore-validation\phase12-freeze-20261003`.

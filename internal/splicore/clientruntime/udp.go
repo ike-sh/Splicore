@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
+	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	P "github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
 	"github.com/sagernet/sing/common/buf"
 	M "github.com/sagernet/sing/common/metadata"
@@ -49,7 +51,7 @@ func encodeUDPPacket(a net.Addr, p []byte) ([]byte, error) {
 	return append([]byte(nil), b.Bytes()...), nil
 }
 
-func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, requested M.Socksaddr, d ports.ClientDialer, counters []*counter, health *dialerLease) {
+func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, requested M.Socksaddr, gen *snapshot) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	reply := func(code byte, addr net.Addr) error {
@@ -58,11 +60,6 @@ func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, re
 	peer := s.local.RemoteAddr().(*net.TCPAddr).AddrPort().Addr().Unmap()
 	if requested.IsFqdn() || requested.Addr.IsValid() && !requested.Addr.IsUnspecified() && requested.Addr.Unmap() != peer {
 		_ = reply(socks5.ReplyCodeNotAllowed, s.local.LocalAddr())
-		return
-	}
-	pd, ok := d.(ports.ClientPacketDialer)
-	if !ok {
-		_ = reply(socks5.ReplyCodeUnsupported, s.local.LocalAddr())
 		return
 	}
 	localIP := s.local.LocalAddr().(*net.TCPAddr).IP
@@ -82,6 +79,20 @@ func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, re
 	stop := context.AfterFunc(ctx, func() { _ = relay.Close(); _ = s.local.Close() })
 	defer stop()
 	flows := map[access.Endpoint]net.PacketConn{}
+	type flowSelection struct {
+		target   access.Endpoint
+		counters []*counter
+		health   *dialerLease
+	}
+	selections := map[access.Endpoint]flowSelection{}
+	affinity := map[identity.ID]P.Action{}
+	counters := []*counter{&s.stats, gen.inCounters[s.inbound]}
+	counted := map[*counter]bool{}
+	for _, c := range counters {
+		if c != nil {
+			counted[c] = true
+		}
+	}
 	finished := make(chan access.Endpoint, maxAssociationFlows)
 	var workers sync.WaitGroup
 	// Only this receive loop creates flows and adds workers. It finishes before
@@ -137,6 +148,7 @@ func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, re
 			select {
 			case key := <-finished:
 				delete(flows, key)
+				delete(selections, key)
 			default:
 				draining = false
 			}
@@ -147,7 +159,19 @@ func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, re
 				continue
 			}
 			dialCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-			pc, err = pd.ListenPacket(dialCtx, target)
+			decision, resolved, routeErr := selectRoute(dialCtx, gen, s.inbound, target, "udp", affinity)
+			if routeErr != nil || decision.Selected.Kind == P.Reject {
+				cancel()
+				continue
+			}
+			oid := selectedOutbound(decision.Selected)
+			health := gen.outbounds[oid].(*dialerLease)
+			pd, ok := health.dialer.(ports.ClientPacketDialer)
+			if !ok {
+				cancel()
+				continue
+			}
+			pc, err = pd.ListenPacket(dialCtx, resolved)
 			cancel()
 			if err != nil {
 				health.failed()
@@ -158,9 +182,32 @@ func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, re
 				return
 			}
 			flows[target] = pc
+			var node identity.ID
+			for _, o := range gen.state.Outbounds {
+				if o.ID == oid && o.NodeID != nil {
+					node = *o.NodeID
+				}
+			}
+			m.mu.Lock()
+			if s.outbound == "" {
+				s.outbound = oid
+				s.node = node
+				s.dialer = health
+			}
+			m.mu.Unlock()
+			flowCounters := []*counter{&s.stats, gen.inCounters[s.inbound], gen.outCounters[oid], gen.nodeCounters[node]}
+			for _, c := range flowCounters {
+				if c != nil && !counted[c] {
+					counted[c] = true
+					c.udpTotal.Add(1)
+					c.udpActive.Add(1)
+					counters = append(counters, c)
+				}
+			}
+			selections[target] = flowSelection{resolved, flowCounters, health}
 			destination := *source // immutable per-association destination, never scratch state
 			workers.Add(1)
-			go func(pc net.PacketConn, key access.Endpoint) {
+			go func(pc net.PacketConn, key access.Endpoint, counters []*counter, health *dialerLease) {
 				defer workers.Done()
 				defer func() { _ = pc.Close(); finished <- key }()
 				response := make([]byte, 65535)
@@ -192,17 +239,18 @@ func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, re
 						}
 					}
 				}
-			}(pc, target)
+			}(pc, target, flowCounters, health)
 		}
+		flow := selections[target]
 		_ = pc.SetWriteDeadline(time.Now().Add(5 * time.Second))
-		written, err := pc.WriteTo(payload, M.ParseSocksaddrHostPort(target.Host, target.Port))
+		written, err := pc.WriteTo(payload, M.ParseSocksaddrHostPort(flow.target.Host, flow.target.Port))
 		if err != nil {
-			health.failed()
+			flow.health.failed()
 			continue
 		}
 		// Some inherited packet wrappers return frame bytes; account only payload.
 		written = min(written, len(payload))
-		for _, c := range counters {
+		for _, c := range flow.counters {
 			if c != nil {
 				c.upload.Add(int64(written))
 				c.packetsUp.Add(1)

@@ -9,6 +9,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/ports"
 	"net"
 	"sync/atomic"
+	"time"
 )
 
 // A generation owns a lease reference; sessions own generation references.
@@ -21,7 +22,9 @@ type dialerLease struct {
 	health atomic.Pointer[passiveHealth]
 }
 
-func (l *dialerLease) failed()  { l.health.Store(failedHealth) }
+func (l *dialerLease) failed() {
+	l.health.Store(&passiveHealth{lastError: "outbound_connection_failed", at: time.Now()})
+}
 func (l *dialerLease) success() { l.health.Store(succeededHealth) }
 
 func (l *dialerLease) DialContext(ctx context.Context, e access.Endpoint) (net.Conn, error) {

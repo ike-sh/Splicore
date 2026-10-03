@@ -9,6 +9,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
 	"github.com/sagernet/sing-box/internal/splicore/domain/client"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	P "github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
 	"github.com/sagernet/sing-box/internal/splicore/domain/secret"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
 	"github.com/sagernet/sing-box/internal/splicore/registry"
@@ -25,6 +26,15 @@ type CredentialInput struct {
 func (c CredentialInput) Format(s fmt.State, _ rune) { _, _ = s.Write([]byte(secret.Redacted)) }
 
 type ClientMutation struct {
+	Network      *P.Config            `json:"network,omitempty"`
+	RouteRule    *P.RouteRule         `json:"route_rule,omitempty"`
+	RuleSet      *P.RuleSet           `json:"rule_set,omitempty"`
+	PolicyGroup  *P.PolicyGroup       `json:"policy_group,omitempty"`
+	DNSServer    *P.DNSServer         `json:"dns_server,omitempty"`
+	DNSRule      *P.DNSRule           `json:"dns_rule,omitempty"`
+	DNSProfile   *P.DNSProfile        `json:"dns_profile,omitempty"`
+	RouteProfile *P.RouteProfile      `json:"route_profile,omitempty"`
+	Selected     *P.Action            `json:"selected,omitempty"`
 	Resource     string               `json:"resource"`
 	Action       string               `json:"action"`
 	ID           identity.ID          `json:"id,omitempty"`
@@ -76,7 +86,8 @@ func (s *Service) EnableClientRuntime(ctx context.Context, factories *registry.O
 	s.client = c
 	state, err := repo.ClientState(ctx)
 	if err != nil {
-		return err
+		c.recoveryError = "client_committed_state_invalid"
+		return nil
 	}
 	secrets, err := s.clientCredentials(ctx, state, nil)
 	if err == nil {
@@ -110,7 +121,10 @@ func (s *Service) ClientStatus(ctx context.Context) (clientruntime.Status, error
 	defer c.mu.Unlock()
 	state, err := c.repo.ClientState(ctx)
 	if err != nil {
-		return clientruntime.Status{}, err
+		status := c.manager.Status(client.Empty(), c.factories.Capabilities())
+		status.Health = "degraded"
+		status.LastError = "client_committed_state_invalid"
+		return status, nil
 	}
 	status := c.manager.Status(state, c.factories.Capabilities())
 	if c.recoveryError != "" {
@@ -150,7 +164,7 @@ type clientCandidate struct {
 func (s *Service) clientCandidate(ctx context.Context, b json.RawMessage) (clientCandidate, error) {
 	var out clientCandidate
 	var m ClientMutation
-	if err := StrictJSON(b, &m); err != nil {
+	if err := StrictClientJSON(b, &m); err != nil {
 		return out, err
 	}
 	out.mutation = m
@@ -164,7 +178,7 @@ func (s *Service) clientCandidate(ctx context.Context, b json.RawMessage) (clien
 	}
 	// Exact shapes keep secrets and protocol options out of unrelated mutation paths.
 	count := 0
-	for _, present := range []bool{m.Node != nil, m.Outbound != nil, m.LocalInbound != nil, m.Route != nil} {
+	for _, present := range []bool{m.Node != nil, m.Outbound != nil, m.LocalInbound != nil, m.Route != nil, m.Network != nil, m.RouteRule != nil, m.RuleSet != nil, m.PolicyGroup != nil, m.DNSServer != nil, m.DNSRule != nil, m.DNSProfile != nil, m.RouteProfile != nil, m.Selected != nil} {
 		if present {
 			count++
 		}
@@ -376,6 +390,10 @@ func (s *Service) clientCandidate(ctx context.Context, b json.RawMessage) (clien
 			out.state.Enabled = false
 		default:
 			return invalid()
+		}
+	case "network", "route-rule", "rule-set", "policy-group", "dns-server", "dns-rule", "dns-profile", "route-profile":
+		if err = mutateNetwork(&out.state.Network, m, count, &out.id); err != nil {
+			return out, err
 		}
 	default:
 		return invalid()

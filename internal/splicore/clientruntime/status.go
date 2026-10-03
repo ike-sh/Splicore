@@ -28,6 +28,7 @@ type SessionView struct {
 	Stats      TrafficStats `json:"stats"`
 }
 type Status struct {
+	Network          NetworkStatus              `json:"network_runtime"`
 	State            client.ProfileState        `json:"state"`
 	Health           string                     `json:"health"`
 	LocalSOCKSTCP    bool                       `json:"local_socks_tcp"`
@@ -42,6 +43,7 @@ type Status struct {
 
 func (m *Manager) Status(state client.ProfileState, capabilities []ports.OutboundCapability) Status {
 	out := Status{State: state.Clone(), Health: "stopped", LocalSOCKSTCP: true, LocalSOCKSUDP: "supported", OutboundAdapters: capabilities, LocalStats: []Observation{}, Outbounds: []OutboundHealth{}, Nodes: []Observation{}, Sessions: []SessionView{}}
+	out.Network = m.NetworkStatus()
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if !m.closed && m.current.Load() != nil && state.Enabled {

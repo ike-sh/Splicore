@@ -3,11 +3,11 @@
   "x-documentation": {
     "status": "Canonical",
     "audience": "API, CLI and integration developers",
-    "last_reviewed": "2026-10-02",
+    "last_reviewed": "2026-10-03",
     "owner": "API maintainers",
     "responsibility": "Machine authority for proposed API paths, methods, parameters, schemas and responses.",
     "lifecycle": "Update with API surface changes; Markdown owns design/security/semantics.",
-    "design_maturity": "Shared creation/resources and Experimental native Mieru plus existing Phase 2–7 protocols; unrelated routes deferred."
+    "design_maturity": "Experimental Phase 12 routing, policy and DNS; frozen server/client protocols preserved."
   },
   "info": {
     "title": "Splicore API v1 — Foundation contract",
@@ -2682,6 +2682,1987 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ClientApply"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/route-rules": {
+      "get": {
+        "operationId": "phase12GetApiV1Route-Rules",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "$ref": "#/components/schemas/RouteRule"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "phase12PostApiV1Route-Rules",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "route_rule": {
+                    "$ref": "#/components/schemas/RouteRuleInput"
+                  }
+                },
+                "required": [
+                  "route_rule"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/route-rules/{id}": {
+      "get": {
+        "operationId": "phase12GetV1Route-RulesId",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteRule"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "operationId": "phase12PutV1Route-RulesId",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "route_rule": {
+                    "$ref": "#/components/schemas/RouteRule"
+                  }
+                },
+                "required": [
+                  "route_rule"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "phase12DeleteV1Route-RulesId",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rule-sets": {
+      "get": {
+        "operationId": "phase12GetApiV1Rule-Sets",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "$ref": "#/components/schemas/RuleSet"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "phase12PostApiV1Rule-Sets",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "rule_set": {
+                    "$ref": "#/components/schemas/RuleSetInput"
+                  }
+                },
+                "required": [
+                  "rule_set"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rule-sets/{id}": {
+      "get": {
+        "operationId": "phase12GetV1Rule-SetsId",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleSet"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "operationId": "phase12PutV1Rule-SetsId",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "rule_set": {
+                    "$ref": "#/components/schemas/RuleSet"
+                  }
+                },
+                "required": [
+                  "rule_set"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "phase12DeleteV1Rule-SetsId",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/policy-groups": {
+      "get": {
+        "operationId": "phase12GetApiV1Policy-Groups",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "$ref": "#/components/schemas/PolicyGroup"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "phase12PostApiV1Policy-Groups",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "policy_group": {
+                    "$ref": "#/components/schemas/PolicyGroupInput"
+                  }
+                },
+                "required": [
+                  "policy_group"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/policy-groups/{id}": {
+      "get": {
+        "operationId": "phase12GetV1Policy-GroupsId",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyGroup"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "operationId": "phase12PutV1Policy-GroupsId",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "policy_group": {
+                    "$ref": "#/components/schemas/PolicyGroup"
+                  }
+                },
+                "required": [
+                  "policy_group"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "phase12DeleteV1Policy-GroupsId",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dns/servers": {
+      "get": {
+        "operationId": "phase12GetV1DnsServers",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "$ref": "#/components/schemas/DNSServer"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "phase12PostV1DnsServers",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "dns_server": {
+                    "$ref": "#/components/schemas/DNSServerInput"
+                  }
+                },
+                "required": [
+                  "dns_server"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dns/servers/{id}": {
+      "get": {
+        "operationId": "phase12GetDnsServersId",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DNSServer"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "operationId": "phase12PutDnsServersId",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "dns_server": {
+                    "$ref": "#/components/schemas/DNSServer"
+                  }
+                },
+                "required": [
+                  "dns_server"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "phase12DeleteDnsServersId",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dns/rules": {
+      "get": {
+        "operationId": "phase12GetV1DnsRules",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "$ref": "#/components/schemas/DNSRule"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "phase12PostV1DnsRules",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "dns_rule": {
+                    "$ref": "#/components/schemas/DNSRuleInput"
+                  }
+                },
+                "required": [
+                  "dns_rule"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dns/rules/{id}": {
+      "get": {
+        "operationId": "phase12GetDnsRulesId",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DNSRule"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "operationId": "phase12PutDnsRulesId",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "dns_rule": {
+                    "$ref": "#/components/schemas/DNSRule"
+                  }
+                },
+                "required": [
+                  "dns_rule"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "phase12DeleteDnsRulesId",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/routes": {
+      "get": {
+        "operationId": "phase12GetApiV1Routes",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetworkRouteProfile"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "operationId": "phase12PutApiV1Routes",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "route_profile": {
+                    "$ref": "#/components/schemas/NetworkRouteProfile"
+                  }
+                },
+                "required": [
+                  "route_profile"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dns/profile": {
+      "get": {
+        "operationId": "phase12GetV1DnsProfile",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DNSProfile"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "operationId": "phase12PutV1DnsProfile",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "dns_profile": {
+                    "$ref": "#/components/schemas/DNSProfile"
+                  }
+                },
+                "required": [
+                  "dns_profile"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/policy-groups/status": {
+      "get": {
+        "operationId": "phase12GetV1Policy-GroupsStatus",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "$ref": "#/components/schemas/GroupStatus"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/api/v1/policy-groups/{id}/select": {
+      "post": {
+        "operationId": "phase12PostPolicy-GroupsIdSelect",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "selected": {
+                    "$ref": "#/components/schemas/RouteAction"
+                  }
+                },
+                "required": [
+                  "selected"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/routes/explain": {
+      "post": {
+        "operationId": "phase12PostV1RoutesExplain",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteExplanation"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RouteQuery"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dns/lookup": {
+      "post": {
+        "operationId": "phase12PostV1DnsLookup",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DNSResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DNSLookup"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dns/cache/status": {
+      "get": {
+        "operationId": "phase12GetDnsCacheStatus",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DNSStats"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/api/v1/dns/cache/flush": {
+      "post": {
+        "operationId": "phase12PostDnsCacheFlush",
+        "x-implementation-status": "phase12",
+        "description": "Experimental canonical network control; strict JSON, 2 MiB limit, no query parameters. Explain performs no network I/O; lookup explicitly queries DNS.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DNSFlushed"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {}
               }
             }
           }
@@ -6627,6 +8608,9 @@
           },
           "route": {
             "$ref": "#/components/schemas/ClientRoute"
+          },
+          "network": {
+            "$ref": "#/components/schemas/NetworkConfig"
           }
         },
         "required": [
@@ -6635,7 +8619,8 @@
           "nodes",
           "outbounds",
           "local_inbounds",
-          "route"
+          "route",
+          "network"
         ]
       },
       "ClientObservation": {
@@ -6861,8 +8846,12 @@
           "last_error": {
             "type": "string",
             "enum": [
-              "client_recovery_failed"
+              "client_recovery_failed",
+              "client_committed_state_invalid"
             ]
+          },
+          "network_runtime": {
+            "$ref": "#/components/schemas/NetworkRuntimeStatus"
           }
         },
         "required": [
@@ -6874,7 +8863,8 @@
           "local_inbounds",
           "outbounds",
           "nodes",
-          "sessions"
+          "sessions",
+          "network_runtime"
         ]
       },
       "ServerRuntimeStatus": {
@@ -6912,7 +8902,15 @@
               "outbound",
               "local-inbound",
               "route",
-              "runtime"
+              "runtime",
+              "network",
+              "route-rule",
+              "rule-set",
+              "policy-group",
+              "dns-server",
+              "dns-rule",
+              "dns-profile",
+              "route-profile"
             ]
           },
           "action": {
@@ -6924,7 +8922,9 @@
               "rotate",
               "start",
               "stop",
-              "restart"
+              "restart",
+              "replace",
+              "select"
             ]
           },
           "id": {
@@ -6944,6 +8944,33 @@
           },
           "credential": {
             "$ref": "#/components/schemas/ClientCredentialInput"
+          },
+          "network": {
+            "$ref": "#/components/schemas/NetworkConfig"
+          },
+          "route_rule": {
+            "$ref": "#/components/schemas/RouteRule"
+          },
+          "rule_set": {
+            "$ref": "#/components/schemas/RuleSet"
+          },
+          "policy_group": {
+            "$ref": "#/components/schemas/PolicyGroup"
+          },
+          "dns_server": {
+            "$ref": "#/components/schemas/DNSServer"
+          },
+          "dns_rule": {
+            "$ref": "#/components/schemas/DNSRule"
+          },
+          "dns_profile": {
+            "$ref": "#/components/schemas/DNSProfile"
+          },
+          "route_profile": {
+            "$ref": "#/components/schemas/NetworkRouteProfile"
+          },
+          "selected": {
+            "$ref": "#/components/schemas/RouteAction"
           }
         },
         "required": [
@@ -7239,6 +9266,1468 @@
           "udp_packets_download"
         ],
         "description": "Payload bytes only. TCP sessions and UDP association/packet dimensions are distinct. Do not sum Node/Outbound/LocalInbound/Session views."
+      },
+      "RouteAction": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": "outbound"
+              },
+              "id": {
+                "$ref": "#/components/schemas/ClientOutboundID"
+              }
+            },
+            "required": [
+              "kind",
+              "id"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": "group"
+              },
+              "id": {
+                "$ref": "#/components/schemas/ID"
+              }
+            },
+            "required": [
+              "kind",
+              "id"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "direct",
+                  "reject"
+                ]
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        ]
+      },
+      "SelectedRouteAction": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/RouteAction"
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "const": ""
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        ]
+      },
+      "RoutePortRange": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "start": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "end": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ]
+      },
+      "RuleMatch": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "domains": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 256
+          },
+          "domain_suffixes": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 256
+          },
+          "domain_keywords": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 256
+          },
+          "ip_cidrs": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 256
+          },
+          "ports": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/RoutePortRange"
+            },
+            "maxItems": 256
+          },
+          "networks": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string",
+              "enum": [
+                "tcp",
+                "udp"
+              ]
+            },
+            "maxItems": 2
+          },
+          "local_inbounds": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ID"
+            },
+            "maxItems": 256
+          },
+          "rule_sets": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ID"
+            },
+            "maxItems": 256
+          }
+        }
+      },
+      "RouteRule": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "match": {
+            "$ref": "#/components/schemas/RuleMatch"
+          },
+          "action": {
+            "$ref": "#/components/schemas/RouteAction"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "match",
+          "action"
+        ]
+      },
+      "NetworkRouteProfile": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "rules": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/RouteRule"
+            },
+            "maxItems": 10000
+          },
+          "final": {
+            "$ref": "#/components/schemas/RouteAction"
+          }
+        },
+        "required": [
+          "rules"
+        ]
+      },
+      "RuleSet": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "inline",
+              "local"
+            ]
+          },
+          "rules": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/RuleMatch"
+            },
+            "maxItems": 20000
+          },
+          "revision": {
+            "$ref": "#/components/schemas/Revision",
+            "description": "Positive operator supplied content revision, encoded as a decimal string; Go validates the int64 range."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "enabled",
+              "disabled"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type",
+          "rules",
+          "revision",
+          "status"
+        ]
+      },
+      "HealthProbe": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "interval_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 86400
+          },
+          "timeout_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "expected_status": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 599
+          }
+        },
+        "required": [
+          "url",
+          "interval_seconds",
+          "timeout_seconds",
+          "expected_status"
+        ]
+      },
+      "SelectorSettings": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "selected": {
+            "$ref": "#/components/schemas/RouteAction"
+          }
+        },
+        "required": [
+          "selected"
+        ]
+      },
+      "URLTestSettings": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "probe": {
+            "$ref": "#/components/schemas/HealthProbe"
+          },
+          "tolerance_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 60000
+          }
+        },
+        "required": [
+          "probe",
+          "tolerance_ms"
+        ]
+      },
+      "FallbackSettings": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "probe": {
+            "$ref": "#/components/schemas/HealthProbe"
+          }
+        },
+        "required": [
+          "probe"
+        ]
+      },
+      "LoadBalanceSettings": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "algorithm": {
+            "const": "round_robin"
+          },
+          "probe": {
+            "$ref": "#/components/schemas/HealthProbe"
+          }
+        },
+        "required": [
+          "algorithm"
+        ]
+      },
+      "PolicyGroup": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "selector",
+              "url_test",
+              "fallback",
+              "load_balance"
+            ]
+          },
+          "members": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/RouteAction"
+            },
+            "maxItems": 129
+          },
+          "selector": {
+            "$ref": "#/components/schemas/SelectorSettings"
+          },
+          "url_test": {
+            "$ref": "#/components/schemas/URLTestSettings"
+          },
+          "fallback": {
+            "$ref": "#/components/schemas/FallbackSettings"
+          },
+          "load_balance": {
+            "$ref": "#/components/schemas/LoadBalanceSettings"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type",
+          "members"
+        ],
+        "oneOf": [
+          {
+            "properties": {
+              "type": {
+                "const": "selector"
+              }
+            },
+            "required": [
+              "selector"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "url_test"
+                  ]
+                },
+                {
+                  "required": [
+                    "fallback"
+                  ]
+                },
+                {
+                  "required": [
+                    "load_balance"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "properties": {
+              "type": {
+                "const": "url_test"
+              }
+            },
+            "required": [
+              "url_test"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "selector"
+                  ]
+                },
+                {
+                  "required": [
+                    "fallback"
+                  ]
+                },
+                {
+                  "required": [
+                    "load_balance"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "properties": {
+              "type": {
+                "const": "fallback"
+              }
+            },
+            "required": [
+              "fallback"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "selector"
+                  ]
+                },
+                {
+                  "required": [
+                    "url_test"
+                  ]
+                },
+                {
+                  "required": [
+                    "load_balance"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "properties": {
+              "type": {
+                "const": "load_balance"
+              }
+            },
+            "required": [
+              "load_balance"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "selector"
+                  ]
+                },
+                {
+                  "required": [
+                    "url_test"
+                  ]
+                },
+                {
+                  "required": [
+                    "fallback"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "DNSEndpoint": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "host": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 65535
+          }
+        },
+        "required": [
+          "host",
+          "port"
+        ]
+      },
+      "DNSServer": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "system",
+              "udp",
+              "tcp",
+              "dot"
+            ]
+          },
+          "endpoint": {
+            "$ref": "#/components/schemas/DNSEndpoint"
+          },
+          "detour": {
+            "$ref": "#/components/schemas/RouteAction"
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "",
+              "dual",
+              "ipv4_only",
+              "ipv6_only",
+              "prefer_ipv4",
+              "prefer_ipv6"
+            ]
+          },
+          "tls": {
+            "$ref": "#/components/schemas/ClientTLS"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type",
+          "endpoint",
+          "detour",
+          "tls"
+        ]
+      },
+      "DNSRule": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "match": {
+            "$ref": "#/components/schemas/RuleMatch"
+          },
+          "server": {
+            "$ref": "#/components/schemas/ID"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "match",
+          "server"
+        ]
+      },
+      "DNSCachePolicy": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "capacity": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4096
+          }
+        },
+        "required": [
+          "capacity"
+        ]
+      },
+      "DNSProfile": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "default_server": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "bootstrap_server": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "",
+              "dual",
+              "ipv4_only",
+              "ipv6_only",
+              "prefer_ipv4",
+              "prefer_ipv6"
+            ]
+          },
+          "cache": {
+            "$ref": "#/components/schemas/DNSCachePolicy"
+          },
+          "timeout_seconds": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10
+          }
+        },
+        "required": [
+          "enabled",
+          "strategy",
+          "cache",
+          "timeout_seconds"
+        ]
+      },
+      "NetworkConfig": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "route": {
+            "$ref": "#/components/schemas/NetworkRouteProfile"
+          },
+          "rule_sets": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/RuleSet"
+            },
+            "maxItems": 128
+          },
+          "policy_groups": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/PolicyGroup"
+            },
+            "maxItems": 64
+          },
+          "dns_servers": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/DNSServer"
+            },
+            "maxItems": 32
+          },
+          "dns_rules": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/DNSRule"
+            },
+            "maxItems": 256
+          },
+          "dns": {
+            "$ref": "#/components/schemas/DNSProfile"
+          }
+        },
+        "required": [
+          "route",
+          "rule_sets",
+          "policy_groups",
+          "dns_servers",
+          "dns_rules",
+          "dns"
+        ]
+      },
+      "RouteQuery": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "domain": {
+            "type": "string",
+            "maxLength": 254
+          },
+          "ip": {
+            "oneOf": [
+              {
+                "type": "string",
+                "format": "ipv4"
+              },
+              {
+                "type": "string",
+                "format": "ipv6"
+              }
+            ]
+          },
+          "resolved_ips": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "ipv4"
+                },
+                {
+                  "type": "string",
+                  "format": "ipv6"
+                }
+              ]
+            },
+            "maxItems": 32
+          },
+          "port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "network": {
+            "type": "string",
+            "enum": [
+              "tcp",
+              "udp"
+            ]
+          },
+          "local_inbound": {
+            "$ref": "#/components/schemas/ID"
+          }
+        },
+        "required": [
+          "port",
+          "network"
+        ],
+        "anyOf": [
+          {
+            "required": [
+              "domain"
+            ]
+          },
+          {
+            "required": [
+              "ip"
+            ]
+          }
+        ]
+      },
+      "RouteExplanation": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "matched_rule": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "rule_sets": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ID"
+            }
+          },
+          "action": {
+            "$ref": "#/components/schemas/RouteAction"
+          },
+          "policy_group": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "selected": {
+            "$ref": "#/components/schemas/SelectedRouteAction"
+          },
+          "available": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "rule_sets",
+          "action",
+          "selected",
+          "available"
+        ]
+      },
+      "RuleHits": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "hits": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          }
+        },
+        "required": [
+          "id",
+          "hits"
+        ]
+      },
+      "HealthSample": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "unknown",
+              "healthy",
+              "unhealthy"
+            ]
+          },
+          "last_probe": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "latency_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9223372036854775807
+          },
+          "last_error": {
+            "type": "string",
+            "enum": [
+              "probe_failed",
+              "probe_timeout_or_canceled",
+              "outbound_connection_failed"
+            ]
+          }
+        },
+        "required": [
+          "state",
+          "last_probe",
+          "latency_ms"
+        ]
+      },
+      "MemberStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "member": {
+            "$ref": "#/components/schemas/RouteAction"
+          },
+          "health": {
+            "$ref": "#/components/schemas/HealthSample"
+          }
+        },
+        "required": [
+          "member",
+          "health"
+        ]
+      },
+      "GroupStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "selected": {
+            "$ref": "#/components/schemas/SelectedRouteAction"
+          },
+          "selection_count": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "members": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/MemberStatus"
+            },
+            "maxItems": 129
+          },
+          "available": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "selected",
+          "selection_count",
+          "members",
+          "available"
+        ]
+      },
+      "DNSServerStats": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "queries": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "failures": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          }
+        },
+        "required": [
+          "id",
+          "queries",
+          "failures"
+        ]
+      },
+      "DNSStats": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "queries": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "cache_hits": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "cache_misses": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "failures": {
+            "type": "string",
+            "pattern": "^\\d+$"
+          },
+          "entries": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4096
+          },
+          "capacity": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4096
+          },
+          "servers": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/DNSServerStats"
+            },
+            "maxItems": 32
+          }
+        },
+        "required": [
+          "queries",
+          "cache_hits",
+          "cache_misses",
+          "failures",
+          "entries",
+          "capacity",
+          "servers"
+        ]
+      },
+      "NetworkRuntimeStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "rules": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/RuleHits"
+            },
+            "maxItems": 10000
+          },
+          "groups": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/GroupStatus"
+            },
+            "maxItems": 64
+          },
+          "dns": {
+            "$ref": "#/components/schemas/DNSStats"
+          }
+        },
+        "required": [
+          "rules",
+          "groups",
+          "dns"
+        ]
+      },
+      "DNSLookup": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "domain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 254
+          }
+        },
+        "required": [
+          "domain"
+        ]
+      },
+      "DNSResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "server": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "",
+              "dual",
+              "ipv4_only",
+              "ipv6_only",
+              "prefer_ipv4",
+              "prefer_ipv6"
+            ]
+          },
+          "addresses": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "format": "ipv4"
+                },
+                {
+                  "type": "string",
+                  "format": "ipv6"
+                }
+              ]
+            },
+            "maxItems": 32
+          },
+          "cache_hit": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "server",
+          "strategy",
+          "addresses",
+          "cache_hit"
+        ]
+      },
+      "DNSFlushed": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "flushed": {
+            "const": true
+          }
+        },
+        "required": [
+          "flushed"
+        ]
+      },
+      "RouteRuleInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "match": {
+            "$ref": "#/components/schemas/RuleMatch"
+          },
+          "action": {
+            "$ref": "#/components/schemas/RouteAction"
+          }
+        },
+        "required": [
+          "name",
+          "match",
+          "action"
+        ]
+      },
+      "RuleSetInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "inline",
+              "local"
+            ]
+          },
+          "rules": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/RuleMatch"
+            },
+            "maxItems": 20000
+          },
+          "revision": {
+            "$ref": "#/components/schemas/Revision",
+            "description": "Positive operator supplied content revision, encoded as a decimal string; Go validates the int64 range."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "enabled",
+              "disabled"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "rules",
+          "revision",
+          "status"
+        ]
+      },
+      "PolicyGroupInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "selector",
+              "url_test",
+              "fallback",
+              "load_balance"
+            ]
+          },
+          "members": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/RouteAction"
+            },
+            "maxItems": 129
+          },
+          "selector": {
+            "$ref": "#/components/schemas/SelectorSettings"
+          },
+          "url_test": {
+            "$ref": "#/components/schemas/URLTestSettings"
+          },
+          "fallback": {
+            "$ref": "#/components/schemas/FallbackSettings"
+          },
+          "load_balance": {
+            "$ref": "#/components/schemas/LoadBalanceSettings"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "members"
+        ],
+        "oneOf": [
+          {
+            "properties": {
+              "type": {
+                "const": "selector"
+              }
+            },
+            "required": [
+              "selector"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "url_test"
+                  ]
+                },
+                {
+                  "required": [
+                    "fallback"
+                  ]
+                },
+                {
+                  "required": [
+                    "load_balance"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "properties": {
+              "type": {
+                "const": "url_test"
+              }
+            },
+            "required": [
+              "url_test"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "selector"
+                  ]
+                },
+                {
+                  "required": [
+                    "fallback"
+                  ]
+                },
+                {
+                  "required": [
+                    "load_balance"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "properties": {
+              "type": {
+                "const": "fallback"
+              }
+            },
+            "required": [
+              "fallback"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "selector"
+                  ]
+                },
+                {
+                  "required": [
+                    "url_test"
+                  ]
+                },
+                {
+                  "required": [
+                    "load_balance"
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "properties": {
+              "type": {
+                "const": "load_balance"
+              }
+            },
+            "required": [
+              "load_balance"
+            ],
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "selector"
+                  ]
+                },
+                {
+                  "required": [
+                    "url_test"
+                  ]
+                },
+                {
+                  "required": [
+                    "fallback"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "DNSServerInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "system",
+              "udp",
+              "tcp",
+              "dot"
+            ]
+          },
+          "endpoint": {
+            "$ref": "#/components/schemas/DNSEndpoint"
+          },
+          "detour": {
+            "$ref": "#/components/schemas/RouteAction"
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "",
+              "dual",
+              "ipv4_only",
+              "ipv6_only",
+              "prefer_ipv4",
+              "prefer_ipv6"
+            ]
+          },
+          "tls": {
+            "$ref": "#/components/schemas/ClientTLS"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "endpoint",
+          "detour",
+          "tls"
+        ]
+      },
+      "DNSRuleInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "match": {
+            "$ref": "#/components/schemas/RuleMatch"
+          },
+          "server": {
+            "$ref": "#/components/schemas/ID"
+          }
+        },
+        "required": [
+          "name",
+          "match",
+          "server"
+        ]
       }
     },
     "parameters": {

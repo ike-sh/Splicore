@@ -236,7 +236,7 @@ func TestMigrationFailureRollsBack(t *testing.T) {
 }
 
 func TestFutureSchemaChecksumCorruptionAndMetadata(t *testing.T) {
-	for _, mutation := range []string{"INSERT INTO schema_migrations VALUES(6,'future','future','future')", "UPDATE metadata SET value='wrong' WHERE key='product'", "UPDATE metadata SET value='wrong' WHERE key='db_schema'", "UPDATE schema_migrations SET checksum='wrong'", "UPDATE nodes SET id='wrong'", "DELETE FROM nodes"} {
+	for _, mutation := range []string{"INSERT INTO schema_migrations VALUES(99,'future','future','future')", "UPDATE metadata SET value='wrong' WHERE key='product'", "UPDATE metadata SET value='wrong' WHERE key='db_schema'", "UPDATE schema_migrations SET checksum='wrong'", "UPDATE nodes SET id='wrong'", "DELETE FROM nodes"} {
 		t.Run(mutation, func(t *testing.T) {
 			ctx := context.Background()
 			path := filepath.Join(t.TempDir(), "private", "state.db")

@@ -174,3 +174,20 @@ Self interop proves each adapter, REALITY negatives, credentials, IPv4/IPv6/doma
 unit additionally runs all outbounds alongside eight frozen server fixtures, service
 restart/crash/upgrade/rollback/reinstall and pinned sing-box reference servers. All
 fixtures/artifacts/evidence stay external; no host or third-party targets are used.
+
+## Phase 12 gates
+
+Run owned default race/checkptr with with_quic,with_utls,splicore_xray_integration;
+affected DNS/TLS/clientio/jsonstrict race packages; complete Windows tests/build and
+actual local routing/DNS smoke, recording Windows race NOT EXECUTED. Arm64 build only.
+Synthetic 1k/10k compile/match benchmarks include allocations. Network-free bounded
+fuzz covers canonical domain/CIDR/ports/group/DNS validation and rule compilation.
+No wire/TLS/QUIC fuzz, skipped tests, suppression, sleep/retry masking or external targets.
+
+A–H run actual Application/SOCKS and owned adapters: domain Selector→Snell/DIRECT,
+IPv4→HY2/IPv6→TUIC, three outbound HTTP probes, ordered Fallback down/recovery,
+RR/UDP association affinity, proxy/direct DNS counters, 100-rule/group/DNS atomic update
+with old TCP/UDP retained, and server/client restart coexistence. Ten race repetitions
+cover graph swap/selection/cache/scheduler/cancellation. The installed campaign driver
+splicore-network-smoke.py retains loopback DNS/HTTP/echo fixtures across restart/crash/
+upgrade/rollback/reinstall and verifies SQLite graph/selector restoration.

@@ -8,7 +8,12 @@ import (
 )
 
 func Decode(b []byte, v any) error {
-	if len(b) > 65536 {
+	return DecodeLimit(b, v, 65536)
+}
+
+// DecodeLimit retains strict field/depth/duplicate validation for bounded larger aggregates.
+func DecodeLimit(b []byte, v any, limit int) error {
+	if len(b) > limit {
 		return identity.Err(identity.Invalid, "document exceeds limit")
 	}
 	d := json.NewDecoder(bytes.NewReader(b))

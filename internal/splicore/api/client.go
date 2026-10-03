@@ -11,6 +11,9 @@ import (
 )
 
 func clientRoute(w http.ResponseWriter, r *http.Request, q application.Queries) bool {
+	if networkAPI(w, r, q) {
+		return true
+	}
 	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/v1/"), "/")
 	if !strings.HasPrefix(r.URL.Path, "/api/v1/") || len(parts) < 1 {
 		return false
@@ -132,8 +135,8 @@ func clientRoute(w http.ResponseWriter, r *http.Request, q application.Queries) 
 		writeJSON(w, 200, result)
 		return true
 	}
-	body, err := io.ReadAll(io.LimitReader(r.Body, 65537))
-	if err != nil || len(body) > 65536 {
+	body, err := io.ReadAll(io.LimitReader(r.Body, application.ClientDocumentLimit+1))
+	if err != nil || len(body) > application.ClientDocumentLimit {
 		writeError(w, identity.Err(identity.Invalid, "client request exceeds limit"))
 		return true
 	}
@@ -152,7 +155,7 @@ func clientRoute(w http.ResponseWriter, r *http.Request, q application.Queries) 
 			result, err = s.PlanClient(r.Context(), body)
 		case "apply":
 			var req application.ApplyRequest
-			err = application.StrictJSON(body, &req)
+			err = application.StrictClientJSON(body, &req)
 			if err == nil {
 				result, err = s.ApplyClient(r.Context(), req)
 			}
@@ -168,7 +171,7 @@ func clientRoute(w http.ResponseWriter, r *http.Request, q application.Queries) 
 	if len(body) == 0 {
 		body = []byte(`{}`)
 	}
-	if err = application.StrictJSON(body, &m); err != nil {
+	if err = application.StrictClientJSON(body, &m); err != nil {
 		writeError(w, err)
 		return true
 	}

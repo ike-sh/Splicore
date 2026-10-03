@@ -1,38 +1,58 @@
-# Minimal Client Routing
+# Routing Model
 
 - Documentation status: Canonical
-- Audience: Client and control-plane developers
-- Last reviewed: 2026-10-02
+- Audience: Client, runtime and control-plane developers
+- Last reviewed: 2026-10-03
 - Owner: Core maintainers
-- Responsibility: Committed default/selected route selection and snapshot publication.
-- Lifecycle: Update when route semantics or policy boundaries change.
+- Responsibility: Match semantics, route snapshots and connection ownership.
+- Lifecycle: Update with routing changes and qualification.
 
-## Implemented selection
+## Experimental Phase 12 contract
 
-Each LocalInbound selects its `selected_outbound` when present; otherwise it uses
-the committed Route `default_outbound`. The default is builtin `direct`.
-Every selected/default reference must exist. Deleting a referenced outbound rejects.
-Outbound references a Node by UUID and an engine independently; names are labels.
+Canonical RouteRule, RuleMatch, RouteAction, RouteProfile and RuleSet
+are independent of protocol/engine/DNS. Actions: outbound/group with immutable UUID,
+direct, reject. DIRECT/REJECT require no Node; legacy direct outbound ID remains valid.
 
-The data path reads an immutable in-memory generation. It never reads SQLite for
-each packet or connection decision. The shared global revision and HMAC plan protect
-control-plane mutations. A successful commit precedes snapshot swap; a failed build,
-bind or commit leaves the prior snapshot active. Established sessions retain the
-old generation until close. Restart explicitly ends them after commit.
+Ordered rules: first match wins. Nonempty categories AND; exact/suffix/keyword form
+one domain OR category; values within each other category OR. Empty match is unconditional.
+Domains are ASCII case insensitive, strip one trailing dot and honor suffix label
+boundaries. IPv4/IPv6 CIDRs must be canonical. Inclusive port ranges: 1..65535.
+Networks TCP/UDP; source metadata LocalInbound UUID. RuleSet references OR enabled
+matches, recursively AND with other categories. Disabled sets do not match.
+Inline/local set content revision is operator supplied; concurrency uses global revision.
+Missing references/cycles reject.
 
-## DNS semantics
+If no rule matches: LocalInbound.selected_outbound, then RouteProfile.final, then
+legacy Route.default_outbound. Rules override local selection. REJECT never dials.
 
-Remote node domains are stored unchanged and resolved locally by the native adapter
-when dialing the remote server. DIRECT target domains use the operating-system
-resolver. SOCKS domain targets through Snell are passed as domains to the remote
-protocol/server for target resolution. This distinction is part of the contract;
-there is no FakeIP or advanced DNS engine in Phase 10.
+## DNS interaction
 
-## Extension boundary
+Managed DNS preserves original domain, resolves through independent DNS rules and
+selects the first address in configured strategy order. Match original domain plus
+that actual dial candidate. An IPv6 answer cannot select an IPv4 dial merely because
+both occurred. Explain can evaluate caller supplied resolved_ips without resolution
+or network I/O. A first-rule REJECT matched before resolution rejects without DNS;
+later rules need resolution because earlier IP rules may take precedence.
+Explain does not count hits.
 
-The Route aggregate and runtime selection remain independent of engine configuration.
-Future route rules must be typed, validated and separately qualified before admission.
-Route rules and policy groups are separate concepts. Domain/IP/Geo/process rules,
-RuleSets, providers, URL-Test, fallback/load balancing, subscriptions and policy
-groups are **DEFERRED / NOT IMPLEMENTED**. TUN and system-proxy automation are not
-implemented. See [client runtime](CLIENT_RUNTIME.md) and [capabilities](CAPABILITY_MATRIX.md).
+## Transactions and lifetime
+
+Validate → Plan → prepare complete graph/adapters/listeners → SQLite commit →
+atomic publication. No per-connection SQL. Failure releases candidates and keeps
+the previous snapshot. Existing TCP/UDP retain their generation and selected adapter.
+New flows in an old UDP association use its old graph/affinity. Listener removal,
+explicit stop/restart and shutdown retain their termination contract.
+Retired schedulers stop/join; retained DNS/adapters close after final session release.
+
+## Bounds and performance
+
+10,000 route rules, 128 sets, 20,000 combined matches, 256 values per match, 16 set
+nesting edges and 2 MiB canonical network document. Compilation owns maps/prefixes.
+Validation/evaluation memoizes shared DAG paths. Ordered scans remain linear in rule
+count; exact domains use per-rule maps and CIDRs parse once. Synthetic 1k/10k compile,
+worst-miss latency and allocation evidence are in the Phase 12 report.
+
+Regex, protocol inference, process/Wi-Fi rules, Geo data and remote RuleSet fetching
+are deferred. No TUN/interception/system route changes.
+See [DNS](DNS_MODEL.md), [policy](POLICY_MODEL.md), [client](CLIENT_RUNTIME.md)
+and [ADR 0024](../adr/0024-routing-snapshot-match-semantics.md).

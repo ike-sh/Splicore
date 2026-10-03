@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Core developers and architecture reviewers
-- Last reviewed: 2026-10-02
+- Last reviewed: 2026-10-03
 - Owner: Core maintainers
 - Responsibility: Route architectural changes to the bounded specification that owns them.
 - Lifecycle: Update when specification boundaries or navigation change.
@@ -61,3 +61,8 @@ and create new scoped baseline/source evidence; do not silently rewrite old test
 
 - [Client Runtime](CLIENT_RUNTIME.md): canonical resources, native adapters, lifetime and recovery.
 - [Routing model](ROUTING_MODEL.md): default/selected snapshot and DNS semantics.
+
+## Phase 12 network intent
+
+[Routing](ROUTING_MODEL.md), [DNS](DNS_MODEL.md), [policy](POLICY_MODEL.md) own
+independent canonical models and runtime semantics.
