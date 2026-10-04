@@ -44,20 +44,26 @@ def verify_forward_upgrade(before,after):
     if old_schema==new_schema:
         assert after==before
         return
-    assert (old_schema,new_schema)==('6','7')
-    assert set(after)==set(before)|{'client_host_profiles'}
+    assert old_schema in ('6','7') and new_schema=='8'
+    additions={'client_management_profiles','provider_sources'}
+    if old_schema=='6':additions.add('client_host_profiles')
+    assert set(after)==set(before)|additions
     for table,rows in before.items():
         if table not in ('metadata','schema_migrations'):
             assert after[table]==rows,table
-    metadata=dict(before['metadata']);metadata['db_schema']='7'
+    metadata=dict(before['metadata']);metadata['db_schema']='8'
     assert dict(after['metadata'])==metadata
     old=before['schema_migrations'];new=after['schema_migrations']
-    assert new[:len(old)]==old and len(new)==len(old)+1
-    migration=(REPO/'internal/splicore/storage/sqlite/migrations/0007_host_integration.sql').read_bytes()
-    assert new[-1][:3]==(7,'0007_host_integration',hashlib.sha256(migration).hexdigest())
-    assert len(after['client_host_profiles'])==1
-    singleton,document=after['client_host_profiles'][0]
-    assert singleton==1 and json.loads(document)=={'system_proxy':{'enabled':False}}
+    assert new[:len(old)]==old and len(new)==8
+    for row in new[len(old):]:
+        number,name,checksum=row[:3]
+        migration=(REPO/'internal/splicore/storage/sqlite/migrations'/f'{name}.sql').read_bytes()
+        assert checksum==hashlib.sha256(migration).hexdigest()
+    singleton,document=after['client_management_profiles'][0]
+    assert singleton==1 and json.loads(document)=={'providers':[]} and after['provider_sources']==[]
+    if old_schema=='6':
+        singleton,document=after['client_host_profiles'][0]
+        assert singleton==1 and json.loads(document)=={'system_proxy':{'enabled':False}}
 
 def host_snapshot():
     return {**{key:command('ip','-'+family,'-j',kind,'show',*(['table','all'] if kind=='route' else [])).stdout
@@ -92,7 +98,7 @@ def inner():
             data[name]=hashlib.sha256(repr(sorted(db.execute('SELECT * FROM "'+name+'"').fetchall(),key=repr)).encode()).hexdigest()
         assert db.execute('PRAGMA integrity_check').fetchone()[0]=='ok';assert not db.execute('PRAGMA foreign_key_check').fetchall();db.close();return data
     install('clean-install','package-a.tar.gz');assert system()['health']=='healthy';assert not page()['items'];results['clean_install']='PASS'
-    smoke('initial');assert len(page()['items'])==8
+    smoke('initial');assert len(page()['items'])==6
     pid=int(unit('show','splicore.service','-p','MainPID','--value').stdout)
     status=pathlib.Path('/proc/'+str(pid)+'/status').read_text()
     uid=int(status.split('Uid:')[1].splitlines()[0].split()[0]);cap=int(status.split('CapEff:')[1].splitlines()[0].strip(),16)
@@ -100,40 +106,30 @@ def inner():
     assert int(pathlib.Path('/proc/sys/net/ipv4/ip_unprivileged_port_start').read_text())==1024
     modes={path:oct(pathlib.Path(path).stat().st_mode&0o777) for path in ['/etc/splicore/splicore.yaml','/var/lib/splicore/state.db','/var/lib/splicore/master.key','/var/lib/splicore','/run/splicore']}
     assert modes['/etc/splicore/splicore.yaml']=='0o640';assert modes['/var/lib/splicore/state.db']=='0o600';assert modes['/var/lib/splicore/master.key']=='0o600';assert modes['/var/lib/splicore']=='0o700';assert modes['/run/splicore']=='0o700'
-    for inbound in page()['items']:
-        if inbound.get('runtime'):
-            assert pathlib.Path(inbound['runtime']['config_artifact']).stat().st_mode&0o777==0o600
-            assert pathlib.Path(inbound['runtime']['runtime_directory']).stat().st_mode&0o777==0o700
-    (out/'permissions.json').write_text(json.dumps({'uid':uid,'effective_capabilities':'CAP_NET_BIND_SERVICE only','low_port_threshold':1024,'modes':modes,'xray_config':'0600','xray_generation':'0700'},indent=2)+'\n')
+    (out/'permissions.json').write_text(json.dumps({'uid':uid,'effective_capabilities':'CAP_NET_BIND_SERVICE only','low_port_threshold':1024,'modes':modes},indent=2)+'\n')
     results['non_root_low_ports']='PASS'
     run('doctor','/usr/local/bin/splicore','doctor','--config','/etc/splicore/splicore.yaml')
-    old=page();fds=[os.pidfd_open(i['runtime']['pid']) for i in old['items'] if i.get('runtime')]
-    unit('restart','splicore.service');assert page()['snapshot_revision']==old['snapshot_revision'];assert all(select.select([fd],[],[],10)[0] for fd in fds)
-    for fd in fds:os.close(fd)
-    smoke('restart');results['restart']='PASS'
-    # Unrelated Xray uses the same executable while living outside the unit cgroup.
-    unrelated_config=pathlib.Path('/var/tmp/unrelated-xray.json');port=s.h.free_port();unrelated_config.write_text(json.dumps({'log':{'loglevel':'none'},'inbounds':[{'listen':'127.0.0.1','port':port,'protocol':'socks'}],'outbounds':[{'protocol':'freedom'}]}))
-    unrelated=subprocess.Popen(['/var/lib/splicore/engines/xray-artifact/xray-26.3.27','run','-config',str(unrelated_config)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    old=page();parent=int(unit('show','splicore.service','-p','MainPID','--value').stdout);pfd=os.pidfd_open(parent)
     try:
-        s.h.wait_port(port,unrelated);old=page();parent=int(unit('show','splicore.service','-p','MainPID','--value').stdout);pfd=os.pidfd_open(parent);fds=[os.pidfd_open(i['runtime']['pid']) for i in old['items'] if i.get('runtime')]
-        signal.pidfd_send_signal(pfd,signal.SIGKILL);assert select.select([pfd],[],[],10)[0];assert all(select.select([fd],[],[],10)[0] for fd in fds)
-        deadline=time.monotonic()+30
-        while time.monotonic()<deadline:
-            values=unit('show','splicore.service','-p','ActiveState','-p','SubState','-p','MainPID').stdout.decode()
-            if 'ActiveState=active\n' in values and 'SubState=running\n' in values and int(unit('show','splicore.service','-p','MainPID','--value').stdout)!=parent:break
-        else:raise RuntimeError('systemd crash recovery deadline')
-        for fd in [pfd,*fds]:os.close(fd)
-        assert unrelated.poll() is None;assert len(page()['items'])==8;assert len([i for i in page()['items'] if i.get('runtime')])==2
-        assert all(not pathlib.Path(i['runtime']['config_artifact']).exists() for i in old['items'] if i.get('runtime'))
-        db_snapshot();smoke('crash-recovery');results['parent_child_crash']='PASS';results['unrelated_xray']='UNAFFECTED'
-    finally:s.h.stop(unrelated)
+        unit('restart','splicore.service');assert page()['snapshot_revision']==old['snapshot_revision'];assert select.select([pfd],[],[],10)[0]
+    finally:os.close(pfd)
+    smoke('restart');results['restart']='PASS'
+    parent=int(unit('show','splicore.service','-p','MainPID','--value').stdout);pfd=os.pidfd_open(parent)
+    signal.pidfd_send_signal(pfd,signal.SIGKILL);assert select.select([pfd],[],[],10)[0];os.close(pfd)
+    deadline=time.monotonic()+30
+    while time.monotonic()<deadline:
+        values=unit('show','splicore.service','-p','ActiveState','-p','SubState','-p','MainPID').stdout.decode()
+        if 'ActiveState=active\n' in values and 'SubState=running\n' in values and int(unit('show','splicore.service','-p','MainPID','--value').stdout)!=parent:break
+    else:raise RuntimeError('systemd crash recovery deadline')
+    assert len(page()['items'])==6
+    db_snapshot();smoke('crash-recovery');results['daemon_crash']='PASS'
     before=db_snapshot();upgrade_rows=database_rows();host_before=host_snapshot();key=digest('/var/lib/splicore/master.key');bootstrap=digest('/etc/splicore/splicore.yaml')
     # Each campaign deliberately restarts the same disposable unit repeatedly.
     # Reset only its start counter between independent install scenarios; leave
     # production unit policy intact and never retry a failed operation.
     unit('reset-failed','splicore.service')
     results['campaign_start_counter']='reset between independent lab scenarios; production policy unchanged'
-    install('normal-upgrade','package-b.tar.gz');verify_forward_upgrade(upgrade_rows,database_rows());assert host_snapshot()==host_before;assert digest('/var/lib/splicore/master.key')==key;assert digest('/etc/splicore/splicore.yaml')==bootstrap
+    install('normal-upgrade','package-b.tar.gz');verify_forward_upgrade(upgrade_rows,database_rows());assert host_snapshot()==host_before;assert digest('/var/lib/splicore/master.key')==key;assert 'xray' not in pathlib.Path('/etc/splicore/splicore.yaml').read_text()
     results['upgrade_without_host_mutation']='PASS'
     smoke('upgrade');results['upgrade']='PASS'
     files={p:digest(p) for p in ['/usr/local/bin/splicore','/etc/systemd/system/splicore.service','/etc/splicore/install.json','/etc/splicore/splicore.yaml','/var/lib/splicore/master.key']};before=db_snapshot()
@@ -170,13 +166,13 @@ def inner():
 
 def main():
     if len(sys.argv)==2 and sys.argv[1]=='--inner':inner();return
-    p=argparse.ArgumentParser();p.add_argument('--output',type=pathlib.Path,required=True);p.add_argument('--package-a',type=pathlib.Path,required=True);p.add_argument('--sha256-a',required=True);p.add_argument('--package-b',type=pathlib.Path,required=True);p.add_argument('--sha256-b',required=True);p.add_argument('--fault-package',type=pathlib.Path,required=True);p.add_argument('--sha256-fault',required=True);p.add_argument('--clients',type=pathlib.Path,required=True);p.add_argument('--xray',type=pathlib.Path,required=True);a=p.parse_args()
+    p=argparse.ArgumentParser();p.add_argument('--output',type=pathlib.Path,required=True);p.add_argument('--package-a',type=pathlib.Path,required=True);p.add_argument('--sha256-a',required=True);p.add_argument('--package-b',type=pathlib.Path,required=True);p.add_argument('--sha256-b',required=True);p.add_argument('--fault-package',type=pathlib.Path,required=True);p.add_argument('--sha256-fault',required=True);p.add_argument('--clients',type=pathlib.Path,required=True);a=p.parse_args()
     for path,sha in [(a.package_a,a.sha256_a),(a.package_b,a.sha256_b),(a.fault_package,a.sha256_fault)]:
         if path.is_symlink() or digest(path)!=sha:p.error('Pinned local package mismatch')
     lab=REPO/'scripts/splicore-service-lab.py'
     subprocess.run(['python3',str(lab),'start',str(a.output)],check=True)
     try:
-        for source,name in [(a.package_a,'package-a.tar.gz'),(a.package_b,'package-b.tar.gz'),(a.fault_package,'fault-migration.tar.gz'),(a.xray,'xray')]:shutil.copyfile(source,a.output/name);(a.output/name).chmod(0o700 if name=='xray' else 0o600)
+        for source,name in [(a.package_a,'package-a.tar.gz'),(a.package_b,'package-b.tar.gz'),(a.fault_package,'fault-migration.tar.gz')]:shutil.copyfile(source,a.output/name);(a.output/name).chmod(0o600)
         shutil.copytree(a.clients,a.output/'clients')
         deadline=time.monotonic()+30
         while time.monotonic()<deadline:

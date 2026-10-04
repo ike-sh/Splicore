@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Operators and distribution reviewers
-- Last reviewed: 2026-10-02
+- Last reviewed: 2026-10-04
 - Owner: Distribution maintainers
 - Responsibility: Local atomic replacement, consistent backups and rollback boundaries.
 - Lifecycle: Update whenever replacement or migration behavior changes.
@@ -67,3 +67,26 @@ remove obsolete backups deliberately as root. No online update server exists.
 ## Phase 13 host integration
 
 Phase12 schema 6 upgrades through new migration 0007; historical migrations remain untouched. With TUN/host integration disabled, upgrade changes no routes, DNS, proxy or interfaces. Active owned mutations must restore on service stop before replacing binaries; failures retain recoverable state. See [system integration](SYSTEM_INTEGRATION.md).
+
+## Phase 14 schema boundary
+
+Phase 13 schema 7 upgrades forward to schema 8 via generic migration 0008. Providers
+require no downloads/new daemon at install. Old rows/master key/bootstrap remain
+coherent. Failed future schema 9 is tested only in an owned external fault fixture;
+production migrations are unchanged. Rollback restores stopped coherent pre-upgrade
+DB/key/binary checkpoint, not a down migration. Provider generation/source validators
+participate in normal state snapshot and default uninstall retention.
+
+## Retired experimental engine state
+
+Before replacing installed files, the corrected installer takes an owned coherent
+backup and rejects any Xray inbound/outbound/provider or transport-mask intent.
+Disabled retired records also reject. The error identifies the resource class;
+the old installation/database/key are retained and the old service restarts.
+Remove those records with the previous experimental build, then upgrade. Never
+change their engine to native as an upgrade shortcut.
+
+With native-only state, forward upgrade passes. Retired bootstrap and receipt
+metadata are accepted only by the installer and stripped after safe preflight;
+normal serve rejects obsolete Xray bootstrap fields. Schema stays generic at 8;
+no historical migration is edited and no cleanup deletes records automatically.

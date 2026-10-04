@@ -11,6 +11,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
 	"github.com/sagernet/sing-box/internal/splicore/domain/client"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	"github.com/sagernet/sing-box/internal/splicore/domain/provider"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
 	"github.com/sagernet/sing-box/internal/splicore/version"
 	"io"
@@ -24,19 +25,35 @@ import (
 
 type hostileSource struct{ secret string }
 
+type hostileProviderSource struct{ hostileSource }
+
+func (s hostileProviderSource) ClientStatus(ctx context.Context) (clientruntime.Status, error) {
+	status, err := s.hostileSource.ClientStatus(ctx)
+	status.State.Management.Providers = []provider.Provider{{ID: identity.ID(s.secret), Name: s.secret, Kind: s.secret, Format: s.secret, URLDisplay: s.secret, Status: s.secret, LastError: s.secret}}
+	return status, err
+}
+func TestPhase14ProviderSupportSecretBoundary(t *testing.T) {
+	const secret = "SYNTHETIC_PROVIDER_SOURCE_AUTH_BODY"
+	projection := clientProjection(context.Background(), hostileProviderSource{hostileSource{secret}})
+	b, err := json.Marshal(projection)
+	if err != nil || strings.Contains(string(b), secret) {
+		t.Fatal("provider diagnostics contain secret", err)
+	}
+}
+
 func (s hostileSource) ClientStatus(context.Context) (clientruntime.Status, error) {
 	id := identity.ID(s.secret)
 	return clientruntime.Status{Health: s.secret, LastError: s.secret, State: client.ProfileState{Nodes: []client.RemoteNode{{ID: id, Name: s.secret, Protocol: access.ProtocolKey{Protocol: s.secret}, Endpoint: access.Endpoint{Host: s.secret, Port: 443}, Options: client.Options{Data: json.RawMessage(`{"password":"` + s.secret + `"}`)}, Metadata: identity.Metadata{"secret": s.secret}}}, Outbounds: []client.Outbound{{ID: id, Name: s.secret, Kind: s.secret, NodeID: &id, Engine: s.secret}}, LocalInbounds: []client.LocalInbound{{Name: s.secret, Kind: s.secret, Listen: access.Endpoint{Host: s.secret, Port: 443}}}}, Outbounds: []clientruntime.OutboundHealth{{ID: id, LastError: s.secret}}}, nil
 }
 
 func (s hostileSource) System(context.Context) (application.System, error) {
-	return application.System{NodeID: identity.ID(s.secret), Health: s.secret, Reasons: []string{s.secret}, Version: version.Info{Version: s.secret}, Engines: []ports.EngineStatus{{Engine: s.secret, Reason: s.secret, InstalledVersion: s.secret, BinarySHA256: s.secret}}}, nil
+	return application.System{NodeID: identity.ID(s.secret), Health: s.secret, Reasons: []string{s.secret}, Version: version.Info{Version: s.secret}, Engines: []ports.EngineStatus{{Engine: s.secret}}}, nil
 }
 func (s hostileSource) Capabilities(context.Context, string, int) (application.CapabilityPage, error) {
 	return application.CapabilityPage{Items: []application.Capability{{Protocol: s.secret, WireVersion: s.secret, FeatureProfile: s.secret}}}, nil
 }
 func (s hostileSource) Inbounds(context.Context) (application.InboundPage, error) {
-	return application.InboundPage{Items: []application.InboundView{{Inbound: access.Inbound{Name: s.secret, Engine: s.secret, Protocol: access.ProtocolKey{Protocol: s.secret}, Tags: []string{s.secret}, Listeners: []access.Listener{{Transport: s.secret, Endpoint: access.Endpoint{Host: s.secret, Port: 443}}}}, Health: s.secret, Runtime: &ports.RuntimeStatus{ConfigArtifact: s.secret, Generation: s.secret, RuntimeDirectory: s.secret}}}}, nil
+	return application.InboundPage{Items: []application.InboundView{{Inbound: access.Inbound{Name: s.secret, Engine: s.secret, Protocol: access.ProtocolKey{Protocol: s.secret}, Tags: []string{s.secret}, Listeners: []access.Listener{{Transport: s.secret, Endpoint: access.Endpoint{Host: s.secret, Port: 443}}}}, Health: s.secret}}}, nil
 }
 
 func TestSupportBundleBlockingSecretGate(t *testing.T) {
@@ -50,7 +67,7 @@ func TestSupportBundleBlockingSecretGate(t *testing.T) {
 	if err := PrivateDirectory(state); err != nil {
 		t.Fatal(err)
 	}
-	c := config.Config{Schema: 1, StateDirectory: state, KeyFile: filepath.Join(state, joined), API: config.API{UnixSocket: filepath.Join(state, joined+".sock")}, Xray: config.Xray{BinaryPath: filepath.Join(state, joined), RuntimeDirectory: state}}
+	c := config.Config{Schema: 1, StateDirectory: state, KeyFile: filepath.Join(state, joined), API: config.API{UnixSocket: filepath.Join(state, joined+".sock")}}
 	if err := PrivateDirectory(filepath.Join(state, "crashes")); err != nil {
 		t.Fatal(err)
 	}

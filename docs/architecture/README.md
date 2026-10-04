@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Core developers and architecture reviewers
-- Last reviewed: 2026-10-03
+- Last reviewed: 2026-10-04
 - Owner: Core maintainers
 - Responsibility: Route architectural changes to the bounded specification that owns them.
 - Lifecycle: Update when specification boundaries or navigation change.
@@ -66,3 +66,17 @@ and create new scoped baseline/source evidence; do not silently rewrite old test
 
 [Routing](ROUTING_MODEL.md), [DNS](DNS_MODEL.md), [policy](POLICY_MODEL.md) own
 independent canonical models and runtime semantics.
+
+## Phase 14 resource management specifications
+
+- [Node model](NODE_MODEL.md): immutable identity, provenance, stale/reference and batch semantics.
+- [Import model](IMPORT_MODEL.md): parsers, format boundaries, preview/apply and export.
+- [Provider model](PROVIDER_MODEL.md): remote subscription/proxy source, security, generation and scheduler.
+- [RuleSet providers](RULESET_PROVIDER.md): bounded remote matchers and atomic update.
+
+## Current architecture correction
+
+Native is the sole runtime engine. Historical Phase 6/7 direction is superseded; FinalMask/Sudoku are out of scope.
+
+- [Decision](../adr/0035-xray-runtime-removed-from-core.md)
+- [Correction report](../reports/ARCHITECTURE_CORRECTION_XRAY_BOUNDARY_REPORT.md)

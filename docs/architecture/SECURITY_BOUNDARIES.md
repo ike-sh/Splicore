@@ -90,33 +90,13 @@ Vision's upstream race/checkptr defects require fail-closed rejection before
 commit, TLS material access, runtime construction or export. Capability Vision=false;
 no sanitizer suppression or upstream patch. [Decision](../adr/0017-defer-vision-dependency-safety.md).
 
-## Owned Xray process artifacts
+## Independent core runtime boundary
 
-Exact binary digest/version and absolute non-symlink paths are mandatory. Generation
-IDs are random and never formed from unchecked inbound/engine input. An exclusive
-kernel root lease bounds stale cleanup; retained process handles bound termination.
-No recorded PID is trusted for recovery cleanup. Direct exec uses an allowlisted
-environment, fixed arguments and no secrets outside protected configuration.
-Linux generation/config modes are 0700/0600; Windows protects the user/SYSTEM DACL.
-Raw child output is discarded; safe counters and exit codes alone reach status.
-Version capture is capped at 4096 bytes. Config snapshots are handle-owned; mutable
-caller slices and TLS file content cannot change a prepared generation.
-The private loopback listener is inside the trusted local runtime boundary and
-receives loopback source addresses. Public admission remains closed before commit.
-For platform limits and ownership details see [ADR 0018](../adr/0018-xray-owned-child-engine.md).
-
-## Shared transport secrets
-
-Sudoku password is inbound-owned and client-needed; it is distinct from per-Account
-UUID and server-only REALITY private key. Exact 32 hex-character import preserves
-case; omission generates with crypto/rand before pending. Existing authenticated
-encrypted vault/AAD persistence is reused. No plaintext settings, ordinary API,
-logs, argv or environment. Explicit authorized Xray export returns the shared seed.
-ClientSharedSecretRepository filters active inbound-owned Password rows before
-decrypting; private keys cannot enter that port. Profile/config artifacts remain
-sensitive, transient and protected. Feature availability requires the exact pinned
-artifact; unknown raw JSON/masks/fields reject. No new wire or unsafe pointer code.
-[ADR 0019](../adr/0019-xray-specialized-feature-boundary.md).
+Splicore owns native runtime only. No external supervisor, process configuration,
+transport-mask shared-secret exporter or artifact lifecycle remains. Retired
+Xray/mask state rejects before migration/replacement; imports never discard
+features into ordinary VLESS. Real NoBrand is untouched. Historical Phase 6/7
+security reports remain unchanged and superseded by [ADR 0035](../adr/0035-xray-runtime-removed-from-core.md).
 
 ## Phase 8 Mieru secrets and globals
 
@@ -157,11 +137,9 @@ TCP EOF, idle expiry, changed route/adapter, stop and daemon shutdown close flow
 and join workers before releasing generation ownership. Limits are 32 target flows
 per association and a two-minute idle timeout; no unauthenticated LAN relay is exposed.
 
-ClientTLS cannot represent certificate keys or a REALITY private key. Xray client
-artifacts contain UUID/public client fields, are 0600 in 0700 private generations,
-and never enter argv, logs, doctor or support archives. The original supervisor
-owns all child cleanup. Passive health is per adapter lease so retired traffic
-cannot mark a replacement adapter healthy. Client FinalMask/Sudoku and Vision reject.
+ClientTLS cannot represent certificate keys or a REALITY private key. Passive
+health is per native adapter lease so retired traffic cannot mark a replacement
+adapter healthy. FinalMask/Sudoku are out of scope; Vision remains unsupported.
 
 ## Phase 12 resolver and policy boundary
 
@@ -196,3 +174,17 @@ and redacted error classes. Socket verification and control metadata use narrow
 locks; payload reads/writes and scratch buffers remain per connection. Windows real
 activation remains guarded. No upstream, credentials, wire or external targets are
 modified by the underlay integration.
+
+## Phase 14 remote sources and secret input
+
+[Provider](PROVIDER_MODEL.md) defines verified HTTP(S), full-answer address validation,
+numeric dial pinning, redirect revalidation, auth stripping, explicit private-source
+opt-in and wire/decompression caps. No insecure TLS/file/command/Unix fetch. Each
+fetch owns the existing runtime snapshot and typed underlay lease; dependency cycles
+reject. Full source URL/auth/validators are encrypted; no feed history is stored.
+API/CLI read/preview/errors never return URI/source/credential content. Import files
+and explicit exports are protected operator inputs/results, not passive diagnostics.
+Support bundles project fixed provider enums/counts/ages, dropping names/URLs/metadata.
+Regular-file identity/size checks reject symlink/device/socket imports. Canonical and
+external unknown fields reject; REALITY server private fields, Vision and client masks
+cannot enter a runnable node. No public subscription listener or telemetry is added.

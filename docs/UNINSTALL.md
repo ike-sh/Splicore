@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Linux operators and integration authors
-- Last reviewed: 2026-10-02
+- Last reviewed: 2026-10-04
 - Owner: Distribution maintainers
 - Responsibility: Program removal, retained state and explicit purge safety.
 - Lifecycle: Update with ownership validation or removal behavior.
@@ -40,3 +40,10 @@ environment.
 ## Phase 13 host integration
 
 Stop before removal, restore the private host journal as the original service UID, and refuse removal/purge on recovery failure. Domain state remains by default. Purge validates paths after restoration. Never chown a journal, flush a table or remove an unrelated adapter. Administrator-installed service drop-ins are not automatically removed; remove the optional TUN profile explicitly when retiring it. See [system integration](SYSTEM_INTEGRATION.md).
+
+## Phase 14 retained resources
+
+Default uninstall retains canonical providers, nodes, tags, encrypted credentials and
+RuleSets with existing SQLite/key state. Reinstall restores offline without a refresh
+prerequisite. Explicit purge removes this state under existing path/ownership guards.
+Scheduler belongs to the sole splicore.service and exits with it; no second service.

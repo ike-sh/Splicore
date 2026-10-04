@@ -52,7 +52,7 @@ func ValidateWindowsDependencies(dependencies []WindowsDependency) error {
 			return identity.Err(identity.Invalid, "invalid bypass dependency")
 		}
 		switch d.Reason {
-		case "node", "xray", "dns-bootstrap", "dns-upstream", "health", "control", "outbound", "group", "tun":
+		case "node", "dns-bootstrap", "dns-upstream", "health", "control", "outbound", "group", "tun":
 		default:
 			return identity.Err(identity.Invalid, "unknown bypass reason")
 		}

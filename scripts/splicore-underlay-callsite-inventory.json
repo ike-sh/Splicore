@@ -15,6 +15,16 @@
     "return p.ListenPacket(ctx, e)"
   ],
   [
+    "internal/splicore/clientruntime/provider.go",
+    "Dial",
+    "return f.direct.DialContext(ctx, \"tcp\", net.JoinHostPort(ip.String(), strconv.Itoa(int(target.Port))))"
+  ],
+  [
+    "internal/splicore/clientruntime/provider.go",
+    "Dial",
+    "return f.gen.outbounds[a.ID].DialContext(ctx, target)"
+  ],
+  [
     "internal/splicore/clientruntime/runtime.go",
     "DialContext",
     "return d.protected.DialContext(ctx, \"tcp\", net.JoinHostPort(e.Host, strconv.Itoa(int(e.Port))))"
@@ -160,56 +170,6 @@
     "l, err := net.Listen(\"tcp\", net.JoinHostPort(h.endpoint.Host, portString(h.endpoint.Port)))"
   ],
   [
-    "internal/splicore/engine/xray/client_port_other.go",
-    "reserveClientListeners",
-    "tcp, err := net.Listen(\"tcp4\", \"127.0.0.1:0\")"
-  ],
-  [
-    "internal/splicore/engine/xray/client_port_other.go",
-    "reserveClientListeners",
-    "udp, err := net.ListenPacket(\"udp4\", tcp.Addr().String())"
-  ],
-  [
-    "internal/splicore/engine/xray/client_port_windows.go",
-    "reserveClientListeners",
-    "return reserveWindowsClientListeners(net.Listen, net.ListenPacket)"
-  ],
-  [
-    "internal/splicore/engine/xray/engine.go",
-    "runOwned",
-    "if err = cmd.Start(); err != nil {"
-  ],
-  [
-    "internal/splicore/engine/xray/outbound.go",
-    "ListenPacket",
-    "udp, err := (&net.Dialer{}).DialContext(joined, \"udp4\", bind.String())"
-  ],
-  [
-    "internal/splicore/engine/xray/outbound.go",
-    "handshake",
-    "c, err := (&net.Dialer{}).DialContext(ctx, \"tcp4\", net.JoinHostPort(\"127.0.0.1\", strconv.Itoa(int(port))))"
-  ],
-  [
-    "internal/splicore/engine/xray/runtime.go",
-    "Start",
-    "if err = cmd.Start(); err != nil {"
-  ],
-  [
-    "internal/splicore/engine/xray/runtime.go",
-    "Start",
-    "listener, err = net.Listen(\"tcp\", net.JoinHostPort(h.endpoint.Host, strconv.Itoa(int(h.endpoint.Port))))"
-  ],
-  [
-    "internal/splicore/engine/xray/runtime.go",
-    "Start",
-    "reservation, err = net.Listen(\"tcp4\", \"127.0.0.1:0\")"
-  ],
-  [
-    "internal/splicore/engine/xray/runtime.go",
-    "relay",
-    "private, err := net.DialTimeout(\"tcp4\", net.JoinHostPort(\"127.0.0.1\", strconv.Itoa(int(port))), time.Second)"
-  ],
-  [
     "internal/splicore/networkruntime/dns.go",
     "dialPurpose",
     "conn, err = d.DialContext(ctx, network, net.JoinHostPort(target.Host, portString(target.Port)))"
@@ -243,6 +203,16 @@
     "internal/splicore/operations/service.go",
     "NotifyReady",
     "c, err := net.DialUnix(\"unixgram\", nil, &net.UnixAddr{Name: path, Net: \"unixgram\"})"
+  ],
+  [
+    "internal/splicore/remotesource/fetch.go",
+    "Fetch",
+    "ips, e := n.Resolve(ctx, host)"
+  ],
+  [
+    "internal/splicore/remotesource/fetch.go",
+    "Fetch",
+    "return n.Dial(ctx, access.Endpoint{Host: ips[0].Unmap().String(), Port: uint16(number)})"
   ],
   [
     "internal/splicore/transport/client.go",

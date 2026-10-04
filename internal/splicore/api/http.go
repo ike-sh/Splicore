@@ -23,6 +23,9 @@ func Handler(service application.Queries) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
+		if managementRoute(w, r, service) {
+			return
+		}
 		if clientRoute(w, r, service) {
 			return
 		}

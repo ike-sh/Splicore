@@ -402,7 +402,7 @@ func (p *Platform) capturePlan(ctx context.Context, t client.TUNSettings, plan *
 	}
 	uid := uint32(os.Geteuid())
 	for _, f := range families {
-		// This dedicated process user rule also protects inherited server and Xray
+		// This dedicated process user rule also protects native server
 		// sockets, including future endpoint IPs. Applications under this UID bypass.
 		plan.Records = append(plan.Records, Record{Kind: "rule", Family: f, Priority: priority, Table: 254, UID: &uid}, Record{Kind: "rule", Family: f, Priority: priority + 1, Table: 254, Mark: SocketMark}, Record{Kind: "rule", Family: f, Priority: priority + 2, Table: table})
 	}

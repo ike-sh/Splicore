@@ -84,10 +84,3 @@ type AttributedStats interface{ BindingStats(identity.ID) Stats }
 type ServerSecretRepository interface {
 	RevealInboundCredentials(context.Context, identity.ID) ([]access.Credential, error)
 }
-
-// ClientSharedSecretRepository is narrower than ServerSecretRepository: it can
-// reveal inbound-owned passwords, never server-only private keys. The application
-// authorizes an enabled account and binding before calling it for an export.
-type ClientSharedSecretRepository interface {
-	RevealClientSharedCredentials(context.Context, identity.ID) ([]access.Credential, error)
-}

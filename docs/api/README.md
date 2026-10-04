@@ -7,7 +7,7 @@
 - Responsibility: Contract authority, semantic references and API change workflow.
 - Lifecycle: Update with contract ownership or API scope changes.
 
-## Current Phase 6 implementation candidate
+## Current native implementation
 
 OpenAPI marks Foundation/runtime/Snell/HY2/Binding operations and generic
 registered protocol validate/plan/apply routes, including VLESS. Phase 5 exposes
@@ -56,9 +56,8 @@ See [documentation policy](../DOCUMENTATION_POLICY.md),
 
 CreationDocument includes typed VLESS settings, UUID users and write-only optional
 server_secret.private_key. Engine is a bounded selector; plans/inbound reads expose
-resolved engine independently of protocol identity. Capabilities list native and
-implemented xray for vless, with actual build-dependent REALITY support and
-separate node_status availability/reference/installed version. Vision is
+resolved engine independently of protocol identity. Capabilities list native only, with actual build-dependent REALITY support and
+compiled availability. Vision is
 DEFERRED / UNSUPPORTED. Canonical flow permits only none; Vision create/import requests
 return typed not_implemented (HTTP 501), exports return unsupported_export (HTTP 422).
 Ordinary inbound settings remain redacted and contain no credential payloads.
@@ -68,16 +67,11 @@ responses and synthetic request schemas are checked with the current OpenAPI.
 
 ## Safe engine diagnostics
 
-System engines and capabilities engine_implementations.node_status distinguish
-build support from the last node validation result. Optional Xray absence is
-unavailable without changing native health. Inbound runtime is optional safe
-PID/generation/start/path/health/exit metadata; config content is never returned.
-Doctor/capabilities/status report the same service projections. Xray usage counters
-remain zero with native_stats/attributed_payload unsupported and per_user_stats=false.
-
-Strict VLESS/Xray quota or rate requests return `unsupported_policy_for_engine`
-(HTTP 422) from validate/plan/apply and offline CLI validation. Malformed policies
-remain `invalid` (HTTP 400); explicit metadata_only never claims enforcement.
+System engines and capabilities engine_implementations.node_status report
+compiled native availability. No external version/health/child PID/path resources
+exist. Unsupported engine pairs and mask requests fail explicitly before pending;
+explicit metadata_only never claims policy enforcement. Imports retain Unsupported
+classification and never strip features into runnable nodes.
 
 ## Local service/distribution operations
 
@@ -110,3 +104,10 @@ See [control semantics](API_V1_DESIGN.md#phase-11-client-observations).
 ## Phase 13 host integration
 
 LocalInbound now supports socks5/http/mixed/tun. Client status adds host_network and host_capabilities. Protected GET/PUT /client/host-integration and GET /client/host-network expose intent/status; POST /client/host-network/repair uses existing revision/plan semantics and requires stopped listeners. No raw OS commands are accepted. See [system integration](../SYSTEM_INTEGRATION.md).
+
+## Current architecture correction
+
+Native is the sole runtime engine. Historical Phase 6/7 direction is superseded; FinalMask/Sudoku are out of scope.
+
+- [Decision](../adr/0035-xray-runtime-removed-from-core.md)
+- [Correction report](../reports/ARCHITECTURE_CORRECTION_XRAY_BOUNDARY_REPORT.md)

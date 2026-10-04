@@ -269,6 +269,13 @@ func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileSt
 		if o.NodeID != nil {
 			n = nodes[*o.NodeID]
 		}
+		if n.Disabled || n.State == "invalid" || n.State == "unavailable" {
+			lease := &dialerLease{dialer: unavailableDialer{}, key: effectiveKey(o, n)}
+			lease.refs.Store(1)
+			lease.health.Store(failedHealth)
+			s.outbounds[o.ID] = lease
+			continue
+		}
 		key := effectiveKey(o, n)
 		buildNode := n
 		if o.Kind != "direct" {

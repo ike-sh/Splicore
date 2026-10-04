@@ -18,6 +18,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/transport"
 	"github.com/sagernet/sing-box/internal/splicore/version"
 	"golang.org/x/sys/unix"
+	"gopkg.in/yaml.v3"
 )
 
 // Installation is local and serialized independently from RuntimeDirectory.
@@ -200,8 +201,8 @@ func readBootstrap() (config.Config, error) {
 		return config.Config{}, err
 	}
 	defer f.Close()
-	c, err := config.Decode(f)
-	if err != nil || c.StateDirectory != StatePath || c.KeyFile != StatePath+"/master.key" || c.API.UnixSocket != RuntimePath+"/splicore.sock" || c.Xray.RuntimeDirectory != RuntimePath+"/xray" {
+	c, err := config.DecodeForUpgrade(f)
+	if err != nil || c.StateDirectory != StatePath || c.KeyFile != StatePath+"/master.key" || c.API.UnixSocket != RuntimePath+"/splicore.sock" {
 		return c, fmt.Errorf("installed bootstrap layout mismatch")
 	}
 	return c, nil
@@ -255,7 +256,7 @@ func existingInstallation() (*Manifest, error) {
 		return nil, err
 	}
 	defer f.Close()
-	m, err := Decode(f)
+	m, err := decodeReceipt(f)
 	if err != nil {
 		return nil, err
 	}
@@ -377,6 +378,9 @@ func Install(ctx context.Context, directory string, start bool) error {
 			if _, err = sqlite.MaintenanceBackup(ctx, StatePath+"/state.db", filepath.Join(backup, "state.db")); err != nil {
 				return restartOriginal(ctx, wasActive, err)
 			}
+			if err = sqlite.VerifyRuntimeBoundary(ctx, filepath.Join(backup, "state.db")); err != nil {
+				return restartOriginal(ctx, wasActive, err)
+			}
 		}
 	}
 	rollback := func(cause error) error {
@@ -446,6 +450,19 @@ func Install(ctx context.Context, directory string, start bool) error {
 		}
 		if err = atomicCopy(filepath.Join(directory, "splicore.yaml"), ConfigPath, 0640, 0, gid); err != nil {
 			return err
+		}
+	}
+	if old != nil {
+		c, e := readBootstrap()
+		if e != nil {
+			return rollback(e)
+		}
+		clean, e := yaml.Marshal(c)
+		if e != nil {
+			return rollback(e)
+		}
+		if e = atomicBytes(ConfigPath, clean, 0640, 0, gid); e != nil {
+			return rollback(e)
 		}
 	}
 	if err = atomicCopy(filepath.Join(directory, "splicore"), BinaryPath, 0755, 0, 0); err != nil {
@@ -618,49 +635,5 @@ func Uninstall(ctx context.Context, purge bool) error {
 		}
 	}
 	// Retain the locked service identity: UID reuse must not expose retained state.
-	return nil
-}
-
-// InstallXray accepts only the Phase 6 Linux reference bytes. No network access.
-func InstallXray(ctx context.Context, artifact string) error {
-	lock, err := packageLock()
-	if err != nil {
-		return err
-	}
-	defer lock.Close()
-	m, err := existingInstallation()
-	if err != nil || m == nil {
-		return fmt.Errorf("owned Splicore installation required")
-	}
-	if m.GOARCH != "amd64" {
-		return fmt.Errorf("Xray artifact not qualified for this platform")
-	}
-	if err = safePath(artifact, true); err != nil {
-		return err
-	}
-	h, err := HashFile(artifact)
-	if err != nil || h != XrayHashes["linux/amd64"] {
-		return fmt.Errorf("Xray artifact checksum mismatch")
-	}
-	uid, gid, err := serviceUser(ctx)
-	if err != nil {
-		return err
-	}
-	dir := StatePath + "/engines/xray-artifact"
-	if err = ownedDirectory(StatePath+"/engines", 0700, uid, gid); err != nil {
-		return err
-	}
-	if err = ownedDirectory(dir, 0750, 0, gid); err != nil {
-		return err
-	}
-	dst := dir + "/xray-26.3.27"
-	if err = atomicCopy(artifact, dst, 0750, 0, gid); err != nil {
-		return err
-	}
-	// Verify the private copied bytes, never rely only on a mutable source path.
-	h, err = HashFile(dst)
-	if err != nil || h != XrayHashes["linux/amd64"] {
-		return fmt.Errorf("copied Xray checksum mismatch")
-	}
 	return nil
 }

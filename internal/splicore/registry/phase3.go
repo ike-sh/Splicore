@@ -29,7 +29,7 @@ func Phase3() (*Protocols, *Engines, *Exporters, error) {
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	eng, err := NewEngines(nativeEngine, EnginePlaceholder{ports.EngineMetadata{ID: "xray-compatibility", Availability: ports.NotCompiled, ABI: 1}})
+	eng, err := NewEngines(nativeEngine)
 	if err != nil {
 		return nil, nil, nil, err
 	}

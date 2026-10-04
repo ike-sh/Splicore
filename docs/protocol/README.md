@@ -35,16 +35,15 @@ no mass file relocation is needed.
 - [Runtime lifecycle](../architecture/RUNTIME_LIFECYCLE.md): handles, listener ownership and future children.
 - [Security boundaries](../architecture/SECURITY_BOUNDARIES.md): secrets, bounded inputs and executable trust.
 
-FinalMask/Sudoku are Experimental engine features of existing vless/xray, using
-verified official v26.3.27. Only the bounded plain TCP Sudoku profile is exposed;
-see [Phase 7](../development/PHASE_7_XRAY_EXTENSIONS.md). Mieru native implementation
+FinalMask/Sudoku are out of scope for Splicore; historical Phase 6/7 reports
+are superseded by ADR 0035. Mieru native implementation
 qualifies owned shutdown and binding restart; strict policy and hot updates remain unsupported.
 
 ## Decisions and review
 
 - [ADR 0005](../adr/0005-protocol-engine-separation.md): protocol/engine separation.
 - [ADR 0006](../adr/0006-client-profile-exporter.md): profile/exporter boundary.
-- [ADR 0009](../adr/0009-xray-compatibility-engine.md): future private compatibility engine.
+- [ADR 0009](../adr/0009-xray-compatibility-engine.md): historical compatibility direction, superseded by ADR 0035.
 - [ADR 0010](../adr/0010-mieru-integration-strategy.md): staged Mieru integration.
 
 These decisions remain proposed. Significant capability/port/wire changes update
@@ -58,3 +57,10 @@ columns. Unsupported policy or client features reject explicitly. See
 ## Phase 8 native module
 
 Experimental [Mieru](MIERU.md) is implemented in Native Engine with shared resources and owned lifecycle. Official/Mihomo clients qualify; strict policy/hot updates/durable usage remain deferred.
+
+## Current architecture correction
+
+Native is the sole runtime engine. Historical Phase 6/7 direction is superseded; FinalMask/Sudoku are out of scope.
+
+- [Decision](../adr/0035-xray-runtime-removed-from-core.md)
+- [Correction report](../reports/ARCHITECTURE_CORRECTION_XRAY_BOUNDARY_REPORT.md)

@@ -48,14 +48,8 @@ func (s *Service) ValidateCreation(ctx context.Context, protocol string, b json.
 	return s.engineAvailability(ctx, d.Engine)
 }
 func (s *Service) engineAvailability(ctx context.Context, id string) error {
-	e, err := s.engines.Get(id)
-	if err != nil {
-		return err
-	}
-	if a, ok := e.(ports.EngineAvailability); ok {
-		return a.ValidateAvailability(ctx)
-	}
-	return nil
+	_, err := s.engines.Get(id)
+	return err
 }
 func (s *Service) creationDigest(protocol string, b json.RawMessage, r identity.Revision) string {
 	data, _ := json.Marshal(struct {

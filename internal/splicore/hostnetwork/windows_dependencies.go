@@ -38,10 +38,6 @@ func WindowsProfileDependencies(state client.ProfileState, systemDNS []netip.Add
 		return nil
 	}
 	active := map[identity.ID]bool{}
-	nodes := map[identity.ID]client.RemoteNode{}
-	for _, n := range state.Nodes {
-		nodes[n.ID] = n
-	}
 	var out []WindowsDependency
 	for _, o := range state.Outbounds {
 		deps := []string{}
@@ -50,9 +46,7 @@ func WindowsProfileDependencies(state client.ProfileState, systemDNS []netip.Add
 			deps = append(deps, "node:"+string(*o.NodeID))
 		}
 		out = append(out, WindowsDependency{ID: "outbound:" + string(o.ID), Reason: "outbound", Requires: deps})
-		if o.Engine == "xray" && o.NodeID != nil {
-			out = append(out, WindowsDependency{ID: "xray:" + string(o.ID), Reason: "xray", Host: nodes[*o.NodeID].Endpoint.Host, Requires: append([]string(nil), deps...)})
-		}
+
 	}
 	for _, n := range state.Nodes {
 		if active[n.ID] {

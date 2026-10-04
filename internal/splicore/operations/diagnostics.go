@@ -89,16 +89,6 @@ func PathChecks(c config.Config) []application.Check {
 	}
 	checks = append(checks, application.Check{Name: "binary_identity", Status: status, Detail: "local receipt comparison"})
 	checks = append(checks, systemdCheck())
-	status = "info"
-	if c.Xray.BinaryPath != "" {
-		h, err := distribution.HashFile(c.Xray.BinaryPath)
-		if err == nil && h == distribution.XrayHashes[runtime.GOOS+"/"+runtime.GOARCH] {
-			status = "pass"
-		} else {
-			status = "fail"
-		}
-	}
-	checks = append(checks, application.Check{Name: "xray_artifact", Status: status, Detail: "optional pinned 26.3.27 artifact"})
 	return checks
 }
 
@@ -201,7 +191,7 @@ func recentCrashes(c config.Config) []ExitRecord {
 		if err != nil {
 			continue
 		}
-		result = append(result, ExitRecord{Schema: 1, Version: v.Version, Commit: v.Commit, Component: enum(raw.Component, "process", "engine", "protocol"), Engine: enum(raw.Engine, "native", "xray"), Protocol: enum(raw.Protocol, "none", "snell", "hysteria2", "tuic", "vless", "mieru"), Timestamp: at.UTC().Format(time.RFC3339Nano), Classification: ExitClass(raw.Classification)})
+		result = append(result, ExitRecord{Schema: 1, Version: v.Version, Commit: v.Commit, Component: enum(raw.Component, "process", "engine", "protocol"), Engine: enum(raw.Engine, "native"), Protocol: enum(raw.Protocol, "none", "snell", "hysteria2", "tuic", "vless", "mieru"), Timestamp: at.UTC().Format(time.RFC3339Nano), Classification: ExitClass(raw.Classification)})
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].Timestamp > result[j].Timestamp })
 	if len(result) > 16 {
@@ -232,16 +222,13 @@ func SupportBundle(ctx context.Context, c config.Config, v version.Info, q Suppo
 			system.Protocols = s.Foundation.Protocols
 			for _, e := range s.Engines {
 				ref := "embedded"
-				if e.Engine == "xray" {
-					ref = "26.3.27"
-				}
-				system.Engines = append(system.Engines, engineSummary{enum(e.Engine, "native", "xray"), e.Available, ref})
+				system.Engines = append(system.Engines, engineSummary{enum(e.Engine, "native"), e.Available, ref})
 			}
 		}
 		if page, err := q.Inbounds(ctx); err == nil {
 			for _, i := range page.Items {
 				for _, l := range i.Inbound.Listeners {
-					listeners = append(listeners, listenerSummary{Protocol: enum(i.Inbound.Protocol.Protocol, "snell", "hysteria2", "tuic", "vless", "mieru"), Engine: enum(i.Inbound.Engine, "native", "xray"), Health: enum(i.Health, "healthy", "failed", "stopped", "prepared", "starting"), Enabled: i.Inbound.Enabled, Transport: enum(l.Transport, "tcp", "udp"), AddressClass: addressClass(l.Endpoint.Host), LowPort: l.Endpoint.Port > 0 && l.Endpoint.Port < 1024, Bindings: len(i.Bindings)})
+					listeners = append(listeners, listenerSummary{Protocol: enum(i.Inbound.Protocol.Protocol, "snell", "hysteria2", "tuic", "vless", "mieru"), Engine: enum(i.Inbound.Engine, "native"), Health: enum(i.Health, "healthy", "failed", "stopped", "prepared", "starting"), Enabled: i.Inbound.Enabled, Transport: enum(l.Transport, "tcp", "udp"), AddressClass: addressClass(l.Endpoint.Host), LowPort: l.Endpoint.Port > 0 && l.Endpoint.Port < 1024, Bindings: len(i.Bindings)})
 				}
 			}
 		}
@@ -257,8 +244,7 @@ func SupportBundle(ctx context.Context, c config.Config, v version.Info, q Suppo
 			StateCanonical   bool `json:"state_canonical"`
 			RuntimeCanonical bool `json:"runtime_canonical"`
 			KeyConfigured    bool `json:"key_configured"`
-			XrayConfigured   bool `json:"xray_configured"`
-		}{c.Schema, c.StateDirectory == distribution.StatePath, filepath.Dir(c.API.UnixSocket) == distribution.RuntimePath, c.KeyFile != "", c.Xray.BinaryPath != ""},
+		}{c.Schema, c.StateDirectory == distribution.StatePath, filepath.Dir(c.API.UnixSocket) == distribution.RuntimePath, c.KeyFile != ""},
 		"listeners.json": listeners, "crashes.json": recentCrashes(c), "journal.summary.json": journalSummary(ctx),
 	}
 	f, err := os.OpenFile(output, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)

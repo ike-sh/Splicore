@@ -16,7 +16,6 @@
 | Install receipt / ownership | /etc/splicore/install.json and .owned |
 | Domain state / key | /var/lib/splicore/state.db and master.key |
 | Transient control/engine files | /run/splicore/ |
-| Optional pinned engine | /var/lib/splicore/engines/xray-artifact/ |
 | Root-only upgrade backups | /var/lib/splicore-upgrades/ |
 | Main unit | /etc/systemd/system/splicore.service |
 | Logs | journald |
@@ -36,7 +35,7 @@ names, duplicate members, extra/missing members and hash/size/mode mismatches.
 `manifest.json` schema 1 records product development version, full Git commit,
 source dirty flag and source byte digest, fixed UTC build time, Go toolchain,
 GOOS/GOARCH, exact tags, config/DB/protocol/API schema identities, sing-box baseline,
-optional pinned Xray references and per-file SHA256/size/mode. `SHA256SUMS` covers
+per-file SHA256/size/mode. `SHA256SUMS` covers
 all package files plus the manifest. The archive SHA256 lives in `update.json`
 outside the archive, avoiding a self-referential checksum.
 
@@ -44,7 +43,7 @@ Same source bytes, toolchain, platform, version and epoch yield the same binary
 and sorted tar/gzip bytes. Builds use CGO=0, trimpath, explicit tags, no VCS
 embedding and no generated source files. Toolchain/version/epoch are intentionally
 part of identity. Linux amd64 runtime qualification does not imply arm64 or
-Windows service qualification. Xray arm64 is unqualified; Mieru stays embedded.
+Windows service qualification. Mieru stays embedded; no external runtime is required.
 Dependencies stay pinned to go.mod/go.sum. Artifact signing is deferred; SHA256
 does not replace a trusted metadata distribution channel.
 
@@ -68,7 +67,7 @@ the unified client/server core is complete and integration is separately authori
 Build all targets, inspect package/checksums/metadata, rebuild with the same
 inputs and compare hashes, run blocking support-secret tests, then validate a
 disposable actual systemd install/start/restart/upgrade/failed-upgrade/uninstall/
-reinstall/purge with installed-service protocol smoke. Record parent/child crash
+reinstall/purge with installed-service protocol smoke. Record daemon crash
 ownership, DB integrity, permissions and low TCP/UDP ports. Default race/checkptr
 and existing protocol tests remain required. No Docker or production host
 installation is part of this gate. See [operations](OPERATIONS.md) and the
@@ -87,7 +86,7 @@ sudo python3 scripts/splicore-distribution-gate.py --output /external/new-lab \
   --package-a /external/a/splicore-0.0.0-dev-linux-amd64.tar.gz --sha256-a SHA_A \
   --package-b /external/b/splicore-0.0.0-dev.1-linux-amd64.tar.gz --sha256-b SHA_B \
   --fault-package /external/fault/fault-migration.tar.gz --sha256-fault SHA_FAULT \
-  --clients /external/fixtures/clients --xray /external/fixtures/xray
+  --clients /external/fixtures/clients
 ```
 
 The fixture builder edits a new external source copy, adds a schema5 step that
@@ -96,3 +95,13 @@ The lab driver refuses unowned output paths, isolates the actual unit, confines
 networking to loopback and stops only its owned transient lab unit. On WSL, keep
 a command session open throughout qualification; systemd services alone do not
 keep the distribution running. Evidence/rootfs remain external for review.
+
+## Corrected runtime boundary
+
+One Splicore core binary, no Xray executable/download/checksum/runtime directory
+requirement, and no third-party core lifecycle. The future NoBrand interface chooses
+Splicore for native protocols or independent Xray for specialized FinalMask/Sudoku;
+NoBrand owns pinned downloads, hash verification and lifecycle separately.
+Existing experimental Xray records reject preflight intact; native-only records
+upgrade. See [ADR 0035](adr/0035-xray-runtime-removed-from-core.md) and
+[correction sizes/results](reports/ARCHITECTURE_CORRECTION_XRAY_BOUNDARY_REPORT.md).

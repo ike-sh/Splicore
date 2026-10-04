@@ -52,6 +52,6 @@ jobs:
             --package-a "$a" --sha256-a "$(sha256sum "$a" | cut -d ' ' -f 1)" \
             --package-b "$b" --sha256-b "$(sha256sum "$b" | cut -d ' ' -f 1)" \
             --fault-package "$fault" --sha256-fault "$(sha256sum "$fault" | cut -d ' ' -f 1)" \
-            --clients "$FIXTURES/clients" --xray "$FIXTURES/xray"
+            --clients "$FIXTURES/clients"
       # Private evidence remains on the disposable runner for review. No upload,
       # tag, release or publication step exists in this development gate.

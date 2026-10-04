@@ -11,6 +11,8 @@ import (
 
 const ClientDocumentLimit = 2 << 20
 
+func StrictManagementJSON(b []byte, v any) error { return jsonstrict.DecodeLimit(b, v, 4<<20) }
+
 func StrictClientJSON(b []byte, v any) error {
 	return jsonstrict.DecodeLimit(b, v, ClientDocumentLimit)
 }

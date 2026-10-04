@@ -7,14 +7,14 @@
 - Responsibility: Client intent, adapters, socket ownership and runtime recovery.
 - Lifecycle: Update with client domain or lifecycle changes.
 
-## Frozen Experimental Phase 13 boundary
+## Current Experimental native boundary
 
 One daemon runs server and client roles with shared SQLite, Application, encrypted
 credentials, journal, registries, API and CLI. Loopback SOCKS5 supports TCP CONNECT
 and UDP ASSOCIATE. Ordered routing, policy groups and managed DNS are Experimental. TUN/HTTP/mixed reuse
-this runtime; platform limits are explicit. Subscriptions/providers remain deferred.
+this runtime; platform limits are explicit. Phase 14 imports/providers are implemented.
 The [Phase 13 freeze](../reports/PHASE_13_FREEZE_REPORT.md) records the local checkpoint;
-Phase 14 implementation is not started. Real Windows activation stays guarded.
+Phase 14 remains unfrozen. Real Windows activation stays guarded.
 
 ```mermaid
 flowchart LR
@@ -22,9 +22,7 @@ flowchart LR
     Snapshot --> Direct[DIRECT]
     Snapshot --> Registry[Protocol and Engine registry]
     Registry --> Native[Snell / HY2 / TUIC / VLESS / Mieru native]
-    Registry --> Xray[VLESS Xray: existing child owner]
     Native --> Remote[Remote server]
-    Xray --> Remote
     Remote --> Target[Target]
     Direct --> Target
 ```
@@ -35,7 +33,7 @@ flowchart LR
 | --- | --- |
 | RemoteNode | Immutable ID, original endpoint, protocol, credential reference, public transport/security and bounded options. |
 | Credential | Existing generic encrypted payload owned by one Account, server Inbound or RemoteNode. |
-| Outbound | Independent ID and NodeID/EngineID references; a VLESS node can back both engines. |
+| Outbound | Independent ID and NodeID/EngineID references; current VLESS outbounds use native. |
 | LocalInbound | Loopback SOCKS/HTTP/mixed or typed owned TUN, separate from server Inbound. |
 | ProfileState | Committed intent and shared global revision. |
 | Session | Ephemeral TCP stream or UDP association owning a generation reference. |
@@ -46,13 +44,13 @@ DIRECT, 32 listeners and 4096 accepted sessions. ClientProfile is an export
 projection; exporter strings never become runtime input. ClientTLS is shared
 public material only, with no field for server private keys.
 
-The immutable registry maps exact protocol/engine pairs to six adapters:
-Snell/native, HY2/native, TUIC v5/native, VLESS/native, VLESS/xray and Mieru/native.
+The immutable registry maps exact protocol/engine pairs to five native adapters:
+Snell/native, HY2/native, TUIC v5/native, VLESS/native and Mieru/native.
 Protocol-owned options/credentials are reused. Unsupported pairs reject without
 fallback. VLESS flow-none supports plain/TLS/REALITY. Vision rejects under ADR 0017;
-client FinalMask/Sudoku is deferred and frozen server features remain.
+FinalMask/Sudoku are out of scope for Splicore. Unsupported imports never downgrade.
 
-## Embedded and child ownership
+## Embedded ownership
 
 Each inherited native adapter owns a private Box/context. Mieru uses official
 v3.38.0 Client APIs and a private profile/mux, with no external mita. Its socket
@@ -61,17 +59,6 @@ before Stop. The SDK sets a process-wide quiet formatter and shares cipher/metri
 facilities; global counters never enter accounting. Client APIs start no signals,
 RPC daemon or singleton runtime. Stop joins mux maintenance but exposes no client
 event-loop join; raw socket close drives exit, checked by repeated stack evidence.
-
-Xray server/client share one Engine, handles registry, pinned validation, process
-owner, reaper and artifact cleanup. Client generations expose only private loopback
-SOCKS TCP/UDP. The private packet projection uses the existing decoder and retains
-FQDNs. Client artifacts contain UUID/public fields only, with 0600/0700 permissions.
-The private TCP projection exposes the stream contract without promising end-to-end
-CloseWrite through every VLESS server. Application EOF closes that owned tunnel;
-TCP half-close is not qualified for this adapter. DIRECT retains its half-close contract.
-Explicit CA trust renders a custom-only Xray root pool on both platforms. Windows
-private SOCKS ports are reserved as a complete TCP/UDP pair; bounded candidate
-selection accounts for separate port exclusions before any child is created.
 
 ## Leases and transactions
 
@@ -109,7 +96,7 @@ With managed DNS disabled, Phase 11 semantics remain:
 | DIRECT | Standard local net.Dialer per flow. |
 | Snell/native | Local per flow; frozen response framing requires IPs. |
 | Mieru/native | Local per flow; official response wrapper accepts IP headers. |
-| HY2/TUIC/VLESS native or Xray | Remote protocol resolution, retaining FQDNs. |
+| HY2/TUIC/VLESS native | Remote protocol resolution, retaining FQDNs. |
 
 Canonical domains remain unchanged. TCP proxy targets resolve remotely. Mieru TCP
 underlays retain the original server domain for normal net.Dialer address selection.
@@ -119,7 +106,7 @@ FakeIP remains deferred; TUN TCP/UDP53 interception uses this managed DNS engine
 
 ## Recovery, stats and health
 
-Schema 7 restores clients after server recovery in the same unit. Client socket/build
+Schema 8 restores clients after server recovery in the same unit. Client socket/build
 failure marks degraded while server/API remain live. Offline nodes do not prevent
 startup and affect only their lease; next connections recover without daemon restart.
 Shutdown cancels operations, closes sockets and joins owned workers. Handshake/remote
@@ -160,7 +147,7 @@ has an owned close boundary. HTTP/mixed share serveStream/selectRoute. See
 
 ## Underlay generations
 
-A snapshot owns an UnderlayLease distinct from TUN interface/journal and Xray child
+A snapshot owns an UnderlayLease distinct from TUN interface/journal and native adapter
 generations. Bootstrap is fresh before adapter reuse; resolved sets participate in
 the key. New endpoint protection precedes Build/publication. Old TCP/UDP sessions,
 DNS queries and shared QUIC adapters retain ownership until worker/socket retirement.
@@ -169,3 +156,16 @@ node/DNS infrastructure addresses. A reused TUN listener reconciles new endpoint
 leases without recreating the device. Failed bootstrap/provision preserves the old
 runtime. Failed adapter cleanup retains protection and surfaces shutdown debt.
 See [system integration](../SYSTEM_INTEGRATION.md).
+
+## Phase 14 resource and fetch ownership
+
+Schema 8 restores provider-owned nodes/rules before existing runtime recovery and
+scheduler startup. Provider FetchNetwork retains one committed snapshot and temporary
+typed underlay endpoint lease. Selected outbound/group uses existing adapters/health;
+HTTP completion and socket cleanup precede lease release. Disabled/invalid/unavailable
+nodes fail new dials; usable stale nodes explicitly preserve last-good behavior.
+Effective adapter key excludes name/tags/metadata/provenance/active-versus-stale state.
+Credential/connection changes prepare replacements while old generations finish their
+sessions; reused listeners/TUN do not recreate interfaces. Per-ID counters remain
+shared and passive health remains per adapter lease. Provider update errors cannot
+stop Server Runtime. See [nodes](NODE_MODEL.md), [providers](PROVIDER_MODEL.md).

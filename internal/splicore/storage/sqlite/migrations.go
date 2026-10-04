@@ -30,7 +30,8 @@ func migrations() []migration {
 	f, _ := migrationFiles.ReadFile("migrations/0005_client_runtime.sql")
 	g, _ := migrationFiles.ReadFile("migrations/0006_network_profiles.sql")
 	h, _ := migrationFiles.ReadFile("migrations/0007_host_integration.sql")
-	return []migration{{1, "0001_initial", string(b)}, {2, "0002_snell", string(c)}, {3, "0003_password", string(d)}, {4, "0004_private_key", string(e)}, {5, "0005_client_runtime", string(f)}, {6, "0006_network_profiles", string(g)}, {7, "0007_host_integration", string(h)}}
+	i, _ := migrationFiles.ReadFile("migrations/0008_client_management.sql")
+	return []migration{{1, "0001_initial", string(b)}, {2, "0002_snell", string(c)}, {3, "0003_password", string(d)}, {4, "0004_private_key", string(e)}, {5, "0005_client_runtime", string(f)}, {6, "0006_network_profiles", string(g)}, {7, "0007_host_integration", string(h)}, {8, "0008_client_management", string(i)}}
 }
 
 func checksum(m migration) string { s := sha256.Sum256([]byte(m.SQL)); return hex.EncodeToString(s[:]) }
@@ -82,6 +83,9 @@ func migrate(ctx context.Context, db *sql.DB, steps []migration) error {
 		if tx.QueryRowContext(ctx, "SELECT value FROM metadata WHERE key='product'").Scan(&product) != nil || product != "Splicore" || tx.QueryRowContext(ctx, "SELECT value FROM metadata WHERE key='db_schema'").Scan(&schema) != nil || schema != strconv.Itoa(current) {
 			return identity.Err(identity.Corrupt, "invalid product or schema metadata")
 		}
+	}
+	if err = runtimeBoundary(ctx, tx); err != nil {
+		return err
 	}
 	for _, m := range steps[current:] {
 		if m.Version != current+1 {

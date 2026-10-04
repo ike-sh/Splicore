@@ -34,16 +34,14 @@ def create(protocol,doc,label):
 def launch(args,name,env=None):
  f=(work/(name+'.log')).open('wb');logs.append(f);p=subprocess.Popen(args,stdout=f,stderr=subprocess.STDOUT,env=env);children.append(p);return p
 def client(row):
- label=row['label'];client='xray' if row['protocol']=='vless' and 'xray' in label else 'mieru' if row['protocol']=='mieru' else 'sing-box' if row['protocol']=='snell' else 'mihomo'
- version={'xray':'26.3.27','mieru':'3.38.0','mihomo':'1.19.30','sing-box':'1.14.1'}[client]
+ label=row['label'];client='mieru' if row['protocol']=='mieru' else 'sing-box' if row['protocol']=='snell' else 'mihomo'
+ version={'mieru':'3.38.0','mihomo':'1.19.30','sing-box':'1.14.1'}[client]
  e=request('POST','/api/v1/inbounds/'+row['inbound_id']+'/export',{'format':client,'client_version':version,'binding_id':row['binding_id']})
  out=json.loads(e['content']);port=h.free_port();private=pathlib.Path('/var/tmp/splicore-probe');private.mkdir(mode=0o700,exist_ok=True);home=private/(label+'-'+secrets.token_hex(4));home.mkdir(mode=0o700);path=home/'client.json'
  if row['protocol']=='snell':
   sensitive=out['psk'];saved=work/'synthetic-secrets.json';values=json.loads(saved.read_text())
   if sensitive not in values:values.append(sensitive);saved.write_text(json.dumps(values))
- if client=='xray':
-  conf={'log':{'loglevel':'none'},'inbounds':[{'listen':'127.0.0.1','port':port,'protocol':'socks','settings':{'udp':True}}],'outbounds':[out]};args=['/lab/xray','run','-config',str(path)];env=None
- elif client=='mieru':
+ if client=='mieru':
   conf=dict(out,rpcPort=h.free_port(),socks5Port=port,socks5ListenLAN=False,loggingLevel='ERROR',advancedSettings={'noCheckUpdate':True});args=['/lab/clients/mieru','run'];env=dict(os.environ,MIERU_CONFIG_JSON_FILE=str(path))
  elif client=='sing-box':
   conf={'log':{'disabled':True},'inbounds':[{'type':'socks','listen':'127.0.0.1','listen_port':port}],'outbounds':[out]};args=['/lab/clients/sing-box','run','-c',str(path)];env=None
@@ -79,10 +77,6 @@ def smoke(stage):
   for s in (tcp,udp):s.shutdown();s.server_close()
  return results
 def setup():
- run(exe,'package','engine','--artifact','/lab/xray',name='engine-install')
- text=pathlib.Path(config).read_text()
- if 'binary_path:' not in text:text=text.replace('xray:\n','xray:\n  binary_path: /var/lib/splicore/engines/xray-artifact/xray-26.3.27\n');pathlib.Path(config).write_text(text)
- run('systemctl','restart','splicore.service',name='engine-restart')
  uid=pwd.getpwnam('splicore').pw_uid;gid=pwd.getpwnam('splicore').pw_gid
  tls=pathlib.Path('/var/lib/splicore/tls');tls.mkdir(mode=0o700,exist_ok=True);os.chown(tls,uid,gid)
  ca=work/'ca.pem';cak=work/'ca.key';cert=tls/'cert.pem';key=tls/'key.pem';csr=work/'server.csr';ext=work/'extension.cnf';sni='service.synthetic.test'
@@ -98,13 +92,11 @@ def setup():
   doc['listener']['port']=doc['display_endpoint']['port']=port
   if protocol=='tuic':doc['settings'].update(version=5,congestion_control='cubic',udp_relay_mode='native',zero_rtt_handshake=False);doc['users'][0]['uuid']=str(uuid.uuid4());secret_values.append(doc['users'][0]['uuid'])
   create(protocol,doc,protocol)
- for engine,port,masked in [('native',446,False),('xray',447,False),('xray',448,True)]:
+ for engine,port in [('native',446)]:
   value=str(uuid.uuid4());secret_values.append(value)
-  doc=dict(copy.deepcopy(base),name='installed-vless-'+engine+('-sudoku' if masked else ''),engine=engine,users=[{'account_name':'Vless-'+str(port),'uuid':value}],settings={'security':'none','flow':'none','transport':'tcp','packet_encoding':'xudp'})
+  doc=dict(copy.deepcopy(base),name='installed-vless-'+engine,engine=engine,users=[{'account_name':'Vless-'+str(port),'uuid':value}],settings={'security':'none','flow':'none','transport':'tcp','packet_encoding':'xudp'})
   doc['listener']['port']=doc['display_endpoint']['port']=port
   label='vless-'+engine
-  if masked:
-   password=secrets.token_hex(16).upper();secret_values.append(password);doc['settings']['engine_options']={'finalmask':{'tcp':[{'type':'sudoku','settings':{'ascii':'prefer_ascii','padding_min':0,'padding_max':3}}]}};doc['transport_secret']={'password':password};label+='-sudoku'
   create('vless',doc,label)
  for transport,port in [('tcp',449),('udp',450)]:
   password='Synthetic-Mieru-'+transport+'-Password-Phase9';secret_values.append(password)
@@ -121,7 +113,6 @@ def main():
  assert len(run('ip','-o','link','show').stdout.splitlines())==1
  pinned={'mihomo':'20ba567571d9ca642bedecbb01f8092cab0f1679100087ef1a4a2efac0ed5494','sing-box':'9334a1c1fe97234911afaedd37226667ebdb3dab2abe383f2c4ae1387706dad9','mieru':'70d4224ecf5cd8e1fb32c0759eb386147b39c3729e2ddacc3f685a239339f699'}
  for name,digest in pinned.items():assert hashlib.sha256((root/'clients'/name).read_bytes()).hexdigest()==digest
- assert hashlib.sha256((root/'xray').read_bytes()).hexdigest()=='8255dd939c34cf966cc91517b6324dd3c8d0bcf49ffac8beca049a38c46845ed'
  try:
   if a.stage=='initial':setup()
   else:rows.extend(json.loads((work/'inbounds.json').read_text()))

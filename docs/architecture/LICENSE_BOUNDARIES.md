@@ -20,7 +20,6 @@ headers exactly; do not replace original copyright with Splicore copyright.
 |---|---|
 | sing-box derived source | Preserve GPL and notices, mark modifications, deliver required corresponding source and build/install material when conveying binaries. Product name is Splicore; no official sing-box or endorsement claim. |
 | Mieru embedded source/library | Research v3.38.0, commit `b961978c3be9dd26b94158487c760858e19d1db2`; its API headers state GPL-3.0-or-later and LICENSE includes GPLv3 text. Embedding entails retaining Mieru notices and qualifying linked dependencies before distribution. |
-| Xray external process | Official XTLS/Xray-core LICENSE is MPL-2.0. Keep executable/process boundary; retain its notices and satisfy covered-source duties for any Xray files modified/distributed. Phase 7 FinalMask/Sudoku use verified official v26.3.27; no fork or new artifact. MPL-2.0 and the existing external process boundary remain unchanged. |
 | Future protocol code | Record repo, exact commit, license, copied/modified files, transitive linked libraries, notices and source delivery requirements before accepting code. Reject missing or incompatible licensing. |
 | Go dependencies / copied stdlib | Inspect linked build graph and file headers, including BSD/Apache notices; root GPL label does not erase individual notices. |
 
@@ -38,23 +37,15 @@ Sources: [baseline LICENSE](https://github.com/SagerNet/sing-box/blob/v1.14.1/LI
 [baseline README](https://github.com/SagerNet/sing-box/blob/v1.14.1/README.md),
 [Mieru license](https://github.com/enfein/mieru/blob/b961978c3be9dd26b94158487c760858e19d1db2/LICENSE),
 [Mieru API header](https://github.com/enfein/mieru/blob/b961978c3be9dd26b94158487c760858e19d1db2/apis/server/interface.go),
-[Xray MPL](https://github.com/XTLS/Xray-core/blob/v26.3.27/LICENSE),
 [GPL text](https://www.gnu.org/licenses/gpl-3.0.html).
 
-## Phase 6 fixed Xray artifact
+## Independent external deployment
 
-The official v26.3.27 archive LICENSE declares MPL-2.0. The inspected Linux archive
-contains LICENSE/README and no NOTICE; Windows additionally ships LICENSE-wintun.txt
-for its optional wintun DLL, which this adapter does not extract/use. No Xray source
-or license text is copied into Splicore and no Xray Go module dependency is added.
-The external binary boundary keeps implementation/source attribution separate;
-it does not remove distribution obligations. Future bundling must preserve supplied
-copyright/license/notice material, provide recipients the corresponding MPL-covered
-source and clear access instructions, identify any modifications, and review other
-bundled component licenses. Supplying an unchanged stock binary must still deliver
-its license/source information. No distributor is authorized to rewrite copyright.
-Future operator-path/installer strategies use reviewed pinned artifacts only;
-Core never downloads. [Exact reference](../development/PHASE_6_XRAY.md).
+Xray is not part of Splicore runtime or distribution. No Xray code, binary,
+Go dependency, license artifact or checksum is bundled. Future NoBrand-managed
+independent Xray deployment owns its own artifact/license obligations. Ordinary
+client configuration format export adds no runtime dependency. Historical Phase
+6/7 reports remain preserved and superseded by [ADR 0035](../adr/0035-xray-runtime-removed-from-core.md).
 
 ## Phase 8 linked Mieru dependency
 

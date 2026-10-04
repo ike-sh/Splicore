@@ -20,7 +20,7 @@ func Phase5() (*Protocols, *Engines, *Exporters, error) {
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	e, err := NewEngines(n, EnginePlaceholder{Info: ports.EngineMetadata{ID: "xray", Availability: ports.NotCompiled, ABI: 1, Protocols: []string{"vless"}}})
+	e, err := NewEngines(n)
 	if err != nil {
 		return nil, nil, nil, err
 	}

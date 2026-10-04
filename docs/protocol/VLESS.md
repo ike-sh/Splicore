@@ -17,9 +17,7 @@ preserves the original Vision implementation and failed safety evidence.
 
 Protocol ID is `vless`, wire version `0`. Security selects the `plain`, `tls` or
 `reality` feature profile under the same protocol. Engine ID is a separate `native`
-placement. The registry also declares a `vless` → `xray` binding with availability
-`not_compiled` and runtime_implemented=false. Selecting it fails before pending,
-generation, storage or runtime side effects. No Xray executable/config is produced.
+placement. Native is the sole registered engine; unsupported pairs reject before runtime side effects.
 
 One IP TCP listener, one independent display endpoint and up to 16 UUID Bindings.
 Transport is `tcp`; packet_encoding is explicitly `xudp`. UDP payload travels over
@@ -122,23 +120,11 @@ Source references: [baseline inbound](../../protocol/vless/inbound.go),
 [pinned Mihomo VLESS](https://github.com/MetaCubeX/mihomo/blob/v1.19.30/adapter/outbound/vless.go),
 [pinned dependency Vision](https://github.com/SagerNet/sing-vmess/blob/v0.2.8/vless/vision.go).
 
-## Phase 6 engine placement
+## Current independent core boundary
 
-One ProtocolID `vless` runs on native or the owned external `xray` engine; no
-vless-xray protocol is introduced. Canonical flow-none plain/TLS/REALITY, UUIDs,
-inbound-owned REALITY secret storage and exporters remain shared. REALITY's existing
-with_utls build gate applies to both placements. Xray supports static users and
-affected-child reconcile; attributed/persistent stats, hot users and strict policies
-are unsupported/deferred. Vision stays rejected under ADR 0017. See
-[process decision](../adr/0018-xray-owned-child-engine.md) and
-[reference workflow](../development/PHASE_6_XRAY.md).
-
-## Phase 7 transport requirements
-
-Experimental FinalMask/Sudoku keeps Protocol vless and Engine xray. Typed engine_options
-accepts a single Sudoku TCP mask, plain security/flow none, prefer_ascii/padding0–3.
-Inbound-owned encrypted shared Password is separate from each Account UUID and from
-server-only REALITY keys. Authorized Xray26.3.27 JSON export is supported; other
-masked formats, native placement and TLS/REALITY combinations reject. Masked UDP/XUDP
-is NOT QUALIFIED. Vision remains unsupported. See [workflow](../development/PHASE_7_XRAY_EXTENSIONS.md),
-[ADR 0019](../adr/0019-xray-specialized-feature-boundary.md) and [actual report](../reports/PHASE_7_XRAY_VLESS_EXTENSIONS_REPORT.md).
+Native plain/TLS/REALITY flow-none remains Experimental Server/Client support.
+Vision is Deferred/Unsupported. FinalMask/Sudoku are out of scope and imports
+reject without downgrade. Splicore has no external runtime or artifact dependency.
+Future NoBrand chooses independent Splicore or independent Xray deployment.
+[ADR 0035](../adr/0035-xray-runtime-removed-from-core.md) supersedes the historical
+Phase 6/7 direction; their reports remain unchanged.

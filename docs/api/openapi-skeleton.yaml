@@ -3,11 +3,11 @@
   "x-documentation": {
     "status": "Canonical",
     "audience": "API, CLI and integration developers",
-    "last_reviewed": "2026-10-03",
+    "last_reviewed": "2026-10-04",
     "owner": "API maintainers",
     "responsibility": "Machine authority for proposed API paths, methods, parameters, schemas and responses.",
     "lifecycle": "Update with API surface changes; Markdown owns design/security/semantics.",
-    "design_maturity": "Experimental Phase 12 routing, policy and DNS; frozen server/client protocols preserved."
+    "design_maturity": "Experimental Phase 14 management/providers; frozen protocol/runtime boundaries preserved."
   },
   "info": {
     "title": "Splicore API v1 — Foundation contract",
@@ -1159,7 +1159,7 @@
             }
           }
         },
-        "description": " Strict VLESS/Xray quota/rate requests fail closed with unsupported_policy_for_engine before node availability and pending state; explicit metadata_only is unenforced. Phase 8 adds registered native Mieru. No special protocol routes."
+        "description": "Strict unsupported policy requests fail closed; explicit metadata_only is unenforced. Only native engine placement is registered."
       }
     },
     "/api/v1/tuic/plan": {
@@ -1278,7 +1278,7 @@
             }
           }
         },
-        "description": " Strict VLESS/Xray quota/rate requests fail closed with unsupported_policy_for_engine before node availability and pending state; explicit metadata_only is unenforced. Phase 8 adds registered native Mieru. No special protocol routes."
+        "description": "Strict unsupported policy requests fail closed; explicit metadata_only is unenforced. Only native engine placement is registered."
       }
     },
     "/api/v1/tuic/apply": {
@@ -1397,7 +1397,7 @@
             }
           }
         },
-        "description": " Strict VLESS/Xray quota/rate requests fail closed with unsupported_policy_for_engine before node availability and pending state; explicit metadata_only is unenforced. Phase 8 adds registered native Mieru. No special protocol routes."
+        "description": "Strict unsupported policy requests fail closed; explicit metadata_only is unenforced. Only native engine placement is registered."
       }
     },
     "/api/v1/nodes": {
@@ -4861,6 +4861,1033 @@
           }
         }
       }
+    },
+    "/api/v1/providers": {
+      "get": {
+        "operationId": "proxyProviderList",
+        "x-implementation-status": "phase14",
+        "description": "Experimental protected local management; no query parameters. Preview token/revision governs apply; no If-Match. Source content/auth is write-only.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Provider"
+                  },
+                  "maxItems": 64
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "proxyProviderCreatePreview",
+        "x-implementation-status": "phase14",
+        "description": "Experimental protected local management; no query parameters. Preview token/revision governs apply; no If-Match. Source content/auth is write-only.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManagementRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/providers/{id}": {
+      "get": {
+        "operationId": "proxyProviderGet",
+        "x-implementation-status": "phase14",
+        "description": "Experimental protected local management; no query parameters. Preview token/revision governs apply; no If-Match. Source content/auth is write-only.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Provider"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "operationId": "proxyProviderUpdatePreview",
+        "x-implementation-status": "phase14",
+        "description": "Experimental protected local management; no query parameters. Preview token/revision governs apply; no If-Match. Source content/auth is write-only.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManagementRequest"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "proxyProviderDeletePreview",
+        "x-implementation-status": "phase14",
+        "description": "Experimental protected local management; no query parameters. Preview token/revision governs apply; no If-Match. Source content/auth is write-only.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/providers/{id}/refresh-preview": {
+      "post": {
+        "operationId": "proxyProviderRefreshpreview",
+        "x-implementation-status": "phase14",
+        "description": "Experimental protected local management; no query parameters. Preview token/revision governs apply; no If-Match. Source content/auth is write-only.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/providers/{id}/refresh": {
+      "post": {
+        "operationId": "proxyProviderRefresh",
+        "x-implementation-status": "phase14",
+        "description": "Experimental protected local management; no query parameters. Preview token/revision governs apply; no If-Match. Source content/auth is write-only.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rule-set-providers": {
+      "get": {
+        "operationId": "ruleSetProviderList",
+        "x-implementation-status": "phase14",
+        "description": "Experimental protected local management; no query parameters. Preview token/revision governs apply; no If-Match. Source content/auth is write-only.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Provider"
+                  },
+                  "maxItems": 64
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "ruleSetProviderCreatePreview",
+        "x-implementation-status": "phase14",
+        "description": "Experimental protected local management; no query parameters. Preview token/revision governs apply; no If-Match. Source content/auth is write-only.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManagementRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rule-set-providers/{id}": {
+      "get": {
+        "operationId": "ruleSetProviderGet",
+        "x-implementation-status": "phase14",
+        "description": "Experimental protected local management; no query parameters. Preview token/revision governs apply; no If-Match. Source content/auth is write-only.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Provider"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "operationId": "ruleSetProviderUpdatePreview",
+        "x-implementation-status": "phase14",
+        "description": "Experimental protected local management; no query parameters. Preview token/revision governs apply; no If-Match. Source content/auth is write-only.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManagementRequest"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "ruleSetProviderDeletePreview",
+        "x-implementation-status": "phase14",
+        "description": "Experimental protected local management; no query parameters. Preview token/revision governs apply; no If-Match. Source content/auth is write-only.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rule-set-providers/{id}/refresh-preview": {
+      "post": {
+        "operationId": "ruleSetProviderRefreshpreview",
+        "x-implementation-status": "phase14",
+        "description": "Experimental protected local management; no query parameters. Preview token/revision governs apply; no If-Match. Source content/auth is write-only.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rule-set-providers/{id}/refresh": {
+      "post": {
+        "operationId": "ruleSetProviderRefresh",
+        "x-implementation-status": "phase14",
+        "description": "Experimental protected local management; no query parameters. Preview token/revision governs apply; no If-Match. Source content/auth is write-only.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ID"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/imports/preview": {
+      "post": {
+        "operationId": "managementPreview",
+        "x-implementation-status": "phase14",
+        "description": "Experimental protected local management; no query parameters. Preview token/revision governs apply; no If-Match. Source content/auth is write-only.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManagementRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/imports/apply": {
+      "post": {
+        "operationId": "managementApply",
+        "x-implementation-status": "phase14",
+        "description": "Experimental protected local management; no query parameters. Preview token/revision governs apply; no If-Match. Source content/auth is write-only.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManagementApply"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/nodes/import-preview": {
+      "post": {
+        "operationId": "nodeImportPreview",
+        "x-implementation-status": "phase14",
+        "description": "Experimental protected local management; no query parameters. Preview token/revision governs apply; no If-Match. Source content/auth is write-only.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManagementRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/nodes/batch-preview": {
+      "post": {
+        "operationId": "nodeBatchPreview",
+        "x-implementation-status": "phase14",
+        "description": "Experimental protected local management; no query parameters. Preview token/revision governs apply; no If-Match. Source content/auth is write-only.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagementPreview"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManagementRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/nodes/export": {
+      "post": {
+        "operationId": "nodeExport",
+        "x-implementation-status": "phase14",
+        "description": "Experimental protected local management; no query parameters. Preview token/revision governs apply; no If-Match. Source content/auth is write-only.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeExport"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NodeExportRequest"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5038,6 +6065,9 @@
           },
           "client_runtime": {
             "$ref": "#/components/schemas/ClientRuntimeStatus"
+          },
+          "providers": {
+            "$ref": "#/components/schemas/ProviderDiagnostics"
           }
         },
         "required": [
@@ -5049,7 +6079,8 @@
           "protocol_abi",
           "committed_revision",
           "health",
-          "engines"
+          "engines",
+          "providers"
         ]
       },
       "Capability": {
@@ -6140,10 +7171,8 @@
             "writeOnly": true
           },
           "engine": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 64,
-            "description": "Implementation placement, independent of protocol identity. xray implements the owned external child for vless only; node availability is reported separately."
+            "const": "native",
+            "description": "Compiled Splicore placement, independent of protocol identity. Unsupported engine pairs reject; no fallback."
           }
         },
         "required": [
@@ -6460,10 +7489,8 @@
             "format": "date-time"
           },
           "engine": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 64,
-            "description": "Implementation placement, independent of protocol identity. xray implements the owned external child for vless only; node availability is reported separately."
+            "const": "native",
+            "description": "Compiled Splicore placement, independent of protocol identity. Unsupported engine pairs reject; no fallback."
           }
         },
         "required": [
@@ -6537,9 +7564,6 @@
             "items": {
               "$ref": "#/components/schemas/BindingView"
             }
-          },
-          "runtime": {
-            "$ref": "#/components/schemas/RuntimeStatus"
           }
         },
         "required": [
@@ -6749,10 +7773,8 @@
             }
           },
           "engine": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 64,
-            "description": "Implementation placement, independent of protocol identity. xray implements the owned external child for vless only; node availability is reported separately."
+            "const": "native",
+            "description": "Compiled Splicore placement, independent of protocol identity. Unsupported engine pairs reject; no fallback."
           }
         },
         "required": [
@@ -6827,10 +7849,8 @@
             "$ref": "#/components/schemas/ProtocolIdentity"
           },
           "engine": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 64,
-            "description": "Implementation placement, independent of protocol identity. xray implements the owned external child for vless only; node availability is reported separately."
+            "const": "native",
+            "description": "Compiled Splicore placement, independent of protocol identity. Unsupported engine pairs reject; no fallback."
           }
         },
         "required": [
@@ -6976,7 +7996,7 @@
         "required": [
           "format"
         ],
-        "description": "binding_id required when multiple Bindings exist. Disabled/unavailable identities reject. URI accepts an omitted/empty client_version; pinned config clients require their exact version. Xray JSON requires exactly 26.3.27 and plain TCP; only Xray supports the bounded Sudoku mask. Mieru requires exact official client 3.38.0; Mihomo Mieru 1.19.30 supports only MTU 1500; sing-box/Surge/URI/Xray Mieru unsupported."
+        "description": "binding_id required when multiple Bindings exist. Disabled/unavailable identities reject. URI accepts an omitted/empty client_version; pinned config clients require their exact version. Xray JSON requires exactly 26.3.27 and plain TCP; no runtime mask support. Mieru requires exact official client 3.38.0; Mihomo Mieru 1.19.30 supports only MTU 1500; sing-box/Surge/URI/Xray Mieru unsupported."
       },
       "ClientExportResult": {
         "type": "object",
@@ -7190,10 +8210,8 @@
             }
           },
           "engine": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 64,
-            "description": "Implementation placement, independent of protocol identity. xray implements the owned external child for vless only; node availability is reported separately."
+            "const": "native",
+            "description": "Compiled Splicore placement, independent of protocol identity. Unsupported engine pairs reject; no fallback."
           }
         },
         "required": [
@@ -7287,10 +8305,8 @@
             "$ref": "#/components/schemas/ProtocolIdentity"
           },
           "engine": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 64,
-            "description": "Implementation placement, independent of protocol identity. xray implements the owned external child for vless only; node availability is reported separately."
+            "const": "native",
+            "description": "Compiled Splicore placement, independent of protocol identity. Unsupported engine pairs reject; no fallback."
           }
         },
         "required": [
@@ -7517,12 +8533,6 @@
             "items": {
               "type": "string"
             }
-          },
-          "engine_features": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/EngineFeature"
-            }
           }
         },
         "required": [
@@ -7554,10 +8564,8 @@
         "additionalProperties": false,
         "properties": {
           "engine": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 64,
-            "description": "Implementation placement, independent of protocol identity. xray implements the owned external child for vless only; node availability is reported separately."
+            "const": "native",
+            "description": "Compiled Splicore placement, independent of protocol identity. Unsupported engine pairs reject; no fallback."
           },
           "availability": {
             "type": "string",
@@ -7652,9 +8660,6 @@
               },
               "packet_encoding": {
                 "const": "xudp"
-              },
-              "engine_options": {
-                "$ref": "#/components/schemas/VLESSEngineOptions"
               }
             },
             "required": [
@@ -7825,10 +8830,8 @@
             }
           },
           "engine": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 64,
-            "description": "Implementation placement, independent of protocol identity. xray implements the owned external child for vless only; node availability is reported separately."
+            "const": "native",
+            "description": "Compiled Splicore placement, independent of protocol identity. Unsupported engine pairs reject; no fallback."
           },
           "server_secret": {
             "type": "object",
@@ -7842,10 +8845,6 @@
               }
             },
             "required": []
-          },
-          "transport_secret": {
-            "$ref": "#/components/schemas/TransportSecret",
-            "writeOnly": true
           }
         },
         "required": [
@@ -7856,49 +8855,7 @@
           "settings",
           "users"
         ],
-        "description": "VLESS wire 0, independent native/xray engine placement, TCP/XUDP and typed security. No arbitrary transports or raw engine configuration. server_secret is allowed only for REALITY. Masked options require explicit engine=xray; transport_secret is only allowed with masked options. UDP unqualified for mask.",
-        "allOf": [
-          {
-            "if": {
-              "properties": {
-                "settings": {
-                  "required": [
-                    "engine_options"
-                  ]
-                }
-              },
-              "required": [
-                "settings"
-              ]
-            },
-            "then": {
-              "properties": {
-                "engine": {
-                  "const": "xray"
-                }
-              },
-              "required": [
-                "engine"
-              ]
-            }
-          },
-          {
-            "if": {
-              "required": [
-                "transport_secret"
-              ]
-            },
-            "then": {
-              "properties": {
-                "settings": {
-                  "required": [
-                    "engine_options"
-                  ]
-                }
-              }
-            }
-          }
-        ]
+        "description": "Native VLESS wire 0, TCP/XUDP, plain/TLS/REALITY flow-none. Server private key is accepted only for REALITY. Vision is Deferred/Unsupported. Transport masks are outside Splicore runtime and reject without downgrade."
       },
       "VLESSPlan": {
         "$ref": "#/components/schemas/CreationPlan"
@@ -7911,178 +8868,16 @@
         "additionalProperties": false,
         "properties": {
           "engine": {
-            "type": "string"
+            "const": "native",
+            "description": "Compiled Splicore placement, independent of protocol identity. Unsupported engine pairs reject; no fallback."
           },
           "available": {
             "type": "boolean"
-          },
-          "reference_version": {
-            "type": "string"
-          },
-          "installed_version": {
-            "type": "string"
-          },
-          "binary_sha256": {
-            "type": "string",
-            "pattern": "^[0-9a-f]{64}$"
-          },
-          "reason": {
-            "type": "string"
-          },
-          "restart_policy": {
-            "type": "string",
-            "enum": [
-              "manual"
-            ]
-          },
-          "features": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/FeatureAvailability"
-            }
           }
         },
         "required": [
           "engine",
           "available"
-        ]
-      },
-      "RuntimeStatus": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "engine": {
-            "const": "xray"
-          },
-          "version": {
-            "type": "string"
-          },
-          "pid": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "generation": {
-            "type": "string"
-          },
-          "started_at": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "runtime_directory": {
-            "type": "string"
-          },
-          "config_artifact": {
-            "type": "string"
-          },
-          "health": {
-            "type": "string",
-            "enum": [
-              "prepared",
-              "starting",
-              "healthy",
-              "failed",
-              "stopped"
-            ]
-          },
-          "exit_code": {
-            "type": "integer"
-          },
-          "discarded_log_bytes": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 1048576
-          }
-        },
-        "required": [
-          "engine",
-          "version",
-          "pid",
-          "generation",
-          "started_at",
-          "runtime_directory",
-          "config_artifact",
-          "health",
-          "discarded_log_bytes"
-        ]
-      },
-      "SudokuOptions": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "ascii": {
-            "const": "prefer_ascii"
-          },
-          "padding_min": {
-            "const": 0
-          },
-          "padding_max": {
-            "const": 3
-          }
-        },
-        "required": [
-          "ascii",
-          "padding_min",
-          "padding_max"
-        ]
-      },
-      "TCPMask": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "type": {
-            "const": "sudoku"
-          },
-          "settings": {
-            "$ref": "#/components/schemas/SudokuOptions"
-          }
-        },
-        "required": [
-          "type",
-          "settings"
-        ]
-      },
-      "FinalMaskOptions": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "tcp": {
-            "type": "array",
-            "minItems": 1,
-            "maxItems": 1,
-            "items": {
-              "$ref": "#/components/schemas/TCPMask"
-            }
-          }
-        },
-        "required": [
-          "tcp"
-        ]
-      },
-      "VLESSEngineOptions": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "finalmask": {
-            "$ref": "#/components/schemas/FinalMaskOptions"
-          }
-        },
-        "required": [
-          "finalmask"
-        ]
-      },
-      "TransportSecret": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "password": {
-            "type": "string",
-            "pattern": "^[0-9A-Fa-f]{32}$",
-            "writeOnly": true,
-            "description": "Exact string seed; preserve case. Encrypted inbound-owned client-needed password."
-          }
-        },
-        "required": [
-          "password"
         ]
       },
       "FeatureClient": {
@@ -8106,70 +8901,6 @@
         "required": [
           "client",
           "support"
-        ]
-      },
-      "EngineFeature": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "id": {
-            "enum": [
-              "finalmask",
-              "sudoku"
-            ]
-          },
-          "supported": {
-            "type": "boolean"
-          },
-          "transport": {
-            "const": "tcp"
-          },
-          "security": {
-            "const": "none"
-          },
-          "flow": {
-            "const": "none"
-          },
-          "udp_qualified": {
-            "type": "boolean"
-          },
-          "clients": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/FeatureClient"
-            }
-          }
-        },
-        "required": [
-          "id",
-          "supported",
-          "transport",
-          "security",
-          "flow",
-          "udp_qualified",
-          "clients"
-        ]
-      },
-      "FeatureAvailability": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "id": {
-            "enum": [
-              "finalmask",
-              "sudoku"
-            ]
-          },
-          "available": {
-            "type": "boolean"
-          },
-          "reason": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "available"
         ]
       },
       "MieruSettings": {
@@ -8320,7 +9051,8 @@
             }
           },
           "engine": {
-            "const": "native"
+            "const": "native",
+            "description": "Compiled Splicore placement, independent of protocol identity. Unsupported engine pairs reject; no fallback."
           }
         },
         "required": [
@@ -8493,10 +9225,36 @@
               "object",
               "null"
             ],
+            "maxProperties": 32,
             "additionalProperties": {
               "type": "string",
-              "maxLength": 1024
+              "maxLength": 256
             }
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/NodeProvenance"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "maxItems": 32,
+            "uniqueItems": true
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "stale",
+              "invalid",
+              "unavailable"
+            ]
           }
         },
         "required": [
@@ -8560,10 +9318,36 @@
               "object",
               "null"
             ],
+            "maxProperties": 32,
             "additionalProperties": {
               "type": "string",
-              "maxLength": 1024
+              "maxLength": 256
             }
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/NodeProvenance"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "maxItems": 32,
+            "uniqueItems": true
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "stale",
+              "invalid",
+              "unavailable"
+            ]
           }
         },
         "required": [
@@ -8598,9 +9382,11 @@
             "$ref": "#/components/schemas/ID"
           },
           "engine": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 64
+            "const": "native",
+            "description": "Compiled Splicore placement, independent of protocol identity. Unsupported engine pairs reject; no fallback."
+          },
+          "provider_id": {
+            "$ref": "#/components/schemas/ID"
           }
         },
         "required": [
@@ -8639,9 +9425,11 @@
             "$ref": "#/components/schemas/ID"
           },
           "engine": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 64
+            "const": "native",
+            "description": "Compiled Splicore placement, independent of protocol identity. Unsupported engine pairs reject; no fallback."
+          },
+          "provider_id": {
+            "$ref": "#/components/schemas/ID"
           }
         },
         "required": [
@@ -8888,6 +9676,9 @@
           },
           "host_integration": {
             "$ref": "#/components/schemas/HostIntegration"
+          },
+          "management": {
+            "$ref": "#/components/schemas/ProviderState"
           }
         },
         "required": [
@@ -8898,7 +9689,8 @@
           "local_inbounds",
           "route",
           "network",
-          "host_integration"
+          "host_integration",
+          "management"
         ]
       },
       "ClientObservation": {
@@ -9003,7 +9795,8 @@
             "type": "string"
           },
           "engine": {
-            "type": "string"
+            "const": "native",
+            "description": "Compiled Splicore placement, independent of protocol identity. Unsupported engine pairs reject; no fallback."
           },
           "tcp": {
             "type": "boolean"
@@ -9176,7 +9969,8 @@
             "$ref": "#/components/schemas/ProtocolIdentity"
           },
           "engine": {
-            "type": "string"
+            "const": "native",
+            "description": "Compiled Splicore placement, independent of protocol identity. Unsupported engine pairs reject; no fallback."
           },
           "health": {
             "type": "string"
@@ -11250,9 +12044,6 @@
           "mark_table": {
             "type": "boolean"
           },
-          "child": {
-            "type": "boolean"
-          },
           "system_resolver": {
             "type": "boolean"
           },
@@ -11295,7 +12086,6 @@
           "endpoint_routes",
           "interface_binding",
           "mark_table",
-          "child",
           "system_resolver",
           "active_leases",
           "infrastructure_endpoints",
@@ -11304,6 +12094,668 @@
           "releases",
           "reconcile_failures"
         ]
+      },
+      "NodeProvenance": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "origin": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "uri",
+              "import",
+              "provider"
+            ]
+          },
+          "provider_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "key": {
+            "type": "string",
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "origin"
+        ]
+      },
+      "ProviderWrite": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "proxy",
+              "ruleset"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "uri",
+              "base64",
+              "canonical",
+              "mieru",
+              "mihomo",
+              "sing-box",
+              "canonical-rules",
+              "mihomo-domain",
+              "mihomo-ipcidr",
+              "mihomo-classical"
+            ]
+          },
+          "refresh_enabled": {
+            "type": "boolean"
+          },
+          "interval_seconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 2592000
+          },
+          "allow_private": {
+            "type": "boolean"
+          },
+          "fetch_action": {
+            "$ref": "#/components/schemas/RouteAction"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "strict",
+              "lenient"
+            ]
+          },
+          "empty_is_authoritative": {
+            "type": "boolean"
+          },
+          "max_delete_percent": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "generate_outbounds": {
+            "type": "boolean"
+          },
+          "engine": {
+            "const": "native",
+            "description": "Compiled Splicore placement, independent of protocol identity. Unsupported engine pairs reject; no fallback."
+          },
+          "rule_set_id": {
+            "$ref": "#/components/schemas/ID"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "format"
+        ],
+        "description": "ID/kind and RuleSet ID immutable on update. Omitted Source retains encrypted settings. Nonzero read-only diagnostic fields reject."
+      },
+      "Provider": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "proxy",
+              "ruleset"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "uri",
+              "base64",
+              "canonical",
+              "mieru",
+              "mihomo",
+              "sing-box",
+              "canonical-rules",
+              "mihomo-domain",
+              "mihomo-ipcidr",
+              "mihomo-classical"
+            ]
+          },
+          "refresh_enabled": {
+            "type": "boolean"
+          },
+          "interval_seconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 2592000
+          },
+          "allow_private": {
+            "type": "boolean"
+          },
+          "fetch_action": {
+            "$ref": "#/components/schemas/RouteAction"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "strict",
+              "lenient"
+            ]
+          },
+          "empty_is_authoritative": {
+            "type": "boolean"
+          },
+          "max_delete_percent": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "generate_outbounds": {
+            "type": "boolean"
+          },
+          "engine": {
+            "const": "native",
+            "description": "Compiled Splicore placement, independent of protocol identity. Unsupported engine pairs reject; no fallback."
+          },
+          "rule_set_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "url_display": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "generation": {
+            "$ref": "#/components/schemas/Revision"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "new",
+              "healthy",
+              "degraded"
+            ]
+          },
+          "last_success": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_failure": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "last_error": {
+            "type": "string",
+            "enum": [
+              "fetch_failed",
+              "parse_failed",
+              "validation_failed",
+              "apply_failed",
+              "safety_guard",
+              "revision_changed"
+            ]
+          },
+          "consecutive_failures": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "format",
+          "refresh_enabled",
+          "interval_seconds",
+          "allow_private",
+          "fetch_action",
+          "mode",
+          "empty_is_authoritative",
+          "max_delete_percent",
+          "generate_outbounds",
+          "url_display",
+          "generation",
+          "status",
+          "last_success",
+          "last_failure",
+          "consecutive_failures"
+        ]
+      },
+      "ProviderAuth": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "bearer",
+              "basic",
+              "header"
+            ]
+          },
+          "header": {
+            "type": "string",
+            "enum": [
+              "Authorization",
+              "X-Api-Key",
+              "authorization",
+              "x-api-key"
+            ]
+          },
+          "username": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "value": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "type",
+          "value"
+        ],
+        "writeOnly": true
+      },
+      "ProviderSource": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 4096,
+            "writeOnly": true
+          },
+          "auth": {
+            "$ref": "#/components/schemas/ProviderAuth"
+          },
+          "etag": {
+            "type": "string",
+            "maxLength": 1024,
+            "writeOnly": true
+          },
+          "last_modified": {
+            "type": "string",
+            "maxLength": 128,
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "writeOnly": true
+      },
+      "ProviderState": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "providers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Provider"
+            },
+            "maxItems": 64
+          }
+        },
+        "required": [
+          "providers"
+        ]
+      },
+      "ProviderDiagnostics": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "last_error": {
+            "type": "string",
+            "enum": [
+              "provider_committed_state_unavailable"
+            ]
+          },
+          "proxy_providers": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "ruleset_providers": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "degraded": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "stale_nodes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "scheduler": {
+            "type": "boolean"
+          },
+          "active_refreshes": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "proxy_providers",
+          "ruleset_providers",
+          "degraded",
+          "stale_nodes",
+          "scheduler",
+          "active_refreshes"
+        ]
+      },
+      "ManagementRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "import",
+              "provider-upsert",
+              "provider-delete",
+              "batch"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 2097152,
+            "writeOnly": true
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "strict",
+              "lenient"
+            ]
+          },
+          "provider": {
+            "$ref": "#/components/schemas/ProviderWrite"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ProviderSource"
+          },
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ID"
+            },
+            "maxItems": 128
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "maxItems": 32,
+            "uniqueItems": true
+          },
+          "metadata": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "maxProperties": 32,
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 256
+            }
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "enable",
+              "disable",
+              "delete",
+              "tag",
+              "metadata"
+            ]
+          },
+          "generate_outbounds": {
+            "type": "boolean"
+          },
+          "engine": {
+            "const": "native",
+            "description": "Compiled Splicore placement, independent of protocol identity. Unsupported engine pairs reject; no fallback."
+          }
+        },
+        "description": "Strict write-only envelope, 4 MiB API cap. Endpoint may assign operation/ID. Manual/remote parsing bodies limited to 2 MiB. Operation-specific unrelated fields reject."
+      },
+      "ManagementDiffEntry": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "Add",
+              "Update",
+              "Unchanged",
+              "Conflict",
+              "Remove",
+              "Unsupported",
+              "Invalid"
+            ]
+          },
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "index": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "change": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "references": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "kind",
+          "change"
+        ]
+      },
+      "ManagementPreview": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/Revision"
+          },
+          "expires": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "applicable": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 128
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ManagementDiffEntry"
+            },
+            "maxItems": 1024
+          },
+          "provider_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "generation": {
+            "$ref": "#/components/schemas/Revision"
+          },
+          "not_modified": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "revision",
+          "expires",
+          "applicable",
+          "entries",
+          "generation"
+        ]
+      },
+      "ManagementApply": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "token": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/Revision"
+          }
+        },
+        "required": [
+          "token",
+          "revision"
+        ]
+      },
+      "NodeExportRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ID"
+            },
+            "maxItems": 128
+          },
+          "provider_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "all": {
+            "type": "boolean"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "canonical",
+              "mihomo",
+              "sing-box",
+              "uri",
+              "mieru"
+            ]
+          },
+          "client_version": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "reveal_secrets": {
+            "const": true
+          }
+        },
+        "required": [
+          "format",
+          "reveal_secrets"
+        ],
+        "description": "Exactly one IDs/provider_id/all selection. Exact exporter target/version/trust restrictions apply; unsupported nodes fail entire export."
+      },
+      "NodeExportDescription": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "ServerVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "ClientWireVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "Compatibility": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "ContentShape": {
+            "type": "string",
+            "maxLength": 64
+          }
+        },
+        "required": [
+          "ServerVersion",
+          "ClientWireVersion",
+          "Compatibility",
+          "ContentShape"
+        ]
+      },
+      "NodeExportDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "node_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "description": {
+            "$ref": "#/components/schemas/NodeExportDescription"
+          }
+        },
+        "required": [
+          "node_id",
+          "description"
+        ]
+      },
+      "NodeExport": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "contains_secrets": {
+            "type": "boolean"
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NodeExportDetail"
+            },
+            "maxItems": 128
+          }
+        },
+        "required": [
+          "content",
+          "contains_secrets"
+        ],
+        "description": "Protected explicit client-secret export; never a passive read/support response."
       }
     },
     "parameters": {

@@ -105,38 +105,12 @@ fragment escaping; client URI import remains unqualified. Explicit-CA TLS URI an
 Surge reject with UnsupportedExport. A blocking test traverses all client/API exports
 and requires the server private key to be absent. [VLESS](../protocol/VLESS.md).
 
-## VLESS engine equivalence
+## Out-of-scope specialized profiles
 
-Native/Xray placement produces the same canonical ClientProfile from equivalent
-Binding/UUID/Endpoint/security intent. The same Mihomo, sing-box and URI exporter
-renders both. Engine identity never enters client config. TLS explicit-CA URI and
-Surge remain unsupported; Vision remains rejected. Reference versions and actual
-traffic evidence are recorded in the [matrix](../testing/INTEROP_MATRIX.md).
-
-## FinalMask / Sudoku client requirements
-
-ClientProfile keeps endpoint/UUID/TCP core and adds typed transport requirements.
-Its password is a client-needed shared secret, excluded from JSON/formatting and
-returned only by authorized exporter output. It never contains REALITY private keys.
-The existing VLESS exporter maps requirements to the target format, with no Engine ID branch.
-
-| Masked client / format | Version | Status |
-|---|---|---|
-| Xray JSON outbound | 26.3.27 | Supported for plain TCP, Sudoku prefer_ascii/padding0–3 |
-| Mihomo | 1.19.30 | Unsupported |
-| sing-box | 1.14.1 | Unsupported |
-| Surge | Any | Unsupported |
-| VLESS URI | Any | Unsupported |
-| Unknown Xray version | Any other | Unsupported |
-
-format=xray returns content_shape=xray-outbound. No standard VLESS fallback drops
-the mask. FinalMask describes the framework with Sudoku only; other masks/chains
-and TLS/REALITY combinations reject. Masked UDP/XUDP is NOT QUALIFIED. Standard
-VLESS exporters remain shared across native/xray. [Workflow](../development/PHASE_7_XRAY_EXTENSIONS.md).
-
-URI fm is CONTRACT ONLY for the audited NoBrand source/reference dialect. It is
-not implemented by Splicore's masked URI exporter/import and has no managed runtime
-interop qualification. That exporter continues to reject masked profiles explicitly.
+FinalMask/Sudoku are outside Splicore runtime/export scope. Import preview marks
+them Unsupported. Ordinary plain VLESS external-client JSON export may remain;
+no engine ID enters ClientProfile and no runtime fallback strips features.
+Independent future deployment belongs to NoBrand. [ADR 0035](../adr/0035-xray-runtime-removed-from-core.md).
 
 ## Phase 8 Mieru clients
 
@@ -149,12 +123,12 @@ sing-box 1.14.1 has no Mieru outbound; Surge/URI/Xray/unknown versions reject.
 
 ## Phase 11 Splicore client runtime
 
-Export qualification above and client-runtime acceptance are separate. The six
+Export qualification above and client-runtime acceptance are separate. The five native
 runtime adapter pairs are Snell/native, HY2/native, TUIC v5/native, VLESS flow-none/
-native, VLESS flow-none/xray and Mieru/native. All support local SOCKS TCP and UDP,
+native and Mieru/native. All support local SOCKS TCP and UDP,
 IPv4/IPv6/domain payload targets within their tested feature scopes. VLESS REALITY
 uses public client fields only; Vision rejects. Mieru uses official v3.38.0 APIs,
-with no external mita client. Client FinalMask/Sudoku is deferred.
+with no external mita client. FinalMask/Sudoku are out of scope.
 
 Snell and Mieru UDP resolve a target locally per flow because their frozen response
 contracts accept IP addresses; canonical domains remain unchanged. HY2/TUIC/VLESS

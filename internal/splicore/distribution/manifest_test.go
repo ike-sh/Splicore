@@ -16,7 +16,7 @@ import (
 func fixture(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	m := Manifest{Schema: 1, Product: "Splicore", Version: "0.0.0-dev", Channel: "development", Qualification: "experimental", GitCommit: strings.Repeat("a", 40), SourceSHA256: strings.Repeat("b", 64), BuildTime: "2026-10-02T00:00:00Z", GoVersion: "go1.26.6", GOOS: "linux", GOARCH: "amd64", BuildTags: "with_quic,with_utls", ConfigSchema: version.ConfigSchema, DatabaseSchema: version.DatabaseSchema, DatabaseMin: 1, ProtocolABI: version.ProtocolABI, APIVersion: version.APIVersion, UpstreamTag: "v1.14.1", UpstreamCommit: "1ac1a339cb1223e9c70eae14c44411c75033c02d", Xray: XrayReference{Version: "26.3.27", Strategy: "separate-pinned-artifact", SHA256: XrayHashes}, Files: map[string]File{}}
+	m := Manifest{Schema: 1, Product: "Splicore", Version: "0.0.0-dev", Channel: "development", Qualification: "experimental", GitCommit: strings.Repeat("a", 40), SourceSHA256: strings.Repeat("b", 64), BuildTime: "2026-10-02T00:00:00Z", GoVersion: "go1.26.6", GOOS: "linux", GOARCH: "amd64", BuildTags: "with_quic,with_utls", ConfigSchema: version.ConfigSchema, DatabaseSchema: version.DatabaseSchema, DatabaseMin: 1, ProtocolABI: version.ProtocolABI, APIVersion: version.APIVersion, UpstreamTag: "v1.14.1", UpstreamCommit: "1ac1a339cb1223e9c70eae14c44411c75033c02d", Files: map[string]File{}}
 	names := []string{"splicore", "splicore.service", "splicore.yaml", "install.sh", "LICENSE", "NOTICE.md", "docs/INSTALLATION.md"}
 	for _, name := range names {
 		mode := os.FileMode(0644)

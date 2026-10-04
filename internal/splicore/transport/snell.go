@@ -21,8 +21,8 @@ func (c *Client) post(ctx context.Context, path string, b []byte, out any) error
 		return identity.Err(identity.Unavailable, "control transport unavailable")
 	}
 	defer res.Body.Close()
-	data, e := io.ReadAll(io.LimitReader(res.Body, 1<<20+1))
-	if e != nil || len(data) > 1<<20 {
+	data, e := io.ReadAll(io.LimitReader(res.Body, 4<<20+1))
+	if e != nil || len(data) > 4<<20 {
 		return identity.Err(identity.Unavailable, "invalid control response")
 	}
 	if res.StatusCode != 200 {

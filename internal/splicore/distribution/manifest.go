@@ -28,20 +28,10 @@ const ReceiptPath = "/etc/splicore/install.json"
 const UpgradePath = "/var/lib/splicore-upgrades"
 const Ownership = "Splicore layout 1\n"
 
-var XrayHashes = map[string]string{
-	"linux/amd64":   "8255dd939c34cf966cc91517b6324dd3c8d0bcf49ffac8beca049a38c46845ed",
-	"windows/amd64": "15c2d007954ac53ba69b80ec91242786b3c0b71d52649165b4ca1d5cc96ef8f1",
-}
-
 type File struct {
 	SHA256 string `json:"sha256"`
 	Bytes  int64  `json:"bytes"`
 	Mode   uint32 `json:"mode"`
-}
-type XrayReference struct {
-	Version  string            `json:"version"`
-	Strategy string            `json:"strategy"`
-	SHA256   map[string]string `json:"sha256"`
 }
 type Manifest struct {
 	Schema         int             `json:"schema"`
@@ -64,7 +54,6 @@ type Manifest struct {
 	APIVersion     string          `json:"api_version"`
 	UpstreamTag    string          `json:"upstream_tag"`
 	UpstreamCommit string          `json:"upstream_commit"`
-	Xray           XrayReference   `json:"optional_xray"`
 	Files          map[string]File `json:"files"`
 }
 
@@ -96,19 +85,11 @@ func Decode(r io.Reader) (Manifest, error) {
 	if d.Decode(&m) != nil || d.Decode(new(any)) != io.EOF {
 		return m, fmt.Errorf("invalid distribution manifest")
 	}
-	if m.Schema != 1 || m.Product != "Splicore" || !versionPattern.MatchString(m.Version) || m.Channel != "development" || m.Qualification != "experimental" || !commitPattern.MatchString(m.GitCommit) || !digestPattern.MatchString(m.SourceSHA256) || m.GOOS != "linux" || m.GOARCH != "amd64" && m.GOARCH != "arm64" || m.ConfigSchema != version.ConfigSchema || m.DatabaseSchema < 1 || m.DatabaseSchema > version.DatabaseSchema || m.DatabaseMin < 1 || m.DatabaseMin > m.DatabaseSchema || m.ProtocolABI != version.ProtocolABI || m.APIVersion != version.APIVersion || m.UpstreamTag != "v1.14.1" || m.UpstreamCommit != "1ac1a339cb1223e9c70eae14c44411c75033c02d" || m.Xray.Version != "26.3.27" || m.Xray.Strategy != "separate-pinned-artifact" {
+	if m.Schema != 1 || m.Product != "Splicore" || !versionPattern.MatchString(m.Version) || m.Channel != "development" || m.Qualification != "experimental" || !commitPattern.MatchString(m.GitCommit) || !digestPattern.MatchString(m.SourceSHA256) || m.GOOS != "linux" || m.GOARCH != "amd64" && m.GOARCH != "arm64" || m.ConfigSchema != version.ConfigSchema || m.DatabaseSchema < 1 || m.DatabaseSchema > version.DatabaseSchema || m.DatabaseMin < 1 || m.DatabaseMin > m.DatabaseSchema || m.ProtocolABI != version.ProtocolABI || m.APIVersion != version.APIVersion || m.UpstreamTag != "v1.14.1" || m.UpstreamCommit != "1ac1a339cb1223e9c70eae14c44411c75033c02d" {
 		return m, fmt.Errorf("incompatible distribution identity")
 	}
 	if _, err = time.Parse(time.RFC3339, m.BuildTime); err != nil || !strings.HasPrefix(m.GoVersion, "go1.") || m.BuildTags != "with_quic,with_utls" && m.BuildTags != "with_quic,with_utls,with_gvisor" {
 		return m, fmt.Errorf("invalid build provenance")
-	}
-	if len(m.Xray.SHA256) != len(XrayHashes) {
-		return m, fmt.Errorf("invalid Xray references")
-	}
-	for p, h := range XrayHashes {
-		if m.Xray.SHA256[p] != h {
-			return m, fmt.Errorf("invalid Xray reference hash")
-		}
 	}
 	if len(m.Files) < 7 || len(m.Files) > 256 {
 		return m, fmt.Errorf("invalid distribution file count")

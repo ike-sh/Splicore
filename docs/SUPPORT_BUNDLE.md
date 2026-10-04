@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Operators, support reviewers and security maintainers
-- Last reviewed: 2026-10-02
+- Last reviewed: 2026-10-04
 - Owner: Security and distribution maintainers
 - Responsibility: Bundle content, private output and blocking secret tests.
 - Lifecycle: Update with each new diagnostic field or input source.
@@ -32,7 +32,7 @@ occurs. Offline generation is supported and marks unavailable information.
 | crashes.json | At most 16 validated, re-projected exit records. |
 
 No real listener hosts, account/inbound/binding IDs or names, tags, client export,
-DB/WAL, keys, raw bootstrap, raw Xray JSON, journal messages or panic stacks are
+DB/WAL, keys, raw bootstrap, journal messages or panic stacks are
 copied. Redaction uses allowlisted projections instead of trying to recognize
 every password substring. Journald is bounded by entry count, field filtering,
 scanner size and command timeout. Individual archive projections are bounded.
@@ -45,3 +45,11 @@ Phase 10 extends the hostile-input gate to every client free-form field, includi
 node names/domains/options/metadata/IDs and health errors. Eight projections are
 scanned after decompression. Changing the bundle contract requires this gate. Operators should still review
 the extracted summary before deliberately sharing it.
+
+## Phase 14 provider projection
+
+Passive support includes provider kind/format/status/error class/generation, node/stale
+counts and last-success age. Provider names, source origins/URLs, auth, validators,
+raw subscription content, tags/metadata and candidate settings are omitted. Doctor
+lists provider/scheduler counts and stale state; it never fetches or probes nodes.
+Explicit secret node export is an independent protected operation, never bundle input.

@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Operators and integration developers
-- Last reviewed: 2026-10-03
+- Last reviewed: 2026-10-04
 - Owner: Control-plane maintainers
 - Responsibility: Client resource commands and shared daemon control.
 - Lifecycle: Update with implemented CLI behavior.
@@ -53,7 +53,7 @@ and [client runtime](architecture/CLIENT_RUNTIME.md).
 ## Phase 11 options and observations
 
 The same node/outbound/local-inbound/client commands handle every registered adapter.
-Select `engine` on Outbound; VLESS nodes can be referenced by native and Xray. Generic
+Select `engine` on Outbound; VLESS nodes use native only; unsupported engine pairs reject. Generic
 CredentialInput.kind also accepts `uuid_password` and `username_password`; value is
 a private JSON string containing the canonical pair. Public TLS/REALITY trust fields
 belong in Node.security.tls, never server private material. Unknown adapter options,
@@ -80,3 +80,34 @@ while explain reads supplied metadata only. No new service/binary or protocol co
 ## Phase 13 host integration
 
 `tun status|validate|plan|apply` uses local-inbound intent; `system-proxy status|validate|plan|apply` uses host-integration intent. Files for these aliases use the normal ClientMutation envelope. `network repair` uses Application plan/apply and only recorded owned resources after client stop. `service recover-network` is the stopped-service local recovery helper. Doctor is passive and lists stack/driver/privileges/owned routes/DNS mode/journal/exclusions. See [system integration](SYSTEM_INTEGRATION.md).
+
+## Phase 14 imports, exports and providers
+
+Use owner-only files or stdin for secret-bearing inputs. URI argv is rejected.
+Provider create/update/delete commands return previews; apply is explicit. Manual
+`refresh` performs a complete guarded transaction; `refresh-preview` is a dry run.
+
+```sh
+splicore node import-uri --config /etc/splicore/splicore.yaml --file /private/uris.txt --generate-outbounds > /private/plan.json
+splicore node apply --config /etc/splicore/splicore.yaml --plan /private/plan.json
+splicore node import --config /etc/splicore/splicore.yaml --format canonical --stdin
+splicore provider create --config /etc/splicore/splicore.yaml --file /private/provider-command.json
+splicore provider list --config /etc/splicore/splicore.yaml
+splicore provider get --config /etc/splicore/splicore.yaml --id PROVIDER_UUID
+splicore provider refresh-preview --config /etc/splicore/splicore.yaml --id PROVIDER_UUID
+splicore provider refresh --config /etc/splicore/splicore.yaml --id PROVIDER_UUID
+splicore node export --config /etc/splicore/splicore.yaml --provider-id PROVIDER_UUID --format canonical --reveal-secrets > /private/nodes.json
+```
+
+`provider` and `ruleset-provider` share create/update/delete/list/get/refresh-preview/
+refresh/apply operations, enforcing their distinct resource kind. Create/update files
+are ManagementRequest envelopes with provider/source; update sets --id and immutable
+provider ID/kind/RuleSet ID but omits read-only diagnostics. Source omitted on update
+retains encrypted settings. `node batch --file` takes operation=batch, action, IDs and
+tags or metadata. Metadata replacement can move display folders without changing
+ownership. Generic export uses one of --id, --provider-id or --all; secrets require
+explicit reveal. External client-version gates apply; compatibility goes to stderr.
+Existing `node apply --file mutation.json --plan client-plan.json` retains the prior
+CRUD transaction; `node apply --plan management-preview.json` applies import tokens.
+All operations reuse the existing protected control transport. Doctor is passive.
+See [imports](architecture/IMPORT_MODEL.md) and [providers](architecture/PROVIDER_MODEL.md).

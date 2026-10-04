@@ -13,7 +13,6 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/config"
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
 	"github.com/sagernet/sing-box/internal/splicore/engine/native"
-	"github.com/sagernet/sing-box/internal/splicore/engine/xray"
 	"github.com/sagernet/sing-box/internal/splicore/operations"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
 	"github.com/sagernet/sing-box/internal/splicore/registry"
@@ -32,16 +31,7 @@ func Serve(ctx context.Context, c config.Config) error {
 		return err
 	}
 	defer listener.Close()
-	runtimeRoot := c.Xray.RuntimeDirectory
-	if runtimeRoot == "" {
-		runtimeRoot = filepath.Join(c.StateDirectory, "engines", "xray")
-	}
-	xrayEngine := xray.New(xray.Options{BinaryPath: c.Xray.BinaryPath, RuntimeDirectory: runtimeRoot})
-	defer xrayEngine.Close(context.Background())
-	// Missing optional artifacts remain a node availability result. Restoration
-	// of a committed xray inbound fails explicitly in EnableRuntime.
-	_ = xrayEngine.ValidateAvailability(ctx)
-	p, e, x, err := registry.Phase8(xrayEngine)
+	p, e, x, err := registry.NativeCore()
 	if err != nil {
 		return err
 	}
@@ -81,11 +71,14 @@ func Serve(ctx context.Context, c config.Config) error {
 		defer cancel()
 		_ = service.CloseRuntime(shutdown)
 	}()
-	outbounds, err := registry.NewOutbounds(native.SnellOutboundFactory{}, native.Hysteria2OutboundFactory{}, native.TUICOutboundFactory{}, native.VLESSOutboundFactory{}, xray.OutboundFactory{Engine: xrayEngine}, native.MieruOutboundFactory{})
+	outbounds, err := registry.NewOutbounds(native.SnellOutboundFactory{}, native.Hysteria2OutboundFactory{}, native.TUICOutboundFactory{}, native.VLESSOutboundFactory{}, native.MieruOutboundFactory{})
 	if err != nil {
 		return err
 	}
 	if err = service.EnableClientRuntime(ctx, outbounds, filepath.Join(c.StateDirectory, "host-network")); err != nil {
+		return err
+	}
+	if err = service.StartManagement(ctx); err != nil {
 		return err
 	}
 	server := transport.Server(api.Handler(service))

@@ -25,7 +25,7 @@ func UnixClient(path string) *Client {
 	t := &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 		return (&net.Dialer{Timeout: 3 * time.Second}).DialContext(ctx, "unix", path)
 	}}
-	return &Client{http: &http.Client{Transport: t, Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, origin: "http://localhost"}
+	return &Client{http: &http.Client{Transport: t, Timeout: 30 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, origin: "http://localhost"}
 }
 
 // TestClient is only for explicitly owned httptest transports; no production TCP listener.

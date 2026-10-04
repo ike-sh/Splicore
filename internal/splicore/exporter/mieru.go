@@ -16,7 +16,7 @@ func (e Mieru) Format() ports.Format { return e.Target }
 func (e Mieru) Export(_ context.Context, p clientprofile.Profile, t ports.ExportTarget) ([]byte, error) {
 	key, ok := p.Credentials.(access.UsernamePasswordPayload)
 	s, err := module.Decode(p.Options.Data)
-	if !ok || err != nil || p.Validate() != nil || p.Protocol != module.Key() || p.Transport.Kind != s.Transport || p.Transport.Host != "" || p.Transport.Path != "" || p.TLS.Enabled || p.TLS.ServerName != "" || len(p.TLS.ALPN) != 0 || p.TLS.Trust != "" || p.TLS.CACertificate != "" || p.TLS.RealityPublicKey != "" || p.TLS.RealityShortID != "" || p.TransportRequirements != nil || !p.UDPPayload || module.ValidateUsername(key.Username) != nil || module.ValidatePassword(key.Password) != nil || t.Format != e.Target {
+	if !ok || err != nil || p.Validate() != nil || p.Protocol != module.Key() || p.Transport.Kind != s.Transport || p.Transport.Host != "" || p.Transport.Path != "" || p.TLS.Enabled || p.TLS.ServerName != "" || len(p.TLS.ALPN) != 0 || p.TLS.Trust != "" || p.TLS.CACertificate != "" || p.TLS.RealityPublicKey != "" || p.TLS.RealityShortID != "" || !p.UDPPayload || module.ValidateUsername(key.Username) != nil || module.ValidatePassword(key.Password) != nil || t.Format != e.Target {
 		return nil, unsupported()
 	}
 	name := "splicore-" + string(p.ID)

@@ -14,7 +14,6 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/secret"
 	"github.com/sagernet/sing-box/internal/splicore/jsonstrict"
 	"github.com/sagernet/sing-box/internal/splicore/tlsconfig"
-	"github.com/sagernet/sing-box/internal/splicore/transportmask"
 	"strings"
 )
 
@@ -72,13 +71,13 @@ type RealitySettings struct {
 	Target     access.Endpoint `json:"target"`
 }
 type Settings struct {
-	Security       Security               `json:"security"`
-	Flow           Flow                   `json:"flow"`
-	Transport      string                 `json:"transport"`
-	PacketEncoding string                 `json:"packet_encoding"`
-	TLS            *tlsconfig.Settings    `json:"tls,omitempty"`
-	Reality        *RealitySettings       `json:"reality,omitempty"`
-	EngineOptions  *transportmask.Options `json:"engine_options,omitempty"`
+	Security       Security            `json:"security"`
+	Flow           Flow                `json:"flow"`
+	Transport      string              `json:"transport"`
+	PacketEncoding string              `json:"packet_encoding"`
+	TLS            *tlsconfig.Settings `json:"tls,omitempty"`
+	Reality        *RealitySettings    `json:"reality,omitempty"`
+	EngineOptions  json.RawMessage     `json:"engine_options,omitempty"`
 }
 
 func (Settings) Format(s fmt.State, v rune) { _, _ = s.Write([]byte("VLESSSettings{[REDACTED]}")) }
@@ -146,12 +145,7 @@ func validateSettings(s Settings, publicRequired bool) error {
 		return invalid()
 	}
 	if s.EngineOptions != nil {
-		if err := s.EngineOptions.Validate(); err != nil {
-			return err
-		}
-		if s.Security != Plain {
-			return unsupportedFeature()
-		}
+		return identity.Err(identity.UnsupportedEngineFeature, "transport masks are outside Splicore runtime")
 	}
 	switch s.Security {
 	case Plain:

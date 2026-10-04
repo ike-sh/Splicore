@@ -14,14 +14,13 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/application"
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/engine/xray"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
 	"github.com/sagernet/sing-box/internal/splicore/registry"
 	"github.com/sagernet/sing-box/internal/splicore/version"
 )
 
 func phase8Protocols() (*registry.Protocols, *registry.Engines, *registry.Exporters, error) {
-	return registry.Phase8(xray.New(xray.Options{}))
+	return registry.NativeCore()
 }
 
 type mieruFaultEngine struct{ faultEngine }

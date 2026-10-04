@@ -18,7 +18,7 @@ TUN requires `/dev/net/tun` and CAP_NET_ADMIN. Standard SOCKS/HTTP service retai
 CAP_NET_BIND_SERVICE only. The package ships optional `splicore-tun.conf` for the
 same service; an operator explicitly installs this drop-in before enabling TUN.
 NoNewPrivileges and Protect* hardening stay enabled. Use a dedicated service UID:
-that UID's sockets and Xray children bypass capture via the existing main table.
+that UID's native sockets bypass capture via the existing main table.
 Packet marks provide a second reserved underlay exception, without firewall writes.
 
 The journal is service-owned 0700/0600, exclusive-locked and fsync/atomic replaced.
@@ -37,9 +37,6 @@ See [system integration](SYSTEM_INTEGRATION.md).
 
 The daemon-shared provider applies the mature socket RoutingMark primitive in
 required mode. Journaled daemon UID/main-table rules protect existing sockets and
-managed Xray children before TUN is published; Lease.Verify reads back live owned
+native sockets before TUN is published; Lease.Verify reads back live owned
 and borrowed resources. A lost socket control/readback degrades runtime health and
-rejects new protected sockets. Xray system DNS requires numeric non-loopback
-upstreams; a stub forwarder cannot inherit daemon UID protection. This is a bounded
-qualification, not roaming/system-resolver migration certification. SOCKS/HTTP-only
-modes retain ordinary sockets without NET_ADMIN or route changes.
+rejects new protected sockets.

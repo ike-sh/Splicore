@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: API, CLI and integration developers
-- Last reviewed: 2026-10-03
+- Last reviewed: 2026-10-04
 - Owner: API maintainers
 - Responsibility: Transport, security and operation semantics; OpenAPI owns endpoint surface.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -100,20 +100,15 @@ generate; account_enabled:false disables Account at creation, enabled:false Bind
 Metadata omits both secrets; explicit export returns them. No HTTP runtime import.
 [OpenAPI](openapi-skeleton.yaml) and [TUIC](../protocol/TUIC.md) own exact contracts.
 
-## Phase 7 engine features
+## Current native engine boundary
 
-Existing registered VLESS validate/plan/apply accepts typed settings.engine_options
-for one FinalMask TCP Sudoku mask: plain/flow-none/prefer_ascii/padding0–3, engine=xray.
-Native/TLS/REALITY reject unsupported_engine_feature (422); Vision remains
-not_implemented (501), malformed/unknown/null fields invalid (400). Rejection is
-before availability, secret materialization and pending. No raw Xray config API.
-Optional write-only transport_secret.password imports the exact shared seed;
-omission generates. Ordinary responses omit it. Authorized format=xray, version
-26.3.27 export returns sensitive xray-outbound content. Masked other formats reject
-unsupported_export (422). Capabilities expose engine_features with scope and client
-support; node_status.features/System engine features report last artifact availability.
-Doctor adds safe feature checks. No endpoints or Account/Binding schema changes.
-[Workflow](../development/PHASE_7_XRAY_EXTENSIONS.md) and OpenAPI own exact fields.
+The active registry and successful API representations contain native only.
+Xray engine pairs reject `unsupported_engine_for_protocol`; mask options reject
+without conversion. Vision remains `not_implemented`. Capability/System expose
+no external version/health/PID/artifact or mask feature descriptors. Ordinary
+plain VLESS external-client JSON export is independent of runtime ownership.
+Imports classify Xray/FinalMask/Sudoku as Unsupported and create no stripped node.
+[ADR 0035](../adr/0035-xray-runtime-removed-from-core.md).
 
 ## Phase 8 generic Mieru operations
 
@@ -183,3 +178,25 @@ GET dns/cache/status and POST dns/cache/flush expose bounded observations/flush.
 GET policy-groups/status exposes selected/member health/count. Aggregate network
 replace uses existing client/validate, client/plan, client/apply with ClientMutation.
 See the machine OpenAPI contract for exact paths/schemas; no protocol-specific API.
+
+## Phase 14 management API
+
+| Path below /api/v1 | Methods / result |
+| --- | --- |
+| imports/preview, nodes/import-preview | POST ManagementRequest → redacted ManagementPreview. |
+| imports/apply | POST token + decimal-string revision → existing ClientResult. |
+| nodes/batch-preview | POST IDs + enable/disable/delete/tag/metadata action → preview. |
+| nodes/export | POST selected IDs/provider_id/all, format/version and explicit reveal_secrets → protected content + compatibility details. |
+| providers, rule-set-providers | GET safe metadata; POST create preview. |
+| providers/{id}, rule-set-providers/{id} | GET safe resource; PUT config-update preview; DELETE removal preview. |
+| .../{id}/refresh-preview, .../{id}/refresh | POST {} → preview / complete transactional refresh. |
+
+Collections enforce immutable provider kind for all paths. Management bodies are strict
+JSON, max 4 MiB; no query parameters. Endpoint determines operation/ID for resource
+routes. Source URL/auth is write-only; update omits Source to retain encrypted settings.
+Generation/status/diagnostics/url_display are read-only and cannot be supplied as nonzero
+config values. All preview plans use single-use random token + committed revision +
+five-minute expiry, not If-Match; stale apply returns 409. GET node/outbound existing
+resources include provenance/tags/state/provider ownership, never secret payloads.
+Tags are node attributes with generic batch replacement, not protocol-specific resources.
+No new public subscription output path. Exact schemas are in the machine contract.

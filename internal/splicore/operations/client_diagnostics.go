@@ -8,10 +8,21 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"strconv"
+	"time"
 )
 
 type clientSupportSource interface {
 	ClientStatus(context.Context) (clientruntime.Status, error)
+}
+type providerSummary struct {
+	Kind              string            `json:"kind"`
+	Format            string            `json:"format"`
+	Status            string            `json:"status"`
+	LastError         string            `json:"last_error"`
+	Generation        identity.Revision `json:"generation"`
+	Nodes             int               `json:"node_count"`
+	Stale             int               `json:"stale_nodes"`
+	RefreshAgeSeconds int64             `json:"refresh_age_seconds"`
 }
 type clientNodeSummary struct {
 	Name          string   `json:"name"`
@@ -44,7 +55,8 @@ type clientOutboundSummary struct {
 	LastError  string `json:"last_error,omitempty"`
 }
 type clientSummary struct {
-	Underlay    underlay.Status `json:"underlay"`
+	Providers   []providerSummary `json:"providers"`
+	Underlay    underlay.Status   `json:"underlay"`
 	HostNetwork struct {
 		Recovery    string `json:"recovery"`
 		Interfaces  int    `json:"owned_interfaces"`
@@ -79,6 +91,22 @@ func clientProjection(ctx context.Context, q SupportSource) clientSummary {
 	result.HostNetwork.Routes = s.Host.OwnedRoutes
 	result.HostNetwork.SystemProxy = s.Host.SystemProxy
 	result.Enabled = s.State.Enabled
+	for _, p := range s.State.Management.Providers {
+		age := int64(0)
+		if !p.LastSuccess.IsZero() {
+			age = max(0, int64(time.Since(p.LastSuccess).Seconds()))
+		}
+		nodes, stale := 0, 0
+		for _, n := range s.State.Nodes {
+			if n.Provenance.ProviderID == p.ID {
+				nodes++
+				if n.State == "stale" {
+					stale++
+				}
+			}
+		}
+		result.Providers = append(result.Providers, providerSummary{Kind: enum(p.Kind, "proxy", "ruleset"), Format: enum(p.Format, "auto", "uri", "base64", "canonical", "mieru", "mihomo", "sing-box", "canonical-rules", "mihomo-domain", "mihomo-ipcidr", "mihomo-classical"), Status: enum(p.Status, "new", "healthy", "degraded"), LastError: enum(p.LastError, "", "fetch_failed", "parse_failed", "validation_failed", "apply_failed", "safety_guard", "revision_changed"), Generation: p.Generation, Nodes: nodes, Stale: stale, RefreshAgeSeconds: age})
+	}
 	result.LocalSOCKSTCP = s.LocalSOCKSTCP
 	result.LocalSOCKSUDP = enum(s.LocalSOCKSUDP, "deferred", "supported")
 	result.Sessions = len(s.Sessions)
@@ -92,13 +120,13 @@ func clientProjection(ctx context.Context, q SupportSource) clientSummary {
 	}
 	for _, o := range s.State.Outbounds {
 		h := health[o.ID]
-		result.Outbounds = append(result.Outbounds, clientOutboundSummary{Kind: enum(o.Kind, "direct", "proxy"), Engine: enum(o.Engine, "native", "xray"), Configured: h.Configured, Available: h.Available, Active: h.Active, LastError: enum(h.LastError, "", "outbound_connection_failed")})
+		result.Outbounds = append(result.Outbounds, clientOutboundSummary{Kind: enum(o.Kind, "direct", "proxy"), Engine: enum(o.Engine, "native"), Configured: h.Configured, Available: h.Available, Active: h.Active, LastError: enum(h.LastError, "", "outbound_connection_failed")})
 	}
 	for _, n := range s.State.Nodes {
 		v := clientNodeSummary{Name: "[REDACTED]", Protocol: enum(n.Protocol.Protocol, "snell"), EndpointClass: addressClass(n.Endpoint.Host), Port: n.Endpoint.Port, Engines: []string{}}
 		for _, o := range s.State.Outbounds {
 			if o.NodeID != nil && *o.NodeID == n.ID {
-				v.Engines = append(v.Engines, enum(o.Engine, "native", "xray"))
+				v.Engines = append(v.Engines, enum(o.Engine, "native"))
 				v.Available = v.Available || health[o.ID].Available
 			}
 		}

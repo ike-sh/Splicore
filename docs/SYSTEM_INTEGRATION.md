@@ -31,7 +31,7 @@ guessed deletion. Narrow control locks do not serialize payload I/O.
 
 Linux scope includes boot ID, network namespace and service UID. Rules/routes in
 unused tables/priorities protect the dedicated daemon UID through the existing main
-table, including dynamic node DNS IPs, native servers, Xray children and managed DNS.
+table, including dynamic node DNS IPs, native servers and managed DNS.
 Applications under the daemon UID bypass capture; use the dedicated service account.
 If an existing VPN redirects the main table, that remains the underlay authority;
 full roaming and arbitrary VPN coexistence are not certified.
@@ -72,13 +72,12 @@ Routing/DNS/policy selects the logical action first. A daemon-shared typed facto
 then creates the selected runtime's protected TCP or packet capability. It never
 chooses DIRECT/proxy or bypasses a user LAN rule. Purpose, runtime ID and generation
 identify DIRECT, proxy infrastructure, arbitrary server target, DNS/bootstrap,
-health, child or local control. Arbitrary target history is not stored.
+health, provider fetch or local control. Arbitrary target history is not stored.
 
 Native adapters inject protected registries and a per-adapter NetworkManager into
 unmodified official dialers; QUIC UDPListener uses the same Control. Mieru official
-Dialer/PacketDialer/Resolver hooks share the provider. Xray uses a verified inherited
-Linux daemon UID/main-table plan and binds actual child generation/PID; other
-platforms reject required child protection before launch. No artifact/wire edits.
+Dialer/PacketDialer/Resolver hooks share the provider. There is no external-child
+protection path or process runtime. No artifact/wire edits.
 
 New snapshots bootstrap fresh before reuse-key calculation and endpoint preparation.
 Effective infrastructure protections are desired plus all retained generations.

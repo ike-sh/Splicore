@@ -65,10 +65,9 @@ logical proxy sessions, with exact definition for mux and UDP associations.
 Handshake flood controls and transport bandwidth settings are separate controls.
 
 Native Hysteria congestion/bandwidth settings are connection/server settings,
-not a cross-protocol rate budget. External Xray requires authenticated per-binding
-enforcement hooks or an identity-preserving bridge; polling stats alone cannot
-give a hard quota or global speed ceiling. Such bindings remain unsupported for
-strict policies until measured enforcement exists; do not silently weaken a Plan.
+not a cross-protocol rate budget. Strict policies require measured authenticated
+enforcement; do not silently weaken a Plan. Independent external core policy
+ownership is outside Splicore.
 
 ## Reset and entitlement
 

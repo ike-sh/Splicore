@@ -2,11 +2,9 @@ package registry
 
 import (
 	"encoding/json"
-	"errors"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	"github.com/sagernet/sing-box/internal/splicore/jsonstrict"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
-	"github.com/sagernet/sing-box/internal/splicore/protocol/creation"
 	"slices"
 )
 
@@ -28,9 +26,7 @@ func (p *Protocols) DecodeCreation(engines *Engines, protocol string, b json.Raw
 	}
 	command, _ := json.Marshal(envelope)
 	d, err := codec.DecodeCreation(command)
-	var strict *creation.UnsupportedStrictPolicy
-	unsupportedPolicy := engine == "xray" && errors.As(err, &strict)
-	if err != nil && !unsupportedPolicy {
+	if err != nil {
 		return d, err
 	}
 	if d.Protocol.Protocol != protocol {
@@ -42,23 +38,15 @@ func (p *Protocols) DecodeCreation(engines *Engines, protocol string, b json.Raw
 	}
 	eng, err := engines.Get(engine)
 	if err != nil {
-		return d, err
+		return d, identity.Err(identity.UnsupportedEngineForProtocol, "UnsupportedEngineForProtocol")
 	}
 	m := eng.Metadata()
 	if !slices.Contains(m.Protocols, protocol) {
 		return d, identity.Err(identity.UnsupportedEngineForProtocol, "UnsupportedEngineForProtocol")
 	}
-	if unsupportedPolicy {
-		return d, identity.Err(identity.UnsupportedPolicyForEngine, "UnsupportedPolicyForEngine")
-	}
 	if m.Availability != ports.Compiled || !m.RuntimeImplemented {
 		return d, identity.Err(identity.NotImplemented, "selected engine implementation unavailable")
 	}
 	d.Engine = engine
-	if validator, ok := codec.(ports.EngineFeatureValidator); ok {
-		if err := validator.ValidateEngineFeatures(d); err != nil {
-			return d, err
-		}
-	}
 	return d, err
 }

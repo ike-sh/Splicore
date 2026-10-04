@@ -1,47 +1,19 @@
 package ports
 
 import (
-	"context"
 	"slices"
-	"time"
 )
 
-// EngineStatus separates adapter compilation from a node's installed artifact.
+// EngineStatus reports the compiled Splicore engine.
 type EngineStatus struct {
-	Engine           string                `json:"engine"`
-	Available        bool                  `json:"available"`
-	ReferenceVersion string                `json:"reference_version,omitempty"`
-	InstalledVersion string                `json:"installed_version,omitempty"`
-	BinarySHA256     string                `json:"binary_sha256,omitempty"`
-	Reason           string                `json:"reason,omitempty"`
-	RestartPolicy    string                `json:"restart_policy,omitempty"`
-	Features         []FeatureAvailability `json:"features,omitempty"`
+	Engine    string `json:"engine"`
+	Available bool   `json:"available"`
 }
-type EngineAvailability interface {
-	ValidateAvailability(context.Context) error
-	Status() EngineStatus
-}
-
-// RuntimeStatus contains only safe process identity, never runtime config content.
-type RuntimeStatus struct {
-	Engine            string    `json:"engine"`
-	Version           string    `json:"version"`
-	PID               int       `json:"pid"`
-	Generation        string    `json:"generation"`
-	StartedAt         time.Time `json:"started_at"`
-	RuntimeDirectory  string    `json:"runtime_directory"`
-	ConfigArtifact    string    `json:"config_artifact"`
-	Health            string    `json:"health"`
-	ExitCode          *int      `json:"exit_code,omitempty"`
-	DiscardedLogBytes int64     `json:"discarded_log_bytes"`
-}
-type RuntimeObserver interface{ RuntimeStatus() RuntimeStatus }
 
 // EffectiveCapabilities only advertises features implemented by both owners.
 func EffectiveCapabilities(p, e Capabilities) Capabilities {
 	result := p
 	result.Clients = slices.Clone(p.Clients)
-	result.EngineFeatures = intersectFeatures(p.EngineFeatures, e.EngineFeatures)
 	result.Transport.TCP = p.Transport.TCP && e.Transport.TCP
 	result.Transport.UDPTransport = p.Transport.UDPTransport && e.Transport.UDPTransport
 	result.Transport.UDPPayload = p.Transport.UDPPayload && e.Transport.UDPPayload

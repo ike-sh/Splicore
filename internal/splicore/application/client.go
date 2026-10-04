@@ -14,6 +14,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/secret"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
 	"github.com/sagernet/sing-box/internal/splicore/registry"
+	"reflect"
 	"sync"
 	"time"
 )
@@ -62,6 +63,7 @@ type ClientCommands interface {
 	ApplyClient(context.Context, ApplyRequest) (ClientResult, error)
 }
 type clientState struct {
+	management    *managementState
 	mu            sync.Mutex
 	repo          ports.ClientRepository
 	factories     *registry.Outbounds
@@ -84,7 +86,7 @@ func (s *Service) EnableClientRuntime(ctx context.Context, factories *registry.O
 	if !ok || s.runtime == nil || factories == nil {
 		return identity.Err(identity.Unavailable, "client dependencies unavailable")
 	}
-	c := &clientState{repo: repo, factories: factories, manager: clientruntime.NewWithUnderlay(s.underlay)}
+	c := &clientState{repo: repo, factories: factories, manager: clientruntime.NewWithUnderlay(s.underlay), management: newManagementState()}
 	s.client = c
 	if len(hostDirectory) > 0 {
 		if err := c.manager.ConfigureHost(ctx, hostDirectory[0]); err != nil {
@@ -114,6 +116,9 @@ func (s *Service) CloseClientRuntime(ctx context.Context) error {
 		return nil
 	}
 	c := s.client
+	if err := s.StopManagement(ctx); err != nil {
+		return err
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.closed = true
@@ -215,6 +220,9 @@ func (s *Service) clientCandidate(ctx context.Context, b json.RawMessage) (clien
 				return invalid()
 			}
 			n := *m.Node
+			if m.Action == "create" && (n.Provenance.ProviderID != "" || n.Provenance.Key != "") {
+				return invalid()
+			}
 			if m.Action == "create" {
 				if n.ID == "" {
 					n.ID, err = identity.NewID()
@@ -232,6 +240,12 @@ func (s *Service) clientCandidate(ctx context.Context, b json.RawMessage) (clien
 					return out, identity.Err(identity.NotFound, "node not found")
 				}
 				if n.ID != id || n.CredentialID != state.Nodes[pos].CredentialID || m.Credential != nil {
+					return invalid()
+				}
+				if !reflect.DeepEqual(n.Provenance, state.Nodes[pos].Provenance) {
+					return invalid()
+				}
+				if state.Nodes[pos].Provenance.ProviderID != "" && (!reflect.DeepEqual(n.Protocol, state.Nodes[pos].Protocol) || !reflect.DeepEqual(n.Endpoint, state.Nodes[pos].Endpoint) || !reflect.DeepEqual(n.Options, state.Nodes[pos].Options) || !reflect.DeepEqual(n.Security, state.Nodes[pos].Security) || !reflect.DeepEqual(n.Transport, state.Nodes[pos].Transport)) {
 					return invalid()
 				}
 			}
@@ -263,6 +277,9 @@ func (s *Service) clientCandidate(ctx context.Context, b json.RawMessage) (clien
 				return invalid()
 			}
 			n := state.Nodes[pos]
+			if n.Provenance.ProviderID != "" {
+				return invalid()
+			}
 			n.CredentialID, err = identity.NewID()
 			if err != nil {
 				return out, err
@@ -278,6 +295,9 @@ func (s *Service) clientCandidate(ctx context.Context, b json.RawMessage) (clien
 				return out, identity.Err(identity.NotFound, "node not found")
 			}
 			if m.Credential != nil {
+				return invalid()
+			}
+			if state.Nodes[pos].Provenance.ProviderID != "" {
 				return invalid()
 			}
 			for _, o := range state.Outbounds {
@@ -303,6 +323,9 @@ func (s *Service) clientCandidate(ctx context.Context, b json.RawMessage) (clien
 			}
 			o := *m.Outbound
 			if m.Action == "create" {
+				if o.ProviderID != "" {
+					return invalid()
+				}
 				if o.ID == "" {
 					o.ID, err = identity.NewID()
 					if err != nil {
@@ -320,6 +343,9 @@ func (s *Service) clientCandidate(ctx context.Context, b json.RawMessage) (clien
 					return out, identity.Err(identity.NotFound, "outbound not found")
 				}
 				if o.ID != id {
+					return invalid()
+				}
+				if o.ProviderID != state.Outbounds[pos].ProviderID {
 					return invalid()
 				}
 				out.state.Outbounds[pos] = o
@@ -416,6 +442,27 @@ func (s *Service) clientCandidate(ctx context.Context, b json.RawMessage) (clien
 	}
 	if err = out.state.Validate(); err != nil {
 		return out, err
+	}
+	// Provider-owned rule content is updated through its generation transaction.
+	// Manual routing changes can reference it but cannot overwrite or remove it.
+	for _, p := range state.Management.Providers {
+		if p.Kind != "ruleset" || p.Generation == 0 {
+			continue
+		}
+		var oldSet, newSet P.RuleSet
+		for _, x := range state.Network.RuleSets {
+			if x.ID == p.RuleSetID {
+				oldSet = x
+			}
+		}
+		for _, x := range out.state.Network.RuleSets {
+			if x.ID == p.RuleSetID {
+				newSet = x
+			}
+		}
+		if !reflect.DeepEqual(oldSet, newSet) {
+			return invalid()
+		}
 	}
 	credentials, err := s.clientCredentials(ctx, out.state, out.secrets)
 	if err != nil {

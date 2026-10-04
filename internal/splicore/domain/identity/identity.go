@@ -16,6 +16,10 @@ import (
 
 type Code string
 
+// RetiredRuntimeStateMessage is the fixed operator guidance safe to expose at
+// the CLI boundary. Arbitrary error messages still remain redacted.
+const RetiredRuntimeStateMessage = "retired Xray or transport-mask state retained; remove unsupported records with the previous experimental build before upgrade"
+
 const (
 	Invalid                      Code = "invalid"
 	Conflict                     Code = "revision_conflict"

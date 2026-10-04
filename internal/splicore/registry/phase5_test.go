@@ -18,7 +18,7 @@ func TestVLESSProtocolIsIndependentOfEngine(t *testing.T) {
 		t.Fatal(err)
 	}
 	implementations := e.Implementations("vless")
-	if len(implementations) != 2 || implementations[0].ID != "native" || implementations[1].ID != "xray" || implementations[1].RuntimeImplemented || implementations[1].Availability != ports.NotCompiled {
+	if len(implementations) != 1 || implementations[0].ID != "native" {
 		t.Fatal("VLESS multi-engine declaration")
 	}
 	id := func() identity.ID {
@@ -42,9 +42,8 @@ func TestVLESSProtocolIsIndependentOfEngine(t *testing.T) {
 	if _, err := n.Compile(context.Background(), in); err == nil {
 		t.Fatal("native executed xray intent")
 	}
-	x, _ := e.Get("xray")
-	if _, err := x.Compile(context.Background(), in); err == nil {
-		t.Fatal("placeholder executed")
+	if _, err := e.Get("xray"); err == nil {
+		t.Fatal("removed engine registered")
 	}
 	doc := map[string]any{"schema": 1, "engine": "xray", "name": "synthetic", "listener": access.Endpoint{Host: "127.0.0.1", Port: 12345}, "display_endpoint": access.Endpoint{Host: "edge.test", Port: 443}, "settings": json.RawMessage(settings), "users": []any{map[string]any{"account_name": "Alice"}}}
 	b, _ := json.Marshal(doc)

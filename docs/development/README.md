@@ -124,3 +124,10 @@ See the [distribution gate](../DISTRIBUTION.md) and
 The clean `codex/phase-10-client-runtime-foundation` branch starts there;
 client implementation is not started. NoBrand migration remains deferred until
 the unified client/server core is complete.
+
+## Current architecture correction
+
+Native is the sole runtime engine. Historical Phase 6/7 direction is superseded; FinalMask/Sudoku are out of scope.
+
+- [Decision](../adr/0035-xray-runtime-removed-from-core.md)
+- [Correction report](../reports/ARCHITECTURE_CORRECTION_XRAY_BOUNDARY_REPORT.md)

@@ -1,64 +1,56 @@
-# Managed protocol capability matrix
+# Current capability matrix
 
-- Documentation status: Canonical
-- Audience: API, protocol and operations developers
-- Last reviewed: 2026-10-03
-- Owner: Protocol maintainers
-- Responsibility: Current experimental managed capabilities and policy limits.
-- Lifecycle: Update with relevant design/code changes under the documentation policy.
+Documentation status: Current architecture correction
+Audience: Maintainers and operators
+Last reviewed: 2026-10-04
+Owner: Splicore maintainer
+Responsibility: Independent native Server + Client Core boundary
+Lifecycle: Experimental; Phase 14 local freeze
 
-| Protocol / engine | TCP payload | UDP payload | Multi-user | Attributed payload stats | Client qualification | Mutation |
-|---|---|---|---|---|---|---|
-| Snell v5/v6 / native | Yes | Yes | Single PSK | Inbound | Pinned Mihomo/sing-box; Surge contract only | Restart |
-| Hysteria2 / native | Yes | Yes | Yes | Inbound/Binding | Mihomo 1.19.30, sing-box 1.14.1 | Binding restart |
-| TUIC v5 / native | Yes | Yes | Yes | Inbound/Binding | Mihomo 1.19.30, sing-box 1.14.1 | Binding restart |
-| VLESS flow-none / native | Yes | XUDP | Yes | Inbound/Binding | Pinned Mihomo/sing-box | Binding restart |
-| VLESS flow-none / xray | Yes | Bounded profile | Yes | Unsupported | Pinned client/profile matrix | Child restart |
-| VLESS FinalMask/Sudoku / xray | Bounded plain TCP | Unsupported feature profile | Yes | Unsupported | Xray 26.3.27 | Child restart |
-| Mieru / native | Yes | Yes | Yes | Inbound/Binding | Mieru 3.38.0, Mihomo 1.19.30 | Binding restart |
+All runtime protocols are Experimental, under EngineID native. Protocol != Engine
+is preserved; it does not authorize third-party runtime ownership.
 
-All remain Experimental. Strict quota/speed/session enforcement and durable usage
-are deferred. Mieru QuotaNative is **not exposed**, despite upstream rolling-MiB
-admission support. No hot-user update/reload promise. Build, runtime availability
-and measured qualification are separate. Exact profile/client boundaries:
-[client compatibility](CLIENT_COMPATIBILITY.md), [interop](../testing/INTEROP_MATRIX.md),
-[Mieru](../protocol/MIERU.md). Vision remains deferred/unsupported.
+| Protocol | Server TCP/UDP payload | Client TCP/UDP payload | Endpoint | Security |
+| --- | --- | --- | --- | --- |
+| Snell v5/v6 | Yes / Yes | Yes / Yes | IPv4/IPv6/domain | PSK, inherited wire |
+| Hysteria2 | Yes / Yes | Yes / Yes | IPv4/IPv6/domain | QUIC/TLS, explicit trust |
+| TUIC v5 | Yes / Yes | Yes / Yes | IPv4/IPv6/domain | QUIC/TLS, UUID/password |
+| VLESS flow-none | Yes / XUDP | Yes / XUDP | IPv4/IPv6/domain | Plain/TLS/REALITY |
+| Mieru | Yes / Yes | Yes / Yes | IPv4/IPv6/domain | Official embedded TCP/UDP transport |
 
-## Client Runtime Experimental capabilities
+Snell v5 canonical intent uses the inherited v4 compatibility adapter; v6 maps to
+v6. No wire is rewritten. REALITY requires `with_utls`. QUIC requires `with_quic`.
+All-five native client adapters support bounded canonical validation and stats;
+global SDK metrics never enter attributed accounting.
 
-| Capability | State / scope |
+| Shared product feature | State |
 | --- | --- |
-| Local SOCKS5 TCP CONNECT | SUPPORTED; no-auth loopback IP only, configurable port, IPv4/IPv6. |
-| Local SOCKS UDP ASSOCIATE | SUPPORTED; loopback relay, TCP peer IP/source-port ownership and bounded flows. |
-| DIRECT | SUPPORTED; IPv4/IPv6/domain TCP and UDP. |
-| Snell/native outbound | Experimental / TCP+UDP; server5→client4,6→6; UDP domains resolve locally. |
-| Remote Snell outbound UDP | SUPPORTED through optional adapter port; separate from local SOCKS. |
-| Minimal routing | Committed default outbound plus local selected override. |
-| Health / stats | Passive configured/available/active/error; ephemeral payload/session dimensions. |
-| HY2/native, TUIC v5/native | Experimental / TCP+UDP, TLS/QUIC, IPv4/IPv6/domain. |
-| VLESS/native and VLESS/xray | Experimental / flow-none TCP+XUDP, plain/TLS/REALITY; Vision rejects. |
-| Mieru/native | Experimental / official v3.38.0, TCP/UDP underlays and payloads; UDP domains resolve locally. |
-| Client FinalMask/Sudoku | DEFERRED; server support does not imply client support. |
-| Routing / DNS / policy | Experimental Phase 12; ordered domain/IP/port/network/local/RuleSet rules, System/UDP/TCP/DoT, typed groups and outbound HTTP probes. |
-| Subscriptions / providers / FakeIP / DoH / regex / Geo | DEFERRED. |
+| DIRECT / REJECT | Implemented builtins |
+| SOCKS TCP/UDP, HTTP | Implemented local ingress |
+| TUN, routing/DNS/policy | Implemented; platform qualification limits below |
+| Selector / URL-Test / Fallback / Load-Balance | Implemented bounded profiles |
+| Import/proxy provider/RuleSet provider | Phase 14 implemented, unfrozen |
+| Atomic previews, identity, encrypted sources, offline recovery | Retained |
+| Vision | Deferred / Unsupported; explicit rejection |
+| FinalMask / Sudoku | OUT OF SCOPE FOR SPLICORE; imports Unsupported |
+| Xray engine/server/client/child/artifact | Absent |
+| External runtime required | No |
 
-All implemented protocols and native/Xray engines declare both roles. Exact outbound
-capabilities distinguish role, address families, domain, TLS/QUIC/REALITY and flows.
-Server capabilities above remain Experimental within
-their frozen feature scopes. No additional service/binary; no NoBrand migration.
-See [client runtime](CLIENT_RUNTIME.md) and [routing](ROUTING_MODEL.md).
+Native server binding counters are runtime-generation payload/session evidence,
+not durable billing. Quota/rate/session enforcement is limited by the actual
+capability API; strict unsupported policy fails closed. Hot mutation capabilities
+are protocol-specific; VLESS user changes restart the affected native generation.
 
-## Phase 13 host integration
+Production egress inventory covers DIRECT, DNS/bootstrap, health, five native
+clients, native server targets and provider fetch, with Unknown=0 required. No
+external-child egress surface remains. TUN generations retain shared leases and
+host journal debt correctly.
 
-The Experimental scope is locally frozen under the
-[Phase 13 freeze report](../reports/PHASE_13_FREEZE_REPORT.md); no qualification is upgraded.
+Local evidence includes Linux default race/checkptr and disposable WSL kernel/service
+tests. Native Ubuntu auto-route/real Windows system-network qualification remain
+uncertified; Windows race is not executed, Linux arm64 build-only. Wintun/WinINET
+fixtures are contract evidence, not real host certification.
 
-TUN: Experimental Linux dual-stack auto-route/gVisor; WSL evidence only, native
-runtime NOT CERTIFIED. HTTP/mixed: loopback CONNECT/plain HTTP/SOCKS. DNS interception:
-shared TCP/UDP53 engine, host DNS unchanged. Windows owned Wintun session/adapter,
-typed LAN WinINET restore and bypass reconciliation: implemented, fixture-qualified.
-Windows runtime underlay wiring: unified factory and actual adapter fixtures;
-Xray and unknown System DNS fail closed when required. Original TUN/proxy guards
-and auto-route rejection remain before mutation pending real qualification. Real Windows TUN/auto-route/WinINET NOT CERTIFIED; full
-Windows race NOT EXECUTED. Linux desktop proxy unsupported; macOS not implemented.
-DoH/FakeIP/roaming deferred. See [system integration](../SYSTEM_INTEGRATION.md).
+Historical reports remain unchanged and are superseded for current Xray support by
+[ADR 0035](../adr/0035-xray-runtime-removed-from-core.md) and the
+[correction report](../reports/ARCHITECTURE_CORRECTION_XRAY_BOUNDARY_REPORT.md).

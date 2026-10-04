@@ -24,7 +24,7 @@ func TestWindowsBypassDependencyMatrix(t *testing.T) {
 	deps := []WindowsDependency{
 		{ID: "v4", Reason: "node", Host: "192.0.2.11"}, {ID: "v6", Reason: "node", Host: "2001:db8::11"}, {ID: "mapped", Reason: "node", Host: "::ffff:192.0.2.11"},
 		{ID: "domain", Reason: "node", Host: "node.fixture.test", Requires: []string{"bootstrap"}},
-		{ID: "xray", Reason: "xray", Host: "192.0.2.12"}, {ID: "bootstrap", Reason: "dns-bootstrap", Host: "192.0.2.53"},
+		{ID: "second-node", Reason: "node", Host: "192.0.2.12"}, {ID: "bootstrap", Reason: "dns-bootstrap", Host: "192.0.2.53"},
 		{ID: "upstream", Reason: "dns-upstream", Host: "dns.fixture.test", Requires: []string{"bootstrap"}},
 		{ID: "health", Reason: "health", Host: "health.fixture.test", Requires: []string{"bootstrap"}},
 		{ID: "control", Reason: "control", Host: "127.0.0.1"},
@@ -45,7 +45,7 @@ func TestWindowsBypassDependencyMatrix(t *testing.T) {
 	if !reflect.DeepEqual(copyBefore, plan.Routes[0].Reasons) {
 		t.Fatal("caller mutation changed plan")
 	}
-	for _, kind := range []string{"node-resolver-outbound-node", "probe-group-dns-group", "xray-dns-tun-xray"} {
+	for _, kind := range []string{"node-resolver-outbound-node", "probe-group-dns-group", "node-dns-tun-node"} {
 		graph := []WindowsDependency{{ID: "a", Reason: "node", Host: "node.fixture.test", Requires: []string{"b"}}, {ID: "b", Reason: "dns-upstream", Requires: []string{"c"}}, {ID: "c", Reason: "outbound", Requires: []string{"a"}}}
 		called := false
 		_, err = BuildWindowsBypassPlan(ctx, graph, u, func(context.Context, string) ([]netip.Addr, error) { called = true; return nil, nil })
@@ -59,7 +59,7 @@ func TestWindowsCanonicalProfileDependencyProjection(t *testing.T) {
 	state := client.Empty()
 	nid, oid, resolver := id("1"), id("2"), id("3")
 	state.Nodes = []client.RemoteNode{{ID: nid, Endpoint: access.Endpoint{Host: "node.fixture.test", Port: 443}}}
-	state.Outbounds = append(state.Outbounds, client.Outbound{ID: oid, NodeID: &nid, Engine: "xray"})
+	state.Outbounds = append(state.Outbounds, client.Outbound{ID: oid, NodeID: &nid, Engine: "native"})
 	if _, e := WindowsProfileDependencies(state, nil); e == nil {
 		t.Fatal("unknown system bootstrap accepted")
 	}
@@ -67,14 +67,14 @@ func TestWindowsCanonicalProfileDependencyProjection(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if !slices.ContainsFunc(d, func(v WindowsDependency) bool { return v.Reason == "xray" }) {
-		t.Fatal("Xray ownership omitted")
+	if !slices.ContainsFunc(d, func(v WindowsDependency) bool { return v.ID == "node:"+string(nid) }) {
+		t.Fatal("Native ownership omitted")
 	}
 	plan, err := BuildWindowsBypassPlan(context.Background(), d, bypassUnderlays(), func(context.Context, string) ([]netip.Addr, error) {
 		return []netip.Addr{netip.MustParseAddr("192.0.2.11")}, nil
 	})
-	if err != nil || !slices.ContainsFunc(plan.Routes, func(r WindowsRouteState) bool { return slices.Contains(r.Reasons, "xray:xray:"+string(oid)) }) {
-		t.Fatal("Xray child endpoint route ownership omitted", err)
+	if err != nil || !slices.ContainsFunc(plan.Routes, func(r WindowsRouteState) bool { return slices.Contains(r.Reasons, "node:node:"+string(nid)) }) {
+		t.Fatal("Native endpoint route ownership omitted", err)
 	}
 	state.Network.DNS.Enabled = true
 	state.Network.DNS.BootstrapServer = resolver

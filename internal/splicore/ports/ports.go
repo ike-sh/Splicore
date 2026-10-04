@@ -85,13 +85,12 @@ type ClientCompatibility struct {
 	Evidence string
 }
 type Capabilities struct {
-	Transport      TransportCapabilities
-	Identity       IdentityCapabilities
-	Policy         PolicyCapabilities
-	Mutation       MutationCapabilities
-	Security       SecurityCapabilities
-	Clients        []ClientCompatibility
-	EngineFeatures []EngineFeature
+	Transport TransportCapabilities
+	Identity  IdentityCapabilities
+	Policy    PolicyCapabilities
+	Mutation  MutationCapabilities
+	Security  SecurityCapabilities
+	Clients   []ClientCompatibility
 }
 type ProtocolMetadata struct {
 	Roles           Roles
@@ -114,10 +113,9 @@ type RuntimeIntent struct {
 	Revision          identity.Revision
 }
 type AuthorizedBinding struct {
-	Binding                 access.Binding
-	Inbound                 access.Inbound
-	Credential              access.Credential
-	ClientSharedCredentials []access.Credential
+	Binding    access.Binding
+	Inbound    access.Inbound
+	Credential access.Credential
 }
 type Protocol interface {
 	Metadata() ProtocolMetadata

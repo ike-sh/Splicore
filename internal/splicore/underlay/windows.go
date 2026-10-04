@@ -46,8 +46,6 @@ func (b *WindowsBackend) Reconcile(ctx context.Context, endpoints []Endpoint) er
 			reason = "dns-upstream"
 		case HealthProbe:
 			reason = "health"
-		case EngineChild:
-			reason = "xray"
 		}
 		d = append(d, hostnetwork.WindowsDependency{ID: fmt.Sprintf("lease:%s:%d", e.Scope.Generation, i), Reason: reason, Addresses: []netip.Addr{e.Address}})
 	}

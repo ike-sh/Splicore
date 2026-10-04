@@ -27,6 +27,9 @@ type Dependencies struct {
 }
 
 func Run(ctx context.Context, args []string, out, errOut io.Writer, deps Dependencies) int {
+	if len(args) > 0 && (args[0] == "provider" || args[0] == "ruleset-provider" || args[0] == "node" && len(args) > 1 && (args[1] == "import" || args[1] == "import-uri" || args[1] == "export" || args[1] == "batch" || args[1] == "apply")) {
+		return managementCLI(ctx, args, out, errOut, deps)
+	}
 	if len(args) > 0 && (args[0] == "tun" || args[0] == "system-proxy" || args[0] == "network" && len(args) > 1 && args[1] == "repair") {
 		return clientCLI(ctx, args, out, errOut, deps)
 	}
@@ -173,6 +176,7 @@ func offlineDoctor(ctx context.Context, out io.Writer, c config.Config, v versio
 	}
 	d.Checks = append(d.Checks, application.Check{Name: "api_transport", Status: "pass", Detail: "application response received"}, application.Check{Name: "db_schema", Status: "pass", Detail: fmt.Sprint(system.DBSchema)}, application.Check{Name: "foundation_health", Status: "info", Detail: system.Health})
 	d.Checks = append(d.Checks, operations.ClientDoctorChecks(system.ClientRuntime)...)
+	d.Checks = append(d.Checks, application.Check{Name: "providers", Status: "info", Detail: fmt.Sprintf("proxy=%d ruleset=%d degraded=%d stale_nodes=%d scheduler=%t active=%d", system.Providers.ProxyProviders, system.Providers.RuleSetProviders, system.Providers.Degraded, system.Providers.StaleNodes, system.Providers.Scheduler, system.Providers.ActiveRefreshes)})
 	d.Checks = append(d.Checks, application.Check{Name: "database", Status: "pass", Detail: system.Foundation.DatabaseStatus}, application.Check{Name: "migrations", Status: "info", Detail: fmt.Sprint(system.Foundation.PendingMigrations) + " pending"}, application.Check{Name: "transactions", Status: "info", Detail: fmt.Sprint(system.Foundation.PendingTransactions) + " pending"}, application.Check{Name: "engine_registry", Status: "pass", Detail: fmt.Sprint(system.Foundation.Engines) + " engine entries"}, application.Check{Name: "exporter_registry", Status: "pass", Detail: fmt.Sprint(system.Foundation.Exporters) + " compiled exporters"})
 	page, err := q.Capabilities(ctx, "", 200)
 	if err == nil {
@@ -195,6 +199,9 @@ func failure(out io.Writer, err error) int {
 		message = string(e.Code) + ": command rejected"
 		if e.Code == identity.PortConflict {
 			message = "port_conflict: listener port is already in use"
+		}
+		if e.Code == identity.UnsupportedEngineForProtocol && e.Message == identity.RetiredRuntimeStateMessage {
+			message = string(e.Code) + ": " + identity.RetiredRuntimeStateMessage
 		}
 	}
 	_, _ = fmt.Fprintln(out, message)

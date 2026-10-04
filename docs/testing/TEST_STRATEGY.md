@@ -90,28 +90,12 @@ default race/checkptr. Fixed-version real clients verify the non-Vision matrix a
 secret gates. [Final evidence](../reports/PHASE_5_FINAL_ACCEPTANCE_REPORT.md) owns
 actual outcomes; preserve earlier diagnostic failures and frozen Phase 0–4 reports.
 
-## Phase 6 external engine gates
+## Current runtime boundary gates
 
-Process fixtures test precommit admission, OS listener ownership, concurrent
-close/traffic, double lifecycle calls, unrelated child survival, early exit,
-timeout, conflict, exclusive root lease and stale cleanup. The explicit pinned
-integration tag fails if the reference artifact is missing and proves shared
-Account/UUID placement, profile/export equality, transaction compensation and
-SQLite regeneration. Run default race/checkptr, process tests 10x, path/renderer
-fuzzing, fresh protocol regressions, Windows manager/build, arm64 compile,
-secret/doc/OpenAPI/live API and source/dependency/history/index audits.
-
-## Phase 7 specialized extension gates
-
-[Phase 7 workflow](../development/PHASE_7_XRAY_EXTENSIONS.md) requires typed parser,
-feature intersection/version/hash, renderer-owned config snapshot, profile/exporter,
-secret filtering/redaction, transaction admission/compensation and SQLite recovery.
-Default race/checkptr run over full Splicore and affected shared packages; supervisor
-and pinned masked transaction/recovery tests repeat ten times. Fuzz bounded parser
-and renderer inputs. Managed API-to-exporter-to-real-Xray traffic is independent of
-the preliminary raw reference probe. Fresh native REALITY, Xray standard and three
-old protocol regressions, docs/OpenAPI/live schemas/secret scans/diff audit are gates.
-No Stable, masked UDP or REALITY combination claim follows from TCP acceptance.
+Assert native-only registry, no spawned third-party core, no artifact/config
+requirement, explicit retained-state upgrade rejection and Unsupported imports
+without stripping. Preserve native plain/TLS/REALITY security and lifetime tests.
+Historical Phase 6/7 evidence remains archived; [ADR 0035](../adr/0035-xray-runtime-removed-from-core.md).
 
 ## Phase 8 Mieru ownership gates
 
@@ -129,7 +113,7 @@ The [distribution gate](../DISTRIBUTION.md#distribution-gate) builds determinist
 amd64/arm64 packages and Windows binaries, verifies inventories/checksums and runs
 default race/checkptr plus support secret tests. A disposable nested systemd lab
 tests first initialization, non-root low TCP/UDP ports, all installed protocol
-smokes, restart, parent/managed-child crash and unrelated Xray survival. It performs
+smokes, restart, daemon crash recovery. It performs
 an ordinary update and an external schema5 failure fixture with snapshot rollback,
 then program-only uninstall, retained-state reinstall and explicit safe purge.
 Symlinks and same-filesystem bind mounts must reject purge before deletion.
@@ -163,9 +147,9 @@ families on one target port; remote-domain tests do not depend on address order.
 
 ## Phase 11 expansion gates
 
-Run the owned suite with `-race -count=1 -tags with_quic,with_utls,splicore_xray_integration`
-and the exact pinned Xray artifact. No GODEBUG/checkptr/race suppression. Shared
-common/protocol/adapter packages retain their own race gate. UDP, Mieru and Xray
+Run the owned suite with `-race -count=1 -tags with_quic,with_utls`
+with no external runtime artifact. No GODEBUG/checkptr/race suppression. Shared
+common/protocol/adapter packages retain their own race gate. UDP and Mieru
 lifecycle tests each run ten times. Canonical options/public security/SOCKS address
 parsers receive bounded fuzzing only; wire/crypto implementations are not fuzzed.
 
@@ -177,7 +161,7 @@ fixtures/artifacts/evidence stay external; no host or third-party targets are us
 
 ## Phase 12 gates
 
-Run owned default race/checkptr with with_quic,with_utls,splicore_xray_integration;
+Run owned default race/checkptr with with_quic,with_utls;
 affected DNS/TLS/clientio/jsonstrict race packages; complete Windows tests/build and
 actual local routing/DNS smoke, recording Windows race NOT EXECUTED. Arm64 build only.
 Synthetic 1k/10k compile/match benchmarks include allocations. Network-free bounded
@@ -204,6 +188,6 @@ without real mutation. Fuzz typed WinINET/journal/desired-set/normalization only
 Actual native client/server, DIRECT, DNS/bootstrap/health and Mieru runtimes now
 exercise the protected factory with a stateful fake Windows backend. Dynamic DNS,
 retained/shared references and reused TUN reconciliation run 10x under default
-race/checkptr; Xray required-mode unavailable platforms reject. Real Windows
+race/checkptr; Unavailable native platform capabilities reject. Real Windows
 qualification remains pending. See [testing](../TESTING.md) and the
 [underlay closure report](../reports/PHASE_13_UNDERLAY_RUNTIME_CLOSURE_REPORT.md).

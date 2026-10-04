@@ -132,14 +132,9 @@ Recovery/reconcile carries committed server credentials, including encrypted REA
 key; imports and client exports are not recovery sources. Reconcile interrupts all
 users on the affected listener. [Decision](../adr/0016-vless-engine-server-secrets.md).
 
-## Xray application of the same lifecycle
+## Retired experimental runtime preflight
 
-Daemon validate/plan/apply checks the selected artifact before pending state. Prepare
-snapshots and renders private canonical intent; Start reserves public admission,
-writes protected config, runs pinned config validation and starts the owned child.
-Health requires expected listener ownership plus live process state. Commit precedes
-Activate. Failures close/join the child and sockets, delete secrets and fail pending
-state without a domain revision. Binding reconcile retains the common restoration
-path. Recovery uses committed SQLite projection and regenerates configuration;
-missing required artifacts fail unavailable without changing engine selection.
-Crash marks failed/degraded, preserves SQLite and requires explicit recovery.
+Retired engine or mask records reject before migration/replacement. State and
+history are preserved; native-only old builds upgrade normally. No hidden child
+or silent native conversion remains. See [upgrade](../UPGRADE.md) and
+[ADR 0035](../adr/0035-xray-runtime-removed-from-core.md).

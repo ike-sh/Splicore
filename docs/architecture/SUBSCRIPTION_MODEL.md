@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Client and application developers
-- Last reviewed: 2026-10-01
+- Last reviewed: 2026-10-04
 - Owner: Client / Core maintainers
 - Responsibility: Export-access scope, token lifecycle and authorized profile selection.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -43,3 +43,12 @@ is a bounded ancillary update, not a mutation that restarts the data plane.
 No full subscription server is implemented in Phase 0. Exporters can be used by
 local CLI/API without Subscriptions, and Subscriptions can later reuse those same
 exporters without protocol/Engine coupling.
+
+## Phase 14 terminology and implemented boundary
+
+The export-token/public-listener design above remains deferred. Phase 14 implements
+**remote subscription ingestion** as [ProxyProvider](PROVIDER_MODEL.md): operator-owned
+encrypted source, bounded fetch, immutable resource matching, preview and canonical
+SQLite generation. It is unrelated to server Account/Entitlement/payment identities.
+No public subscription endpoint is opened. Existing exporters serve explicit local
+protected node export; downloaded raw subscription data is never forwarded unchanged.

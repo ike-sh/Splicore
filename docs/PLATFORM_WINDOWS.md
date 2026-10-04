@@ -32,7 +32,7 @@ preserved. Notifications are SETTINGS_CHANGED then REFRESH. Legacy registry reco
 are diagnostic read-only; the registry write branch has been removed. See the
 [Microsoft option contract](https://learn.microsoft.com/en-us/windows/win32/api/wininet/ns-wininet-internet_per_conn_optionw).
 
-WindowsBypassPlan projects canonical node/Xray/DNS/health/control dependencies,
+WindowsBypassPlan projects canonical node/DNS/health/control dependencies,
 checks cycles before resolution, normalizes mapped IPv4 and merges endpoint reasons.
 Reconciliation installs/verifies new protection before removing unused owned routes.
 Identical pre-existing routes are borrowed, never deleted or counted as owned.
@@ -42,8 +42,7 @@ External edits/journal failures remain degraded; completed history stays bounded
 capability guards and auto-route rejection remain. These implemented and tested
 components now share the production underlay factory with DIRECT, DNS/bootstrap,
 health, Native server/client and Mieru socket owners. Stateful backend spies observe
-actual adapter sockets. Xray required protection rejects before launch on Windows;
-System DNS requires explicit safe DNS settings. Fresh bootstrap, retained generation
+actual adapter sockets. Fresh bootstrap, retained generation
 leases and reused TUN reconciliation are implemented. Real activation remains
 unqualified: the default Windows provider rejects required mode before mutation.
 
@@ -64,7 +63,7 @@ The production WindowsBackend contract requires a lease, SocketControl and Readb
 The fixture substitutes physical route/interface operations only; real Native client
 and server sockets, DIRECT, DNS and health pass through the production factory.
 Dynamic endpoint updates retain old/shared refs and preserve borrowed or externally
-changed routes. Xray remains typed unsafe_underlay under required Windows mode.
+changed routes. Unsupported native platform capabilities remain typed unsafe_underlay.
 System resolver bypass is unknown and rejects; explicit managed DNS remains usable.
 These are implementation proofs. They do not permit activation on this developer
 host or certify Wintun/auto-route/WinINET. See [system integration](SYSTEM_INTEGRATION.md).

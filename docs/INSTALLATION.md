@@ -52,25 +52,12 @@ Layout uses `/var/lib/splicore/state.db`, preserving the existing database name.
 State and runtime directories are 0700; config is root:splicore 0640; key and
 SQLite files are service-owned 0600. Back up the key together with SQLite.
 
-## Optional Xray
+## Single core installation
 
-Mieru is embedded; do not install or start a separate mita service.
-Xray is a separate pinned optional artifact, version 26.3.27. After obtaining
-the trusted local Phase 6 artifact:
-
-```sh
-sudo /usr/local/bin/splicore package engine --artifact /absolute/path/xray
-```
-
-Linux amd64 SHA256 is
-`8255dd939c34cf966cc91517b6324dd3c8d0bcf49ffac8beca049a38c46845ed`.
-Set `xray.binary_path` to
-`/var/lib/splicore/engines/xray-artifact/xray-26.3.27`, then restart the main unit.
-There is no startup download and no `xray.service`. Linux arm64 Xray is not
-qualified; the installer rejects that optional engine there.
-
-See [operations](OPERATIONS.md), [upgrade](UPGRADE.md), [uninstall](UNINSTALL.md)
-and [support bundles](SUPPORT_BUNDLE.md).
+Only the Splicore binary is installed. Mieru is embedded. No external runtime,
+artifact pin, download or runtime directory is required. FinalMask/Sudoku are
+out of scope; future NoBrand can deploy an independent Xray service.
+For experimental upgrade preflight see [UPGRADE](UPGRADE.md).
 
 ## Phase 13 host integration
 

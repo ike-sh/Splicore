@@ -80,7 +80,7 @@ func Foundation() (*Protocols, *Engines, *Exporters, error) {
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	e, err := NewEngines(EnginePlaceholder{ports.EngineMetadata{ID: "native", Availability: ports.Compiled, ABI: 1}}, EnginePlaceholder{ports.EngineMetadata{ID: "xray-compatibility", Availability: ports.NotCompiled, ABI: 1}})
+	e, err := NewEngines(EnginePlaceholder{ports.EngineMetadata{ID: "native", Availability: ports.Compiled, ABI: 1}})
 	if err != nil {
 		return nil, nil, nil, err
 	}

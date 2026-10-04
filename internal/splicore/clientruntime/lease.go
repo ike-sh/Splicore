@@ -6,6 +6,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
 	"github.com/sagernet/sing-box/internal/splicore/domain/client"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	"github.com/sagernet/sing-box/internal/splicore/domain/provider"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
 	"net"
 	"sync/atomic"
@@ -48,6 +49,12 @@ func effectiveKey(o client.Outbound, n client.RemoteNode) string {
 	o.Name = ""
 	n.Name = ""
 	n.Metadata = identity.Metadata{}
+	n.Tags = nil
+	n.Provenance = provider.Provenance{}
+	if n.State == "active" || n.State == "stale" {
+		n.State = ""
+	}
+	o.ProviderID = ""
 	b, _ := json.Marshal(struct {
 		Outbound client.Outbound
 		Node     client.RemoteNode

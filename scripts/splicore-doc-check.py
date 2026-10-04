@@ -9,6 +9,7 @@ import collections
 import json
 import pathlib
 import re
+import subprocess
 import unicodedata
 import urllib.parse
 
@@ -28,6 +29,14 @@ def main():
     inventory = json.loads(args.inventory.read_text(encoding="utf-8-sig"))
     markdown = MarkdownIt("commonmark").enable("table")
     documents, anchors = {}, {}
+
+    def historical(name):
+        return name.startswith("docs/reports/") or name.startswith("docs/PHASE_") or name.startswith("docs/development/PHASE_") or (name.startswith("docs/adr/") and re.match(r"docs/adr/00(?:[0-2][0-9]|3[0-4])-", name))
+
+    def frozen_source(name):
+        result = subprocess.run(["git", "--no-optional-locks", "show", "HEAD:" + name], cwd=root, capture_output=True)
+        assert result.returncode == 0, ("historical reference absent from frozen HEAD", name)
+        return result.stdout.decode("utf-8-sig")
 
     def slug(text):
         text = re.sub(r"<[^>]*>", "", text).strip().lower()
@@ -70,16 +79,25 @@ def main():
                     continue
                 path = urllib.parse.unquote(parsed.path)
                 target = ((root / name).parent / path if path else root / name).resolve()
-                assert target.is_relative_to(root) and target.exists(), (name, href)
+                assert target.is_relative_to(root), (name, href)
                 target_name = target.relative_to(root).as_posix()
+                if not target.exists():
+                    assert historical(name), (name, href)
+                    frozen_source(target_name)
                 if parsed.fragment:
                     if target_name not in anchors and target.suffix == ".md":
                         parse_document(target_name)
-                    assert urllib.parse.unquote(parsed.fragment) in anchors.get(target_name, set()), (name, href)
+                    fragment = urllib.parse.unquote(parsed.fragment)
+                    if fragment not in anchors.get(target_name, set()):
+                        assert historical(name), (name, href)
+                        archived = frozen_source(target_name)
+                        assert fragment in {slug(h) for h in re.findall(r"^#{1,6} (.+)$", archived, re.M)}, (name, href)
                 graph[name].add(target_name)
                 links += 1
         for source in re.findall(r"`([A-Za-z0-9_./-]+\.go)`", text):
-            assert (root / source).is_file() or re.search(r"https://github.com/[^)\s]+/" + re.escape(source), text), (name, source)
+            if not (root / source).is_file() and not re.search(r"https://github.com/[^)\s]+/" + re.escape(source), text):
+                assert historical(name), (name, source)
+                frozen_source(source)
     reached, stack = set(), ["README.md"]
     while stack:
         name = stack.pop()
@@ -110,8 +128,8 @@ def main():
         for method, operation in methods.items():
             if method in {"get", "post", "put", "patch", "delete"}:
                 operations.append(operation["operationId"])
-                assert operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "phase4", "phase5", "phase10", "phase12", "phase13", "deferred"}
-                if operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "phase4", "phase5", "phase10", "phase12", "phase13"}:
+                assert operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "phase4", "phase5", "phase10", "phase12", "phase13", "phase14", "deferred"}
+                if operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "phase4", "phase5", "phase10", "phase12", "phase13", "phase14"}:
                     implemented.append((method, path))
     assert len(operations) == len(set(operations))
     client_operations = [(method, "/api/v1/" + collection + suffix)
@@ -133,6 +151,11 @@ def main():
         "/api/v1/dns/profile":["get","put"],"/api/v1/dns/lookup":["post"],
         "/api/v1/dns/cache/status":["get"],"/api/v1/dns/cache/flush":["post"]}.items() for method in methods]
     client_operations += [("get","/api/v1/client/host-integration"),("put","/api/v1/client/host-integration"),("get","/api/v1/client/host-network"),("post","/api/v1/client/host-network/repair")]
+    client_operations += [(method,"/api/v1/"+collection+suffix)
+        for collection in ["providers","rule-set-providers"]
+        for suffix,methods in [("",["get","post"]),("/{id}",["get","put","delete"]),("/{id}/refresh",["post"]),("/{id}/refresh-preview",["post"])]
+        for method in methods]
+    client_operations += [("post","/api/v1/"+path) for path in ["imports/preview","imports/apply","nodes/import-preview","nodes/batch-preview","nodes/export"]]
     assert sorted(implemented) == sorted(client_operations + [
         ("get", "/api/v1/capabilities"), ("get", "/api/v1/system"),
         ("get", "/api/v1/inbounds"), ("get", "/api/v1/inbounds/{id}"),
@@ -145,6 +168,8 @@ def main():
     assert not {"password", "psk", "token", "uuid", "secret_data"} & set(spec["components"]["schemas"]["Account"]["properties"])
     assert not {"password", "psk", "token", "value", "secret_data"} & set(spec["components"]["schemas"]["RemoteNode"]["properties"])
     assert spec["components"]["schemas"]["ClientCredentialInput"]["properties"]["value"]["writeOnly"] is True
+    assert spec["components"]["schemas"]["ProviderSource"]["writeOnly"] is True
+    assert spec["components"]["schemas"]["ProviderAuth"]["properties"]["value"]["writeOnly"] is True
     if args.responses:
         pairs=[("system-response.json","System"),("http-system-response.json","System"),("capabilities-response.json","CapabilityPage"),("inbounds-response.json","RuntimeInboundPage"),("inbound-response.json","RuntimeInboundView")]
         client_pairs = [("client-runtime-response.json", "ClientRuntimeStatus"),
@@ -167,6 +192,13 @@ def main():
             instance = json.loads((args.responses / filename).read_text(encoding="utf-8-sig"))
             document = {"$ref": "#/components/schemas/" + schema, "components": spec["components"]}
             Draft202012Validator(document, format_checker=FormatChecker()).validate(instance)
+        for filename in ["providers-response.json", "ruleset-providers-response.json"]:
+            if (args.responses / filename).exists():
+                document = {"type":"array","items":{"$ref":"#/components/schemas/Provider"},"components":spec["components"]}
+                Draft202012Validator(document, format_checker=FormatChecker()).validate(json.loads((args.responses / filename).read_text(encoding="utf-8-sig")))
+        if (args.responses / "management-preview-response.json").exists():
+            document = {"$ref":"#/components/schemas/ManagementPreview","components":spec["components"]}
+            Draft202012Validator(document, format_checker=FormatChecker()).validate(json.loads((args.responses / "management-preview-response.json").read_text(encoding="utf-8-sig")))
         # Safe envelopes replace content before archival; the harness checks live secrets.
         envelopes = args.responses / "export-envelopes-response.json"
         document = {"$ref": "#/components/schemas/ClientExportResult", "components": spec["components"]}

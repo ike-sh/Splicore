@@ -34,7 +34,7 @@ func TestApplicationGenerationAndPagination(t *testing.T) {
 	s := service(t)
 	ctx := context.Background()
 	system, err := s.System(ctx)
-	if err != nil || system.Health != "degraded" || system.Foundation.Engines != 2 {
+	if err != nil || system.Health != "degraded" || system.Foundation.Engines != 1 {
 		t.Fatal("foundation health inaccurate")
 	}
 	page, err := s.Capabilities(ctx, "", 1)

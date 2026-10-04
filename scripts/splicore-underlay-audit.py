@@ -13,7 +13,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--root", type=pathlib.Path, default=pathlib.Path(__file__).resolve().parents[1])
 parser.add_argument("--output", type=pathlib.Path, required=True)
 args = parser.parse_args()
-pattern = re.compile(r"net\.(?:Dial(?:er|Timeout|Context|TCP|UDP|Unix)?|Listen(?:Config|Packet|TCP|UDP|Unix)?|DefaultResolver|Resolver)\b|\.(?:DialContext|ListenPacket|LookupNetIP|LookupIP|LookupIPAddr)\(|box\.New\(|api\.NewClient\(|server\.NewServer\(|cmd\.Start\(")
+pattern = re.compile(r"net\.(?:Dial(?:er|Timeout|Context|TCP|UDP|Unix)?|Listen(?:Config|Packet|TCP|UDP|Unix)?|DefaultResolver|Resolver)\b|\.(?:DialContext|ListenPacket|LookupNetIP|LookupIP|LookupIPAddr)\(|\bn\.(?:Dial|Resolve)\(|box\.New\(|api\.NewClient\(|server\.NewServer\(|cmd\.Start\(")
 signature = re.compile(r"^func\s+(?:\([^)]*\)\s+)?([A-Za-z_][A-Za-z_0-9]*)\(")
 prefix = "internal/splicore/"
 rules = {}
@@ -29,6 +29,8 @@ rule("clientruntime/udp.go", "serveUDP", "Intentionally Local", "SOCKS UDP relay
 rule("clientruntime/udp.go", "ListenPacket", "Protected", "DIRECT UDP", "Protected connected UDP socket per association")
 rule("clientruntime/tun.go", "servePacket", "Protected", "TUN selected outbound", "Snapshot ref retained until packet workers joined")
 rule("clientruntime/lease.go", "DialContext ListenPacket", "Protected", "adapter delegation", "Reference-counted adapter; production constructors require factory")
+rule("clientruntime/provider.go", "Dial", "Protected", "Provider HTTP fetch", "Pinned numeric destination; snapshot-held selected adapter or ProviderFetch temporary endpoint lease and protected DIRECT")
+rule("remotesource/fetch.go", "Fetch", "Protected", "Provider HTTP transport delegation", "Checked complete DNS answer; numeric pin; per-redirect policy; generation-owned FetchNetwork; no ambient proxy")
 rule("engine/native/client_box.go", "buildClientBox", "Protected", "Snell/HY2/TUIC/VLESS client", "protectedOutbounds registry -> official common/dialer -> TCP/UDP socket Control")
 rule("engine/native/snell_outbound.go", "DialContext ListenPacket", "Protected", "Native client / UDP DNS", "Official outbound from protected box; injected System-safe resolver")
 rule("engine/native/underlay.go", "Exchange", "Protected", "Native System DNS", "Required mode uses protected resolver; independent resolved/mDNS paths reject")
@@ -41,12 +43,6 @@ rule("engine/native/vless.go", "Start", "Intentionally Local", "VLESS server ing
 rule("engine/native/mieru.go", "Compile route", "Protected", "Mieru server target", "SDK listener hooks own ingress; final TCP/UDP target uses injected provider")
 rule("engine/native/mieru.go", "Listen ListenPacket", "Intentionally Local", "Mieru server ingress", "Official server listener hooks; final target is a distinct protected socket")
 rule("engine/native/mieru_outbound.go", "Build DialContext ListenPacket dial", "Protected", "Mieru client TCP/UDP", "Official v3.38.0 Dialer, PacketDialer, Resolver hooks + clientio ownership")
-rule("engine/xray/runtime.go", "Start", "Protected", "Xray process + ingress", "ChildLease.Verify -> owned launch -> generation/PID Bind; public/private listen is ingress")
-rule("engine/xray/engine.go", "runOwned", "Intentionally Local", "Xray version/config validation", "Pinned artifact metadata or run -test; no active runtime; sole Wait owner")
-rule("engine/xray/runtime.go", "relay", "Intentionally Local", "Xray local relay", "Literal 127.0.0.1 private owned child listener")
-rule("engine/xray/outbound.go", "handshake ListenPacket", "Intentionally Local", "Xray private SOCKS", "Literal loopback TCP; UDP reply validated loopback + nonzero port")
-rule("engine/xray/client_port_other.go", "reserveClientListeners", "Intentionally Local", "Xray private reservations", "Literal loopback TCP/UDP")
-rule("engine/xray/client_port_windows.go", "reserveClientListeners", "Intentionally Local", "Xray private reservations", "Same loopback reservations with exclusive Windows port handling")
 rule("networkruntime/dns.go", "dialPurpose DialContext ListenPacket question", "Protected", "DNS/bootstrap/health", "Typed direct provider or protected selected adapter; numeric bootstrap, unchanged DoT SNI")
 rule("networkruntime/underlay.go", "systemLookup", "Protected", "System DNS", "Protected resolver or typed unsafe_underlay rejection")
 rule("underlay/factory.go", "Resolver LookupNetIP LookupIP dialNumeric DialContext ListenPacket", "Protected", "socket/resolver boundary", "Raw OS sockets only here with Control; DefaultResolver branches require no TUN")
@@ -89,8 +85,6 @@ invariants = {
     "engine/native/client_box.go": ["underlay.FromContext", "protectedOutbounds", "protectedDNS"],
     "engine/native/mieru_outbound.go": ["underlay.DialerFrom", "PacketDialer: d", "Resolver: d.resolver"],
     "engine/native/underlay.go": ["service.ExtendContext", "mdns.IsLocalDomain", "t.d.LookupNetIP"],
-    "engine/xray/outbound.go": ["factory.AcquireChild", "IsLoopback()"],
-    "engine/xray/runtime.go": ["h.underlay.Verify", "h.underlay.Bind", "cmd.Wait()", "h.underlay.Close()"],
     "underlay/factory.go": ["Control: d.Control", "remote !=", "f.required.Load() == 0", "l.released = false", "f.effectiveLocked()"],
 }
 for name, needles in invariants.items():

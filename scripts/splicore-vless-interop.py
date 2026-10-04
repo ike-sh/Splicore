@@ -36,7 +36,7 @@ def main():
     security = sys.argv[2] if len(sys.argv) > 2 else "reality"
     flow = sys.argv[3] if len(sys.argv) > 3 else "none"
     engine = sys.argv[4] if len(sys.argv) > 4 else "native"
-    assert engine in ("native", "xray")
+    assert engine == "native"
     assert security in ("reality", "tls", "none")
     if flow != "none":
         raise RuntimeError("requested VLESS flow is unsupported")
@@ -46,8 +46,6 @@ def main():
     prefix=os.environ.get("SPLICORE_INTEROP_RUN_PREFIX", "")
     assert prefix in ("", "production-", "final-", "acceptance-")
     label = prefix + f"vless-{security}-{flow}"
-    if engine == "xray":
-        label = prefix + f"vless-xray-{security}-{flow}"
     work = root / label
     work.mkdir(mode=0o700, exist_ok=False)
     private = work / "private"
@@ -104,25 +102,6 @@ def main():
                 time.sleep(.05)
         raise RuntimeError("Splicore startup timeout")
 
-    def remove_owned_stale_control_socket():
-        # The product requires operator review of sockets left by SIGKILL.
-        # This campaign owns the exact path and has joined its dead daemon.
-        assert daemon.poll() is not None
-        assert api.parent.resolve() == private.resolve()
-        previous = api.lstat()
-        assert stat.S_ISSOCK(previous.st_mode)
-        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as probe:
-            probe.settimeout(1)
-            try:
-                probe.connect(str(api))
-            except ConnectionRefusedError:
-                pass
-            else:
-                raise RuntimeError("control socket still has a listener")
-        current = api.lstat()
-        assert stat.S_ISSOCK(current.st_mode)
-        assert (current.st_dev, current.st_ino) == (previous.st_dev, previous.st_ino)
-        api.unlink()
 
     def start_client(client, exported, name):
         port = helper.free_port()
@@ -196,11 +175,6 @@ def main():
     try:
         subprocess.run([exe, "key", "init", "--file", str(key)], check=True, stdout=subprocess.DEVNULL)
         bootstrap.write_text(f"schema: 1\nstate_directory: {state}\nkey_file: {key}\napi:\n  unix_socket: {api}\n", encoding="utf-8")
-        if engine == "xray":
-            xray_binary = pathlib.Path(os.environ["SPLICORE_XRAY_BINARY"]).resolve()
-            assert xray_binary.is_file()
-            with bootstrap.open("a", encoding="utf-8") as file:
-                file.write(f"xray:\n  binary_path: {xray_binary}\n  runtime_directory: {private / 'xray'}\n")
         sni = "target.synthetic.test"
         ca_key, ca_cert = private / "ca.key", private / "ca.pem"
         cert_key, csr, cert = private / "server.key", private / "server.csr", private / "server.pem"
@@ -254,13 +228,6 @@ def main():
                 settings["tls"] = {"server_name": sni, "certificate_file": str(cert), "private_key_file": str(cert_key), "ca_certificate": ca_cert.read_text(encoding="utf-8")}
         forbidden.extend(u["uuid"] for u in fixture["users"])
         daemon = start_server()
-        unrelated = None
-        if engine == "xray":
-            unrelated_path = private / "unrelated-xray.json"
-            unrelated_port = helper.free_port()
-            unrelated_path.write_text(json.dumps({"log":{"loglevel":"none"},"inbounds":[{"listen":"127.0.0.1","port":unrelated_port,"protocol":"vless","settings":{"clients":[],"decryption":"none"},"streamSettings":{"network":"raw","security":"none"}}],"outbounds":[{"protocol":"freedom"}]}))
-            unrelated = launch([str(xray_binary),"run","-config",str(unrelated_path)],"unrelated-xray")
-            helper.wait_port(unrelated_port,unrelated)
         fixture_file = private / "synthetic-nobrand.json"
         fixture_file.write_text(json.dumps(fixture), encoding="utf-8")
         def cli(*args):
@@ -302,8 +269,8 @@ def main():
         (work / "vision-rejection-response.json").write_text(json.dumps(rejections, indent=2), encoding="utf-8")
 
         policy_rejections = []
-        policy_code = "unsupported_policy_for_engine" if engine == "xray" else "invalid"
-        policy_status = 422 if engine == "xray" else 400
+        policy_code = "invalid"
+        policy_status = 400
         for limit in ("quota_bytes", "upload_bps", "download_bps"):
             strict = copy.deepcopy(fixture)
             strict["users"][0]["traffic_policy"] = {limit: 100}
@@ -354,8 +321,6 @@ def main():
                     delta = {k: counters[k] - before[identities[user]][k] for k in counters}
                     if engine == "native" and (delta["upload_bytes"] < sent + large + udp_bytes or delta["download_bytes"] < sent + large + udp_bytes):
                         raise RuntimeError("attributed payload counters incomplete")
-                    if engine == "xray" and any(delta.values()):
-                        raise RuntimeError("external adapter invented attributed stats")
                     row = {"client": client, "version": version, "sha256": next(c["binary_sha256"] for c in json.loads((root / "clients/clients.json").read_text(encoding="utf-8")) if c["client"] == client), "user": user, "endpoint": endpoint, "security": security, "flow": flow, "tcp": "PASS", "udp": "PASS", "concurrent": 16, "large_bytes": large, "udp_packets": 32, "reconnect": "PASS", "abnormal_close": "PASS", "upload_delta": delta["upload_bytes"], "download_delta": delta["download_bytes"], "result": "PASS"}
                     matrix.append(row)
                     row["engine"] = engine
@@ -411,16 +376,7 @@ def main():
         denied(ppa)
         reconnect(ppb)
         before_restart = request("GET", "/api/v1/inbounds")
-        runtime_before = view().get("runtime")
-        if runtime_before:
-            artifact = pathlib.Path(runtime_before["config_artifact"])
-            assert artifact.stat().st_mode & 0o777 == 0o600
-            assert artifact.parent.stat().st_mode & 0o777 == 0o700
         helper.stop(daemon)
-        if unrelated:
-            assert unrelated.poll() is None
-        if runtime_before:
-            assert not artifact.exists()
         with socket.socket(socket.AF_INET6) as sock:
             sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
             sock.bind(("::", listen_port))
@@ -428,54 +384,12 @@ def main():
         after_restart = request("GET", "/api/v1/inbounds")
         assert before_restart["snapshot_revision"] == after_restart["snapshot_revision"]
         assert before_restart["items"][0]["inbound"]["id"] == after_restart["items"][0]["inbound"]["id"]
-        if runtime_before:
-            regenerated = view()["runtime"]
-            assert regenerated["generation"] != runtime_before["generation"]
-            assert regenerated["pid"] != runtime_before["pid"]
         denied(ppa)
         reconnect(ppb)
         quic.udp_sequence(ppb, udp.server_address)
         toggle(identities["Alice"], True)
         reconnect(ppa)
         reconnect(ppb)
-        if engine == "xray":
-            child = view()["runtime"]
-            crash_revision = request("GET", "/api/v1/inbounds")["snapshot_revision"]
-            assert pathlib.Path(f"/proc/{child['pid']}/exe").resolve() == xray_binary
-            os.kill(child["pid"], 9)
-            deadline = time.monotonic() + 5
-            while view()["runtime"]["health"] != "failed" or pathlib.Path(child["config_artifact"]).exists():
-                if time.monotonic() >= deadline:
-                    raise RuntimeError("child exit not detected")
-                time.sleep(.05)
-            assert view()["health"] == "degraded"
-            assert request("GET", "/api/v1/system")["health"] == "degraded"
-            assert request("GET", "/api/v1/inbounds")["snapshot_revision"] == crash_revision
-            assert not pathlib.Path(child["config_artifact"]).exists()
-            helper.stop(daemon)
-            daemon = start_server()
-            reconnect(ppa)
-            reconnect(ppb)
-            quic.udp_sequence(ppb, udp.server_address)
-            # Abrupt parent death must terminate its child. Recovery owns stale
-            # config cleanup through the exclusive root lease and SQLite intent.
-            parent_child = view()["runtime"]
-            parent_revision = request("GET", "/api/v1/inbounds")["snapshot_revision"]
-            daemon.kill()
-            daemon.wait(timeout=5)
-            deadline = time.monotonic() + 5
-            while pathlib.Path(f"/proc/{parent_child['pid']}/exe").exists():
-                if time.monotonic() >= deadline:
-                    raise RuntimeError("active child survived parent death")
-                time.sleep(.05)
-            assert unrelated.poll() is None
-            remove_owned_stale_control_socket()
-            daemon = start_server()
-            assert not pathlib.Path(parent_child["config_artifact"]).exists()
-            assert view()["runtime"]["generation"] != parent_child["generation"]
-            assert request("GET", "/api/v1/inbounds")["snapshot_revision"] == parent_revision
-            reconnect(ppa)
-            reconnect(ppb)
         request("POST", "/api/v1/inbounds/" + inbound_id + "/export", {"format": "surge", "client_version": "6.7.0", "binding_id": identities["Alice"]}, expected=422)
         for filename, path in [("system-response.json", "/api/v1/system"), ("http-system-response.json", "/api/v1/system"), ("capabilities-response.json", "/api/v1/capabilities"), ("inbounds-response.json", "/api/v1/inbounds"), ("inbound-response.json", "/api/v1/inbounds/" + inbound_id)]:
             value = request("GET", path)
@@ -490,8 +404,6 @@ def main():
         for process in (pa, pb):
             process.kill();process.wait(timeout=5)
         helper.stop(daemon)
-        if unrelated:
-            assert unrelated.poll() is None
         with socket.socket(socket.AF_INET6) as sock:
             sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
             sock.bind(("::", listen_port))
@@ -502,9 +414,7 @@ def main():
         # Closed DB and WAL contain ciphertext, never the supplied server key or UUIDs.
         for path in state.glob("state.db*"):
             if any(secret.encode() in path.read_bytes() for secret in forbidden): raise RuntimeError("plaintext secret at rest")
-        result = {"engine":engine,"matrix": matrix, "negative": negative, "server_binary":binary,"server_sha256":hashlib.sha256(pathlib.Path(exe).read_bytes()).hexdigest(), "security": security, "flow": flow, "secret_leak_gate": "PASS", "credential_identity": "PASS" if engine == "native" else "valid UUID authenticated; attributed stats DEFERRED", "binding_reconcile": "PASS", "sqlite_recovery": "PASS", "child_crash": "PASS" if engine == "xray" else "not applicable", "existing_client_reconnect": "PASS", "forced_client_kill": "PASS", "clean_shutdown": "PASS", "tcp_listener_release": "PASS", "uri": "UnsupportedExport for explicit CA TLS" if security == "tls" else "PASS", "surge": "UnsupportedExport", "cli_api_shared_service": "PASS"}
-        if engine == "xray":
-            result.update({"parent_death_child_exit":"PASS","stale_recovery_cleanup":"PASS","stale_control_socket":"owned operator cleanup after listener review","unrelated_xray_survival":"PASS","restart_policy":"manual","attributed_stats":"DEFERRED"})
+        result = {"engine":engine,"matrix": matrix, "negative": negative, "server_binary":binary,"server_sha256":hashlib.sha256(pathlib.Path(exe).read_bytes()).hexdigest(), "security": security, "flow": flow, "secret_leak_gate": "PASS", "credential_identity": "PASS", "binding_reconcile": "PASS", "sqlite_recovery": "PASS", "existing_client_reconnect": "PASS", "forced_client_kill": "PASS", "clean_shutdown": "PASS", "tcp_listener_release": "PASS", "uri": "UnsupportedExport for explicit CA TLS" if security == "tls" else "PASS", "surge": "UnsupportedExport", "cli_api_shared_service": "PASS"}
         result.update({"strict_policy_rejection":"PASS", "strict_policy_error":policy_code})
         (work / "interop-results.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
         (work / "export-envelopes-response.json").write_text(json.dumps(envelopes, indent=2) + "\n", encoding="utf-8")

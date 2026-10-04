@@ -221,15 +221,18 @@ def run(stage, fixtures):
                 for _ in range(8): exchange(original, b'concurrent old TCP')
             except Exception as error: errors.append(type(error).__name__)
         worker = threading.Thread(target=continuing); worker.start()
-        child_before = sorted((r['inbound']['id'], (r.get('runtime') or {}).get('pid')) for r in request('GET', '/api/v1/inbounds')['items'])
+        servers_before = sorted((r['inbound']['id'], r['inbound']['engine']) for r in request('GET', '/api/v1/inbounds')['items'])
+        daemon_before = subprocess.check_output(['systemctl', 'show', 'splicore.service', '-p', 'MainPID', '--value'])
         replace(changed);worker.join(10);assert not worker.is_alive() and not errors
         exchange(original, b'survives commit')
         udp.exchange(('held.example.p12.local', fixtures.udp1.server_address[1]), b'old affinity after update')
         udp.exchange(('new-flow.example.p12.local', fixtures.udp2.server_address[1]), b'old snapshot new UDP flow')
         before = sessions(members[2]['id']);traffic(port, ('new.example.p12.local', fixtures.tcp4.server_address[1]));assert sessions(members[2]['id']) == before+1
         assert all(s['outbound_id'] == members[0]['id'] for s in status()['sessions'] if s['local_inbound_id'] == cfg['local'] and s['kind'] == 'udp_association')
-        child_after = sorted((r['inbound']['id'], (r.get('runtime') or {}).get('pid')) for r in request('GET', '/api/v1/inbounds')['items'])
-        assert child_before == child_after and len(child_after) == 8
+        servers_after = sorted((r['inbound']['id'], r['inbound']['engine']) for r in request('GET', '/api/v1/inbounds')['items'])
+        assert servers_before == servers_after and len(servers_after) == 6
+        assert all(engine == 'native' for _, engine in servers_after)
+        assert subprocess.check_output(['systemctl', 'show', 'splicore.service', '-p', 'MainPID', '--value']) == daemon_before
         result.update(G_atomic_100_rules_group_DNS_TCP_UDP='PASS', H_server_client_coexistence='PASS')
     finally: original.close();udp.close()
     # CLI reads and explicit DNS query/flush use the same protected installed core.

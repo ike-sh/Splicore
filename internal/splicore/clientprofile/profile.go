@@ -7,7 +7,6 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	"github.com/sagernet/sing-box/internal/splicore/domain/secret"
-	"github.com/sagernet/sing-box/internal/splicore/transportmask"
 )
 
 type TLS = access.ClientTLS
@@ -17,17 +16,16 @@ type Transport struct {
 	Host string `json:"host,omitempty"`
 }
 type Profile struct {
-	ID                    identity.ID                       `json:"id"`
-	Schema                int                               `json:"schema_version"`
-	Protocol              access.ProtocolKey                `json:"protocol"`
-	Endpoint              access.Endpoint                   `json:"endpoint"`
-	Credentials           access.Payload                    `json:"-"`
-	TLS                   TLS                               `json:"tls"`
-	Transport             Transport                         `json:"transport"`
-	UDPPayload            bool                              `json:"udp_payload"`
-	Options               access.Settings                   `json:"options"`
-	Metadata              identity.Metadata                 `json:"metadata"`
-	TransportRequirements *transportmask.ClientRequirements `json:"transport_requirements,omitempty"`
+	ID          identity.ID        `json:"id"`
+	Schema      int                `json:"schema_version"`
+	Protocol    access.ProtocolKey `json:"protocol"`
+	Endpoint    access.Endpoint    `json:"endpoint"`
+	Credentials access.Payload     `json:"-"`
+	TLS         TLS                `json:"tls"`
+	Transport   Transport          `json:"transport"`
+	UDPPayload  bool               `json:"udp_payload"`
+	Options     access.Settings    `json:"options"`
+	Metadata    identity.Metadata  `json:"metadata"`
 }
 
 func (p Profile) Format(s fmt.State, verb rune) {
@@ -52,11 +50,6 @@ func (p Profile) Validate() error {
 	}
 	if err := p.Metadata.Validate(); err != nil {
 		return err
-	}
-	if p.TransportRequirements != nil {
-		if err := p.TransportRequirements.Validate(); err != nil {
-			return err
-		}
 	}
 	return p.Options.Validate()
 }

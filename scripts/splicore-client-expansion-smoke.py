@@ -67,7 +67,6 @@ def main():
     parser = argparse.ArgumentParser(); parser.add_argument('stage'); args = parser.parse_args(); os.umask(0o077)
     assert pathlib.Path('/etc/splicore-lab').read_text() == 'Splicore disposable lab 1\n'
     assert len(subprocess.check_output(['ip', '-o', 'link', 'show']).splitlines()) == 1
-    assert hashlib.sha256((ROOT/'xray').read_bytes()).hexdigest() == '8255dd939c34cf966cc91517b6324dd3c8d0bcf49ffac8beca049a38c46845ed'
     assert hashlib.sha256((ROOT/'clients/sing-box').read_bytes()).hexdigest() == '9334a1c1fe97234911afaedd37226667ebdb3dab2abe383f2c4ae1387706dad9'
     WORK.mkdir(mode=0o700, exist_ok=True)
     docs = json.loads((ROOT/'installed/server-documents.json').read_text()); ca = (ROOT/'installed/ca.pem').read_text()
@@ -84,11 +83,11 @@ def main():
         servers.extend([tcp, tcp6, udp, udp6, dns])
         for server in servers: threading.Thread(target=server.serve_forever, daemon=True).start()
         if initial:
-            for label in ('snell', 'hysteria2', 'tuic', 'vless-native', 'vless-xray', 'mieru-tcp', 'mieru-udp'):
+            for label in ('snell', 'hysteria2', 'tuic', 'vless-native', 'mieru-tcp', 'mieru-udp'):
                 print('create canonical node', label, flush=True)
                 node, credential = node_fixture(label, docs[label], ca)
                 nid = mutate({'resource': 'node', 'action': 'create', 'node': node, 'credential': credential})['id']
-                engines = ('native', 'xray') if label == 'vless-native' else ('xray',) if label == 'vless-xray' else ('native',)
+                engines = ('native',)
                 for engine in engines:
                     oid = mutate({'resource': 'outbound', 'action': 'create', 'outbound': {'name': label+'-'+engine, 'kind': 'proxy', 'node_id': nid, 'engine': engine}})['id']
                     port = h.free_port()
@@ -148,17 +147,10 @@ def main():
         log = (WORK/(args.stage+'-reference.log')).open('wb'); logs.append(log)
         reference = subprocess.Popen([str(ROOT/'clients/sing-box'), 'run', '-c', str(path)], stdout=log, stderr=subprocess.STDOUT); children.append(reference)
         h.wait_port(ref_inbounds[0]['listen_port'], reference)
-        remote = h.free_port(); node, credential = node_fixture('vless-xray', docs['vless-xray'], ca)
-        refpath = WORK/'reference-xray.json'
-        refpath.write_text(json.dumps({'log': {'loglevel': 'none'}, 'inbounds': [{'listen': '127.0.0.1', 'port': remote, 'protocol': 'vless', 'settings': {'decryption': 'none', 'clients': [{'id': docs['vless-xray']['users'][0]['uuid'], 'flow': ''}]}, 'streamSettings': {'network': 'raw', 'security': 'none'}}], 'outbounds': [{'protocol': 'freedom'}]}))
-        xlog = (WORK/(args.stage+'-reference-xray.log')).open('wb'); logs.append(xlog)
-        xref = subprocess.Popen([str(ROOT/'xray'), 'run', '-config', str(refpath)], stdout=xlog, stderr=subprocess.STDOUT); children.append(xref)
-        h.wait_port(remote, xref); node['name'] = 'reference-xray'; node['endpoint']['port'] = remote
-        ref_nodes.append((node, credential, 'Xray 26.3.27'))
         refs = []
         for node, credential, reference_label in ref_nodes:
             nid = mutate({'resource': 'node', 'action': 'create', 'node': node, 'credential': credential})['id']
-            engines = ('native', 'xray') if node['protocol']['protocol'] == 'vless' else ('native',)
+            engines = ('native',)
             for engine in engines:
                 print('reference', node['protocol']['protocol'], engine, flush=True)
                 oid = mutate({'resource': 'outbound', 'action': 'create', 'outbound': {'name': 'reference-'+engine, 'kind': 'proxy', 'node_id': nid, 'engine': engine}})['id']

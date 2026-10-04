@@ -6,6 +6,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	"github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
+	"github.com/sagernet/sing-box/internal/splicore/domain/provider"
 	"net/netip"
 )
 
@@ -25,18 +26,37 @@ type Options struct {
 	Data   json.RawMessage `json:"data"`
 }
 type RemoteNode struct {
-	ID           identity.ID        `json:"id"`
-	Name         string             `json:"name"`
-	Protocol     access.ProtocolKey `json:"protocol"`
-	Endpoint     access.Endpoint    `json:"endpoint"`
-	CredentialID identity.ID        `json:"credential_id"`
-	Transport    Transport          `json:"transport"`
-	Security     Security           `json:"security"`
-	Options      Options            `json:"options"`
-	Metadata     identity.Metadata  `json:"metadata"`
+	Provenance   provider.Provenance `json:"provenance,omitzero"`
+	Tags         []string            `json:"tags,omitempty"`
+	Disabled     bool                `json:"disabled,omitempty"`
+	State        string              `json:"state,omitempty"`
+	ID           identity.ID         `json:"id"`
+	Name         string              `json:"name"`
+	Protocol     access.ProtocolKey  `json:"protocol"`
+	Endpoint     access.Endpoint     `json:"endpoint"`
+	CredentialID identity.ID         `json:"credential_id"`
+	Transport    Transport           `json:"transport"`
+	Security     Security            `json:"security"`
+	Options      Options             `json:"options"`
+	Metadata     identity.Metadata   `json:"metadata"`
 }
 
 func (n RemoteNode) Validate() error {
+	if n.Provenance.Validate() != nil || len(n.Tags) > 32 {
+		return invalid()
+	}
+	seen := map[string]bool{}
+	for _, t := range n.Tags {
+		if !identity.Label(t, 64) || seen[t] {
+			return invalid()
+		}
+		seen[t] = true
+	}
+	switch n.State {
+	case "", "active", "stale", "invalid", "unavailable":
+	default:
+		return invalid()
+	}
 	for _, id := range []identity.ID{n.ID, n.CredentialID} {
 		if err := id.Validate(); err != nil {
 			return err
@@ -62,14 +82,18 @@ func (n RemoteNode) Validate() error {
 }
 
 type Outbound struct {
-	ID     identity.ID  `json:"id"`
-	Name   string       `json:"name"`
-	Kind   string       `json:"kind"`
-	NodeID *identity.ID `json:"node_id,omitempty"`
-	Engine string       `json:"engine,omitempty"`
+	ProviderID identity.ID  `json:"provider_id,omitempty"`
+	ID         identity.ID  `json:"id"`
+	Name       string       `json:"name"`
+	Kind       string       `json:"kind"`
+	NodeID     *identity.ID `json:"node_id,omitempty"`
+	Engine     string       `json:"engine,omitempty"`
 }
 
 func (o Outbound) Validate() error {
+	if o.ProviderID != "" && (o.ProviderID.Validate() != nil || o.Kind != "proxy") {
+		return invalid()
+	}
 	if !identity.Label(o.Name, 128) {
 		return invalid()
 	}
@@ -141,6 +165,7 @@ type Route struct {
 	DefaultOutbound identity.ID `json:"default_outbound"`
 }
 type ProfileState struct {
+	Management    provider.State       `json:"management"`
 	Host          HostIntegration      `json:"host_integration"`
 	Revision      identity.Revision    `json:"revision"`
 	Enabled       bool                 `json:"enabled"`
@@ -155,12 +180,23 @@ func Empty() ProfileState {
 	return ProfileState{Nodes: []RemoteNode{}, Outbounds: []Outbound{{ID: Direct, Name: "DIRECT", Kind: "direct"}}, LocalInbounds: []LocalInbound{}, Route: Route{DefaultOutbound: Direct}, Enabled: true}
 }
 func (s ProfileState) Validate() error {
+	if s.Management.Validate() != nil {
+		return invalid()
+	}
+	providers := map[identity.ID]provider.Provider{}
+	for _, p := range s.Management.Providers {
+		providers[p.ID] = p
+	}
 	if s.Revision < 0 || len(s.Nodes) > 128 || len(s.Outbounds) > 129 || len(s.LocalInbounds) > 32 {
 		return invalid()
 	}
 	nodes := map[identity.ID]bool{}
+	nodeOwners := map[identity.ID]identity.ID{}
 	creds := map[identity.ID]bool{}
 	for _, n := range s.Nodes {
+		if n.Provenance.ProviderID != "" && providers[n.Provenance.ProviderID].Kind != "proxy" {
+			return invalid()
+		}
 		if err := n.Validate(); err != nil {
 			return err
 		}
@@ -168,12 +204,19 @@ func (s ProfileState) Validate() error {
 			return invalid()
 		}
 		nodes[n.ID] = true
+		nodeOwners[n.ID] = n.Provenance.ProviderID
 		creds[n.CredentialID] = true
 	}
 	out := map[identity.ID]bool{}
 	for _, o := range s.Outbounds {
+		if o.ProviderID != "" && providers[o.ProviderID].Kind != "proxy" {
+			return invalid()
+		}
 		if err := o.Validate(); err != nil {
 			return err
+		}
+		if o.ProviderID != "" && (o.NodeID == nil || nodeOwners[*o.NodeID] != o.ProviderID) {
+			return invalid()
 		}
 		if out[o.ID] || o.NodeID != nil && !nodes[*o.NodeID] {
 			return invalid()
@@ -209,7 +252,10 @@ func (s ProfileState) Validate() error {
 	if err := s.Host.Validate(s.LocalInbounds); err != nil {
 		return err
 	}
-	return s.Network.Validate(out, ids)
+	if e := s.Network.Validate(out, ids); e != nil {
+		return e
+	}
+	return s.ValidateProviderDependencies()
 }
 
 // Clone copies all mutable containers before publishing intent to a runtime.

@@ -143,15 +143,7 @@ func TestUnderlayProvisionFailureAndVerification(t *testing.T) {
 	if e = (&underlay.Lease{}).Close(); e == nil {
 		t.Fatal("unknown lease accepted")
 	}
-	child, e := x.Factory.AcquireChild()
-	if e != nil {
-		t.Fatal(e)
-	}
-	if _, e = x.Factory.Begin(ctx, true); e == nil {
-		t.Fatal("unprotected child allowed TUN activation")
-	}
-	child.Close()
-	child.Close()
+
 }
 
 func TestUnderlaySocketControlConcurrencyAndNoTUN(t *testing.T) {

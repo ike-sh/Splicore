@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Developers, maintainers and integration authors
-- Last reviewed: 2026-10-03
+- Last reviewed: 2026-10-04
 - Owner: Documentation maintainers
 - Responsibility: Complete navigation to Splicore specifications, decisions and history.
 - Lifecycle: Update when owned documents are added, retired or change responsibility.
@@ -45,7 +45,7 @@ README.md                           project introduction
 
 ## Architecture Decision Records
 
-[ADR index](adr/README.md) lists all 29 decisions and their individual status.
+[ADR index](adr/README.md) lists all 34 decisions and their individual status.
 ADR 0001 is accepted for Phase 0; 0002–0015 remain proposed for maintainer review.
 ADR 0016 records the foundation boundary; ADR 0017 defers Vision with explicit re-enable gates.
 Decision acceptance is separate from implementation and interoperability qualification.
@@ -64,7 +64,7 @@ Decision acceptance is separate from implementation and interoperability qualifi
 
 - [Protocol and engine index](protocol/README.md): extension path and qualification gates.
 - [Protocol SDK](architecture/PROTOCOL_SDK.md): registry, proposed ports and effective capabilities.
-- [Engine model](architecture/ENGINE_MODEL.md): native translation and owned private Xray compatibility.
+- [Engine model](architecture/ENGINE_MODEL.md): native compilation and independent core boundary.
 - [Mieru integration](architecture/MIERU_INTEGRATION.md): pinned research and three-stage native roadmap.
 - [Future native protocols](architecture/NATIVE_PROTOCOL_GUIDELINES.md): specification, security and testing requirements.
 
@@ -167,7 +167,7 @@ this project's designs. Upstream documentation site configuration is unchanged.
 - [Xray owned child decision](adr/0018-xray-owned-child-engine.md): process/admission/artifact ownership.
 - [Phase 6 duality report](reports/PHASE_6_XRAY_ENGINE_DUALITY_REPORT.md): actual 40-cell acceptance, regressions and platform limits.
 
-## Phase 7 specialized Xray features
+## Historical Phase 7 specialized Xray features
 
 - [Phase 7 workflow](development/PHASE_7_XRAY_EXTENSIONS.md): bounded typed FinalMask/Sudoku contract and reproducible managed gates.
 - [ADR 0019](adr/0019-xray-specialized-feature-boundary.md): unchanged official artifact, feature composition and secret ownership.
@@ -205,8 +205,7 @@ checkpoint. Phase 9 distribution and service is locally frozen under its
 - [ADR 0023](adr/0023-client-udp-ownership.md): accepted association ownership and adapter leases.
 - [Phase 11 acceptance](reports/PHASE_11_CLIENT_OUTBOUND_EXPANSION_REPORT.md): actual payload, lifecycle, installed-service and platform evidence.
 - [Phase 11 freeze](reports/PHASE_11_FREEZE_REPORT.md): authorized checkpoint, source match and Phase 12 branch preparation.
-- Client remains Experimental. Vision and client FinalMask/Sudoku are deferred;
-  Xray TCP half-close is NOT QUALIFIED, Windows race is NOT EXECUTED and arm64
+- Client remains Experimental. Vision is deferred; FinalMask/Sudoku are out of scope; Windows race is NOT EXECUTED and arm64
   runtime is NOT CERTIFIED. The historical Phase 11 report preserves its boundary;
   routing/DNS/policy are the Experimental Phase 12 scope below. TUN and NoBrand
   migration remain deferred. No public release.
@@ -234,4 +233,22 @@ That freeze preserves the Phase 12 boundary. Phase 13 progress is tracked below.
 
 Phase 13 is locally FROZEN. Real Windows TUN/auto-route/WinINET and native Ubuntu
 host-network qualification remain pending; Windows activation stays guarded.
-Phase 14 implementation has not started. Subscriptions/providers remain deferred.
+At the Phase 13 checkpoint, Phase 14 implementation had not started. Its later
+accepted implementation is recorded below.
+
+## Phase 14 client management
+
+Experimental [Node](architecture/NODE_MODEL.md), [Import](architecture/IMPORT_MODEL.md),
+[Provider](architecture/PROVIDER_MODEL.md) and [RuleSet Provider](architecture/RULESET_PROVIDER.md)
+contracts are accepted in the Experimental [Phase 14 local freeze](reports/PHASE_14_FREEZE_REPORT.md).
+The [pre-correction acceptance report](reports/PHASE_14_CLIENT_MANAGEMENT_PROVIDERS_REPORT.md)
+preserves its original implementation-time evidence; the freeze report records
+the subsequent corrected architecture and final gates. ADRs 0032–0034 are accepted
+for this local freeze; Phase 0–13 historical reports remain unchanged.
+
+## Current architecture correction
+
+Native is the sole runtime engine. Historical Phase 6/7 direction is superseded; FinalMask/Sudoku are out of scope.
+
+- [Decision](adr/0035-xray-runtime-removed-from-core.md)
+- [Correction report](reports/ARCHITECTURE_CORRECTION_XRAY_BOUNDARY_REPORT.md)

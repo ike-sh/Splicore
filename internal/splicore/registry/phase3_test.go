@@ -25,7 +25,7 @@ func TestPhase3RegistrationPreservesSnellAndDeferredModules(t *testing.T) {
 			t.Fatal("scope expanded")
 		}
 	}
-	if len(e.Keys()) != 2 {
+	if len(e.Keys()) != 1 {
 		t.Fatal("duplicated native engine")
 	}
 	native, err := e.Get("native")

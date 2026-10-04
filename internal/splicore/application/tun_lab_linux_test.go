@@ -1,4 +1,4 @@
-//go:build linux && with_gvisor && with_quic && with_utls && splicore_tun_lab && splicore_xray_integration
+//go:build linux && with_gvisor && with_quic && with_utls && splicore_tun_lab
 
 package application_test
 
@@ -30,7 +30,6 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/client"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	P "github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
-	"github.com/sagernet/sing-box/internal/splicore/engine/xray"
 	"github.com/sagernet/sing-box/internal/splicore/hostnetwork"
 	"github.com/sagernet/sing-box/internal/splicore/networkruntime"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
@@ -532,13 +531,12 @@ func TestPhase13KernelTUN(t *testing.T) {
 	requireOwnedTUNLab(t)
 	ctx := context.Background()
 	root := t.TempDir()
-	engine := pinnedEngine(t, filepath.Join(root, "engines"))
 	s, store := setupProtocols(t, filepath.Join(root, "state", "state.db"), nil, func() (*registry.Protocols, *registry.Engines, *registry.Exporters, error) {
-		return registry.Phase8(engine)
+		return registry.NativeCore()
 	})
 	defer stop(t, s, store)
 	cases := expansionCases(t)
-	factories := []ports.OutboundFactory{xray.OutboundFactory{Engine: engine}}
+	factories := []ports.OutboundFactory{}
 	for _, c := range cases {
 		factories = append(factories, c.factory)
 	}
@@ -558,9 +556,6 @@ func TestPhase13KernelTUN(t *testing.T) {
 		created := expansionCreation(t, s, c, "127.0.0.1", port)
 		node := expansionNode(t, s, c, access.Endpoint{Host: "127.0.0.1", Port: port}, expansionCredential(t, store, created, 0))
 		outIDs[c.name] = expansionProxy(t, s, node, "native")
-		if c.name == "vless" {
-			outIDs["vless-xray"] = expansionProxy(t, s, node, "xray")
-		}
 	}
 	var ports map[string]int
 	if json.Unmarshal([]byte(os.Getenv("SPLICORE_TUN_PORTS")), &ports) != nil {
@@ -588,7 +583,7 @@ func TestPhase13KernelTUN(t *testing.T) {
 		t.Logf("owned namespace routes: %s", tunRouteSnapshot(t))
 		t.Fatal(err)
 	}
-	for _, name := range []string{"direct", "snell", "hysteria2", "tuic", "vless", "vless-xray", "mieru"} {
+	for _, name := range []string{"direct", "snell", "hysteria2", "tuic", "vless", "mieru"} {
 		t.Run(name, func(t *testing.T) {
 			clientApply(t, s, application.ClientMutation{Resource: "route", Action: "update", Route: &client.Route{DefaultOutbound: outIDs[name]}})
 			for _, fam := range []string{"v4", "v6"} {
@@ -642,5 +637,5 @@ func TestPhase13KernelTUN(t *testing.T) {
 		t.Fatal("final restore mismatch")
 	}
 	testTUNProcessRecovery(t)
-	t.Log("IPv4/IPv6 TCP/UDP; DIRECT + six outbound adapters; 4 MiB; 16 TCP/UDP; DNS proxy no leak; TUN/route/DNS lifecycle 10x PASS")
+	t.Log("IPv4/IPv6 TCP/UDP; DIRECT + five native outbound adapters; 4 MiB; 16 TCP/UDP; DNS proxy no leak; TUN/route/DNS lifecycle 10x PASS")
 }

@@ -13,10 +13,6 @@ type CreationCodec interface {
 	GenerateCreationCredential(access.Payload) (access.Payload, error)
 }
 
-// EngineFeatureValidator rejects placement-specific options before availability
-// checks, secret materialization or pending operations.
-type EngineFeatureValidator interface{ ValidateEngineFeatures(CreationDraft) error }
-
 // ServerMaterializer creates server secrets after plan validation, before pending.
 // Settings contain only public, durable configuration; payloads use the vault.
 type ServerMaterializer interface {

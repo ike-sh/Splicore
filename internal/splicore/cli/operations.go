@@ -30,7 +30,6 @@ func operationsCLI(parent context.Context, args []string, out, errOut io.Writer,
 	directory := fs.String("directory", "", "")
 	output := fs.String("output", "", "")
 	source := fs.String("source", "", "")
-	artifact := fs.String("artifact", "", "")
 	platform := fs.String("platform", "", "")
 	start := fs.Bool("start", false, "")
 	purge := fs.Bool("purge", false, "")
@@ -46,8 +45,6 @@ func operationsCLI(parent context.Context, args []string, out, errOut io.Writer,
 		allowed = map[string]bool{"directory": true, "start": true}
 	case "package/uninstall":
 		allowed = map[string]bool{"purge": true}
-	case "package/engine":
-		allowed = map[string]bool{"artifact": true}
 	case "state/backup":
 		allowed = map[string]bool{"source": true, "output": true}
 	case "service/initialize", "service/record-exit", "service/health", "service/recover-network":
@@ -81,8 +78,6 @@ func operationsCLI(parent context.Context, args []string, out, errOut io.Writer,
 			err = distribution.Install(ctx, *directory, *start)
 		case "uninstall":
 			err = distribution.Uninstall(ctx, *purge)
-		case "engine":
-			err = distribution.InstallXray(ctx, *artifact)
 		}
 	} else if command == "state" {
 		var schema int

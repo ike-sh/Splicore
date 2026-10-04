@@ -77,3 +77,17 @@ Wintun partial recovery, typed LAN WinINET restoration and guarded real qualific
 
 [0031 underlay](0031-unified-underlay-protection.md): accepted for the Experimental Phase 13 freeze; typed socket/child
 capabilities, retained endpoint leases, dynamic bootstrap and reused TUN ownership.
+
+## Phase 14 management decisions
+
+[0032 identity/generation](0032-provider-generation-node-identity.md),
+[0033 preview/transaction](0033-management-preview-transaction.md),
+[0034 source security](0034-remote-source-security.md): accepted for the Experimental Phase 14 local freeze;
+implemented experimentally, with explicit rejected alternatives and current limits.
+
+## Current architecture correction
+
+Native is the sole runtime engine. Historical Phase 6/7 direction is superseded; FinalMask/Sudoku are out of scope.
+
+- [Decision](../adr/0035-xray-runtime-removed-from-core.md)
+- [Correction report](../reports/ARCHITECTURE_CORRECTION_XRAY_BOUNDARY_REPORT.md)

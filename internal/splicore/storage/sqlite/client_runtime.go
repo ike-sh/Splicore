@@ -19,6 +19,13 @@ func (s *Store) ClientState(ctx context.Context) (client.ProfileState, error) {
 	}
 	defer tx.Rollback()
 	state := client.Empty()
+	var management []byte
+	if err = tx.QueryRowContext(ctx, "SELECT document FROM client_management_profiles WHERE singleton=1").Scan(&management); err != nil {
+		return state, storageError(err)
+	}
+	if jsonstrict.DecodeLimit(management, &state.Management, 256<<10) != nil {
+		return state, identity.Err(identity.Corrupt, "invalid committed provider state")
+	}
 	if err = tx.QueryRowContext(ctx, "SELECT committed_revision FROM settings WHERE singleton=1").Scan(&state.Revision); err != nil {
 		return state, storageError(err)
 	}
@@ -103,6 +110,43 @@ func (s *Store) ClientState(ctx context.Context) (client.ProfileState, error) {
 func (w *writer) ReplaceClient(state client.ProfileState, secrets []access.Credential) error {
 	if err := state.Validate(); err != nil {
 		return err
+	}
+	management, e := json.Marshal(state.Management)
+	if e != nil {
+		return identity.Err(identity.Invalid, "invalid provider state")
+	}
+	if e = w.exec("UPDATE client_management_profiles SET document=? WHERE singleton=1", string(management)); e != nil {
+		return e
+	}
+	rowsSources, e := w.tx.QueryContext(w.ctx, "SELECT id FROM provider_sources")
+	if e != nil {
+		return storageError(e)
+	}
+	keepSources := map[identity.ID]bool{}
+	for _, p := range state.Management.Providers {
+		keepSources[p.ID] = true
+	}
+	removedSources := []identity.ID{}
+	for rowsSources.Next() {
+		var id identity.ID
+		if e = rowsSources.Scan(&id); e != nil {
+			break
+		}
+		if !keepSources[id] {
+			removedSources = append(removedSources, id)
+		}
+	}
+	if e == nil {
+		e = rowsSources.Err()
+	}
+	rowsSources.Close()
+	if e != nil {
+		return storageError(e)
+	}
+	for _, id := range removedSources {
+		if e = w.exec("DELETE FROM provider_sources WHERE id=?", id); e != nil {
+			return e
+		}
 	}
 	for _, q := range []string{"DELETE FROM client_routes", "DELETE FROM local_inbounds", "DELETE FROM client_outbounds"} {
 		if err := w.exec(q); err != nil {

@@ -64,7 +64,7 @@ func TestRegistries(t *testing.T) {
 		})
 	}
 	wg.Wait()
-	for _, id := range []string{"native", "xray-compatibility"} {
+	for _, id := range []string{"native"} {
 		engine, err := e.Get(id)
 		if err != nil {
 			t.Fatal(err)

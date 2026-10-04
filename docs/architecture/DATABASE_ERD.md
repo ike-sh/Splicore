@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Domain and storage developers
-- Last reviewed: 2026-10-02
+- Last reviewed: 2026-10-04
 - Owner: Storage / Core maintainers
 - Responsibility: Logical entities, relationships, ownership and constraints; not schema migration history.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -128,3 +128,23 @@ commit. Deleting referenced nodes/outbounds rejects in the application. The
 singleton profile enabled flag and route restore at the shared global revision;
 client sessions/counters are ephemeral. Actual constraints are owned by
 [migration 0005](../../internal/splicore/storage/sqlite/migrations/0005_client_runtime.sql).
+
+## Phase 14 generic provider relationships
+
+Schema 8 stores bounded provider intent in client_management_profiles and encrypted
+write-only source material in provider_sources. Node canonical provenance links provider
+ID and matching key; generated Outbound canonical provider_id records ownership.
+RuleSet provider owns one stable ID in the existing network aggregate. These are
+application-validated JSON relationships, not protocol-specific relational tables.
+
+```mermaid
+erDiagram
+    client_management_profiles ||--o{ provider_sources : encrypted_sources
+    client_management_profiles ||--o{ remote_nodes : provider_ownership
+    remote_nodes ||--o{ client_outbounds : stable_node_reference
+    client_management_profiles ||--o{ client_network_profiles : ruleset_ownership
+```
+
+One transaction updates canonical ownership, credentials, encrypted validators and
+global revision. [Migration 0008](../../internal/splicore/storage/sqlite/migrations/0008_client_management.sql)
+leaves historical migrations unchanged. No source URL/raw response is an identity.

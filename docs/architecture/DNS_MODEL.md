@@ -76,7 +76,6 @@ sockets; no per-query host route churn or permanent query/destination metrics.
 
 Required System lookups reject unknown Windows API bypass and Linux loopback stubs.
 Native System transport preserves official no-TUN behavior; required mode uses the
-protected resolver and rejects independent mDNS paths. Xray child stub resolvers
-reject because the stub's forwarder has a different UID. Explicit UDP/TCP/DoT
+protected resolver and rejects independent mDNS paths. Explicit UDP/TCP/DoT
 bootstrap-safe settings are required for these combinations. Dependency cycles fail
 before runtime construction. See [ADR 0031](../adr/0031-unified-underlay-protection.md).

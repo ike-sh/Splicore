@@ -50,10 +50,6 @@ func (s *Service) views(ctx context.Context) (InboundPage, error) {
 			v.Bindings = append(v.Bindings, bv)
 		}
 		if h := s.runtime.handles[i.ID]; h != nil {
-			if observer, ok := h.(ports.RuntimeObserver); ok {
-				status := observer.RuntimeStatus()
-				v.Runtime = &status
-			}
 			v.Stats = h.Stats()
 			if h.Health(ctx) == nil && underlayHealthy {
 				v.Health = "healthy"
@@ -141,12 +137,6 @@ func (s *Service) ExportClient(ctx context.Context, id identity.ID, req ExportRe
 		return ExportResult{}, e
 	}
 	authorized := ports.AuthorizedBinding{Inbound: i, Binding: b, Credential: c}
-	if secrets, ok := r.repo.(ports.ClientSharedSecretRepository); ok {
-		authorized.ClientSharedCredentials, e = secrets.RevealClientSharedCredentials(ctx, i.ID)
-		if e != nil {
-			return ExportResult{}, e
-		}
-	}
 	profile, e := p.BuildClientProfile(ctx, authorized)
 	if e != nil {
 		return ExportResult{}, e

@@ -25,9 +25,9 @@ const (
 	DNSBootstrap
 	DNSUpstream
 	HealthProbe
-	EngineChild
 	SystemDNS
 	LocalControl
+	ProviderFetch
 )
 
 type Scope struct {
@@ -42,7 +42,6 @@ type Capabilities struct {
 	EndpointRoutes   bool   `json:"endpoint_routes"`
 	InterfaceBinding bool   `json:"interface_binding"`
 	MarkTable        bool   `json:"mark_table"`
-	Child            bool   `json:"child"`
 	SystemResolver   bool   `json:"system_resolver"`
 }
 
@@ -59,22 +58,6 @@ type Backend interface {
 	Protect(context.Context, Scope, string, string, syscall.RawConn) error
 	Reconcile(context.Context, []Endpoint) error
 	Verify(context.Context) error
-}
-
-// A child cannot use the Go resolver hooks. Backends with inherited process
-// protection verify its independent resolver before permitting TUN or launch.
-type childVerifier interface {
-	VerifyChild(context.Context) error
-}
-
-func (f *Factory) verifyChild(ctx context.Context) error {
-	if !f.backend.Capabilities().Child {
-		return unsafe("child protection unavailable")
-	}
-	if b, ok := f.backend.(childVerifier); ok {
-		return b.VerifyChild(ctx)
-	}
-	return nil
 }
 
 type Status struct {
@@ -95,7 +78,6 @@ type Factory struct {
 	mu                           sync.Mutex // control metadata only; never held during socket/data I/O
 	backend                      Backend
 	leases                       map[identity.ID]*Lease
-	children                     int
 	required                     atomic.Int64
 	degraded                     atomic.Bool
 	acquires, releases, failures atomic.Uint64
@@ -195,7 +177,7 @@ func (f *Factory) Begin(ctx context.Context, required bool) (*Lease, error) {
 	defer f.mu.Unlock()
 	if required {
 		c := f.backend.Capabilities()
-		if !c.PerSocket || f.children > 0 && !c.Child {
+		if !c.PerSocket {
 			return nil, unsafe("required runtime protection unavailable")
 		}
 		if f.degraded.Load() {
@@ -203,11 +185,6 @@ func (f *Factory) Begin(ctx context.Context, required bool) (*Lease, error) {
 		}
 		if err = f.verify(ctx); err != nil {
 			return nil, err
-		}
-		if f.children > 0 {
-			if err = f.verifyChild(ctx); err != nil {
-				return nil, err
-			}
 		}
 	}
 	l := &Lease{f: f, ID: id, required: required}
@@ -265,7 +242,7 @@ func (l *Lease) AddEndpoint(ctx context.Context, s Scope, addresses []netip.Addr
 	if err != nil {
 		return err
 	}
-	if s.Purpose != ProxyUnderlay && s.Purpose != DNSBootstrap && s.Purpose != DNSUpstream && s.Purpose != HealthProbe && s.Purpose != EngineChild {
+	if s.Purpose != ProxyUnderlay && s.Purpose != DNSBootstrap && s.Purpose != DNSUpstream && s.Purpose != HealthProbe && s.Purpose != ProviderFetch {
 		return identity.Err(identity.Invalid, "arbitrary target cannot own endpoint routes")
 	}
 	f := l.f
@@ -357,7 +334,7 @@ type Dialer struct {
 }
 
 func (f *Factory) New(s Scope) (*Dialer, error) {
-	if f == nil || f.backend == nil || s.Purpose < DirectEgress || s.Purpose > LocalControl {
+	if f == nil || f.backend == nil || s.Purpose < DirectEgress || s.Purpose > ProviderFetch {
 		return nil, unsafe("invalid dial capability")
 	}
 	if f.required.Load() > 0 && !f.backend.Capabilities().PerSocket {
@@ -492,96 +469,12 @@ func (d *Dialer) ListenPacket(ctx context.Context, network, local, remote string
 	}}).ListenPacket(ctx, network, local)
 }
 
-type ChildLease struct {
-	f      *Factory
-	closed atomic.Bool
-	plan   EngineUnderlayPlan // protected by f.mu; bound to the actual child generation/PID
-}
-
-type EngineUnderlayPlan struct {
-	Scope                 Scope
-	PID                   int
-	InheritedProcessOwner bool
-}
-
-func (f *Factory) AcquireChild(scopes ...Scope) (*ChildLease, error) {
-	if f == nil || f.backend == nil {
-		return nil, unsafe("missing child capability")
-	}
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if f.required.Load() > 0 && !f.backend.Capabilities().Child {
-		return nil, unsafe("Xray child protection unavailable")
-	}
-	if f.required.Load() > 0 {
-		if err := f.verifyChild(context.Background()); err != nil {
-			return nil, err
-		}
-	}
-	f.children++
-	s := Scope{Purpose: EngineChild}
-	if len(scopes) > 0 {
-		s = scopes[0]
-		s.Purpose = EngineChild
-	}
-	return &ChildLease{f: f, plan: EngineUnderlayPlan{Scope: s, InheritedProcessOwner: f.backend.Capabilities().Child}}, nil
-}
-func (l *ChildLease) Bind(generation identity.ID, pid int) error {
-	if l == nil || l.f == nil || generation.Validate() != nil || pid < 1 {
-		return unsafe("invalid child underlay ownership")
-	}
-	l.f.mu.Lock()
-	defer l.f.mu.Unlock()
-	if l.closed.Load() || l.plan.PID != 0 {
-		return unsafe("child underlay ownership already bound or retired")
-	}
-	l.plan.Scope.Generation = generation
-	l.plan.PID = pid
-	return nil
-}
-func (l *ChildLease) Plan() EngineUnderlayPlan {
-	if l == nil || l.f == nil {
-		return EngineUnderlayPlan{}
-	}
-	l.f.mu.Lock()
-	defer l.f.mu.Unlock()
-	return l.plan
-}
-func (l *ChildLease) Verify(ctx context.Context) error {
-	if l == nil || l.f == nil || l.closed.Load() {
-		return unsafe("missing child ownership")
-	}
-	if l.f.required.Load() == 0 {
-		return nil
-	}
-	if err := l.f.verifyChild(ctx); err != nil {
-		l.f.degraded.Store(true)
-		return err
-	}
-	if err := l.f.verify(ctx); err != nil {
-		l.f.degraded.Store(true)
-		return err
-	}
-	return nil
-}
-func (l *ChildLease) Close() {
-	if l != nil && l.f != nil {
-		l.f.mu.Lock()
-		if l.closed.CompareAndSwap(false, true) {
-			l.f.children--
-		}
-		l.f.mu.Unlock()
-	}
-}
 func (f *Factory) Status() Status {
 	if f.required.Load() > 0 && f.verify(context.Background()) != nil {
 		f.degraded.Store(true)
 	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if f.required.Load() > 0 && f.children > 0 && f.verifyChild(context.Background()) != nil {
-		f.degraded.Store(true)
-	}
 	s := Status{Capabilities: f.backend.Capabilities(), Health: "healthy", Generations: []identity.ID{}, ActiveLeases: len(f.leases), Acquires: f.acquires.Load(), Releases: f.releases.Load(), Failures: f.failures.Load()}
 	seen := map[netip.Addr]bool{}
 	for id, l := range f.leases {
@@ -595,7 +488,7 @@ func (f *Factory) Status() Status {
 	if f.degraded.Load() {
 		s.Health = "degraded"
 		s.LastError = "underlay_verification_failed"
-		s.Unprotected = len(f.leases) + f.children
+		s.Unprotected = len(f.leases)
 	}
 	return s
 }

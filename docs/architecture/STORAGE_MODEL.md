@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Storage and deployment developers
-- Last reviewed: 2026-10-03
+- Last reviewed: 2026-10-04
 - Owner: Storage maintainers
 - Responsibility: Driver qualification, durability, migration mechanics, backup and corruption recovery.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -157,3 +157,19 @@ Windows adapter/route generation identities. Schema 1 remains readable but canno
 contain the new Windows shapes. WinINET previous-state fingerprints and generation
 timestamps stay private; sensitive PAC state rejects. Failed acknowledgments/cleanup
 retain recovery debt. This is independent of SQLite migration numbering.
+
+## Phase 14 schema 8 and remote authority
+
+[0008_client_management](../../internal/splicore/storage/sqlite/migrations/0008_client_management.sql)
+adds client_management_profiles(singleton, canonical JSON) and provider_sources(id,
+ciphertext, key_id). Generic sources use existing master cipher and provider-specific
+AAD; auth/full URL/ETag/Last-Modified never appear in plaintext ordinary columns.
+Node/provenance/tags/state and generated outbound ownership use existing canonical
+documents; node credential records retain existing owner/AAD. No raw feed cache or
+protocol-specific table. Existing migrations 0001–0007 and dependencies are unchanged.
+ReplaceClient and ReplaceProviderSources run inside one existing short SQLite callback
+with resources, revision/journal and encrypted credentials. Source rows for deleted
+providers are removed in that transaction. Failed writes roll back all candidate data.
+Offline recovery and coherent VACUUM INTO restore include providers/nodes/tags/rules/
+credentials with the original master key. Default uninstall preserves state; purge
+removes it. Forward schema 7→8 uses existing checkpoint/restore rollback boundary.
