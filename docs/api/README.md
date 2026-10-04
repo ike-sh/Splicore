@@ -106,3 +106,7 @@ credential-pair inputs, role-specific capability dimensions and eight decimal-st
 client counters are documented in the machine schema. Server RuntimeStats is unchanged.
 Local SOCKS UDP status is `supported`; session kind is `tcp` or `udp_association`.
 See [control semantics](API_V1_DESIGN.md#phase-11-client-observations).
+
+## Phase 13 host integration
+
+LocalInbound now supports socks5/http/mixed/tun. Client status adds host_network and host_capabilities. Protected GET/PUT /client/host-integration and GET /client/host-network expose intent/status; POST /client/host-network/repair uses existing revision/plan semantics and requires stopped listeners. No raw OS commands are accepted. See [system integration](../SYSTEM_INTEGRATION.md).

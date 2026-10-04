@@ -9,6 +9,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
 	module "github.com/sagernet/sing-box/internal/splicore/protocol/snell"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"github.com/sagernet/sing-box/option"
 	upstream "github.com/sagernet/sing-box/protocol/snell"
 	M "github.com/sagernet/sing/common/metadata"
@@ -56,6 +57,7 @@ func (f SnellOutboundFactory) Build(ctx context.Context, n client.RemoteNode, c 
 }
 
 type snellDialer struct {
+	resolver   *underlay.Dialer
 	box        *box.Box
 	outbound   adapter.Outbound
 	cancel     context.CancelFunc
@@ -71,7 +73,7 @@ func (d *snellDialer) ListenPacket(ctx context.Context, e access.Endpoint) (net.
 		// The frozen native server path unmaps a domain response into a domain
 		// address which Snell's IP-only response framing cannot encode. Resolve
 		// this client flow once; preserve the canonical domain and the wire codec.
-		address, err := net.DefaultResolver.LookupNetIP(ctx, "ip", e.Host)
+		address, err := d.resolver.LookupNetIP(ctx, "ip", e.Host)
 		if err != nil {
 			return nil, err
 		}

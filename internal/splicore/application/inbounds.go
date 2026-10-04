@@ -31,6 +31,7 @@ func (s *Service) views(ctx context.Context) (InboundPage, error) {
 		return InboundPage{}, e
 	}
 	out := InboundPage{Items: []InboundView{}, Revision: state.Revision}
+	underlayHealthy := s.underlay.Status().Health != "degraded"
 	for _, i := range in {
 		bs, e := s.bindings(ctx, i.ID)
 		if e != nil {
@@ -54,7 +55,7 @@ func (s *Service) views(ctx context.Context) (InboundPage, error) {
 				v.Runtime = &status
 			}
 			v.Stats = h.Stats()
-			if h.Health(ctx) == nil {
+			if h.Health(ctx) == nil && underlayHealthy {
 				v.Health = "healthy"
 			} else {
 				v.Health = "degraded"

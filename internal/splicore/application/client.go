@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/sagernet/sing-box/internal/splicore/clientruntime"
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
@@ -26,23 +27,24 @@ type CredentialInput struct {
 func (c CredentialInput) Format(s fmt.State, _ rune) { _, _ = s.Write([]byte(secret.Redacted)) }
 
 type ClientMutation struct {
-	Network      *P.Config            `json:"network,omitempty"`
-	RouteRule    *P.RouteRule         `json:"route_rule,omitempty"`
-	RuleSet      *P.RuleSet           `json:"rule_set,omitempty"`
-	PolicyGroup  *P.PolicyGroup       `json:"policy_group,omitempty"`
-	DNSServer    *P.DNSServer         `json:"dns_server,omitempty"`
-	DNSRule      *P.DNSRule           `json:"dns_rule,omitempty"`
-	DNSProfile   *P.DNSProfile        `json:"dns_profile,omitempty"`
-	RouteProfile *P.RouteProfile      `json:"route_profile,omitempty"`
-	Selected     *P.Action            `json:"selected,omitempty"`
-	Resource     string               `json:"resource"`
-	Action       string               `json:"action"`
-	ID           identity.ID          `json:"id,omitempty"`
-	Node         *client.RemoteNode   `json:"node,omitempty"`
-	Outbound     *client.Outbound     `json:"outbound,omitempty"`
-	LocalInbound *client.LocalInbound `json:"local_inbound,omitempty"`
-	Route        *client.Route        `json:"route,omitempty"`
-	Credential   *CredentialInput     `json:"credential,omitempty"`
+	Host         *client.HostIntegration `json:"host_integration,omitempty"`
+	Network      *P.Config               `json:"network,omitempty"`
+	RouteRule    *P.RouteRule            `json:"route_rule,omitempty"`
+	RuleSet      *P.RuleSet              `json:"rule_set,omitempty"`
+	PolicyGroup  *P.PolicyGroup          `json:"policy_group,omitempty"`
+	DNSServer    *P.DNSServer            `json:"dns_server,omitempty"`
+	DNSRule      *P.DNSRule              `json:"dns_rule,omitempty"`
+	DNSProfile   *P.DNSProfile           `json:"dns_profile,omitempty"`
+	RouteProfile *P.RouteProfile         `json:"route_profile,omitempty"`
+	Selected     *P.Action               `json:"selected,omitempty"`
+	Resource     string                  `json:"resource"`
+	Action       string                  `json:"action"`
+	ID           identity.ID             `json:"id,omitempty"`
+	Node         *client.RemoteNode      `json:"node,omitempty"`
+	Outbound     *client.Outbound        `json:"outbound,omitempty"`
+	LocalInbound *client.LocalInbound    `json:"local_inbound,omitempty"`
+	Route        *client.Route           `json:"route,omitempty"`
+	Credential   *CredentialInput        `json:"credential,omitempty"`
 }
 
 func (m ClientMutation) Format(s fmt.State, _ rune) {
@@ -77,13 +79,18 @@ func (s *Service) WaitClientIdle(ctx context.Context) error {
 
 // EnableClientRuntime restores client state independently of server runtime health.
 // A failed client listener is reported as degraded while server/API remain running.
-func (s *Service) EnableClientRuntime(ctx context.Context, factories *registry.Outbounds) error {
+func (s *Service) EnableClientRuntime(ctx context.Context, factories *registry.Outbounds, hostDirectory ...string) error {
 	repo, ok := s.repo.(ports.ClientRepository)
 	if !ok || s.runtime == nil || factories == nil {
 		return identity.Err(identity.Unavailable, "client dependencies unavailable")
 	}
-	c := &clientState{repo: repo, factories: factories, manager: clientruntime.New()}
+	c := &clientState{repo: repo, factories: factories, manager: clientruntime.NewWithUnderlay(s.underlay)}
 	s.client = c
+	if len(hostDirectory) > 0 {
+		if err := c.manager.ConfigureHost(ctx, hostDirectory[0]); err != nil {
+			c.recoveryError = "host_recovery_failed"
+		}
+	}
 	state, err := repo.ClientState(ctx)
 	if err != nil {
 		c.recoveryError = "client_committed_state_invalid"
@@ -94,7 +101,7 @@ func (s *Service) EnableClientRuntime(ctx context.Context, factories *registry.O
 		var p *clientruntime.Prepared
 		p, err = c.manager.Prepare(ctx, state, secrets, factories)
 		if err == nil {
-			p.Activate()
+			err = p.Activate()
 		}
 	}
 	if err != nil {
@@ -178,7 +185,7 @@ func (s *Service) clientCandidate(ctx context.Context, b json.RawMessage) (clien
 	}
 	// Exact shapes keep secrets and protocol options out of unrelated mutation paths.
 	count := 0
-	for _, present := range []bool{m.Node != nil, m.Outbound != nil, m.LocalInbound != nil, m.Route != nil, m.Network != nil, m.RouteRule != nil, m.RuleSet != nil, m.PolicyGroup != nil, m.DNSServer != nil, m.DNSRule != nil, m.DNSProfile != nil, m.RouteProfile != nil, m.Selected != nil} {
+	for _, present := range []bool{m.Host != nil, m.Node != nil, m.Outbound != nil, m.LocalInbound != nil, m.Route != nil, m.Network != nil, m.RouteRule != nil, m.RuleSet != nil, m.PolicyGroup != nil, m.DNSServer != nil, m.DNSRule != nil, m.DNSProfile != nil, m.RouteProfile != nil, m.Selected != nil} {
 		if present {
 			count++
 		}
@@ -379,6 +386,15 @@ func (s *Service) clientCandidate(ctx context.Context, b json.RawMessage) (clien
 			return invalid()
 		}
 		out.state.Route = *m.Route
+	case "host-integration":
+		if m.Action != "update" || m.Host == nil || count != 1 || id != "" {
+			return invalid()
+		}
+		out.state.Host = *m.Host
+	case "host-network":
+		if m.Action != "repair" || count != 0 || id != "" {
+			return invalid()
+		}
 	case "runtime":
 		if count != 0 || id != "" {
 			return invalid()
@@ -471,7 +487,7 @@ func (s *Service) ApplyClient(ctx context.Context, req ApplyRequest) (result Cli
 	defer func() {
 		if !committed {
 			if prepared != nil {
-				prepared.Abort()
+				err = errors.Join(err, prepared.Abort())
 			}
 			cleanup, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
@@ -483,6 +499,11 @@ func (s *Service) ApplyClient(ctx context.Context, req ApplyRequest) (result Cli
 		return result, err
 	}
 	restart := candidate.mutation.Resource == "runtime" && candidate.mutation.Action == "restart"
+	if candidate.mutation.Resource == "host-network" {
+		if err = c.manager.RepairHost(ctx); err != nil {
+			return result, err
+		}
+	}
 	prepared, err = c.manager.PrepareWithRestart(ctx, candidate.state, credentials, c.factories, restart)
 	if err != nil {
 		return result, err
@@ -498,7 +519,12 @@ func (s *Service) ApplyClient(ctx context.Context, req ApplyRequest) (result Cli
 		return result, err
 	}
 	committed = true
-	prepared.Activate()
+	err = prepared.Activate()
+	if err != nil {
+		c.recoveryError = "host_activation_degraded"
+		_ = op.Finish(identity.Committed, time.Now(), "")
+		return ClientResult{ID: candidate.id, Transaction: op}, err
+	}
 	c.recoveryError = ""
 	_ = op.Finish(identity.Committed, time.Now(), "")
 	return ClientResult{ID: candidate.id, Transaction: op}, nil

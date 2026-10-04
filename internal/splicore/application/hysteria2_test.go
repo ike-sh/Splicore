@@ -16,6 +16,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/storage/sqlite"
 	"github.com/sagernet/sing-box/internal/splicore/testkit"
 	"github.com/sagernet/sing-box/internal/splicore/transport"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"github.com/sagernet/sing-box/internal/splicore/version"
 	"net"
 	"net/http/httptest"
@@ -28,7 +29,7 @@ import (
 func setupHysteria(t *testing.T, path string, wrap func(ports.MultiBindingRepository) ports.Repository) (*application.Service, *sqlite.Store) {
 	return setupProtocols(t, path, wrap, registry.Phase3)
 }
-func setupProtocols(t *testing.T, path string, wrap func(ports.MultiBindingRepository) ports.Repository, compose func() (*registry.Protocols, *registry.Engines, *registry.Exporters, error)) (*application.Service, *sqlite.Store) {
+func setupProtocols(t *testing.T, path string, wrap func(ports.MultiBindingRepository) ports.Repository, compose func() (*registry.Protocols, *registry.Engines, *registry.Exporters, error), factories ...*underlay.Factory) (*application.Service, *sqlite.Store) {
 	t.Helper()
 	p, e, x, err := compose()
 	if err != nil {
@@ -55,7 +56,11 @@ func setupProtocols(t *testing.T, path string, wrap func(ports.MultiBindingRepos
 	if wrap != nil {
 		repo = wrap(store)
 	}
-	s, err := application.New(repo, p, e, x, version.Current())
+	factory := underlay.New()
+	if len(factories) > 0 {
+		factory = factories[0]
+	}
+	s, err := application.NewWithUnderlay(repo, p, e, x, version.Current(), factory)
 	if err == nil {
 		err = s.EnableRuntime(context.Background())
 	}

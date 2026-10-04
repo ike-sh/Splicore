@@ -11,6 +11,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/engine/native"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
 	"github.com/sagernet/sing-box/internal/splicore/registry"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"io"
 	"net"
 	"path/filepath"
@@ -133,7 +134,7 @@ func TestSnellOutboundRemoteUDPIsSeparateFromLocalSOCKSUDP(t *testing.T) {
 			if c.OwnerNodeID == nil || *c.OwnerNodeID != nodeID {
 				t.Fatal("owner")
 			}
-			d, err := (native.SnellOutboundFactory{}).Build(ctx, n, c)
+			d, err := (native.SnellOutboundFactory{}).Build(underlay.WithFactory(ctx, underlay.New()), n, c)
 			if err != nil {
 				t.Fatal(err)
 			}

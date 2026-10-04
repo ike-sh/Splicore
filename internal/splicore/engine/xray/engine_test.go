@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"io"
 	"net"
 	"os"
@@ -112,7 +113,7 @@ func prepareHelper(t *testing.T, e *Engine) *Handle {
 	}
 	in.Inbound.Listeners[0].Endpoint.Port = uint16(l.Addr().(*net.TCPAddr).Port)
 	_ = l.Close()
-	prepared, err := e.Compile(context.Background(), in)
+	prepared, err := e.Compile(underlay.WithFactory(context.Background(), underlay.New()), in)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -316,7 +317,7 @@ func TestSupervisorInvalidArtifactAndOwnedSnapshot(t *testing.T) {
 	e := helperEngine(t, "echo")
 	in := fixture(t)
 	original := in.Credentials[0].Payload.(access.UUIDPayload).UUID.Reveal()
-	prepared, err := e.Compile(context.Background(), in)
+	prepared, err := e.Compile(underlay.WithFactory(context.Background(), underlay.New()), in)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -370,7 +371,7 @@ func TestAvailabilityAndRendererBoundaries(t *testing.T) {
 		t.Fatal("config formatting leak")
 	}
 	in.Inbound.Settings.Data = json.RawMessage(`{"security":"none","flow":"xtls-rprx-vision","transport":"tcp","packet_encoding":"xudp"}`)
-	if _, err = e.Compile(ctx, in); err == nil || !strings.Contains(err.Error(), "not_implemented") {
+	if _, err = e.Compile(underlay.WithFactory(ctx, underlay.New()), in); err == nil || !strings.Contains(err.Error(), "not_implemented") {
 		t.Fatal("Vision must reject before artifact access")
 	}
 	var out boundedVersion

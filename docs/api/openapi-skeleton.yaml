@@ -4668,6 +4668,199 @@
           }
         }
       }
+    },
+    "/api/v1/client/host-integration": {
+      "get": {
+        "operationId": "clientHostIntegrationGet",
+        "x-implementation-status": "phase13",
+        "description": "Experimental protected local client control; no query parameters.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostIntegration"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "operationId": "clientHostIntegrationUpdate",
+        "x-implementation-status": "phase13",
+        "description": "Experimental protected local client control; no query parameters. If-Match is the shared global committed revision; conflicts return 409.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HostIntegrationBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/client/host-network": {
+      "get": {
+        "operationId": "clientHostNetworkStatusGet",
+        "x-implementation-status": "phase13",
+        "description": "Experimental protected local client control; no query parameters.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostNetworkStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/api/v1/client/host-network/repair": {
+      "post": {
+        "operationId": "clientHostNetworkRepair",
+        "x-implementation-status": "phase13",
+        "description": "Protected revision-bound repair of journal-owned changes; client listeners must be stopped.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {},
+                "required": []
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -8469,20 +8662,62 @@
             "maxLength": 128
           },
           "kind": {
-            "const": "socks5"
+            "type": "string",
+            "enum": [
+              "socks5",
+              "http",
+              "mixed",
+              "tun"
+            ]
           },
           "listen": {
             "$ref": "#/components/schemas/ClientEndpoint"
           },
           "selected_outbound": {
             "$ref": "#/components/schemas/ClientOutboundID"
+          },
+          "tun": {
+            "$ref": "#/components/schemas/TUNSettings"
           }
         },
         "required": [
           "id",
           "name",
-          "kind",
-          "listen"
+          "kind"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "tun"
+                }
+              },
+              "required": [
+                "kind"
+              ]
+            },
+            "then": {
+              "required": [
+                "tun"
+              ],
+              "not": {
+                "required": [
+                  "listen"
+                ]
+              }
+            },
+            "else": {
+              "required": [
+                "listen"
+              ],
+              "not": {
+                "required": [
+                  "tun"
+                ]
+              }
+            }
+          }
         ]
       },
       "LocalInboundInput": {
@@ -8508,6 +8743,9 @@
             "type": "string",
             "enum": [
               "socks5",
+              "http",
+              "mixed",
+              "tun",
               ""
             ]
           },
@@ -8531,11 +8769,47 @@
           },
           "selected_outbound": {
             "$ref": "#/components/schemas/ClientOutboundID"
+          },
+          "tun": {
+            "$ref": "#/components/schemas/TUNSettings"
           }
         },
         "required": [
-          "name",
-          "listen"
+          "name"
+        ],
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "kind": {
+                  "const": "tun"
+                }
+              },
+              "required": [
+                "kind"
+              ]
+            },
+            "then": {
+              "required": [
+                "tun"
+              ],
+              "not": {
+                "required": [
+                  "listen"
+                ]
+              }
+            },
+            "else": {
+              "required": [
+                "listen"
+              ],
+              "not": {
+                "required": [
+                  "tun"
+                ]
+              }
+            }
+          }
         ]
       },
       "ClientRoute": {
@@ -8611,6 +8885,9 @@
           },
           "network": {
             "$ref": "#/components/schemas/NetworkConfig"
+          },
+          "host_integration": {
+            "$ref": "#/components/schemas/HostIntegration"
           }
         },
         "required": [
@@ -8620,7 +8897,8 @@
           "outbounds",
           "local_inbounds",
           "route",
-          "network"
+          "network",
+          "host_integration"
         ]
       },
       "ClientObservation": {
@@ -8658,7 +8936,8 @@
           "last_error": {
             "type": "string",
             "enum": [
-              "outbound_connection_failed"
+              "outbound_connection_failed",
+              "underlay_verification_failed"
             ]
           },
           "stats": {
@@ -8703,14 +8982,15 @@
             "type": "string",
             "enum": [
               "tcp",
-              "udp_association"
+              "udp_association",
+              "tun_udp",
+              "dns"
             ]
           }
         },
         "required": [
           "id",
           "local_inbound_id",
-          "outbound_id",
           "stats",
           "kind"
         ]
@@ -8847,11 +9127,26 @@
             "type": "string",
             "enum": [
               "client_recovery_failed",
-              "client_committed_state_invalid"
+              "client_committed_state_invalid",
+              "host_activation_degraded",
+              "host_restore_failed",
+              "network_restore_conflict",
+              "journal_corrupt",
+              "journal_write_failed",
+              "underlay_verification_failed"
             ]
           },
           "network_runtime": {
             "$ref": "#/components/schemas/NetworkRuntimeStatus"
+          },
+          "host_network": {
+            "$ref": "#/components/schemas/HostNetworkStatus"
+          },
+          "host_capabilities": {
+            "$ref": "#/components/schemas/HostCapabilities"
+          },
+          "underlay": {
+            "$ref": "#/components/schemas/UnderlayStatus"
           }
         },
         "required": [
@@ -8864,7 +9159,10 @@
           "outbounds",
           "nodes",
           "sessions",
-          "network_runtime"
+          "network_runtime",
+          "host_network",
+          "host_capabilities",
+          "underlay"
         ]
       },
       "ServerRuntimeStatus": {
@@ -8910,7 +9208,9 @@
               "dns-server",
               "dns-rule",
               "dns-profile",
-              "route-profile"
+              "route-profile",
+              "host-integration",
+              "host-network"
             ]
           },
           "action": {
@@ -8924,7 +9224,8 @@
               "stop",
               "restart",
               "replace",
-              "select"
+              "select",
+              "repair"
             ]
           },
           "id": {
@@ -8971,6 +9272,9 @@
           },
           "selected": {
             "$ref": "#/components/schemas/RouteAction"
+          },
+          "host_integration": {
+            "$ref": "#/components/schemas/HostIntegration"
           }
         },
         "required": [
@@ -10727,6 +11031,278 @@
           "name",
           "match",
           "server"
+        ]
+      },
+      "TUNSettings": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "interface": {
+            "type": "string",
+            "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,14}$"
+          },
+          "addresses": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "minItems": 1,
+            "maxItems": 2
+          },
+          "mtu": {
+            "type": "integer",
+            "minimum": 1280,
+            "maximum": 9000
+          },
+          "auto_route": {
+            "type": "boolean",
+            "default": false
+          },
+          "include": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 128
+          },
+          "exclude": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 128
+          },
+          "dns_hijack": {
+            "type": "boolean"
+          },
+          "stack": {
+            "type": "string",
+            "enum": [
+              "",
+              "system",
+              "gvisor"
+            ],
+            "description": "Only gvisor is implemented by the owned adapter."
+          }
+        },
+        "required": [
+          "interface",
+          "addresses",
+          "mtu",
+          "auto_route",
+          "dns_hijack"
+        ]
+      },
+      "SystemProxySettings": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "local_inbound": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "backend": {
+            "const": "wininet"
+          }
+        },
+        "required": [
+          "enabled"
+        ]
+      },
+      "HostIntegration": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "system_proxy": {
+            "$ref": "#/components/schemas/SystemProxySettings"
+          }
+        },
+        "required": [
+          "system_proxy"
+        ]
+      },
+      "HostNetworkStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "platform": {
+            "type": "string"
+          },
+          "recovery": {
+            "type": "string",
+            "enum": [
+              "clean",
+              "degraded",
+              "unconfigured"
+            ]
+          },
+          "active_generations": {
+            "type": "integer"
+          },
+          "owned_routes": {
+            "type": "integer"
+          },
+          "owned_interfaces": {
+            "type": "integer"
+          },
+          "system_proxy_owned": {
+            "type": "boolean"
+          },
+          "last_error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "platform",
+          "recovery",
+          "active_generations",
+          "owned_routes",
+          "owned_interfaces",
+          "system_proxy_owned"
+        ]
+      },
+      "HostCapabilities": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "tun": {
+            "type": "string"
+          },
+          "stack": {
+            "type": "string"
+          },
+          "auto_route": {
+            "type": "string"
+          },
+          "driver": {
+            "type": "string"
+          },
+          "privilege": {
+            "type": "string"
+          },
+          "system_proxy": {
+            "type": "string"
+          },
+          "loop_protection": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "tun",
+          "stack",
+          "auto_route",
+          "driver",
+          "privilege",
+          "system_proxy",
+          "loop_protection"
+        ]
+      },
+      "HostIntegrationBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "host_integration": {
+            "$ref": "#/components/schemas/HostIntegration"
+          }
+        },
+        "required": [
+          "host_integration"
+        ]
+      },
+      "UnderlayStatus": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "socket-mark-and-journaled-daemon-uid",
+              "interface-and-endpoint-leases",
+              "activation-unqualified"
+            ]
+          },
+          "health": {
+            "type": "string",
+            "enum": [
+              "healthy",
+              "degraded"
+            ]
+          },
+          "active_generations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "per_socket": {
+            "type": "boolean"
+          },
+          "endpoint_routes": {
+            "type": "boolean"
+          },
+          "interface_binding": {
+            "type": "boolean"
+          },
+          "mark_table": {
+            "type": "boolean"
+          },
+          "child": {
+            "type": "boolean"
+          },
+          "system_resolver": {
+            "type": "boolean"
+          },
+          "active_leases": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "infrastructure_endpoints": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unprotected_required_runtimes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "acquires": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          },
+          "releases": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          },
+          "reconcile_failures": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          },
+          "last_error": {
+            "type": "string",
+            "enum": [
+              "underlay_verification_failed"
+            ]
+          }
+        },
+        "required": [
+          "strategy",
+          "health",
+          "active_generations",
+          "per_socket",
+          "endpoint_routes",
+          "interface_binding",
+          "mark_table",
+          "child",
+          "system_resolver",
+          "active_leases",
+          "infrastructure_endpoints",
+          "unprotected_required_runtimes",
+          "acquires",
+          "releases",
+          "reconcile_failures"
         ]
       }
     },

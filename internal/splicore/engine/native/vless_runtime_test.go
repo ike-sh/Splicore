@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"io"
 	"net"
 	"os"
@@ -130,7 +131,7 @@ func TestVLESSNonVisionDefaultRaceTraffic(t *testing.T) {
 				in.Credentials = append(in.Credentials, access.Credential{ID: credentialID, OwnerAccountID: &accountID, Kind: access.UUID, Schema: 1, State: "active", Payload: access.UUIDPayload{UUID: secret.New(string(id()))}, Stamp: stamp})
 				in.Bindings = append(in.Bindings, access.Binding{ID: id(), AccountID: accountID, InboundID: in.Inbound.ID, CredentialID: credentialID, Enabled: true, Stamp: stamp})
 			}
-			prepared, err := (VLESSCompiler{}).Compile(ctx, in)
+			prepared, err := (VLESSCompiler{}).Compile(underlay.WithFactory(ctx, underlay.New()), in)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -36,6 +36,13 @@ func (s *Store) ClientState(ctx context.Context) (client.ProfileState, error) {
 		return state, identity.Err(identity.Corrupt, "invalid committed network configuration")
 	}
 	state.Outbounds = []client.Outbound{}
+	var hostDocument []byte
+	if err = tx.QueryRowContext(ctx, "SELECT document FROM client_host_profiles WHERE singleton=1").Scan(&hostDocument); err != nil {
+		return state, storageError(err)
+	}
+	if jsonstrict.DecodeLimit(hostDocument, &state.Host, 16<<10) != nil {
+		return state, identity.Err(identity.Corrupt, "invalid committed host intent")
+	}
 	for _, read := range []struct {
 		query  string
 		decode func([]byte) error
@@ -179,5 +186,13 @@ func (w *writer) ReplaceClient(state client.ProfileState, secrets []access.Crede
 	if err = w.exec("UPDATE client_network_profiles SET document=? WHERE singleton=1", string(networkDocument)); err != nil {
 		return err
 	}
+	hostDocument, err := json.Marshal(state.Host)
+	if err != nil {
+		return identity.Err(identity.Invalid, "invalid canonical host intent")
+	}
+	if err = w.exec("UPDATE client_host_profiles SET document=? WHERE singleton=1", string(hostDocument)); err != nil {
+		return err
+	}
 	return w.exec("UPDATE client_profiles SET enabled=? WHERE singleton=1", state.Enabled)
+
 }

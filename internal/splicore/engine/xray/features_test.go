@@ -10,6 +10,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/ports"
 	v "github.com/sagernet/sing-box/internal/splicore/protocol/vless"
 	"github.com/sagernet/sing-box/internal/splicore/transportmask"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"os"
 	"path/filepath"
 	"testing"
@@ -45,7 +46,7 @@ func TestSudokuRendererSnapshotAndOwnership(t *testing.T) {
 		t.Fatal("pinned mask mapping")
 	}
 	e := helperEngine(t, "echo")
-	prepared, err := e.Compile(context.Background(), in)
+	prepared, err := e.Compile(underlay.WithFactory(context.Background(), underlay.New()), in)
 	if err != nil {
 		t.Fatal(err)
 	}

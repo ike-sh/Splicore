@@ -85,7 +85,7 @@ func Serve(ctx context.Context, c config.Config) error {
 	if err != nil {
 		return err
 	}
-	if err = service.EnableClientRuntime(ctx, outbounds); err != nil {
+	if err = service.EnableClientRuntime(ctx, outbounds, filepath.Join(c.StateDirectory, "host-network")); err != nil {
 		return err
 	}
 	server := transport.Server(api.Handler(service))

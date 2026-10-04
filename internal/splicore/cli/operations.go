@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/sagernet/sing-box/internal/splicore/config"
@@ -49,7 +50,7 @@ func operationsCLI(parent context.Context, args []string, out, errOut io.Writer,
 		allowed = map[string]bool{"artifact": true}
 	case "state/backup":
 		allowed = map[string]bool{"source": true, "output": true}
-	case "service/initialize", "service/record-exit", "service/health":
+	case "service/initialize", "service/record-exit", "service/health", "service/recover-network":
 		allowed = map[string]bool{"config": true}
 	case "support-bundle/":
 		allowed = map[string]bool{"config": true, "output": true}
@@ -105,7 +106,9 @@ func operationsCLI(parent context.Context, args []string, out, errOut io.Writer,
 				case "initialize":
 					err = operations.Initialize(c)
 				case "record-exit":
-					err = operations.RecordExit(c, deps.Build, os.Getenv("SERVICE_RESULT"))
+					err = errors.Join(operations.RecoverHost(ctx, c), operations.RecordExit(c, deps.Build, os.Getenv("SERVICE_RESULT")))
+				case "recover-network":
+					err = operations.RecoverHost(ctx, c)
 				case "health":
 					err = distribution.Health(ctx, c, nil)
 				}

@@ -17,6 +17,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
 	v "github.com/sagernet/sing-box/internal/splicore/protocol/vless"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 )
 
 const ReferenceVersion = "26.3.27"
@@ -198,6 +199,20 @@ func (e *Engine) Compile(ctx context.Context, in ports.RuntimeIntent) (ports.Pre
 	if err := e.Supports(in); err != nil {
 		return nil, err
 	}
+	factory, err := underlay.FromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	childLease, err := factory.AcquireChild(underlay.ScopeFrom(ctx, underlay.EngineChild))
+	if err != nil {
+		return nil, err
+	}
+	transferred := false
+	defer func() {
+		if !transferred {
+			childLease.Close()
+		}
+	}()
 	if err := e.ValidateAvailability(ctx); err != nil {
 		return nil, err
 	}
@@ -208,6 +223,7 @@ func (e *Engine) Compile(ctx context.Context, in ports.RuntimeIntent) (ports.Pre
 		return nil, err
 	}
 	h := newHandle(e, in.Inbound.Listeners[0].Endpoint, b)
+	h.underlay = childLease
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if e.closed {
@@ -215,6 +231,7 @@ func (e *Engine) Compile(ctx context.Context, in ports.RuntimeIntent) (ports.Pre
 		return nil, unavailable("Xray engine closed")
 	}
 	e.handles[h] = true
+	transferred = true
 	return h, nil
 }
 func (e *Engine) Close(ctx context.Context) error {

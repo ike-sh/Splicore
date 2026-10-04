@@ -36,3 +36,7 @@ If the program has already been removed, reinstall it first and then purge.
 Back up matching DB/key/config before purge; deleted credentials cannot be
 recovered without that backup. Run destructive validation only in a disposable
 environment.
+
+## Phase 13 host integration
+
+Stop before removal, restore the private host journal as the original service UID, and refuse removal/purge on recovery failure. Domain state remains by default. Purge validates paths after restoration. Never chown a journal, flush a table or remove an unrelated adapter. Administrator-installed service drop-ins are not automatically removed; remove the optional TUN profile explicitly when retiring it. See [system integration](SYSTEM_INTEGRATION.md).

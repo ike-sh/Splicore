@@ -110,8 +110,8 @@ def main():
         for method, operation in methods.items():
             if method in {"get", "post", "put", "patch", "delete"}:
                 operations.append(operation["operationId"])
-                assert operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "phase4", "phase5", "phase10", "phase12", "deferred"}
-                if operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "phase4", "phase5", "phase10", "phase12"}:
+                assert operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "phase4", "phase5", "phase10", "phase12", "phase13", "deferred"}
+                if operation["x-implementation-status"] in {"foundation", "phase2", "phase3", "phase4", "phase5", "phase10", "phase12", "phase13"}:
                     implemented.append((method, path))
     assert len(operations) == len(set(operations))
     client_operations = [(method, "/api/v1/" + collection + suffix)
@@ -132,6 +132,7 @@ def main():
         "/api/v1/policy-groups/status":["get"],"/api/v1/policy-groups/{id}/select":["post"],
         "/api/v1/dns/profile":["get","put"],"/api/v1/dns/lookup":["post"],
         "/api/v1/dns/cache/status":["get"],"/api/v1/dns/cache/flush":["post"]}.items() for method in methods]
+    client_operations += [("get","/api/v1/client/host-integration"),("put","/api/v1/client/host-integration"),("get","/api/v1/client/host-network"),("post","/api/v1/client/host-network/repair")]
     assert sorted(implemented) == sorted(client_operations + [
         ("get", "/api/v1/capabilities"), ("get", "/api/v1/system"),
         ("get", "/api/v1/inbounds"), ("get", "/api/v1/inbounds/{id}"),
@@ -152,6 +153,13 @@ def main():
             ("client-plan-response.json", "ClientPlan"), ("client-apply-response.json", "ClientResult")]
         if (args.responses / "client-runtime-response.json").exists():
             pairs.extend(client_pairs)
+            if "HostNetworkStatus" in spec["components"]["schemas"]:
+                pairs.extend([("host-integration-response.json", "HostIntegration"),
+                              ("host-network-response.json", "HostNetworkStatus")])
+        if (args.responses / "tun-local-response.json").exists():
+            pairs.extend([("tun-local-response.json", "LocalInbound"),
+                          ("tun-runtime-response.json", "ClientRuntimeStatus"),
+                          ("active-host-network-response.json", "HostNetworkStatus")])
         if args.protocol!="snell":
             prefix=args.protocol;schema={"tuic":"TUIC","hysteria2":"Hysteria2","vless":"VLESS","mieru":"Mieru"}[prefix]
             pairs.extend([(("plan-response.json" if prefix=="vless" else prefix+"-plan-response.json"),schema+"Plan"),(("apply-response.json" if prefix=="vless" else prefix+"-apply-response.json"),schema+"Applied"),("binding-transaction-response.json","RuntimeTransaction")])

@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Engine and runtime developers
-- Last reviewed: 2026-10-03
+- Last reviewed: 2026-10-04
 - Owner: Engine maintainers
 - Responsibility: Private native/compatibility execution contracts and enforcement limits.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -159,3 +159,20 @@ Native HY2/TUIC/VLESS each own an embedded Box. Official Mieru Client owns a pri
 profile/mux, while the adapter owns logical and underlay sockets and cancels/joins
 its injected operations. The SDK exposes no join for client underlay RunEventLoop;
 its raw sockets are closed and repeated lifecycle stack checks qualify exit. See [client runtime](CLIENT_RUNTIME.md).
+
+## Underlay capability boundary
+
+Network-capable Native and Xray constructors require the daemon's explicit factory
+in their runtime context, including the no-TUN capability. Native box construction
+wraps official outbound/DNS registries with isolated NetworkManager contexts; final
+server targets use an explicit protected DIRECT outbound. VLESS plain/TLS/REALITY
+use the same protected capability; Vision remains rejected under ADR 0017.
+Mieru v3.38.0 hooks cover TCP/UDP underlays and final server targets.
+
+Xray v26.3.27 remains the pinned official artifact. EngineUnderlayPlan binds actual
+runtime generation and PID before publication; the sole reaper joins process/socket
+cleanup before releasing ownership. Linux journaled UID/main-table bypass also
+protects existing child sockets. Loopback system stubs reject before TUN activation
+or required launch. Windows has no qualified child protection and fails closed.
+No public Xray JSON or upstream modifications are introduced.
+See [ADR 0031](../adr/0031-unified-underlay-protection.md).

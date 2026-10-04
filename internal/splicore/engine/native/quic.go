@@ -2,6 +2,7 @@ package native
 
 import (
 	"context"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -47,6 +48,9 @@ func newQUICRuntime(ctx context.Context, in ports.RuntimeIntent, settings tlscon
 	for _, b := range in.Bindings {
 		h.users[string(b.ID)] = &meter{}
 	}
+	if _, err := underlay.FromContext(ctx); err != nil {
+		return nil, err
+	}
 	runtimeCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	h.cancel = cancel
 	runtimeCtx = service.ContextWith[adapter.PlatformInterface](runtimeCtx, serverPlatform{})
@@ -69,8 +73,8 @@ func newQUICRuntime(ctx context.Context, in ports.RuntimeIntent, settings tlscon
 	direct.RegisterOutbound(or)
 	dr := dns.NewTransportRegistry()
 	local.RegisterTransport(dr)
-	runtimeCtx = box.Context(runtimeCtx, ir, or, endpoint.NewRegistry(), dr, boxservice.NewRegistry(), certificate.NewRegistry())
-	b, err := box.New(box.Options{Context: runtimeCtx, Options: option.Options{Log: &option.LogOptions{Disabled: true}, Inbounds: []option.Inbound{{Type: h.protocol, Tag: string(in.Inbound.ID), Options: &option.InboundTLSOptionsContainer{TLS: &option.InboundTLSOptions{Enabled: true, ServerName: settings.ServerName, Certificate: []string{string(cert)}, Key: []string{string(key)}, MinVersion: "1.3", ALPN: []string{"h3"}}}}}}})
+	runtimeCtx = box.Context(runtimeCtx, ir, protectedOutbounds{or, underlay.ServerTarget}, endpoint.NewRegistry(), protectedDNS{dr}, boxservice.NewRegistry(), certificate.NewRegistry())
+	b, err := box.New(box.Options{Context: runtimeCtx, Options: option.Options{DNS: &option.DNSOptions{RawDNSOptions: option.RawDNSOptions{Servers: []option.DNSServerOptions{{Type: "local", Tag: "local", Options: &option.LocalDNSServerOptions{}}}}}, Outbounds: []option.Outbound{{Type: "direct", Tag: "protected-direct", Options: &option.DirectOutboundOptions{}}}, Route: &option.RouteOptions{Final: "protected-direct", DefaultDomainResolver: &option.DomainResolveOptions{Server: "local"}}, Log: &option.LogOptions{Disabled: true}, Inbounds: []option.Inbound{{Type: h.protocol, Tag: string(in.Inbound.ID), Options: &option.InboundTLSOptionsContainer{TLS: &option.InboundTLSOptions{Enabled: true, ServerName: settings.ServerName, Certificate: []string{string(cert)}, Key: []string{string(key)}, MinVersion: "1.3", ALPN: []string{"h3"}}}}}}})
 	if err != nil {
 		cancel()
 		if h.service != nil {

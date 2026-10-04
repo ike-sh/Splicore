@@ -76,3 +76,7 @@ Network export can be imported with network validate/plan/apply; plan digest bin
 normalized network-replace command and revision. Files are at most 2 MiB. Policy select
 plans/applies atomically; existing sessions remain. DNS lookup performs a real query,
 while explain reads supplied metadata only. No new service/binary or protocol command.
+
+## Phase 13 host integration
+
+`tun status|validate|plan|apply` uses local-inbound intent; `system-proxy status|validate|plan|apply` uses host-integration intent. Files for these aliases use the normal ClientMutation envelope. `network repair` uses Application plan/apply and only recorded owned resources after client stop. `service recover-network` is the stopped-service local recovery helper. Doctor is passive and lists stack/driver/privileges/owned routes/DNS mode/journal/exclusions. See [system integration](SYSTEM_INTEGRATION.md).

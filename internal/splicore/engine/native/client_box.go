@@ -15,6 +15,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/client"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/json/badoption"
 	"github.com/sagernet/sing/service"
@@ -22,13 +23,16 @@ import (
 
 // Each box owns one adapter and its pools; no server or other outbound context is shared.
 func buildClientBox(ctx context.Context, protocol string, options any, register func(*outbound.Registry)) (ports.ClientDialer, error) {
+	if _, err := underlay.FromContext(ctx); err != nil {
+		return nil, err
+	}
 	runtimeCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	runtimeCtx = service.ContextWith[adapter.PlatformInterface](runtimeCtx, serverPlatform{})
 	or := outbound.NewRegistry()
 	register(or)
 	dr := dns.NewTransportRegistry()
 	local.RegisterTransport(dr)
-	runtimeCtx = box.Context(runtimeCtx, inbound.NewRegistry(), or, endpoint.NewRegistry(), dr, boxservice.NewRegistry(), certificate.NewRegistry())
+	runtimeCtx = box.Context(runtimeCtx, inbound.NewRegistry(), protectedOutbounds{or, underlay.ProxyUnderlay}, endpoint.NewRegistry(), protectedDNS{dr}, boxservice.NewRegistry(), certificate.NewRegistry())
 	b, err := box.New(box.Options{Context: runtimeCtx, Options: option.Options{
 		Log:       &option.LogOptions{Disabled: true},
 		DNS:       &option.DNSOptions{RawDNSOptions: option.RawDNSOptions{Servers: []option.DNSServerOptions{{Type: "local", Tag: "local", Options: &option.LocalDNSServerOptions{}}}}},
@@ -49,7 +53,8 @@ func buildClientBox(ctx context.Context, protocol string, options any, register 
 		cancel()
 		return nil, identity.Err(identity.Unavailable, "native outbound unavailable")
 	}
-	return &snellDialer{box: b, outbound: o, cancel: cancel}, nil
+	resolver, _ := underlay.DialerFrom(ctx, underlay.DNSBootstrap)
+	return &snellDialer{box: b, outbound: o, cancel: cancel, resolver: resolver}, nil
 }
 
 func clientOwnership(n client.RemoteNode, c access.Credential) error {

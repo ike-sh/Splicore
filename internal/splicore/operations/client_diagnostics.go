@@ -6,6 +6,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/clientruntime"
 	"github.com/sagernet/sing-box/internal/splicore/domain/client"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"strconv"
 )
 
@@ -21,9 +22,18 @@ type clientNodeSummary struct {
 	Available     bool     `json:"available"`
 }
 type clientListenerSummary struct {
-	Kind         string `json:"kind"`
-	AddressClass string `json:"address_class"`
-	Port         uint16 `json:"port"`
+	Kind         string      `json:"kind"`
+	AddressClass string      `json:"address_class"`
+	Port         uint16      `json:"port"`
+	TUN          *tunSummary `json:"tun,omitempty"`
+}
+type tunSummary struct {
+	MTU             uint32 `json:"mtu"`
+	AddressFamilies int    `json:"address_families"`
+	AutoRoute       bool   `json:"auto_route"`
+	DNSMode         string `json:"dns_mode"`
+	IncludeCount    int    `json:"include_count"`
+	ExcludeCount    int    `json:"exclude_count"`
 }
 type clientOutboundSummary struct {
 	Kind       string `json:"kind"`
@@ -34,6 +44,13 @@ type clientOutboundSummary struct {
 	LastError  string `json:"last_error,omitempty"`
 }
 type clientSummary struct {
+	Underlay    underlay.Status `json:"underlay"`
+	HostNetwork struct {
+		Recovery    string `json:"recovery"`
+		Interfaces  int    `json:"owned_interfaces"`
+		Routes      int    `json:"owned_routes"`
+		SystemProxy bool   `json:"system_proxy_owned"`
+	} `json:"host_network"`
 	Health        string                  `json:"health"`
 	Enabled       bool                    `json:"enabled"`
 	LocalSOCKSTCP bool                    `json:"local_socks_tcp"`
@@ -56,6 +73,11 @@ func clientProjection(ctx context.Context, q SupportSource) clientSummary {
 		return result
 	}
 	result.Health = enum(s.Health, "healthy", "degraded", "stopped")
+	result.Underlay = s.Underlay
+	result.HostNetwork.Recovery = enum(s.Host.Recovery, "clean", "degraded", "unconfigured")
+	result.HostNetwork.Interfaces = s.Host.OwnedInterfaces
+	result.HostNetwork.Routes = s.Host.OwnedRoutes
+	result.HostNetwork.SystemProxy = s.Host.SystemProxy
 	result.Enabled = s.State.Enabled
 	result.LocalSOCKSTCP = s.LocalSOCKSTCP
 	result.LocalSOCKSUDP = enum(s.LocalSOCKSUDP, "deferred", "supported")
@@ -83,7 +105,16 @@ func clientProjection(ctx context.Context, q SupportSource) clientSummary {
 		result.Nodes = append(result.Nodes, v)
 	}
 	for _, i := range s.State.LocalInbounds {
-		result.Listeners = append(result.Listeners, clientListenerSummary{Kind: enum(i.Kind, "socks5"), AddressClass: addressClass(i.Listen.Host), Port: i.Listen.Port})
+		v := clientListenerSummary{Kind: enum(i.Kind, "socks5", "http", "mixed", "tun"), AddressClass: addressClass(i.Listen.Host), Port: i.Listen.Port}
+		if i.TUN != nil {
+			mode := "unchanged"
+			if i.TUN.DNSHijack {
+				mode = "intercept-tcp-udp-53"
+			}
+			v.AddressClass = "owned-tun"
+			v.TUN = &tunSummary{MTU: i.TUN.MTU, AddressFamilies: len(i.TUN.Addresses), AutoRoute: i.TUN.AutoRoute, DNSMode: mode, IncludeCount: len(i.TUN.Include), ExcludeCount: len(i.TUN.Exclude)}
+		}
+		result.Listeners = append(result.Listeners, v)
 	}
 	return result
 }
@@ -94,5 +125,32 @@ func ClientDoctorChecks(s *clientruntime.Status) []application.Check {
 		return []application.Check{{Name: "client_runtime", Status: "info", Detail: "unavailable"}}
 	}
 	count := func(n int) string { return strconv.Itoa(n) + " configured" }
-	return []application.Check{{Name: "client_runtime", Status: "info", Detail: enum(s.Health, "healthy", "degraded", "stopped")}, {Name: "remote_nodes", Status: "info", Detail: count(len(s.State.Nodes))}, {Name: "client_outbounds", Status: "info", Detail: count(len(s.State.Outbounds))}, {Name: "local_listeners", Status: "info", Detail: count(len(s.LocalStats))}, {Name: "client_route", Status: "info", Detail: "committed default and selected outbound references"}, {Name: "client_health", Status: "info", Detail: "passive only; remote reachability not probed"}}
+	checks := []application.Check{{Name: "client_runtime", Status: "info", Detail: enum(s.Health, "healthy", "degraded", "stopped")}, {Name: "remote_nodes", Status: "info", Detail: count(len(s.State.Nodes))}, {Name: "client_outbounds", Status: "info", Detail: count(len(s.State.Outbounds))}, {Name: "local_listeners", Status: "info", Detail: count(len(s.LocalStats))}, {Name: "client_route", Status: "info", Detail: "committed default and selected outbound references"}, {Name: "client_health", Status: "info", Detail: "passive only; remote reachability not probed"}}
+	c := s.HostCapabilities
+	u := s.Underlay
+	underlayHealth := enum(u.Health, "healthy", "degraded")
+	underlayStatus := "info"
+	if underlayHealth == "degraded" {
+		underlayStatus = "fail"
+	}
+	checks = append(checks, application.Check{Name: "underlay_protection", Status: underlayStatus, Detail: underlayHealth}, application.Check{Name: "underlay_strategy", Status: "info", Detail: enum(u.Strategy, "socket-mark-and-journaled-daemon-uid", "interface-and-endpoint-leases", "activation-unqualified")}, application.Check{Name: "underlay_generations", Status: "info", Detail: strconv.Itoa(len(u.Generations)) + " active"}, application.Check{Name: "underlay_infrastructure", Status: "info", Detail: strconv.Itoa(u.Endpoints) + " infrastructure addresses; arbitrary target history is not retained"}, application.Check{Name: "underlay_unprotected", Status: underlayStatus, Detail: strconv.Itoa(u.Unprotected) + " required runtimes"}, application.Check{Name: "underlay_dependency_loop", Status: "info", Detail: "canonical dependency validation required before runtime preparation"})
+	checks = append(checks, application.Check{Name: "tun_capability", Status: "info", Detail: enum(c.TUN, "experimental", "experimental-not-certified", "unsupported", "build-unavailable")}, application.Check{Name: "tun_stack", Status: "info", Detail: enum(c.Stack, "gvisor", "not-included")}, application.Check{Name: "tun_privileges", Status: "info", Detail: enum(c.Privilege, "CAP_NET_ADMIN-required", "elevation-required", "elevated", "unsupported")}, application.Check{Name: "tun_auto_route", Status: "info", Detail: enum(c.AutoRoute, "implemented", "unsupported")}, application.Check{Name: "loop_exclusions", Status: "info", Detail: enum(c.LoopProtection, "dedicated-daemon-uid-main-table", "auto-route-fail-closed", "unsupported")}, application.Check{Name: "host_routes", Status: "info", Detail: strconv.Itoa(s.Host.OwnedRoutes) + " owned"}, application.Check{Name: "system_proxy_owned", Status: "info", Detail: strconv.FormatBool(s.Host.SystemProxy)})
+	driver := enum(c.Driver, "linux-tun", "missing-or-inaccessible", "missing", "unavailable", "available-version-unknown", "unsupported")
+	if driver == "unknown" {
+		driver = "available-version-reported"
+	}
+	checks = append(checks, application.Check{Name: "tun_driver", Status: "info", Detail: driver})
+	status := "info"
+	if s.Host.Recovery == "degraded" {
+		status = "fail"
+	}
+	checks = append(checks, application.Check{Name: "host_network_journal", Status: status, Detail: enum(s.Host.Recovery, "clean", "degraded", "unconfigured")})
+	intercept := 0
+	for _, i := range s.State.LocalInbounds {
+		if i.TUN != nil && i.TUN.DNSHijack {
+			intercept++
+		}
+	}
+	checks = append(checks, application.Check{Name: "dns_interception", Status: "info", Detail: strconv.Itoa(intercept) + " owned TCP/UDP53 listeners; host DNS unchanged"})
+	return checks
 }

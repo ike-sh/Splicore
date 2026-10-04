@@ -7,6 +7,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/client"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	module "github.com/sagernet/sing-box/internal/splicore/protocol/mieru"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"io"
 	"net"
 	"runtime"
@@ -18,7 +19,7 @@ import (
 func TestMieruOutboundOwnedSocketsAndLoopExit(t *testing.T) {
 	for _, transport := range []string{"tcp", "udp"} {
 		in := mieruIntent(t, transport)
-		h, err := (MieruCompiler{}).Compile(context.Background(), in)
+		h, err := (MieruCompiler{}).Compile(underlay.WithFactory(context.Background(), underlay.New()), in)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -37,7 +38,7 @@ func TestMieruOutboundOwnedSocketsAndLoopExit(t *testing.T) {
 			c.ID = cid
 			c.OwnerAccountID = nil
 			c.OwnerNodeID = &id
-			dialer, err := (MieruOutboundFactory{}).Build(context.Background(), n, c)
+			dialer, err := (MieruOutboundFactory{}).Build(underlay.WithFactory(context.Background(), underlay.New()), n, c)
 			if err != nil {
 				t.Fatal(err)
 			}

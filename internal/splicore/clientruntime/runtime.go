@@ -9,13 +9,16 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/client"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	P "github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
+	"github.com/sagernet/sing-box/internal/splicore/hostnetwork"
 	"github.com/sagernet/sing-box/internal/splicore/networkruntime"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
 	"github.com/sagernet/sing-box/internal/splicore/registry"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/protocol/socks/socks5"
 	"io"
 	"net"
+	"reflect"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -40,7 +43,9 @@ func (c *counter) stats() TrafficStats {
 }
 
 type snapshot struct {
+	underlay                              *underlay.Lease
 	onReleased                            func()
+	onCleanup                             func(error)
 	network                               *networkruntime.Engine
 	state                                 client.ProfileState
 	outbounds                             map[identity.ID]ports.ClientDialer
@@ -49,23 +54,37 @@ type snapshot struct {
 	inCounters, outCounters, nodeCounters map[identity.ID]*counter
 }
 
-func (s *snapshot) release() {
+func (s *snapshot) release() error {
 	if s.refs.Add(-1) == 0 {
+		var err error
 		if s.network != nil {
 			s.network.Close()
 		}
 		for _, o := range s.outbounds {
 			if o != nil {
-				_ = o.Close()
+				err = errors.Join(err, o.Close())
+			}
+		}
+		if s.underlay != nil {
+			if err == nil {
+				err = s.underlay.Close()
+			} else {
+				s.underlay.RetainDebt()
 			}
 		}
 		if s.onReleased != nil {
 			s.onReleased()
 		}
+		if err != nil && s.onCleanup != nil {
+			s.onCleanup(err)
+		}
+		return err
 	}
+	return nil
 }
 
 type localListener struct {
+	tun    *tunIngress
 	spec   client.LocalInbound
 	socket net.Listener
 	ready  atomic.Bool
@@ -74,6 +93,7 @@ type localListener struct {
 type session struct {
 	id                      identity.ID
 	inbound, outbound, node identity.ID
+	packetLocal             io.Closer
 	local                   net.Conn
 	remote                  net.Conn       // assigned only while holding Manager.mu
 	packet                  net.PacketConn // assigned only while holding Manager.mu
@@ -83,6 +103,8 @@ type session struct {
 	stats                   counter
 }
 type Manager struct {
+	underlay *underlay.Factory
+	host     *hostController
 	// routeMu protects acquiring a generation reference versus retirement, never payload I/O.
 	routeMu                      sync.RWMutex
 	current                      atomic.Pointer[snapshot]
@@ -93,15 +115,18 @@ type Manager struct {
 	inStats, outStats, nodeStats map[identity.ID]*counter
 	wg                           sync.WaitGroup
 	closed                       bool
+	cleanupError                 error // retained retirement debt; protected by mu
 	changed                      chan struct{}
 	udpIdle                      time.Duration
 }
 
-func New() *Manager {
-	return &Manager{listeners: map[identity.ID]*localListener{}, networkOwners: map[*networkruntime.Engine]bool{}, sessions: map[identity.ID]*session{}, inStats: map[identity.ID]*counter{}, outStats: map[identity.ID]*counter{}, nodeStats: map[identity.ID]*counter{}, changed: make(chan struct{}), udpIdle: 2 * time.Minute}
+func New() *Manager { return NewWithUnderlay(underlay.New()) }
+func NewWithUnderlay(f *underlay.Factory) *Manager {
+	return &Manager{underlay: f, listeners: map[identity.ID]*localListener{}, networkOwners: map[*networkruntime.Engine]bool{}, sessions: map[identity.ID]*session{}, inStats: map[identity.ID]*counter{}, outStats: map[identity.ID]*counter{}, nodeStats: map[identity.ID]*counter{}, changed: make(chan struct{}), udpIdle: 2 * time.Minute}
 }
 
 type Prepared struct {
+	proxy           *hostnetwork.Lease
 	m               *Manager
 	s               *snapshot
 	listeners       map[identity.ID]*localListener
@@ -160,14 +185,29 @@ func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileSt
 		return nil, err
 	}
 	s := &snapshot{state: state.Clone(), outbounds: map[identity.ID]ports.ClientDialer{}, routes: map[identity.ID]identity.ID{}}
+	s.onCleanup = func(e error) {
+		m.mu.Lock()
+		m.cleanupError = errors.Join(m.cleanupError, e)
+		m.mu.Unlock()
+	}
 	s.refs.Store(1)
 	p = &Prepared{m: m, s: s, listeners: map[identity.ID]*localListener{}}
 	p.restartSessions = restart
+	m.prepareCounters(s)
 	defer func() {
 		if err != nil {
-			p.Abort()
+			err = errors.Join(err, p.Abort())
 		}
 	}()
+	ctx = underlay.WithFactory(ctx, m.underlay)
+	required := state.Enabled && tunSpec(state) != nil
+	if err = m.validateHostChange(state, nil); err != nil {
+		return p, err
+	}
+	s.underlay, err = m.underlay.Begin(ctx, required)
+	if err != nil {
+		return p, err
+	}
 	localIDs := make([]identity.ID, 0, len(state.LocalInbounds))
 	declared := map[identity.ID]ports.ClientDialer{}
 	for _, o := range state.Outbounds {
@@ -176,7 +216,7 @@ func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileSt
 	for _, i := range state.LocalInbounds {
 		localIDs = append(localIDs, i.ID)
 	}
-	bootstrap, err := networkruntime.New(state.Network, declared, nil, localIDs...)
+	bootstrap, err := networkruntime.NewWithUnderlay(m.underlay, s.underlay.ID, state.Network, declared, nil, localIDs...)
 	if err != nil {
 		return p, err
 	}
@@ -188,7 +228,7 @@ func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileSt
 		return p, identity.Err(identity.Unavailable, "client runtime closed")
 	}
 	if !state.Enabled {
-		s.network, err = networkruntime.New(state.Network, declared, func(id identity.ID) networkruntime.Passive {
+		s.network, err = networkruntime.NewWithUnderlay(m.underlay, s.underlay.ID, state.Network, declared, func(id identity.ID) networkruntime.Passive {
 			lease, ok := s.outbounds[id].(*dialerLease)
 			if !ok {
 				return networkruntime.Passive{State: "unknown"}
@@ -216,12 +256,34 @@ func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileSt
 	if oldGeneration != nil {
 		defer oldGeneration.release()
 	}
+	if err = m.validateHostChange(state, oldGeneration); err != nil {
+		return p, err
+	}
+	if required {
+		if err = p.prepareInfrastructure(ctx, bootstrap); err != nil {
+			return p, err
+		}
+	}
 	for _, o := range state.Outbounds {
 		var n client.RemoteNode
 		if o.NodeID != nil {
 			n = nodes[*o.NodeID]
 		}
 		key := effectiveKey(o, n)
+		buildNode := n
+		if o.Kind != "direct" {
+			ips, resolveErr := resolveNode(ctx, bootstrap, n.Endpoint.Host, required || state.Network.DNS.Enabled)
+			if resolveErr != nil {
+				return p, resolveErr
+			}
+			if len(ips) > 0 {
+				if err = s.underlay.AddEndpoint(ctx, underlay.Scope{Purpose: underlay.ProxyUnderlay, Runtime: o.ID}, ips); err != nil {
+					return p, err
+				}
+				buildNode.Endpoint.Host = ips[0].String()
+				key += resolvedKey(ips)
+			}
+		}
 		key += bootstrapKey(state.Network, n)
 		if !restart && oldGeneration != nil {
 			if lease, ok := oldGeneration.outbounds[o.ID].(*dialerLease); ok && lease.key == key {
@@ -232,18 +294,16 @@ func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileSt
 		}
 		var d ports.ClientDialer
 		if o.Kind == "direct" {
-			d = directDialer{}
-		} else {
-			n := nodes[*o.NodeID]
-			if state.Network.DNS.Enabled && net.ParseIP(n.Endpoint.Host) == nil {
-				addresses, resolveErr := bootstrap.Bootstrap(ctx, n.Endpoint.Host)
-				if resolveErr != nil || len(addresses) == 0 {
-					return p, identity.Err(identity.Unavailable, "remote node bootstrap resolution failed")
-				}
-				n.Endpoint.Host = addresses[0].String()
+			protected, buildErr := m.underlay.New(underlay.Scope{Purpose: underlay.DirectEgress, Runtime: o.ID, Generation: s.underlay.ID})
+			if buildErr != nil {
+				return p, buildErr
 			}
+			d = directDialer{protected: protected}
+		} else {
+			n := buildNode
 			f, _ := registry.Get(n.Protocol.Protocol, o.Engine)
-			d, err = f.Build(ctx, n, credentials[n.CredentialID])
+			buildCtx := underlay.WithScope(ctx, underlay.Scope{Purpose: underlay.ProxyUnderlay, Runtime: o.ID, Generation: s.underlay.ID})
+			d, err = f.Build(buildCtx, n, credentials[n.CredentialID])
 			if err != nil {
 				return p, err
 			}
@@ -252,7 +312,7 @@ func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileSt
 		lease.refs.Store(1)
 		s.outbounds[o.ID] = lease
 	}
-	s.network, err = networkruntime.New(state.Network, s.outbounds, func(id identity.ID) networkruntime.Passive {
+	s.network, err = networkruntime.NewWithUnderlay(m.underlay, s.underlay.ID, state.Network, s.outbounds, func(id identity.ID) networkruntime.Passive {
 		lease, ok := s.outbounds[id].(*dialerLease)
 		if !ok {
 			return networkruntime.Passive{State: "unknown"}
@@ -282,8 +342,11 @@ func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileSt
 		m.mu.Lock()
 		old := m.listeners[i.ID]
 		m.mu.Unlock()
-		if old != nil && old.ready.Load() && old.spec.Listen == i.Listen {
+		if old != nil && old.ready.Load() && old.spec.Listen == i.Listen && old.spec.Kind == i.Kind && reflect.DeepEqual(old.spec.TUN, i.TUN) {
 			p.listeners[i.ID] = old
+			continue
+		}
+		if i.Kind == "tun" {
 			continue
 		}
 		var l net.Listener
@@ -299,26 +362,27 @@ func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileSt
 		p.listeners[i.ID] = h
 		p.newListeners = append(p.newListeners, h)
 	}
+	if err = p.prepareHost(ctx); err != nil {
+		return p, err
+	}
 	if ctx.Err() != nil {
 		return p, identity.Err(identity.Unavailable, "client start canceled")
 	}
 	return p, nil
 }
-func (p *Prepared) Abort() {
+func (p *Prepared) Abort() error {
 	if p == nil || p.used {
-		return
+		return nil
 	}
 	p.used = true
-	for _, l := range p.newListeners {
-		_ = l.socket.Close()
-	}
-	p.s.release()
+	err := p.abortHost()
+	return errors.Join(err, p.s.release())
 }
 
 // Activate is called only after SQLite commit. Existing sessions own their old generation.
-func (p *Prepared) Activate() {
+func (p *Prepared) Activate() error {
 	if p.used {
-		return
+		return nil
 	}
 	p.used = true
 	m := p.m
@@ -333,52 +397,19 @@ func (p *Prepared) Activate() {
 		}
 	}
 	m.listeners = p.listeners
-	ensure := func(table map[identity.ID]*counter, id identity.ID) {
-		if table[id] == nil {
-			table[id] = &counter{}
-		}
-	}
-	for _, i := range p.s.state.LocalInbounds {
-		ensure(m.inStats, i.ID)
-	}
-	for _, o := range p.s.state.Outbounds {
-		ensure(m.outStats, o.ID)
-	}
-	for _, n := range p.s.state.Nodes {
-		ensure(m.nodeStats, n.ID)
-	}
-	p.s.inCounters = map[identity.ID]*counter{}
-	p.s.outCounters = map[identity.ID]*counter{}
-	p.s.nodeCounters = map[identity.ID]*counter{}
-	for _, i := range p.s.state.LocalInbounds {
-		p.s.inCounters[i.ID] = m.inStats[i.ID]
-	}
-	for _, o := range p.s.state.Outbounds {
-		p.s.outCounters[o.ID] = m.outStats[o.ID]
-	}
-	for _, n := range p.s.state.Nodes {
-		p.s.nodeCounters[n.ID] = m.nodeStats[n.ID]
-	}
-	// Retired sessions retain their counter pointers; deleted resources do not accumulate in the manager.
-	for id := range m.inStats {
-		if p.s.inCounters[id] == nil {
-			delete(m.inStats, id)
-		}
-	}
-	for id := range m.outStats {
-		if p.s.outCounters[id] == nil {
-			delete(m.outStats, id)
-		}
-	}
-	for id := range m.nodeStats {
-		if p.s.nodeCounters[id] == nil {
-			delete(m.nodeStats, id)
-		}
-	}
+	m.inStats, m.outStats, m.nodeStats = p.s.inCounters, p.s.outCounters, p.s.nodeCounters
 	m.routeMu.Lock()
 	old := m.current.Swap(p.s)
 	m.routeMu.Unlock()
+	if m.host != nil && p.proxy != nil {
+		m.host.proxy = p.proxy
+		m.host.proxyListener = p.listeners[p.s.state.Host.SystemProxy.LocalInbound]
+	}
 	for _, l := range p.newListeners {
+		if l.tun != nil {
+			l.tun.activate()
+			continue
+		}
 		m.wg.Add(1)
 		l.ready.Store(true)
 		go m.accept(l)
@@ -400,8 +431,29 @@ func (p *Prepared) Activate() {
 	if p.s.state.Enabled {
 		p.s.network.Start()
 	}
+	var hostErr error
+	cleanup, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if m.host != nil {
+		m.mu.Lock()
+		proxy := m.host.proxy
+		m.mu.Unlock()
+		if (!p.s.state.Enabled || !p.s.state.Host.SystemProxy.Enabled) && proxy != nil {
+			hostErr = proxy.Restore(cleanup)
+			m.mu.Lock()
+			if hostErr == nil {
+				if m.host.proxy == proxy {
+					m.host.proxy = nil
+					m.host.proxyListener = nil
+				}
+			} else {
+				m.host.lastError = "host_restore_failed"
+			}
+			m.mu.Unlock()
+		}
+	}
 	for _, l := range removed {
-		_ = l.socket.Close()
+		hostErr = errors.Join(hostErr, m.closeListener(cleanup, l))
 	}
 	for _, s := range closing {
 		m.closeSession(s)
@@ -414,6 +466,7 @@ func (p *Prepared) Activate() {
 		}
 		old.release()
 	}
+	return hostErr
 }
 func (m *Manager) acquire() *snapshot {
 	m.routeMu.RLock()
@@ -431,6 +484,7 @@ func (m *Manager) accept(l *localListener) {
 		c, err := l.socket.Accept()
 		if err != nil {
 			l.ready.Store(false)
+			m.listenerFailed(l)
 			return
 		}
 		m.mu.Lock()
@@ -450,12 +504,17 @@ func (m *Manager) accept(l *localListener) {
 		m.sessions[id] = s
 		m.wg.Add(1)
 		m.mu.Unlock()
-		go m.serve(ctx, s)
+		go m.serve(ctx, s, l.spec.Kind)
 	}
 }
 func (m *Manager) closeSession(s *session) {
 	s.cancel()
-	_ = s.local.Close()
+	if s.local != nil {
+		_ = s.local.Close()
+	}
+	if s.packetLocal != nil {
+		_ = s.packetLocal.Close()
+	}
 	m.mu.Lock()
 	remote := s.remote
 	packet := s.packet
@@ -467,7 +526,7 @@ func (m *Manager) closeSession(s *session) {
 		_ = packet.Close()
 	}
 }
-func (m *Manager) serve(ctx context.Context, s *session) {
+func (m *Manager) serve(ctx context.Context, s *session, kind string) {
 	defer m.wg.Done()
 	var gen *snapshot
 	defer func() {
@@ -485,6 +544,28 @@ func (m *Manager) serve(ctx context.Context, s *session) {
 	}()
 	_ = s.local.SetDeadline(time.Now().Add(5 * time.Second))
 	reader := bufio.NewReader(s.local)
+	gen = m.acquire()
+	if gen == nil {
+		return
+	}
+	if kind == "mixed" {
+		first, err := reader.Peek(1)
+		if err != nil {
+			return
+		}
+		if first[0] == 5 {
+			kind = "socks5"
+		} else {
+			kind = "http"
+		}
+	}
+	if kind == "http" {
+		m.serveHTTP(ctx, s, reader, gen)
+		return
+	}
+	m.serveSOCKS(ctx, s, reader, gen)
+}
+func (m *Manager) serveSOCKS(ctx context.Context, s *session, reader *bufio.Reader, gen *snapshot) {
 	auth, err := socks5.ReadAuthRequest(reader)
 	if err != nil {
 		return
@@ -518,11 +599,6 @@ func (m *Manager) serve(ctx context.Context, s *session) {
 		reply(socks5.ReplyCodeAddressTypeUnsupported)
 		return
 	}
-	gen = m.acquire()
-	if gen == nil {
-		reply(socks5.ReplyCodeFailure)
-		return
-	}
 	oid, ok := gen.routes[s.inbound]
 	if !ok || gen.outbounds[oid] == nil {
 		reply(socks5.ReplyCodeFailure)
@@ -535,6 +611,13 @@ func (m *Manager) serve(ctx context.Context, s *session) {
 		m.serveUDP(ctx, s, reader, req.Destination, gen)
 		return
 	}
+	m.serveStream(ctx, s, gen, target, reader, reply, func() error {
+		return socks5.WriteResponse(s.local, socks5.Response{ReplyCode: socks5.ReplyCodeSuccess, Bind: M.SocksaddrFromNet(s.local.LocalAddr())})
+	})
+}
+
+// Every TCP ingress retains one immutable policy generation through connection cleanup.
+func (m *Manager) serveStream(ctx context.Context, s *session, gen *snapshot, target access.Endpoint, reader io.Reader, reply func(byte), connected func() error) {
 	selected, resolved, routeErr := selectRoute(ctx, gen, s.inbound, target, "tcp", nil)
 	if routeErr != nil {
 		reply(socks5.ReplyCodeFailure)
@@ -544,7 +627,7 @@ func (m *Manager) serve(ctx context.Context, s *session) {
 		reply(socks5.ReplyCodeNotAllowed)
 		return
 	}
-	oid = selectedOutbound(selected.Selected)
+	oid := selectedOutbound(selected.Selected)
 	target = resolved
 	var node identity.ID
 	for _, o := range gen.state.Outbounds {
@@ -557,9 +640,6 @@ func (m *Manager) serve(ctx context.Context, s *session) {
 	s.node = node
 	s.dialer = gen.outbounds[oid]
 	s.kind = "tcp"
-	if req.Command == socks5.CommandUDPAssociate {
-		s.kind = "udp_association"
-	}
 	oc := gen.outCounters[oid]
 	ic := gen.inCounters[s.inbound]
 	nc := gen.nodeCounters[node]
@@ -594,7 +674,7 @@ func (m *Manager) serve(ctx context.Context, s *session) {
 			}
 		}
 	}()
-	if err = socks5.WriteResponse(s.local, socks5.Response{ReplyCode: socks5.ReplyCodeSuccess, Bind: M.SocksaddrFromNet(s.local.LocalAddr())}); err != nil {
+	if err = connected(); err != nil {
 		return
 	}
 	_ = s.local.SetDeadline(time.Time{})
@@ -653,10 +733,10 @@ func (w *countWriter) Write(b []byte) (int, error) {
 	return n, err
 }
 
-type directDialer struct{}
+type directDialer struct{ protected *underlay.Dialer }
 
-func (directDialer) DialContext(ctx context.Context, e access.Endpoint) (net.Conn, error) {
-	return (&net.Dialer{}).DialContext(ctx, "tcp", net.JoinHostPort(e.Host, strconv.Itoa(int(e.Port))))
+func (d directDialer) DialContext(ctx context.Context, e access.Endpoint) (net.Conn, error) {
+	return d.protected.DialContext(ctx, "tcp", net.JoinHostPort(e.Host, strconv.Itoa(int(e.Port))))
 }
 func (directDialer) Close() error { return nil }
 func (m *Manager) Close(ctx context.Context) error {
@@ -665,9 +745,13 @@ func (m *Manager) Close(ctx context.Context) error {
 		m.closed = true
 		for _, l := range m.listeners {
 			l.ready.Store(false)
-			_ = l.socket.Close()
 		}
 	}
+	listeners := make([]*localListener, 0, len(m.listeners))
+	for _, l := range m.listeners {
+		listeners = append(listeners, l)
+	}
+	m.listeners = map[identity.ID]*localListener{}
 	sessions := make([]*session, 0, len(m.sessions))
 	for _, s := range m.sessions {
 		sessions = append(sessions, s)
@@ -676,7 +760,18 @@ func (m *Manager) Close(ctx context.Context) error {
 	for owner := range m.networkOwners {
 		owners = append(owners, owner)
 	}
+	var proxy *hostnetwork.Lease
+	if m.host != nil {
+		proxy = m.host.proxy
+	}
 	m.mu.Unlock()
+	var hostErr error
+	if proxy != nil {
+		hostErr = proxy.Restore(ctx)
+	}
+	for _, l := range listeners {
+		hostErr = errors.Join(hostErr, m.closeListener(ctx, l))
+	}
 	for _, s := range sessions {
 		m.closeSession(s)
 	}
@@ -695,8 +790,14 @@ func (m *Manager) Close(ctx context.Context) error {
 	go func() { m.wg.Wait(); close(done) }()
 	select {
 	case <-done:
-		return nil
+		if m.host != nil {
+			hostErr = errors.Join(hostErr, m.host.platform.Close(), m.host.manager.Close())
+		}
+		m.mu.Lock()
+		hostErr = errors.Join(hostErr, m.cleanupError)
+		m.mu.Unlock()
+		return hostErr
 	case <-ctx.Done():
-		return identity.Err(identity.Unavailable, "client shutdown timed out")
+		return errors.Join(hostErr, identity.Err(identity.Unavailable, "client shutdown timed out"))
 	}
 }

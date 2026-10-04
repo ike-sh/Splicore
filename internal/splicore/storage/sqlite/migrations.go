@@ -29,7 +29,8 @@ func migrations() []migration {
 	e, _ := migrationFiles.ReadFile("migrations/0004_private_key.sql")
 	f, _ := migrationFiles.ReadFile("migrations/0005_client_runtime.sql")
 	g, _ := migrationFiles.ReadFile("migrations/0006_network_profiles.sql")
-	return []migration{{1, "0001_initial", string(b)}, {2, "0002_snell", string(c)}, {3, "0003_password", string(d)}, {4, "0004_private_key", string(e)}, {5, "0005_client_runtime", string(f)}, {6, "0006_network_profiles", string(g)}}
+	h, _ := migrationFiles.ReadFile("migrations/0007_host_integration.sql")
+	return []migration{{1, "0001_initial", string(b)}, {2, "0002_snell", string(c)}, {3, "0003_password", string(d)}, {4, "0004_private_key", string(e)}, {5, "0005_client_runtime", string(f)}, {6, "0006_network_profiles", string(g)}, {7, "0007_host_integration", string(h)}}
 }
 
 func checksum(m migration) string { s := sha256.Sum256([]byte(m.SQL)); return hex.EncodeToString(s[:]) }

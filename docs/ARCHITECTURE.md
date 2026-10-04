@@ -276,5 +276,17 @@ DNS bootstrap cuts endpoint/probe dependencies; caches/health are ephemeral.
 No protocol-specific routing/DNS/storage field, new binary or service is added.
 Contracts: [routing](architecture/ROUTING_MODEL.md), [DNS](architecture/DNS_MODEL.md),
 [policy](architecture/POLICY_MODEL.md); [Phase 12 report](reports/PHASE_12_ROUTING_DNS_POLICY_REPORT.md)
-and [local freeze](reports/PHASE_12_FREEZE_REPORT.md). Phase 13 is branch preparation
-only; TUN, system proxy, DNS hijack, FakeIP and DoH remain unimplemented/deferred.
+and [local freeze](reports/PHASE_12_FREEZE_REPORT.md), which preserves the earlier
+acceptance boundary. Current TUN/system integration is described below; FakeIP and DoH remain deferred.
+
+## Phase 13 host integration
+
+[System integration](SYSTEM_INTEGRATION.md) adds typed TUN/HTTP/mixed ingress to the
+existing immutable client graph. SQLite schema 7 stores host intent; a private journal
+owns reversible operational mutations. See [local inbound](architecture/LOCAL_INBOUND_MODEL.md),
+[Linux](PLATFORM_LINUX.md), [Windows](PLATFORM_WINDOWS.md) and the source audit.
+Unified underlay runtime wiring, Wintun partial ownership and WinINET exact restore
+implementation blockers are closed. Phase 13 is locally frozen under its
+[freeze report](reports/PHASE_13_FREEZE_REPORT.md); all capabilities remain
+Experimental. Real Windows activation is guarded and native-platform qualification
+remains pending. Underlay protection preserves logical routing/DNS/policy selection.

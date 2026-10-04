@@ -63,3 +63,7 @@ run daemon-reload and start, then verify doctor and API health. No automatic
 power-loss transaction recovery is claimed by this experimental foundation.
 Backups contain credentials: retain only the recovery generations you need and
 remove obsolete backups deliberately as root. No online update server exists.
+
+## Phase 13 host integration
+
+Phase12 schema 6 upgrades through new migration 0007; historical migrations remain untouched. With TUN/host integration disabled, upgrade changes no routes, DNS, proxy or interfaces. Active owned mutations must restore on service stop before replacing binaries; failures retain recoverable state. See [system integration](SYSTEM_INTEGRATION.md).

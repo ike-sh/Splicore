@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Linux operators and service maintainers
-- Last reviewed: 2026-10-03
+- Last reviewed: 2026-10-04
 - Owner: Distribution maintainers
 - Responsibility: Main-unit lifecycle, permissions, diagnostics and hardening.
 - Lifecycle: Update with systemd unit and service behavior.
@@ -109,7 +109,25 @@ Offline detours/group failure do not imply DIRECT. Inspect policy status, DNS st
 and a no-I/O route explain before explicitly running dns lookup.
 
 Systemd restart/upgrade/rollback rebuilds rules/sets/groups/DNS and persistent selector
-from schema 6 SQLite. Health, compiled matches and cache are memory only; restart removes
+from schema 7 SQLite (the network profile migration 6 is retained). Health, compiled matches and cache are memory only; restart removes
 them without losing canonical intent. Corrupt committed graph reports degraded client
 health; server/API stay live, data is preserved. Stop, back up and restore a verified
-database rather than deleting user intent. TUN/DNS hijack/system proxy remain deferred.
+database rather than deleting user intent. Phase 13 host integration scope and platform limits are described below.
+
+## Phase 13 host integration
+
+Host journal recovery precedes desired client restoration. ExecStopPost restores only recorded resources under the service owner. A corrupt/conflicting journal is degraded; stop client then use `network repair` for reconcile. Do not delete journal or reset host networking. Doctor/bundles use redacted summaries. Windows auto-route rejects; native Linux and Windows qualification are pending. See [system integration](SYSTEM_INTEGRATION.md).
+
+Windows typed WinINET restoration preserves external changes; unexpected owned
+listener exit restores the prior snapshot or reports debt. Wintun failed child
+cleanup retains its parent adapter. Original Windows activation guards remain
+pending real Windows platform qualification. See [recovery](RECOVERY.md).
+
+## Underlay diagnostics
+
+Status and doctor include strategy, active generation/lease/infrastructure counts,
+reconcile failures and unprotected required runtime counts. Protection/readback or
+retirement failure marks client/server health degraded. Support summaries exclude
+arbitrary DIRECT/server target history and credentials. Configure explicit safe
+DNS/bootstrap when required System resolution rejects. Xray on an unqualified
+platform rejects before launch. No-TUN SOCKS/HTTP operation needs no extra privilege.

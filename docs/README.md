@@ -45,7 +45,7 @@ README.md                           project introduction
 
 ## Architecture Decision Records
 
-[ADR index](adr/README.md) lists all 23 decisions and their individual status.
+[ADR index](adr/README.md) lists all 29 decisions and their individual status.
 ADR 0001 is accepted for Phase 0; 0002–0015 remain proposed for maintainer review.
 ADR 0016 records the foundation boundary; ADR 0017 defers Vision with explicit re-enable gates.
 Decision acceptance is separate from implementation and interoperability qualification.
@@ -218,4 +218,20 @@ checkpoint. Phase 9 distribution and service is locally frozen under its
 [Freeze report](reports/PHASE_12_FREEZE_REPORT.md): authorized checkpoint, source
 match, fresh gates and clean Phase 13 branch preparation. Routing/DNS/policy remain
 Experimental; System/UDP/TCP/verified DoT and round-robin are the qualified scope.
-DoH/FakeIP/TUN/system proxy remain deferred; Phase 13 implementation is NOT STARTED.
+That freeze preserves the Phase 12 boundary. Phase 13 progress is tracked below.
+
+## Phase 13 TUN and system integration
+
+- [Local inbound model](architecture/LOCAL_INBOUND_MODEL.md): shared SOCKS/HTTP/mixed/TUN runtime.
+- [System integration](SYSTEM_INTEGRATION.md): route ownership, private operational journal and recovery.
+- [Linux](PLATFORM_LINUX.md) and [Windows](PLATFORM_WINDOWS.md): supported paths, blocked activation and qualification limits.
+- [Source audit](development/PHASE_13_TUN_AUDIT.md): pinned upstream capabilities and ownership decisions.
+- [Phase 13 report](reports/PHASE_13_TUN_SYSTEM_INTEGRATION_REPORT.md): local acceptance evidence and exact remaining blockers.
+- [Windows blocker closure](reports/PHASE_13_WINDOWS_BLOCKER_CLOSURE_REPORT.md): closed ownership blockers and preserved Windows campaign evidence.
+- [Underlay closure](reports/PHASE_13_UNDERLAY_RUNTIME_CLOSURE_REPORT.md): actual client/server/DNS/child wiring, retained generations and final source-bound acceptance.
+- [Phase 13 freeze](reports/PHASE_13_FREEZE_REPORT.md): authorized Experimental checkpoint, unchanged functional source and clean Phase 14 branch preparation.
+- [Recovery](RECOVERY.md) and [testing](TESTING.md): safe operational and qualification boundaries.
+
+Phase 13 is locally FROZEN. Real Windows TUN/auto-route/WinINET and native Ubuntu
+host-network qualification remain pending; Windows activation stays guarded.
+Phase 14 implementation has not started. Subscriptions/providers remain deferred.

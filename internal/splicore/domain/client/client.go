@@ -86,15 +86,28 @@ func (o Outbound) Validate() error {
 }
 
 type LocalInbound struct {
+	TUN              *TUNSettings    `json:"tun,omitempty"`
 	ID               identity.ID     `json:"id"`
 	Name             string          `json:"name"`
 	Kind             string          `json:"kind"`
-	Listen           access.Endpoint `json:"listen"`
+	Listen           access.Endpoint `json:"listen,omitzero"`
 	SelectedOutbound identity.ID     `json:"selected_outbound,omitempty"`
 }
 
 func (i LocalInbound) Validate() error {
-	if i.ID.Validate() != nil || !identity.Label(i.Name, 128) || i.Kind != "socks5" {
+	if i.ID.Validate() != nil || !identity.Label(i.Name, 128) {
+		return invalid()
+	}
+	if i.SelectedOutbound != "" && ValidateOutboundID(i.SelectedOutbound) != nil {
+		return invalid()
+	}
+	if i.Kind == "tun" {
+		if i.TUN == nil || i.Listen != (access.Endpoint{}) {
+			return invalid()
+		}
+		return i.TUN.Validate()
+	}
+	if i.TUN != nil || i.Kind != "socks5" && i.Kind != "http" && i.Kind != "mixed" {
 		return invalid()
 	}
 	if err := i.Listen.Validate(); err != nil {
@@ -110,7 +123,7 @@ func (i LocalInbound) Validate() error {
 	return nil
 }
 func (i *LocalInbound) Defaults() {
-	if i.Listen.Host == "" {
+	if i.Kind != "tun" && i.Listen.Host == "" {
 		i.Listen.Host = "127.0.0.1"
 	}
 	if i.Kind == "" {
@@ -128,6 +141,7 @@ type Route struct {
 	DefaultOutbound identity.ID `json:"default_outbound"`
 }
 type ProfileState struct {
+	Host          HostIntegration      `json:"host_integration"`
 	Revision      identity.Revision    `json:"revision"`
 	Enabled       bool                 `json:"enabled"`
 	Nodes         []RemoteNode         `json:"nodes"`
@@ -171,15 +185,29 @@ func (s ProfileState) Validate() error {
 	}
 	ids := map[identity.ID]bool{}
 	listeners := map[access.Endpoint]bool{}
+	tunNames := map[string]bool{}
 	for _, i := range s.LocalInbounds {
 		if err := i.Validate(); err != nil {
 			return err
 		}
-		if ids[i.ID] || listeners[i.Listen] || i.SelectedOutbound != "" && !out[i.SelectedOutbound] {
+		if ids[i.ID] || i.Kind != "tun" && listeners[i.Listen] || i.SelectedOutbound != "" && !out[i.SelectedOutbound] {
 			return invalid()
 		}
 		ids[i.ID] = true
-		listeners[i.Listen] = true
+		if i.Kind == "tun" {
+			if len(tunNames) != 0 || tunNames[i.TUN.Interface] {
+				return identity.Err(identity.Invalid, "one owned TUN per client runtime")
+			}
+			tunNames[i.TUN.Interface] = true
+			if i.TUN.DNSHijack && !s.Network.DNS.Enabled {
+				return identity.Err(identity.Invalid, "DNS interception requires managed DNS")
+			}
+		} else {
+			listeners[i.Listen] = true
+		}
+	}
+	if err := s.Host.Validate(s.LocalInbounds); err != nil {
+		return err
 	}
 	return s.Network.Validate(out, ids)
 }

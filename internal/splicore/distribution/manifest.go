@@ -99,7 +99,7 @@ func Decode(r io.Reader) (Manifest, error) {
 	if m.Schema != 1 || m.Product != "Splicore" || !versionPattern.MatchString(m.Version) || m.Channel != "development" || m.Qualification != "experimental" || !commitPattern.MatchString(m.GitCommit) || !digestPattern.MatchString(m.SourceSHA256) || m.GOOS != "linux" || m.GOARCH != "amd64" && m.GOARCH != "arm64" || m.ConfigSchema != version.ConfigSchema || m.DatabaseSchema < 1 || m.DatabaseSchema > version.DatabaseSchema || m.DatabaseMin < 1 || m.DatabaseMin > m.DatabaseSchema || m.ProtocolABI != version.ProtocolABI || m.APIVersion != version.APIVersion || m.UpstreamTag != "v1.14.1" || m.UpstreamCommit != "1ac1a339cb1223e9c70eae14c44411c75033c02d" || m.Xray.Version != "26.3.27" || m.Xray.Strategy != "separate-pinned-artifact" {
 		return m, fmt.Errorf("incompatible distribution identity")
 	}
-	if _, err = time.Parse(time.RFC3339, m.BuildTime); err != nil || !strings.HasPrefix(m.GoVersion, "go1.") || m.BuildTags != "with_quic,with_utls" {
+	if _, err = time.Parse(time.RFC3339, m.BuildTime); err != nil || !strings.HasPrefix(m.GoVersion, "go1.") || m.BuildTags != "with_quic,with_utls" && m.BuildTags != "with_quic,with_utls,with_gvisor" {
 		return m, fmt.Errorf("invalid build provenance")
 	}
 	if len(m.Xray.SHA256) != len(XrayHashes) {
@@ -130,7 +130,7 @@ func AllowedMember(p string) bool {
 		return false
 	}
 	switch p {
-	case "splicore", "splicore.service", "splicore.yaml", "install.sh", "LICENSE", "NOTICE.md":
+	case "splicore", "splicore.service", "splicore-tun.conf", "splicore.yaml", "install.sh", "LICENSE", "NOTICE.md":
 		return true
 	}
 	return strings.HasPrefix(p, "docs/") && strings.HasSuffix(p, ".md") || strings.HasPrefix(p, "licenses/") && regexp.MustCompile(`^[A-Za-z0-9._/-]+$`).MatchString(p)

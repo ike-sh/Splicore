@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: All developers and security reviewers
-- Last reviewed: 2026-10-03
+- Last reviewed: 2026-10-04
 - Owner: Security maintainers
 - Responsibility: Secret handling, transport authorization, imports, files and executable trust.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -174,3 +174,25 @@ requires System or IP-only DIRECT UDP/TCP and cannot depend on unresolved proxy 
 Domain RuleSets cannot smuggle IP/source rules into DNS. UUID references/cycles and
 canonical size/depth bounds validate before activation. General API/status/support
 remain redacted; graph intent contains no credential payload fields.
+
+## Phase 13 host integration
+
+Host mutations require the existing protected Application plan/apply/revision boundary. Private journal owner/ACL, size/shape validation and an exclusive lock precede writes. Corruption fails degraded; external changes are retained. HTTP stays loopback, headers bounded and proxy credentials stripped. Support bundles expose owned counts/enums and redacted metadata, never full host network/proxy data. See [system integration](../SYSTEM_INTEGRATION.md).
+
+Windows schema-2 records bind adapter GUID/route identity to generation/owner.
+WinINET LAN snapshots/intermediates remain private and reject sensitive PAC values.
+Exact-state comparisons preserve external C; failed child cleanup retains Wintun
+parent debt. No registry setter, guessed adapter-name deletion or reboot is used.
+Original activation guards remain pending real Windows platform qualification;
+fixture PASS does not certify real Windows mutation. See [recovery](../RECOVERY.md).
+
+## Underlay ownership and privacy
+
+Typed construction capabilities fail closed when required socket/child protection
+cannot be verified. They preserve logical route/DNS/health selection. Infrastructure
+addresses are bounded; arbitrary DIRECT/server targets are never retained as a
+browsing history. Status/doctor/support expose only strategy, generation IDs, counts
+and redacted error classes. Socket verification and control metadata use narrow
+locks; payload reads/writes and scratch buffers remain per connection. Windows real
+activation remains guarded. No upstream, credentials, wire or external targets are
+modified by the underlay integration.

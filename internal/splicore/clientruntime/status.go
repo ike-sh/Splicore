@@ -3,7 +3,9 @@ package clientruntime
 import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/client"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	"github.com/sagernet/sing-box/internal/splicore/hostnetwork"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"sort"
 )
 
@@ -22,12 +24,15 @@ type OutboundHealth struct {
 type SessionView struct {
 	ID         identity.ID  `json:"id"`
 	InboundID  identity.ID  `json:"local_inbound_id"`
-	OutboundID identity.ID  `json:"outbound_id"`
+	OutboundID identity.ID  `json:"outbound_id,omitempty"`
 	NodeID     identity.ID  `json:"node_id,omitempty"`
 	Kind       string       `json:"kind"`
 	Stats      TrafficStats `json:"stats"`
 }
 type Status struct {
+	Underlay         underlay.Status            `json:"underlay"`
+	HostCapabilities hostnetwork.Capabilities   `json:"host_capabilities"`
+	Host             hostnetwork.Status         `json:"host_network"`
 	Network          NetworkStatus              `json:"network_runtime"`
 	State            client.ProfileState        `json:"state"`
 	Health           string                     `json:"health"`
@@ -44,6 +49,9 @@ type Status struct {
 func (m *Manager) Status(state client.ProfileState, capabilities []ports.OutboundCapability) Status {
 	out := Status{State: state.Clone(), Health: "stopped", LocalSOCKSTCP: true, LocalSOCKSUDP: "supported", OutboundAdapters: capabilities, LocalStats: []Observation{}, Outbounds: []OutboundHealth{}, Nodes: []Observation{}, Sessions: []SessionView{}}
 	out.Network = m.NetworkStatus()
+	out.Underlay = m.underlay.Status()
+	out.Host = m.HostStatus()
+	out.HostCapabilities = hostnetwork.PlatformCapabilities()
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if !m.closed && m.current.Load() != nil && state.Enabled {
@@ -54,6 +62,14 @@ func (m *Manager) Status(state client.ProfileState, capabilities []ports.Outboun
 				out.Health = "degraded"
 			}
 		}
+	}
+	if out.Underlay.Health == "degraded" {
+		out.Health = "degraded"
+		out.LastError = out.Underlay.LastError
+	}
+	if out.Host.Recovery == "degraded" {
+		out.Health = "degraded"
+		out.LastError = out.Host.LastError
 	}
 	for _, i := range state.LocalInbounds {
 		v := Observation{ID: i.ID}
@@ -75,6 +91,10 @@ func (m *Manager) Status(state client.ProfileState, capabilities []ports.Outboun
 					v.LastError = h.lastError
 				}
 			}
+		}
+		if out.Underlay.Health == "degraded" {
+			v.Available = false
+			v.LastError = out.Underlay.LastError
 		}
 		out.Outbounds = append(out.Outbounds, v)
 	}

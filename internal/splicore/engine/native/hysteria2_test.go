@@ -9,6 +9,7 @@ import (
 	hm "github.com/sagernet/sing-box/internal/splicore/protocol/hysteria2"
 	tm "github.com/sagernet/sing-box/internal/splicore/protocol/tuic"
 	"github.com/sagernet/sing-box/internal/splicore/testkit"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"net"
 	"os"
 	"runtime"
@@ -46,7 +47,7 @@ func TestHysteria2LifecycleMalformedQUICAndPortReuse(t *testing.T) {
 			}
 			engine, _ := NewEngine(SnellCompiler{}, Hysteria2Compiler{}, TUICCompiler{})
 			for range 3 {
-				prepared, e := engine.Compile(context.Background(), in)
+				prepared, e := engine.Compile(underlay.WithFactory(context.Background(), underlay.New()), in)
 				if e != nil {
 					t.Fatal(e)
 				}
@@ -96,7 +97,7 @@ func TestStaticTLSKeyProtection(t *testing.T) {
 		if e := os.Chmod(s.TLS.PrivateKeyFile, 0644); e != nil {
 			t.Fatal(e)
 		}
-		if _, e := (Hysteria2Compiler{}).Compile(context.Background(), in); e == nil {
+		if _, e := (Hysteria2Compiler{}).Compile(underlay.WithFactory(context.Background(), underlay.New()), in); e == nil {
 			t.Fatal("public private-key mode admitted")
 		}
 		if e := os.Chmod(s.TLS.PrivateKeyFile, 0600); e != nil {
@@ -106,7 +107,7 @@ func TestStaticTLSKeyProtection(t *testing.T) {
 	if e := os.WriteFile(s.TLS.PrivateKeyFile, []byte("not a key"), 0600); e != nil {
 		t.Fatal(e)
 	}
-	if _, e := (Hysteria2Compiler{}).Compile(context.Background(), in); e == nil {
+	if _, e := (Hysteria2Compiler{}).Compile(underlay.WithFactory(context.Background(), underlay.New()), in); e == nil {
 		t.Fatal("invalid key admitted")
 	}
 }

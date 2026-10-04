@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
 	clientdomain "github.com/sagernet/sing-box/internal/splicore/domain/client"
+	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	"github.com/sagernet/sing-box/internal/splicore/engine/clientio"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
 	v "github.com/sagernet/sing-box/internal/splicore/protocol/vless"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"github.com/sagernet/sing/common/buf"
 	M "github.com/sagernet/sing/common/metadata"
 	"github.com/sagernet/sing/protocol/socks"
@@ -86,6 +88,20 @@ func renderClient(n clientdomain.RemoteNode, c access.Credential) ([]byte, error
 	return json.Marshal(config)
 }
 func (f OutboundFactory) Build(ctx context.Context, n clientdomain.RemoteNode, c access.Credential) (ports.ClientDialer, error) {
+	factory, capErr := underlay.FromContext(ctx)
+	if capErr != nil {
+		return nil, capErr
+	}
+	childLease, capErr := factory.AcquireChild(underlay.ScopeFrom(ctx, underlay.EngineChild))
+	if capErr != nil {
+		return nil, capErr
+	}
+	transferred := false
+	defer func() {
+		if !transferred {
+			childLease.Close()
+		}
+	}()
 	b, err := renderClient(n, c)
 	if err != nil {
 		return nil, err
@@ -95,6 +111,7 @@ func (f OutboundFactory) Build(ctx context.Context, n clientdomain.RemoteNode, c
 		return nil, unavailable("Xray engine unavailable")
 	}
 	h := newHandle(f.Engine, access.Endpoint{}, b)
+	h.underlay = childLease
 	h.clientRole = true
 	f.Engine.mu.Lock()
 	if f.Engine.closed {
@@ -109,6 +126,7 @@ func (f OutboundFactory) Build(ctx context.Context, n clientdomain.RemoteNode, c
 		return nil, err
 	}
 	h.Activate()
+	transferred = true
 	return &clientDialer{handle: h, owner: clientio.New()}, nil
 }
 
@@ -180,6 +198,10 @@ func (d *clientDialer) ListenPacket(ctx context.Context, e access.Endpoint) (net
 	control, bind, err := d.handshake(joined, socks5.CommandUDPAssociate, M.ParseSocksaddr("0.0.0.0:0"))
 	if err != nil {
 		return nil, err
+	}
+	if !bind.Addr.IsLoopback() || bind.Port == 0 {
+		_ = control.Close()
+		return nil, identity.Err(identity.Unavailable, "invalid private child UDP endpoint")
 	}
 	udp, err := (&net.Dialer{}).DialContext(joined, "udp4", bind.String())
 	if err != nil {

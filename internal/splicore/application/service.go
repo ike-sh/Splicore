@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"strconv"
 	"strings"
 	"time"
@@ -114,6 +115,7 @@ type Queries interface {
 	Capabilities(context.Context, string, int) (CapabilityPage, error)
 }
 type Service struct {
+	underlay    *underlay.Factory
 	client      *clientState
 	runtime     *runtimeState
 	repo        ports.Repository
@@ -126,6 +128,12 @@ type Service struct {
 }
 
 func New(repo ports.Repository, p *registry.Protocols, e *registry.Engines, x *registry.Exporters, build version.Info) (*Service, error) {
+	return NewWithUnderlay(repo, p, e, x, build, underlay.New())
+}
+func NewWithUnderlay(repo ports.Repository, p *registry.Protocols, e *registry.Engines, x *registry.Exporters, build version.Info, f *underlay.Factory) (*Service, error) {
+	if _, err := f.New(underlay.Scope{Purpose: underlay.ServerTarget}); err != nil {
+		return nil, err
+	}
 	if repo == nil || p == nil || e == nil || x == nil {
 		return nil, identity.Err(identity.Invalid, "missing application dependency")
 	}
@@ -138,7 +146,7 @@ func New(repo ports.Repository, p *registry.Protocols, e *registry.Engines, x *r
 		Build version.Info
 	}{p.Keys(), build})
 	sum := sha256.Sum256(b)
-	return &Service{repo: repo, protocols: p, engines: e, exporters: x, instance: id, build: build, fingerprint: hex.EncodeToString(sum[:])}, nil
+	return &Service{underlay: f, repo: repo, protocols: p, engines: e, exporters: x, instance: id, build: build, fingerprint: hex.EncodeToString(sum[:])}, nil
 }
 
 func (s *Service) System(ctx context.Context) (System, error) {

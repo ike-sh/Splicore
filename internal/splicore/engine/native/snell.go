@@ -4,6 +4,7 @@ package native
 import (
 	"context"
 	"errors"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"net"
 	"strconv"
 	"sync"
@@ -52,6 +53,9 @@ func (e SnellCompiler) Compile(ctx context.Context, i ports.RuntimeIntent) (port
 	s, _ := module.Decode(i.Inbound.Settings.Data)
 	h := &Handle{connections: make(map[*rawConn]bool), endpoint: i.Inbound.Listeners[0].Endpoint, done: make(chan struct{})}
 	// Runtime lifetime is independent of a canceled apply request. The coordinator owns Close.
+	if _, err := underlay.FromContext(ctx); err != nil {
+		return nil, err
+	}
 	runtimeCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	runtimeCtx = service.ContextWith[adapter.PlatformInterface](runtimeCtx, serverPlatform{})
 	h.cancel = cancel
@@ -70,9 +74,9 @@ func (e SnellCompiler) Compile(ctx context.Context, i ports.RuntimeIntent) (port
 	direct.RegisterOutbound(or)
 	dr := dns.NewTransportRegistry()
 	local.RegisterTransport(dr)
-	runtimeCtx = box.Context(runtimeCtx, ir, or, endpoint.NewRegistry(), dr, boxservice.NewRegistry(), certificate.NewRegistry())
+	runtimeCtx = box.Context(runtimeCtx, ir, protectedOutbounds{or, underlay.ServerTarget}, endpoint.NewRegistry(), protectedDNS{dr}, boxservice.NewRegistry(), certificate.NewRegistry())
 	psk := i.Credentials[0].Payload.(access.PSKPayload).Key.Reveal()
-	b, err := box.New(box.Options{Context: runtimeCtx, Options: option.Options{Log: &option.LogOptions{Disabled: true}, Inbounds: []option.Inbound{{Type: "snell", Tag: string(i.Inbound.ID), Options: &option.SnellInboundOptions{Version: s.Version, AbstractSnellInboundOptions: option.AbstractSnellInboundOptions{PSK: psk}}}}}})
+	b, err := box.New(box.Options{Context: runtimeCtx, Options: option.Options{DNS: &option.DNSOptions{RawDNSOptions: option.RawDNSOptions{Servers: []option.DNSServerOptions{{Type: "local", Tag: "local", Options: &option.LocalDNSServerOptions{}}}}}, Outbounds: []option.Outbound{{Type: "direct", Tag: "protected-direct", Options: &option.DirectOutboundOptions{}}}, Route: &option.RouteOptions{Final: "protected-direct", DefaultDomainResolver: &option.DomainResolveOptions{Server: "local"}}, Log: &option.LogOptions{Disabled: true}, Inbounds: []option.Inbound{{Type: "snell", Tag: string(i.Inbound.ID), Options: &option.SnellInboundOptions{Version: s.Version, AbstractSnellInboundOptions: option.AbstractSnellInboundOptions{PSK: psk}}}}}})
 	if err != nil {
 		cancel()
 		if h.stock != nil {

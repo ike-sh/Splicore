@@ -19,6 +19,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
 	module "github.com/sagernet/sing-box/internal/splicore/protocol/vless"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing-box/protocol/direct"
@@ -88,14 +89,21 @@ func (c VLESSCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (por
 	for _, b := range in.Bindings {
 		h.users[string(b.ID)] = &meter{}
 	}
+	if _, err := underlay.FromContext(ctx); err != nil {
+		return nil, err
+	}
 	runtimeCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	h.cancel = cancel
 	runtimeCtx = service.ContextWith[adapter.PlatformInterface](runtimeCtx, serverPlatform{})
 	ir := inbound.NewRegistry()
 	inbound.Register[option.InboundTLSOptionsContainer](ir, "vless", func(ctx context.Context, r adapter.Router, l log.ContextLogger, tag string, o option.InboundTLSOptionsContainer) (adapter.Inbound, error) {
+		protected, err := protectedContext(ctx, underlay.ServerTarget)
+		if err != nil {
+			return nil, err
+		}
+		ctx = protected
 		h.router = r
 		h.ctx = ctx
-		var err error
 		if o.TLS != nil {
 			h.tls, err = boxtls.NewServer(ctx, l, *o.TLS)
 			if err != nil {
@@ -132,8 +140,8 @@ func (c VLESSCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (por
 	direct.RegisterOutbound(or)
 	dr := dns.NewTransportRegistry()
 	local.RegisterTransport(dr)
-	runtimeCtx = box.Context(runtimeCtx, ir, or, endpoint.NewRegistry(), dr, boxservice.NewRegistry(), certificate.NewRegistry())
-	b, err := box.New(box.Options{Context: runtimeCtx, Options: option.Options{DNS: &option.DNSOptions{RawDNSOptions: option.RawDNSOptions{Servers: []option.DNSServerOptions{{Type: "local", Tag: "local", Options: &option.LocalDNSServerOptions{}}}}}, Route: &option.RouteOptions{DefaultDomainResolver: &option.DomainResolveOptions{Server: "local"}}, Log: &option.LogOptions{Disabled: true}, Inbounds: []option.Inbound{{Type: "vless", Tag: string(in.Inbound.ID), Options: &option.InboundTLSOptionsContainer{TLS: &tlsOptions}}}}})
+	runtimeCtx = box.Context(runtimeCtx, ir, protectedOutbounds{or, underlay.ServerTarget}, endpoint.NewRegistry(), protectedDNS{dr}, boxservice.NewRegistry(), certificate.NewRegistry())
+	b, err := box.New(box.Options{Context: runtimeCtx, Options: option.Options{DNS: &option.DNSOptions{RawDNSOptions: option.RawDNSOptions{Servers: []option.DNSServerOptions{{Type: "local", Tag: "local", Options: &option.LocalDNSServerOptions{}}}}}, Outbounds: []option.Outbound{{Type: "direct", Tag: "protected-direct", Options: &option.DirectOutboundOptions{}}}, Route: &option.RouteOptions{Final: "protected-direct", DefaultDomainResolver: &option.DomainResolveOptions{Server: "local"}}, Log: &option.LogOptions{Disabled: true}, Inbounds: []option.Inbound{{Type: "vless", Tag: string(in.Inbound.ID), Options: &option.InboundTLSOptionsContainer{TLS: &tlsOptions}}}}})
 	if err != nil {
 		cancel()
 		if h.tls != nil {

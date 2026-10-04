@@ -71,3 +71,7 @@ qualified; the installer rejects that optional engine there.
 
 See [operations](OPERATIONS.md), [upgrade](UPGRADE.md), [uninstall](UNINSTALL.md)
 and [support bundles](SUPPORT_BUNDLE.md).
+
+## Phase 13 host integration
+
+Packages include with_gvisor and optional splicore-tun.conf. Standard service keeps CAP_NET_BIND_SERVICE; explicitly install the shipped drop-in as /etc/systemd/system/splicore.service.d/20-tun.conf, then daemon-reload/restart before enabling TUN. It adds NET_ADMIN to the same dedicated-user service and retains all hardening. No driver is supplied/downloaded. See [Linux](PLATFORM_LINUX.md) and [Windows](PLATFORM_WINDOWS.md).

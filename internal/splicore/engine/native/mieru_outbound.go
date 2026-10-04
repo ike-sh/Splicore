@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/engine/clientio"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
 	module "github.com/sagernet/sing-box/internal/splicore/protocol/mieru"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"google.golang.org/protobuf/proto"
 	"net"
 	"strconv"
@@ -38,8 +39,16 @@ func (MieruOutboundFactory) Validate(n client.RemoteNode, c access.Credential) e
 	}
 	return (module.Module{}).ValidateCredential(c)
 }
-func (f MieruOutboundFactory) Build(_ context.Context, n client.RemoteNode, c access.Credential) (ports.ClientDialer, error) {
+func (f MieruOutboundFactory) Build(ctx context.Context, n client.RemoteNode, c access.Credential) (ports.ClientDialer, error) {
 	if err := f.Validate(n, c); err != nil {
+		return nil, err
+	}
+	protected, err := underlay.DialerFrom(ctx, underlay.ProxyUnderlay)
+	if err != nil {
+		return nil, err
+	}
+	resolver, err := underlay.DialerFrom(ctx, underlay.DNSBootstrap)
+	if err != nil {
 		return nil, err
 	}
 	s, _ := module.Decode(n.Options.Data)
@@ -55,9 +64,9 @@ func (f MieruOutboundFactory) Build(_ context.Context, n client.RemoteNode, c ac
 		endpoint.DomainName = proto.String(n.Endpoint.Host)
 	}
 	level := pb.MultiplexingLevel(pb.MultiplexingLevel_value["MULTIPLEXING_"+strings.ToUpper(s.Multiplex)])
-	d := &mieruDialer{client: api.NewClient(), owner: clientio.New(), endpoint: n.Endpoint}
+	d := &mieruDialer{client: api.NewClient(), owner: clientio.New(), endpoint: n.Endpoint, protected: protected, resolver: resolver}
 	profile := &pb.ClientProfile{ProfileName: proto.String("managed"), User: &pb.User{Name: proto.String(p.Username.Reveal()), Password: proto.String(p.Password.Reveal())}, Servers: []*pb.ServerEndpoint{endpoint}, Mtu: proto.Int32(int32(s.MTU)), Multiplexing: &pb.MultiplexingConfig{Level: level.Enum()}, HandshakeMode: pb.HandshakeMode_HANDSHAKE_NO_WAIT.Enum()}
-	if err := d.client.Store(&api.ClientConfig{Profile: profile, Dialer: d, PacketDialer: d, Resolver: net.DefaultResolver}); err != nil {
+	if err := d.client.Store(&api.ClientConfig{Profile: profile, Dialer: d, PacketDialer: d, Resolver: d.resolver}); err != nil {
 		d.owner.Close()
 		return nil, identity.Err(identity.Unavailable, "Mieru client construction failed")
 	}
@@ -72,9 +81,10 @@ func (f MieruOutboundFactory) Build(_ context.Context, n client.RemoteNode, c ac
 // The injected underlay dialer and logical outbound are different types: their
 // DialContext contracts have different arguments and both use the same owner.
 type mieruDialer struct {
-	client   api.Client
-	owner    *clientio.Owner
-	endpoint access.Endpoint
+	protected, resolver *underlay.Dialer
+	client              api.Client
+	owner               *clientio.Owner
+	endpoint            access.Endpoint
 }
 
 func (d *mieruDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
@@ -89,7 +99,7 @@ func (d *mieruDialer) DialContext(ctx context.Context, network, address string) 
 	if net.ParseIP(d.endpoint.Host) == nil {
 		address = net.JoinHostPort(d.endpoint.Host, strconv.Itoa(int(d.endpoint.Port)))
 	}
-	c, err := (&net.Dialer{}).DialContext(joined, network, address)
+	c, err := d.protected.DialContext(joined, network, address)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +111,7 @@ func (d *mieruDialer) ListenPacket(ctx context.Context, network, laddr, raddr st
 		return nil, err
 	}
 	defer done()
-	c, err := (&net.ListenConfig{}).ListenPacket(joined, network, laddr)
+	c, err := d.protected.ListenPacket(joined, network, laddr, raddr)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +153,7 @@ func (o *mieruOutbound) ListenPacket(ctx context.Context, e access.Endpoint) (ne
 	// The official UDPAssociateWrapper receive contract accepts IP headers only,
 	// including on the embedded server. Resolve this UDP flow locally, retaining
 	// the canonical target/node domain and using the official framing unchanged.
-	address, err := ac.ResolveUDPAddr(ctx, net.DefaultResolver, "udp", net.JoinHostPort(e.Host, strconv.Itoa(int(e.Port))))
+	address, err := ac.ResolveUDPAddr(ctx, o.d.resolver, "udp", net.JoinHostPort(e.Host, strconv.Itoa(int(e.Port))))
 	if err != nil {
 		return nil, err
 	}

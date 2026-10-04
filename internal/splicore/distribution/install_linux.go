@@ -576,6 +576,22 @@ func Uninstall(ctx context.Context, purge bool) error {
 	if err = systemctl(ctx, "stop", "splicore.service"); err != nil {
 		return err
 	}
+	// The journal is private to the service UID. Do not change its owner or read
+	// and apply it as root. A stopped-service helper holds only NET_ADMIN.
+	if _, e := os.Lstat(StatePath + "/host-network"); e == nil {
+		gid, e := strconv.Atoi(u.Gid)
+		if e != nil || gid <= 0 {
+			return fmt.Errorf("invalid service group")
+		}
+		help := exec.CommandContext(ctx, BinaryPath, "service", "recover-network", "--config", ConfigPath)
+		help.Env = []string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C", "LC_ALL=C"}
+		help.SysProcAttr = &syscall.SysProcAttr{Credential: &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid)}, AmbientCaps: []uintptr{unix.CAP_NET_ADMIN}}
+		if help.Run() != nil {
+			return fmt.Errorf("owned host network recovery failed; installation retained")
+		}
+	} else if !os.IsNotExist(e) {
+		return fmt.Errorf("host network recovery inventory unavailable")
+	}
 	if err = systemctl(ctx, "disable", "splicore.service"); err != nil {
 		return err
 	}

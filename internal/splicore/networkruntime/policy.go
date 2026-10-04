@@ -7,6 +7,7 @@ import (
 	P "github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
 	"github.com/sagernet/sing-box/internal/splicore/engine/clientio"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"io"
 	"net"
 	"net/http"
@@ -38,6 +39,8 @@ type groupState struct {
 	selections atomic.Int64
 }
 type Engine struct {
+	underlay                                    *underlay.Factory
+	generation                                  identity.ID
 	config                                      P.Config
 	Matcher                                     *Matcher
 	dialers                                     map[identity.ID]ports.ClientDialer
@@ -53,11 +56,18 @@ type Engine struct {
 	lifecycleMu                                 sync.Mutex
 	dnsMu                                       sync.Mutex
 	cache                                       *dnsCache
+	bindings                                    map[netip.Addr]dnsBinding
 	dnsCounts                                   map[identity.ID]*dnsCounters
 	dnsQueries, dnsHits, dnsMisses, dnsFailures atomic.Int64
 }
 
 func New(c P.Config, dialers map[identity.ID]ports.ClientDialer, passive func(identity.ID) Passive, locals ...identity.ID) (*Engine, error) {
+	return NewWithUnderlay(underlay.New(), "", c, dialers, passive, locals...)
+}
+func NewWithUnderlay(f *underlay.Factory, generation identity.ID, c P.Config, dialers map[identity.ID]ports.ClientDialer, passive func(identity.ID) Passive, locals ...identity.ID) (*Engine, error) {
+	if _, err := f.New(underlay.Scope{Purpose: underlay.DNSBootstrap, Generation: generation}); err != nil {
+		return nil, err
+	}
 	outIDs, inIDs := map[identity.ID]bool{}, map[identity.ID]bool{}
 	owned := make(map[identity.ID]ports.ClientDialer, len(dialers))
 	for id, d := range dialers {
@@ -76,6 +86,8 @@ func New(c P.Config, dialers map[identity.ID]ports.ClientDialer, passive func(id
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	e := &Engine{config: c.Clone(), Matcher: m, dialers: owned, passive: passive, groups: map[identity.ID]*groupState{}, owner: clientio.New(), scheduleCtx: ctx, cancelSchedule: cancel, dnsCounts: map[identity.ID]*dnsCounters{}, cache: newDNSCache(c.DNS.Cache.Capacity)}
+	e.underlay = f
+	e.generation = generation
 	for _, g := range e.config.Groups {
 		e.groups[g.ID] = &groupState{spec: g, samples: map[P.Action]Sample{}}
 	}
@@ -248,6 +260,14 @@ func (e *Engine) Inherit(previous *Engine) {
 	if previous == nil {
 		return
 	}
+	if reflect.DeepEqual(e.config.DNS, previous.config.DNS) && reflect.DeepEqual(e.config.Servers, previous.config.Servers) && reflect.DeepEqual(e.config.DNSRules, previous.config.DNSRules) {
+		previous.dnsMu.Lock()
+		e.bindings = map[netip.Addr]dnsBinding{}
+		for ip, b := range previous.bindings {
+			e.bindings[ip] = b
+		}
+		previous.dnsMu.Unlock()
+	}
 	for id, g := range e.groups {
 		old := previous.groups[id]
 		if old == nil {
@@ -397,7 +417,7 @@ func (e *Engine) probe(ctx context.Context, id identity.ID, member P.Action) {
 		}
 		if err == nil {
 			transport := &http.Transport{Proxy: nil, DisableKeepAlives: true, DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-				return e.dial(ctx, terminal, "tcp", endpoint)
+				return e.dialPurpose(ctx, terminal, "tcp", endpoint, underlay.HealthProbe)
 			}}
 			defer transport.CloseIdleConnections()
 			client := http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}

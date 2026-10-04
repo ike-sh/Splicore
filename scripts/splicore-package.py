@@ -16,7 +16,7 @@ import subprocess
 import tarfile
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
-TAGS = "with_quic,with_utls"
+TAGS = "with_quic,with_utls,with_gvisor"
 VP = "github.com/sagernet/sing-box/internal/splicore/version"
 XRAY = {"version": "26.3.27", "strategy": "separate-pinned-artifact", "sha256": {
     "linux/amd64": "8255dd939c34cf966cc91517b6324dd3c8d0bcf49ffac8beca049a38c46845ed",
@@ -119,7 +119,7 @@ def main():
             results.append({"platform": platform, "file": binary.name, "sha256": hashlib.sha256(binary.read_bytes()).hexdigest(), "qualification": "build-only"})
             continue
         entries, inventory = licenses(env)
-        for dst, src in {"splicore": binary, "splicore.service": REPO/"distribution/splicore.service", "splicore.yaml": REPO/"distribution/splicore.yaml", "install.sh": REPO/"scripts/install.sh", "LICENSE": REPO/"LICENSE", "NOTICE.md": REPO/"NOTICE.md"}.items():
+        for dst, src in {"splicore": binary, "splicore.service": REPO/"distribution/splicore.service", "splicore-tun.conf": REPO/"distribution/splicore-tun.conf", "splicore.yaml": REPO/"distribution/splicore.yaml", "install.sh": REPO/"scripts/install.sh", "LICENSE": REPO/"LICENSE", "NOTICE.md": REPO/"NOTICE.md"}.items():
             entries[dst] = (src.read_bytes(), 0o755 if dst in ("splicore", "install.sh") else 0o644)
         for doc in ("INSTALLATION", "UPGRADE", "UNINSTALL", "OPERATIONS", "SUPPORT_BUNDLE", "DISTRIBUTION"):
             included = {name+".md" for name in ("INSTALLATION", "UPGRADE", "UNINSTALL", "OPERATIONS", "SUPPORT_BUNDLE", "DISTRIBUTION")}

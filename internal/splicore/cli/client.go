@@ -39,12 +39,22 @@ func clientCLI(ctx context.Context, args []string, out, errOut io.Writer, deps D
 	}
 	var result any
 	var err error
-	if args[1] == "status" && args[0] == "client" || args[1] == "list" || args[1] == "get" {
+	if args[1] == "status" && (args[0] == "client" || args[0] == "tun" || args[0] == "system-proxy") || args[1] == "list" || args[1] == "get" {
 		status, e := s.ClientStatus(ctx)
 		err = e
 		if err == nil {
 			if args[0] == "client" {
 				result = status
+			} else if args[0] == "system-proxy" {
+				result = map[string]any{"desired": status.State.Host.SystemProxy, "host_network": status.Host}
+			} else if args[0] == "tun" {
+				items := []any{}
+				for _, i := range status.State.LocalInbounds {
+					if i.Kind == "tun" {
+						items = append(items, i)
+					}
+				}
+				result = map[string]any{"inbounds": items, "host_network": status.Host}
 			} else {
 				var items []any
 				switch args[0] {
@@ -85,10 +95,14 @@ func clientCLI(ctx context.Context, args []string, out, errOut io.Writer, deps D
 				}
 			}
 		}
-	} else if args[0] == "client" && (args[1] == "start" || args[1] == "stop" || args[1] == "restart") {
+	} else if args[0] == "client" && (args[1] == "start" || args[1] == "stop" || args[1] == "restart") || args[0] == "network" && args[1] == "repair" {
 		actions := []string{args[1]}
 		for _, action := range actions {
-			b, _ := json.Marshal(application.ClientMutation{Resource: "runtime", Action: action})
+			resource := "runtime"
+			if args[0] == "network" {
+				resource = "host-network"
+			}
+			b, _ := json.Marshal(application.ClientMutation{Resource: resource, Action: action})
 			p, e := s.PlanClient(ctx, b)
 			if e != nil {
 				err = e
@@ -106,7 +120,17 @@ func clientCLI(ctx context.Context, args []string, out, errOut io.Writer, deps D
 		if err == nil {
 			err = application.StrictJSON(b, &m)
 		}
-		if err == nil && args[0] != "client" && m.Resource != args[0] {
+		expected := args[0]
+		if expected == "tun" {
+			expected = "local-inbound"
+		}
+		if expected == "system-proxy" {
+			expected = "host-integration"
+		}
+		if err == nil && args[0] == "tun" && m.LocalInbound != nil && m.LocalInbound.Kind != "tun" {
+			err = identity.Err(identity.Invalid, "tun requires a TUN local inbound")
+		}
+		if err == nil && args[0] != "client" && m.Resource != expected {
 			err = identity.Err(identity.Invalid, "client document resource mismatch")
 		}
 		if err == nil {

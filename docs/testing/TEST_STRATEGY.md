@@ -191,3 +191,19 @@ with old TCP/UDP retained, and server/client restart coexistence. Ten race repet
 cover graph swap/selection/cache/scheduler/cancellation. The installed campaign driver
 splicore-network-smoke.py retains loopback DNS/HTTP/echo fixtures across restart/crash/
 upgrade/rollback/reinstall and verifies SQLite graph/selector restoration.
+
+## Phase 13 host integration
+
+Run default race/checkptr on owned packages and affected shared packages. TUN kernel tests require explicit owned disposable net/mount namespaces and a different application UID; never mutate the development host. Check IPv4/IPv6 separately, six outbounds, 4096-byte UDP fragmentation, 16 concurrent flows, 4 MiB TCP, DNS sink arrivals, exact restore, 10 lifecycle cycles, policy affinity and SIGTERM/SIGKILL recovery. Fuzz only parsers/config/journal, never real OS mutations. See [source audit](../development/PHASE_13_TUN_AUDIT.md).
+
+Windows Wintun/WinINET/bypass stateful matrices run 10x, including mutation-before-error,
+failed compensation, external C, crash journals, parent/child debt, borrowed routes,
+fresh domain results, shared refs and final acknowledgment failure. Pure code runs
+under WSL default race/checkptr; native Windows resolves symbols/ABI and compiles,
+without real mutation. Fuzz typed WinINET/journal/desired-set/normalization only.
+Actual native client/server, DIRECT, DNS/bootstrap/health and Mieru runtimes now
+exercise the protected factory with a stateful fake Windows backend. Dynamic DNS,
+retained/shared references and reused TUN reconciliation run 10x under default
+race/checkptr; Xray required-mode unavailable platforms reject. Real Windows
+qualification remains pending. See [testing](../TESTING.md) and the
+[underlay closure report](../reports/PHASE_13_UNDERLAY_RUNTIME_CLOSURE_REPORT.md).

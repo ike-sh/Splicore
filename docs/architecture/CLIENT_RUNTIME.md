@@ -2,16 +2,19 @@
 
 - Documentation status: Canonical
 - Audience: Core, client and engine developers
-- Last reviewed: 2026-10-03
+- Last reviewed: 2026-10-04
 - Owner: Core maintainers
 - Responsibility: Client intent, adapters, socket ownership and runtime recovery.
 - Lifecycle: Update with client domain or lifecycle changes.
 
-## Experimental Phase 12 boundary
+## Frozen Experimental Phase 13 boundary
 
 One daemon runs server and client roles with shared SQLite, Application, encrypted
 credentials, journal, registries, API and CLI. Loopback SOCKS5 supports TCP CONNECT
-and UDP ASSOCIATE. Ordered routing, policy groups and managed DNS are Experimental. TUN, subscriptions and providers are deferred.
+and UDP ASSOCIATE. Ordered routing, policy groups and managed DNS are Experimental. TUN/HTTP/mixed reuse
+this runtime; platform limits are explicit. Subscriptions/providers remain deferred.
+The [Phase 13 freeze](../reports/PHASE_13_FREEZE_REPORT.md) records the local checkpoint;
+Phase 14 implementation is not started. Real Windows activation stays guarded.
 
 ```mermaid
 flowchart LR
@@ -33,7 +36,7 @@ flowchart LR
 | RemoteNode | Immutable ID, original endpoint, protocol, credential reference, public transport/security and bounded options. |
 | Credential | Existing generic encrypted payload owned by one Account, server Inbound or RemoteNode. |
 | Outbound | Independent ID and NodeID/EngineID references; a VLESS node can back both engines. |
-| LocalInbound | Loopback SOCKS listener, separate from server Inbound. |
+| LocalInbound | Loopback SOCKS/HTTP/mixed or typed owned TUN, separate from server Inbound. |
 | ProfileState | Committed intent and shared global revision. |
 | Session | Ephemeral TCP stream or UDP association owning a generation reference. |
 
@@ -112,11 +115,11 @@ Canonical domains remain unchanged. TCP proxy targets resolve remotely. Mieru TC
 underlays retain the original server domain for normal net.Dialer address selection.
 Managed DNS centralizes resolution while preserving original domain metadata. See
 [DNS](DNS_MODEL.md), [routing](ROUTING_MODEL.md) and [policy](POLICY_MODEL.md).
-FakeIP/interception remains deferred.
+FakeIP remains deferred; TUN TCP/UDP53 interception uses this managed DNS engine.
 
 ## Recovery, stats and health
 
-Schema 6 restores clients after server recovery in the same unit. Client socket/build
+Schema 7 restores clients after server recovery in the same unit. Client socket/build
 failure marks degraded while server/API remain live. Offline nodes do not prevent
 startup and affect only their lease; next connections recover without daemon restart.
 Shutdown cancels operations, closes sockets and joins owned workers. Handshake/remote
@@ -146,3 +149,23 @@ global payload mutex or unsafe pointer is introduced.
 Malformed committed network JSON/references report client_committed_state_invalid and
 degraded health without deleting intent or disabling server/control. Restore a verified
 backup before importing valid configuration through Application.
+
+## Phase 13 host integration
+
+TUN borrows callbacks only until owned copies/references are retained, fixes counter
+maps before staged ingress starts, and joins flow/DNS workers before releasing their
+generation. gVisor endpoint creation precedes upstream Start so failed construction
+has an owned close boundary. HTTP/mixed share serveStream/selectRoute. See
+[host ownership](../SYSTEM_INTEGRATION.md).
+
+## Underlay generations
+
+A snapshot owns an UnderlayLease distinct from TUN interface/journal and Xray child
+generations. Bootstrap is fresh before adapter reuse; resolved sets participate in
+the key. New endpoint protection precedes Build/publication. Old TCP/UDP sessions,
+DNS queries and shared QUIC adapters retain ownership until worker/socket retirement.
+The effective set merges current desired and retained generations, including shared
+node/DNS infrastructure addresses. A reused TUN listener reconciles new endpoint
+leases without recreating the device. Failed bootstrap/provision preserves the old
+runtime. Failed adapter cleanup retains protection and surfaces shutdown debt.
+See [system integration](../SYSTEM_INTEGRATION.md).

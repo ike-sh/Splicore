@@ -54,6 +54,11 @@ func selectRoute(ctx context.Context, gen *snapshot, inbound identity.ID, target
 	ip, err := netip.ParseAddr(target.Host)
 	if err == nil {
 		q.IP = ip
+		if domain := gen.network.ObservedDomain(ip); domain != "" {
+			q.Domain = domain
+			q.Resolved = []netip.Addr{ip}
+			q.IP = netip.Addr{}
+		}
 	} else {
 		q.Domain = target.Host
 	}
@@ -66,7 +71,7 @@ func selectRoute(ctx context.Context, gen *snapshot, inbound identity.ID, target
 		selected, err := gen.network.Explain(q, routeFallback(gen, inbound), true, affinity)
 		return selected, target, err
 	}
-	if q.Domain != "" && gen.state.Network.DNS.Enabled {
+	if q.Domain != "" && len(q.Resolved) == 0 && gen.state.Network.DNS.Enabled {
 		result, err := gen.network.Lookup(ctx, q.Domain)
 		if err != nil {
 			return networkruntime.Explanation{}, target, err

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"io"
 	"net"
 	"runtime"
@@ -236,7 +237,7 @@ func mieruTransfer(c client.Client, dest net.Addr, size int) error {
 }
 func startMieru(t *testing.T, in ports.RuntimeIntent) *mieruHandle {
 	t.Helper()
-	p, e := (MieruCompiler{}).Compile(context.Background(), in)
+	p, e := (MieruCompiler{}).Compile(underlay.WithFactory(context.Background(), underlay.New()), in)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -338,7 +339,7 @@ func TestMieruListenerConflictAndUnstartedClose(t *testing.T) {
 		t.Fatal(e)
 	}
 	defer l.Close()
-	prepared, e := (MieruCompiler{}).Compile(context.Background(), in)
+	prepared, e := (MieruCompiler{}).Compile(underlay.WithFactory(context.Background(), underlay.New()), in)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -352,7 +353,7 @@ func TestMieruListenerConflictAndUnstartedClose(t *testing.T) {
 	if h.Stats().Sessions != 0 {
 		t.Fatal("failed startup routed traffic")
 	}
-	prepared, e = (MieruCompiler{}).Compile(context.Background(), in)
+	prepared, e = (MieruCompiler{}).Compile(underlay.WithFactory(context.Background(), underlay.New()), in)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -390,7 +391,8 @@ func TestMieruRelayPreservesResponseAfterUploadEOF(t *testing.T) {
 	defer listener.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	h := &mieruHandle{ctx: ctx, total: &meter{}, closers: map[io.Closer]bool{}}
+	protected, _ := underlay.New().New(underlay.Scope{Purpose: underlay.ServerTarget})
+	h := &mieruHandle{protected: protected, ctx: ctx, total: &meter{}, closers: map[io.Closer]bool{}}
 	m := &meter{}
 	routeDone := make(chan struct{})
 	go func() {
@@ -436,7 +438,7 @@ func TestMieruRelayPreservesResponseAfterUploadEOF(t *testing.T) {
 
 func TestMieruAdmissionOpensOnlyOnActivate(t *testing.T) {
 	in := mieruIntent(t, "tcp")
-	prepared, err := (MieruCompiler{}).Compile(context.Background(), in)
+	prepared, err := (MieruCompiler{}).Compile(underlay.WithFactory(context.Background(), underlay.New()), in)
 	if err != nil {
 		t.Fatal(err)
 	}

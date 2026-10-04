@@ -31,6 +31,39 @@ def command(*args,check=True):
     if check and p.returncode:raise RuntimeError('gate command failed: '+args[0])
     return p
 
+def database_rows():
+    with sqlite3.connect('/var/lib/splicore/state.db') as db:
+        assert db.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
+        assert not db.execute('PRAGMA foreign_key_check').fetchall()
+        return {name:sorted(db.execute('SELECT * FROM "'+name+'"').fetchall(),key=repr)
+                for name, in db.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")}
+
+def verify_forward_upgrade(before,after):
+    old_schema=dict(before['metadata'])['db_schema']
+    new_schema=dict(after['metadata'])['db_schema']
+    if old_schema==new_schema:
+        assert after==before
+        return
+    assert (old_schema,new_schema)==('6','7')
+    assert set(after)==set(before)|{'client_host_profiles'}
+    for table,rows in before.items():
+        if table not in ('metadata','schema_migrations'):
+            assert after[table]==rows,table
+    metadata=dict(before['metadata']);metadata['db_schema']='7'
+    assert dict(after['metadata'])==metadata
+    old=before['schema_migrations'];new=after['schema_migrations']
+    assert new[:len(old)]==old and len(new)==len(old)+1
+    migration=(REPO/'internal/splicore/storage/sqlite/migrations/0007_host_integration.sql').read_bytes()
+    assert new[-1][:3]==(7,'0007_host_integration',hashlib.sha256(migration).hexdigest())
+    assert len(after['client_host_profiles'])==1
+    singleton,document=after['client_host_profiles'][0]
+    assert singleton==1 and json.loads(document)=={'system_proxy':{'enabled':False}}
+
+def host_snapshot():
+    return {**{key:command('ip','-'+family,'-j',kind,'show',*(['table','all'] if kind=='route' else [])).stdout
+               for family in ('4','6') for kind in ('route','rule') for key in [family+'-'+kind]},
+            'dns':pathlib.Path('/etc/resolv.conf').read_bytes()}
+
 def inner():
     if pathlib.Path('/etc/splicore-lab').read_text()!='Splicore disposable lab 1\n':raise RuntimeError('This is not an owned disposable lab')
     spec=importlib.util.spec_from_file_location('smoke',REPO/'scripts/splicore-installed-smoke.py');s=importlib.util.module_from_spec(spec);spec.loader.exec_module(s)
@@ -94,13 +127,14 @@ def inner():
         assert all(not pathlib.Path(i['runtime']['config_artifact']).exists() for i in old['items'] if i.get('runtime'))
         db_snapshot();smoke('crash-recovery');results['parent_child_crash']='PASS';results['unrelated_xray']='UNAFFECTED'
     finally:s.h.stop(unrelated)
-    before=db_snapshot();key=digest('/var/lib/splicore/master.key');bootstrap=digest('/etc/splicore/splicore.yaml')
+    before=db_snapshot();upgrade_rows=database_rows();host_before=host_snapshot();key=digest('/var/lib/splicore/master.key');bootstrap=digest('/etc/splicore/splicore.yaml')
     # Each campaign deliberately restarts the same disposable unit repeatedly.
     # Reset only its start counter between independent install scenarios; leave
     # production unit policy intact and never retry a failed operation.
     unit('reset-failed','splicore.service')
     results['campaign_start_counter']='reset between independent lab scenarios; production policy unchanged'
-    install('normal-upgrade','package-b.tar.gz');assert db_snapshot()==before;assert digest('/var/lib/splicore/master.key')==key;assert digest('/etc/splicore/splicore.yaml')==bootstrap
+    install('normal-upgrade','package-b.tar.gz');verify_forward_upgrade(upgrade_rows,database_rows());assert host_snapshot()==host_before;assert digest('/var/lib/splicore/master.key')==key;assert digest('/etc/splicore/splicore.yaml')==bootstrap
+    results['upgrade_without_host_mutation']='PASS'
     smoke('upgrade');results['upgrade']='PASS'
     files={p:digest(p) for p in ['/usr/local/bin/splicore','/etc/systemd/system/splicore.service','/etc/splicore/install.json','/etc/splicore/splicore.yaml','/var/lib/splicore/master.key']};before=db_snapshot()
     assert install('failed-upgrade','fault-migration.tar.gz',False).returncode!=0

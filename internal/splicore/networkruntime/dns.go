@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	P "github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/json/badoption"
@@ -35,6 +36,10 @@ func (c *connectedPacket) Read(b []byte) (int, error)  { n, _, err := c.ReadFrom
 func (c *connectedPacket) Write(b []byte) (int, error) { return c.WriteTo(b, c.remote) }
 func (c *connectedPacket) RemoteAddr() net.Addr        { return c.remote }
 func (e *Engine) dial(ctx context.Context, a P.Action, network string, target access.Endpoint) (net.Conn, error) {
+	return e.dialPurpose(ctx, a, network, target, underlay.DNSUpstream)
+}
+func (e *Engine) dialPurpose(ctx context.Context, a P.Action, network string, target access.Endpoint, purpose underlay.Purpose) (net.Conn, error) {
+	purpose = underlay.PurposeFrom(ctx, purpose)
 	ctx, done, err := e.owner.Begin(ctx)
 	if err != nil {
 		return nil, err
@@ -45,7 +50,11 @@ func (e *Engine) dial(ctx context.Context, a P.Action, network string, target ac
 	}
 	var conn net.Conn
 	if a.Kind == P.Direct {
-		conn, err = (&net.Dialer{}).DialContext(ctx, network, net.JoinHostPort(target.Host, portString(target.Port)))
+		d, buildErr := e.underlay.New(underlay.Scope{Purpose: purpose, Generation: e.generation})
+		if buildErr != nil {
+			return nil, buildErr
+		}
+		conn, err = d.DialContext(ctx, network, net.JoinHostPort(target.Host, portString(target.Port)))
 	} else {
 		d := e.dialers[a.ID]
 		if d == nil {
@@ -94,6 +103,7 @@ type cacheEntry struct {
 	key     dnsKey
 	message *dns.Msg
 	expires time.Time
+	stored  time.Time
 }
 type dnsCache struct {
 	capacity   int
@@ -117,7 +127,16 @@ func (c *dnsCache) get(k dnsKey, now time.Time) (*dns.Msg, bool) {
 		return nil, false
 	}
 	c.order.MoveToFront(elem)
-	return entry.message.Copy(), true
+	message := entry.message.Copy()
+	elapsed := uint32(max(0, now.Sub(entry.stored)/time.Second))
+	for _, section := range [][]dns.RR{message.Answer, message.Ns, message.Extra} {
+		for _, rr := range section {
+			if _, opt := rr.(*dns.OPT); !opt {
+				rr.Header().Ttl -= min(rr.Header().Ttl, elapsed)
+			}
+		}
+	}
+	return message, true
 }
 func (c *dnsCache) put(k dnsKey, m *dns.Msg, ttl uint32) {
 	if c.capacity == 0 || ttl == 0 {
@@ -127,7 +146,8 @@ func (c *dnsCache) put(k dnsKey, m *dns.Msg, ttl uint32) {
 		c.order.Remove(elem)
 		delete(c.entries, k)
 	}
-	elem := c.order.PushFront(cacheEntry{k, m.Copy(), time.Now().Add(time.Duration(ttl) * time.Second)})
+	now := time.Now()
+	elem := c.order.PushFront(cacheEntry{key: k, message: m.Copy(), expires: now.Add(time.Duration(ttl) * time.Second), stored: now})
 	c.entries[k] = elem
 	for c.order.Len() > c.capacity {
 		old := c.order.Back()
@@ -178,8 +198,9 @@ func (e *Engine) FlushCache() {
 	e.dnsMu.Unlock()
 }
 func (e *Engine) Bootstrap(ctx context.Context, domain string) ([]netip.Addr, error) {
+	ctx = underlay.WithPurpose(ctx, underlay.DNSBootstrap)
 	if !e.config.DNS.Enabled {
-		return net.DefaultResolver.LookupNetIP(ctx, "ip", domain)
+		return e.systemLookup(ctx, "ip", domain)
 	}
 	result, err := e.lookup(ctx, domain, e.config.DNS.BootstrapServer, true)
 	return result.Addresses, err
@@ -231,7 +252,7 @@ func (e *Engine) lookup(ctx context.Context, domain string, id identity.ID, boot
 		if strategy == "ipv6_only" {
 			network = "ip6"
 		}
-		out.Addresses, err = net.DefaultResolver.LookupNetIP(ctx, network, domain)
+		out.Addresses, err = e.systemLookup(ctx, network, domain)
 		out.CacheHit = false
 	} else {
 		action := server.Detour

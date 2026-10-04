@@ -147,3 +147,13 @@ Selector choice, rules/sets/groups/DNS are authority. Compiled matches, DNS LRU,
 automatic health/RR observations are never persisted. Schema 5→6/reopen/corruption/
 rollback tests qualify the aggregate. Invalid committed graph degrades the client and
 preserves the database for operator recovery; server/control stay available.
+
+## Phase 13 host integration
+
+Migration 0007 adds generic singleton host integration desired JSON. TUN settings live in existing local inbound JSON; no transient interface index or protocol column is added. Host recovery journal is private operational state, separate from SQLite authority. Migrations 0001–0006 are unchanged. See [system integration](../SYSTEM_INTEGRATION.md).
+
+Operational journal schema 2 adds typed LAN WinINET snapshots/intermediates and
+Windows adapter/route generation identities. Schema 1 remains readable but cannot
+contain the new Windows shapes. WinINET previous-state fingerprints and generation
+timestamps stay private; sensitive PAC state rejects. Failed acknowledgments/cleanup
+retain recovery debt. This is independent of SQLite migration numbering.

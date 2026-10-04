@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Client, runtime and control-plane developers
-- Last reviewed: 2026-10-03
+- Last reviewed: 2026-10-04
 - Owner: Core maintainers
 - Responsibility: Match semantics, route snapshots and connection ownership.
 - Lifecycle: Update with routing changes and qualification.
@@ -56,3 +56,16 @@ Regex, protocol inference, process/Wi-Fi rules, Geo data and remote RuleSet fetc
 are deferred. No TUN/interception/system route changes.
 See [DNS](DNS_MODEL.md), [policy](POLICY_MODEL.md), [client](CLIENT_RUNTIME.md)
 and [ADR 0024](../adr/0024-routing-snapshot-match-semantics.md).
+
+## Phase 13 host integration
+
+TUN TCP and destination-fixed UDP enter the same selectRoute path. Bounded managed-DNS observations attach a domain only to matching question/CNAME addresses; competing names lose annotation. Old flows retain their graph/member; new flows acquire the committed generation. Linux main-table daemon-UID rules protect dynamic endpoints without frozen IP assumptions. See [system integration](../SYSTEM_INTEGRATION.md).
+
+## Protected egress after selection
+
+Underlay protection runs after the existing ordered route/policy decision. DIRECT,
+LAN targets, proxy traffic and server targets retain their logical selection. The
+provider does not add long-lived routes for arbitrary DIRECT/server destinations;
+per-socket mark/interface protection is used. Local API/UDS/private SOCKS links never
+create physical endpoint exclusions. Infrastructure endpoint leases are bounded and
+generation-owned. See [system integration](../SYSTEM_INTEGRATION.md).

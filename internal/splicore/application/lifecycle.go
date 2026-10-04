@@ -6,6 +6,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"sync"
 	"time"
 )
@@ -82,6 +83,12 @@ func (s *Service) prepare(ctx context.Context, in ports.RuntimeIntent) (ports.Ru
 	if e != nil {
 		return nil, e
 	}
+	generation, e := identity.NewID()
+	if e != nil {
+		return nil, e
+	}
+	ctx = underlay.WithFactory(ctx, s.underlay)
+	ctx = underlay.WithScope(ctx, underlay.Scope{Purpose: underlay.ServerTarget, Runtime: in.Inbound.ID, Generation: generation})
 	prepared, e := eng.Compile(ctx, in)
 	if e != nil {
 		return nil, e

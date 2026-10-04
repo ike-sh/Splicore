@@ -260,8 +260,8 @@ func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, re
 }
 
 // DIRECT resolves only this target flow, retaining the canonical domain in SQLite.
-func (directDialer) ListenPacket(ctx context.Context, e access.Endpoint) (net.PacketConn, error) {
-	c, err := (&net.Dialer{}).DialContext(ctx, "udp", net.JoinHostPort(e.Host, strconv.Itoa(int(e.Port))))
+func (d directDialer) ListenPacket(ctx context.Context, e access.Endpoint) (net.PacketConn, error) {
+	c, err := d.protected.DialContext(ctx, "udp", net.JoinHostPort(e.Host, strconv.Itoa(int(e.Port))))
 	if err != nil {
 		return nil, err
 	}

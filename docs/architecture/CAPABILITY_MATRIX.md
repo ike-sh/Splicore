@@ -40,10 +40,25 @@ and measured qualification are separate. Exact profile/client boundaries:
 | Mieru/native | Experimental / official v3.38.0, TCP/UDP underlays and payloads; UDP domains resolve locally. |
 | Client FinalMask/Sudoku | DEFERRED; server support does not imply client support. |
 | Routing / DNS / policy | Experimental Phase 12; ordered domain/IP/port/network/local/RuleSet rules, System/UDP/TCP/DoT, typed groups and outbound HTTP probes. |
-| TUN / subscriptions / providers / FakeIP / DoH / regex / Geo | DEFERRED. |
+| Subscriptions / providers / FakeIP / DoH / regex / Geo | DEFERRED. |
 
 All implemented protocols and native/Xray engines declare both roles. Exact outbound
 capabilities distinguish role, address families, domain, TLS/QUIC/REALITY and flows.
 Server capabilities above remain Experimental within
 their frozen feature scopes. No additional service/binary; no NoBrand migration.
 See [client runtime](CLIENT_RUNTIME.md) and [routing](ROUTING_MODEL.md).
+
+## Phase 13 host integration
+
+The Experimental scope is locally frozen under the
+[Phase 13 freeze report](../reports/PHASE_13_FREEZE_REPORT.md); no qualification is upgraded.
+
+TUN: Experimental Linux dual-stack auto-route/gVisor; WSL evidence only, native
+runtime NOT CERTIFIED. HTTP/mixed: loopback CONNECT/plain HTTP/SOCKS. DNS interception:
+shared TCP/UDP53 engine, host DNS unchanged. Windows owned Wintun session/adapter,
+typed LAN WinINET restore and bypass reconciliation: implemented, fixture-qualified.
+Windows runtime underlay wiring: unified factory and actual adapter fixtures;
+Xray and unknown System DNS fail closed when required. Original TUN/proxy guards
+and auto-route rejection remain before mutation pending real qualification. Real Windows TUN/auto-route/WinINET NOT CERTIFIED; full
+Windows race NOT EXECUTED. Linux desktop proxy unsupported; macOS not implemented.
+DoH/FakeIP/roaming deferred. See [system integration](../SYSTEM_INTEGRATION.md).

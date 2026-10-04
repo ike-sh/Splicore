@@ -74,7 +74,7 @@ func TestNetworkSchemaFiveMigrationPersistenceAndCorruptionDefense(t *testing.T)
 		t.Fatal(err)
 	}
 	var count int
-	if err = s.db.QueryRow("SELECT count(*) FROM schema_migrations").Scan(&count); err != nil || count != 6 {
+	if err = s.db.QueryRow("SELECT count(*) FROM schema_migrations").Scan(&count); err != nil || count != len(migrations()) {
 		t.Fatal(count, err)
 	}
 	// A failed candidate write rolls back the aggregate along with the existing revision.

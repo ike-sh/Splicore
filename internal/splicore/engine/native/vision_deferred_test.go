@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/gofrs/uuid/v5"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"net"
 	"strings"
 	"sync/atomic"
@@ -24,7 +25,7 @@ func TestVisionCompilerHardGateBeforeMaterialOrConstruction(t *testing.T) {
 	for _, security := range []string{"none", "tls", "reality"} {
 		in := ports.RuntimeIntent{Inbound: access.Inbound{Engine: "native", Settings: access.Settings{Schema: 1,
 			Data: []byte(`{"security":"` + security + `","flow":"xtls-rprx-vision","transport":"tcp","packet_encoding":"xudp"}`)}}}
-		prepared, err := (VLESSCompiler{}).Compile(context.Background(), in)
+		prepared, err := (VLESSCompiler{}).Compile(underlay.WithFactory(context.Background(), underlay.New()), in)
 		var typed *identity.Error
 		if prepared != nil || !errors.As(err, &typed) || typed.Code != identity.NotImplemented {
 			t.Fatalf("hard gate failed for %s", security)

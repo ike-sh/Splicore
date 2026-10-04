@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Developers and decision reviewers
-- Last reviewed: 2026-10-03
+- Last reviewed: 2026-10-04
 - Owner: Core maintainers
 - Responsibility: Decision navigation, individual decision status and review lifecycle.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -64,3 +64,16 @@ for the Phase 11 Experimental local freeze; bounded SOCKS association lifetime a
 [0024 routing](0024-routing-snapshot-match-semantics.md), [0025 policy](0025-policy-selection-health.md),
 [0026 DNS bootstrap](0026-dns-bootstrap-dependency.md): accepted for the Experimental
 Phase 12 local freeze; ordered snapshots, typed selection/health and explicit bootstrap.
+
+## Phase 13 host integration
+
+[0027 TUN](0027-tun-host-network-ownership.md), [0028 journal](0028-network-mutation-journal.md),
+[0029 proxy](0029-system-proxy-restoration.md): accepted for the Experimental Phase 13 local freeze.
+
+[0030 Windows ownership](0030-windows-host-network-ownership.md): accepted;
+Wintun partial recovery, typed LAN WinINET restoration and guarded real qualification.
+
+## Unified runtime protection
+
+[0031 underlay](0031-unified-underlay-protection.md): accepted for the Experimental Phase 13 freeze; typed socket/child
+capabilities, retained endpoint leases, dynamic bootstrap and reused TUN ownership.

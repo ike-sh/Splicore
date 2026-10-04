@@ -100,7 +100,22 @@ func TestWindowsExcludedCandidateUsesOtherAllocator(t *testing.T) {
 		return net.Listen(network, address)
 	}
 	packet := func(network, address string) (net.PacketConn, error) {
-		c, err := net.ListenPacket(network, address)
+		// This test injects one exclusion and checks the allocator transition.
+		// Kernel paired-reservation stress has its own test above. A real second
+		// UDP bind here can encounter another exclusion and invalidate the single
+		// injected-error premise, depending on concurrent kernel port allocation.
+		c, err := net.ListenPacket(network, "127.0.0.1:0")
+		if err != nil {
+			return nil, err
+		}
+		if address != "127.0.0.1:0" {
+			a, e := net.ResolveUDPAddr(network, address)
+			if e != nil {
+				c.Close()
+				return nil, e
+			}
+			c = &reportedPacketAddress{PacketConn: c, address: a}
+		}
 		if calls == 0 {
 			rejected = c
 		}
@@ -119,3 +134,10 @@ func TestWindowsExcludedCandidateUsesOtherAllocator(t *testing.T) {
 		t.Fatal("excluded candidate retained", err)
 	}
 }
+
+type reportedPacketAddress struct {
+	net.PacketConn
+	address net.Addr
+}
+
+func (c *reportedPacketAddress) LocalAddr() net.Addr { return c.address }

@@ -3,6 +3,7 @@ package native
 import (
 	"context"
 	"fmt"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 	"io"
 	"net"
 	"sync"
@@ -30,9 +31,13 @@ func (c MieruCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (por
 	if e := c.Supports(in); e != nil {
 		return nil, e
 	}
+	protected, e := underlay.DialerFrom(ctx, underlay.ServerTarget)
+	if e != nil {
+		return nil, e
+	}
 	s, _ := module.Decode(in.Inbound.Settings.Data)
 	runtimeCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
-	h := &mieruHandle{ctx: runtimeCtx, cancel: cancel, server: server.NewServer(), total: &meter{}, users: map[string]*meter{}, closers: map[io.Closer]bool{}, done: make(chan struct{})}
+	h := &mieruHandle{protected: protected, ctx: runtimeCtx, cancel: cancel, server: server.NewServer(), total: &meter{}, users: map[string]*meter{}, closers: map[io.Closer]bool{}, done: make(chan struct{})}
 	protocol := pb.TransportProtocol_TCP
 	if s.Transport == "udp" {
 		protocol = pb.TransportProtocol_UDP
@@ -59,6 +64,7 @@ type mieruBinding struct {
 	m  *meter
 }
 type mieruHandle struct {
+	protected         *underlay.Dialer
 	lifecycle         sync.Mutex
 	mu                sync.Mutex
 	ctx               context.Context
@@ -278,7 +284,7 @@ func (h *mieruHandle) route(c net.Conn, r *model.Request, m *meter) {
 		return
 	}
 	if dst.Net == "tcp" {
-		remote, e := (&net.Dialer{}).DialContext(h.ctx, "tcp", dst.String())
+		remote, e := h.protected.DialContext(h.ctx, "tcp", dst.String())
 		if e != nil {
 			_ = model.WriteSocks5Response(c, 5, model.AddrSpec{IP: net.IPv4zero})
 			return
@@ -314,7 +320,7 @@ func (h *mieruHandle) route(c net.Conn, r *model.Request, m *meter) {
 		<-joined
 		return
 	}
-	packet, e := (&net.ListenConfig{}).ListenPacket(h.ctx, "udp", ":0")
+	packet, e := h.protected.ListenPacket(h.ctx, "udp", ":0", "")
 	if e != nil {
 		return
 	}

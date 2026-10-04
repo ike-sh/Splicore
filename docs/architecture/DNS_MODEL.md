@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Runtime, API and security developers
-- Last reviewed: 2026-10-03
+- Last reviewed: 2026-10-04
 - Owner: Core maintainers
 - Responsibility: Resolver intent, bootstrap dependencies, cache and ownership.
 - Lifecycle: Update with implemented transports and runtime evidence.
@@ -61,3 +61,22 @@ DNS hijack or system resolver change is exposed.
 See [routing](ROUTING_MODEL.md), [policy](POLICY_MODEL.md),
 [ADR 0026](../adr/0026-dns-bootstrap-dependency.md) and the
 [report](../reports/PHASE_12_ROUTING_DNS_POLICY_REPORT.md).
+
+## Phase 13 host integration
+
+TUN UDP/TCP53 interception calls the existing managed engine, matcher, detour/bootstrap and cache. One standard IN question and one EDNS0 OPT are accepted; response IDs/questions preserve the caller. UDP limits are 512–4096 and TCP <=65535. Cache TTLs age on copy; domain observations are bounded to 4096 and 300 seconds with shared-IP ambiguity removal. No DNSSEC validation claim, DoH interception or host DNS settings mutation. FakeIP stays deferred. See [system integration](../SYSTEM_INTEGRATION.md).
+
+## Protected DNS and bootstrap
+
+Direct UDP/TCP/DoT and System lookups use the shared typed provider; configured
+outbound/group detours retain policy selection. Bootstrap has its own protected
+purpose and numeric endpoint gate. DoT bootstraps the address and retains original
+TLS server-name. Each generation keeps DNS infrastructure refs and owned query
+sockets; no per-query host route churn or permanent query/destination metrics.
+
+Required System lookups reject unknown Windows API bypass and Linux loopback stubs.
+Native System transport preserves official no-TUN behavior; required mode uses the
+protected resolver and rejects independent mDNS paths. Xray child stub resolvers
+reject because the stub's forwarder has a different UID. Explicit UDP/TCP/DoT
+bootstrap-safe settings are required for these combinations. Dependency cycles fail
+before runtime construction. See [ADR 0031](../adr/0031-unified-underlay-protection.md).

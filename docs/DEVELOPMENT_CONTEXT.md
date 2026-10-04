@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Developers, maintainers and returning coding agents
-- Last reviewed: 2026-10-03
+- Last reviewed: 2026-10-04
 - Owner: Project maintainers
 - Responsibility: Current project constraints and the minimum recovery context.
 - Lifecycle: Replace obsolete constraints when reviewed scope changes; never append a diary.
@@ -36,7 +36,13 @@ records the single commit, main fast-forward and clean
 [freeze report](reports/PHASE_11_FREEZE_REPORT.md). The prepared branch is
 `codex/phase-12-routing-dns-policy`; Phase 12 is **FROZEN** under its
 [freeze report](reports/PHASE_12_FREEZE_REPORT.md). The prepared next branch is
-`codex/phase-13-tun-system-integration`, based on Phase 12. Implementation NOT STARTED.
+`codex/phase-13-tun-system-integration`, based on Phase 12. Phase 13 is **FROZEN**
+under its [freeze report](reports/PHASE_13_FREEZE_REPORT.md). Unified runtime underlay
+wiring, dynamic/retained/shared references and reused TUN reconciliation pass final
+gates; Wintun and WinINET ownership blockers remain closed. Real Windows
+qualification still blocks activation. The prepared branch is
+`codex/phase-14-client-management-providers`; implementation is **NOT STARTED**.
+See the frozen boundary below.
 Push/tag/release remain prohibited.
 
 Splicore is an independent modular client/server proxy core derived from sing-box.
@@ -260,11 +266,39 @@ one authorized commit and main fast-forward. Push/tag/release NONE.
 [Routing](architecture/ROUTING_MODEL.md), [DNS](architecture/DNS_MODEL.md),
 [policy](architecture/POLICY_MODEL.md), [report](reports/PHASE_12_ROUTING_DNS_POLICY_REPORT.md).
 
-## Phase 13 prepared boundary
+## Phase 13 frozen boundary
 
-Branch `codex/phase-13-tun-system-integration`, base PHASE_12_COMMIT, CLEAN/index EMPTY.
-Implementation NOT STARTED. Branch creation is the final authorized action; stop.
-DoH/FakeIP/TUN/system proxy/DNS hijack/providers/subscriptions/Vision and NoBrand
-migration remain deferred. Windows race NOT EXECUTED; arm64 BUILD ONLY/runtime
-NOT CERTIFIED; Xray TCP half-close NOT QUALIFIED. Freeze evidence stays external:
-`D:\splicore-validation\phase12-freeze-20261003`.
+Branch `codex/phase-13-tun-system-integration`, base
+`d09f5f10797aa63798419fa77ffd676257f1b609`, entered CLEAN/index EMPTY.
+The maintainer separately authorized exact-file staging, one commit
+`feat(client): add TUN and system integration foundation`, main fast-forward and
+creation of `codex/phase-14-client-management-providers`, then immediate stop.
+The Phase 13 commit contains the [freeze report](reports/PHASE_13_FREEZE_REPORT.md);
+resolve its full SHA with `git rev-parse codex/phase-13-tun-system-integration`.
+Freeze evidence: `D:/splicore-validation/phase13-freeze-20261004`.
+Earlier evidence: `D:/splicore-validation/phase13-20261003`.
+See [system integration](SYSTEM_INTEGRATION.md) for implemented Linux/HTTP/DNS scope
+and real Windows activation guards. Windows ownership closure evidence is
+`D:/splicore-validation/phase13-windows-20261004`; Wintun split ownership, typed LAN
+WinINET and bypass reconciliation are implemented/fixture-qualified. Current
+underlay closure evidence is `D:/splicore-validation/phase13-underlay-20261004`.
+Unified socket/resolver/child capabilities, fresh DNS, retained refs and reused TUN
+reconciliation are implemented and source-bound final gates PASS. The Experimental
+scope is frozen; real Windows activation guards remain.
+Only existing Windows/WSL is authorized;
+native Linux and Windows host-network runtime qualification remain pending.
+FakeIP/DoH/providers/subscriptions/Vision/NoBrand migration remain deferred.
+Docker DO NOT QUERY / DO NOT TOUCH. Historical Phase 0–12 reports remain unchanged.
+
+## Phase 14 entry and authorization limit
+
+Phase 14 branch starts CLEAN with EMPTY index at the Phase 13 freeze commit.
+Implementation is NOT STARTED; branch creation is the final authorized mutation.
+The freeze does not authorize Subscription/Provider or NoBrand work. Prior source
+audit/actual adapter evidence stays under `D:/splicore-validation/phase13-underlay-20261004`;
+see [acceptance](reports/PHASE_13_UNDERLAY_RUNTIME_CLOSURE_REPORT.md).
+Freeze gates include default race/checkptr, shared/10x lifetimes, static audit,
+safe kernel lab, builds, distribution/service, live schemas and staged privacy.
+Real Windows/native Ubuntu/arm64 runtime qualification stays pending; activation
+guards and all deferred scopes remain. Push/tag/release NONE. Stage/commit
+authorization was limited to the single Phase 13 freeze.

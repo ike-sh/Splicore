@@ -35,7 +35,7 @@ tar -tzf "$stage/artifact.tar.gz" > "$stage/members"
 count=0
 while IFS= read -r member; do
     case "$member" in ''|/*|*..*|*\\*|*[!A-Za-z0-9._/-]*) fail 'Unsafe archive member.' ;; esac
-    case "$member" in splicore|splicore.service|splicore.yaml|install.sh|manifest.json|SHA256SUMS|LICENSE|NOTICE.md|docs/*.md|licenses/*) ;; *) fail 'Unknown archive member.' ;; esac
+    case "$member" in splicore|splicore.service|splicore-tun.conf|splicore.yaml|install.sh|manifest.json|SHA256SUMS|LICENSE|NOTICE.md|docs/*.md|licenses/*) ;; *) fail 'Unknown archive member.' ;; esac
     count=$((count+1)); [ "$count" -le 258 ] || fail 'Too many archive members.'
 done < "$stage/members"
 [ "$count" -ge 9 ] || fail 'Incomplete archive.'

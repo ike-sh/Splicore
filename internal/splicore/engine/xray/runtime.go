@@ -17,9 +17,11 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/access"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	"github.com/sagernet/sing-box/internal/splicore/ports"
+	"github.com/sagernet/sing-box/internal/splicore/underlay"
 )
 
 type Handle struct {
+	underlay     *underlay.ChildLease
 	engine       *Engine
 	endpoint     access.Endpoint
 	clientRole   bool // same process owner/reaper for private client SOCKS generations
@@ -87,6 +89,9 @@ func (h *Handle) Start(ctx context.Context) (result error) {
 			h.mu.Unlock()
 		}
 	}()
+	if err := h.underlay.Verify(ctx); err != nil {
+		return err
+	}
 	if err := h.engine.ValidateAvailability(ctx); err != nil {
 		return err
 	}
@@ -188,6 +193,12 @@ func (h *Handle) Start(ctx context.Context) (result error) {
 		child.release()
 		return unavailable("Xray process ownership failed")
 	}
+	if err = h.underlay.Bind(identity.ID(id), cmd.Process.Pid); err != nil {
+		child.terminate(true)
+		_ = cmd.Wait()
+		child.release()
+		return err
+	}
 	h.mu.Lock()
 	h.cmd = cmd
 	h.child = child
@@ -223,6 +234,9 @@ func (h *Handle) Start(ctx context.Context) (result error) {
 func (h *Handle) Health(ctx context.Context) error {
 	if ctx.Err() != nil {
 		return unavailable("Xray health cancelled")
+	}
+	if err := h.underlay.Verify(ctx); err != nil {
+		return err
 	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -327,6 +341,7 @@ func (h *Handle) wait(cmd *exec.Cmd, child *ownedProcess) {
 	h.stopSockets()
 	h.workers.Wait()
 	child.release()
+	h.underlay.Close()
 	err := h.engine.removeGeneration(h.RuntimeStatus().Generation)
 	h.mu.Lock()
 	h.cleanupError = err
@@ -346,6 +361,7 @@ func (h *Handle) closeLocked(ctx context.Context) error {
 	h.mu.Unlock()
 	h.stopSockets()
 	if cmd == nil {
+		h.underlay.Close()
 		clear(h.config)
 		h.config = nil
 		h.mu.Lock()
