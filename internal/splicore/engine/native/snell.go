@@ -145,7 +145,13 @@ func (h *Handle) Health(ctx context.Context) error {
 	}
 	return nil
 }
-func (h *Handle) Activate() { h.admitted.Store(true) }
+func (h *Handle) Activate() {
+	h.lifecycle.Lock()
+	defer h.lifecycle.Unlock()
+	if !h.closed {
+		h.admitted.Store(true)
+	}
+}
 func (h *Handle) Stats() ports.Stats {
 	return ports.Stats{Upload: h.upload.Load(), Download: h.download.Load(), Sessions: h.sessions.Load(), Active: h.active.Load()}
 }

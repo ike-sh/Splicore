@@ -30,8 +30,9 @@ type managementState struct {
 }
 
 type providerRefreshError struct {
-	code string
-	err  error
+	code     string
+	err      error
+	revision identity.Revision // committed snapshot observed before this request's I/O
 }
 
 func (e *providerRefreshError) Error() string { return e.err.Error() }
@@ -117,7 +118,10 @@ func (s *Service) RefreshProvider(ctx context.Context, id identity.ID) (ClientRe
 	defer done()
 	p, e := s.previewProviderRefresh(ctx, id)
 	if e != nil {
-		s.recordProviderFailure(ctx, id, providerFailureCode(e, "validation_failed"))
+		var observed *providerRefreshError
+		if errors.As(e, &observed) {
+			s.recordProviderFailure(ctx, id, providerFailureCode(e, "validation_failed"), observed.revision)
+		}
 		return ClientResult{}, e
 	}
 	if !p.Applicable {
@@ -125,12 +129,12 @@ func (s *Service) RefreshProvider(ctx context.Context, id identity.ID) (ClientRe
 		if p.Reason == "safety_guard" {
 			code = "safety_guard"
 		}
-		s.recordProviderFailure(ctx, id, code)
+		s.recordProviderFailure(ctx, id, code, p.Revision)
 		return ClientResult{}, identity.Err(identity.Invalid, "provider refresh rejected")
 	}
 	result, e := s.ApplyManagement(ctx, ManagementApply{p.Token, p.Revision})
 	if e != nil {
-		s.recordProviderFailure(ctx, id, providerFailureCode(e, "apply_failed"))
+		s.recordProviderFailure(ctx, id, providerFailureCode(e, "apply_failed"), p.Revision)
 	}
 	return result, e
 }
@@ -170,7 +174,7 @@ func (s *Service) previewProviderRefresh(ctx context.Context, id identity.ID) (M
 	fetched, e := remotesource.Fetch(ctx, network, p, source)
 	closeErr := network.Close()
 	if e != nil {
-		return ManagementPreview{}, &providerRefreshError{code: "fetch_failed", err: e}
+		return ManagementPreview{}, &providerRefreshError{code: "fetch_failed", err: e, revision: state.Revision}
 	}
 	if closeErr != nil {
 		return ManagementPreview{}, identity.Err(identity.Unavailable, "provider network cleanup failed")
@@ -186,7 +190,7 @@ func (s *Service) previewProviderRefresh(ctx context.Context, id identity.ID) (M
 			rules, e = nodeimport.ParseRules(p.Format, fetched.Body)
 		}
 		if e != nil {
-			return ManagementPreview{}, &providerRefreshError{code: "parse_failed", err: e}
+			return ManagementPreview{}, &providerRefreshError{code: "parse_failed", err: e, revision: state.Revision}
 		}
 	}
 	c.mu.Lock()
@@ -248,7 +252,7 @@ func (s *Service) previewProviderRefresh(ctx context.Context, id identity.ID) (M
 	plan.state.Management.Providers[pos] = p
 	return s.saveManagementPlan(ctx, plan)
 }
-func (s *Service) recordProviderFailure(ctx context.Context, id identity.ID, code string) {
+func (s *Service) recordProviderFailure(ctx context.Context, id identity.ID, code string, expected identity.Revision) {
 	c := s.client
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -256,7 +260,7 @@ func (s *Service) recordProviderFailure(ctx context.Context, id identity.ID, cod
 		return
 	}
 	state, e := c.repo.ClientState(ctx)
-	if e != nil {
+	if e != nil || state.Revision != expected {
 		return
 	}
 	pos := slices.IndexFunc(state.Management.Providers, func(p provider.Provider) bool { return p.ID == id })

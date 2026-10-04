@@ -132,7 +132,13 @@ func (h *quicHandle) Health(ctx context.Context) error {
 	}
 	return nil
 }
-func (h *quicHandle) Activate()          { h.admitted.Store(true) }
+func (h *quicHandle) Activate() {
+	h.lifecycle.Lock()
+	defer h.lifecycle.Unlock()
+	if !h.closed {
+		h.admitted.Store(true)
+	}
+}
 func (h *quicHandle) Stats() ports.Stats { return h.total.snapshot() }
 func (h *quicHandle) BindingStats(id identity.ID) ports.Stats {
 	if m := h.users[string(id)]; m != nil {

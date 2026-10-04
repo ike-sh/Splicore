@@ -131,3 +131,10 @@ Native is the sole runtime engine. Historical Phase 6/7 direction is superseded;
 
 - [Decision](../adr/0035-xray-runtime-removed-from-core.md)
 - [Correction report](../reports/ARCHITECTURE_CORRECTION_XRAY_BOUNDARY_REPORT.md)
+
+## Phase 15 unified core hardening
+
+[Hardening inventory](PHASE_15_HARDENING_INVENTORY.md) records resource ownership,
+lock ordering, lifecycle fixes and crash/recovery validation. The
+[Phase 15 freeze report](../reports/PHASE_15_FREEZE_REPORT.md) records the local
+checkpoint; real platform qualification requires later scope.

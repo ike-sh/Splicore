@@ -325,6 +325,23 @@ func (s *Service) Doctor(ctx context.Context, transport string) (Doctor, error) 
 		}
 		d.Checks = append(d.Checks, Check{"engine_" + engine.Engine, status, "compiled runtime"})
 	}
+	system, err := s.System(ctx)
+	if err != nil {
+		return Doctor{}, err
+	}
+	runtimeStatus := "info"
+	if s.runtime != nil {
+		runtimeStatus = "pass"
+		if system.Health != "healthy" {
+			runtimeStatus = "fail"
+		}
+	}
+	d.Checks = append(d.Checks, Check{"runtime_consistency", runtimeStatus, "passive committed state and runtime health comparison"})
+	providerStatus := "pass"
+	if system.Providers.Degraded > 0 || system.Providers.LastError != "" {
+		providerStatus = "fail"
+	}
+	d.Checks = append(d.Checks, Check{"provider_health", providerStatus, strconv.Itoa(system.Providers.Degraded) + " degraded; " + strconv.Itoa(system.Providers.StaleNodes) + " stale nodes"})
 	return d, nil
 }
 

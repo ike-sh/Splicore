@@ -203,6 +203,9 @@ func recentCrashes(c config.Config) []ExitRecord {
 // SupportBundle creates a new private local archive. No raw input, database,
 // configuration, panic stack, MESSAGE or export is copied into it.
 func SupportBundle(ctx context.Context, c config.Config, v version.Info, q SupportSource, output string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if !filepath.IsAbs(output) || filepath.Clean(output) != output {
 		return fmt.Errorf("bundle requires a clean absolute output path")
 	}
@@ -247,6 +250,9 @@ func SupportBundle(ctx context.Context, c config.Config, v version.Info, q Suppo
 		}{c.Schema, c.StateDirectory == distribution.StatePath, filepath.Dir(c.API.UnixSocket) == distribution.RuntimePath, c.KeyFile != ""},
 		"listeners.json": listeners, "crashes.json": recentCrashes(c), "journal.summary.json": journalSummary(ctx),
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	f, err := os.OpenFile(output, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if err != nil {
 		return fmt.Errorf("bundle output must be new")
@@ -266,6 +272,9 @@ func SupportBundle(ctx context.Context, c config.Config, v version.Info, q Suppo
 	}
 	sort.Strings(names)
 	for _, name := range names {
+		if err = ctx.Err(); err != nil {
+			return err
+		}
 		b, e := json.MarshalIndent(files[name], "", "  ")
 		if e != nil {
 			return e
@@ -283,6 +292,9 @@ func SupportBundle(ctx context.Context, c config.Config, v version.Info, q Suppo
 	}
 	if err = tw.Close(); err == nil {
 		err = gz.Close()
+	}
+	if err == nil {
+		err = ctx.Err()
 	}
 	if err == nil {
 		err = f.Sync()

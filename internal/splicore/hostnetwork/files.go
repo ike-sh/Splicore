@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 )
@@ -26,7 +27,39 @@ func OpenStore(directory string) (*FileStore, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &FileStore{directory, lock}, nil
+	s := &FileStore{directory, lock}
+	// The exclusive directory lock proves no live writer owns these reserved
+	// temporary names. A crashed temporary is never journal authority.
+	if err = s.cleanupTemps(); err != nil {
+		_ = lock.Close()
+		return nil, err
+	}
+	return s, nil
+}
+func (s *FileStore) cleanupTemps() error {
+	entries, err := os.ReadDir(s.directory)
+	if err != nil {
+		return err
+	}
+	removed := false
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), ".journal-") {
+			continue
+		}
+		name := filepath.Join(s.directory, entry.Name())
+		info, err := os.Lstat(name)
+		if err != nil || !info.Mode().IsRegular() || privateFile(info) != nil || privatePath(name) != nil {
+			return identity.Err(identity.Corrupt, "unsafe abandoned network journal temporary")
+		}
+		if err = os.Remove(name); err != nil {
+			return err
+		}
+		removed = true
+	}
+	if removed {
+		return syncDirectory(s.directory)
+	}
+	return nil
 }
 func (s *FileStore) Load() (*Journal, error) {
 	name := filepath.Join(s.directory, "journal.json")

@@ -4,8 +4,10 @@ package app
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/sagernet/sing-box/internal/splicore/api"
@@ -22,8 +24,11 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/version"
 )
 
-func Serve(ctx context.Context, c config.Config) error {
+func Serve(ctx context.Context, c config.Config) (err error) {
 	if err := c.Validate(); err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
 		return err
 	}
 	listener, err := transport.Listen(c.API.UnixSocket)
@@ -58,7 +63,7 @@ func Serve(ctx context.Context, c config.Config) error {
 	if err != nil {
 		return err
 	}
-	defer store.Close()
+	defer func() { err = errors.Join(err, store.Close()) }()
 	service, err := application.New(store, p, e, x, version.Current())
 	if err != nil {
 		return err
@@ -69,7 +74,7 @@ func Serve(ctx context.Context, c config.Config) error {
 	defer func() {
 		shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = service.CloseRuntime(shutdown)
+		err = errors.Join(err, service.CloseRuntime(shutdown))
 	}()
 	outbounds, err := registry.NewOutbounds(native.SnellOutboundFactory{}, native.Hysteria2OutboundFactory{}, native.TUICOutboundFactory{}, native.VLESSOutboundFactory{}, native.MieruOutboundFactory{})
 	if err != nil {
@@ -82,24 +87,72 @@ func Serve(ctx context.Context, c config.Config) error {
 		return err
 	}
 	server := transport.Server(api.Handler(service))
+	return serveHTTP(ctx, server, listener, operations.NotifyReady)
+}
+
+// HTTP work must finish before application and SQLite ownership is released.
+func serveHTTP(ctx context.Context, server *http.Server, listener net.Listener, ready func() error) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	requests, cancelRequests := context.WithCancel(ctx)
+	defer cancelRequests()
+	server.BaseContext = func(net.Listener) context.Context { return requests }
+	// Close terminates connections but does not join handlers. Seal admission
+	// before waiting so even a handler scheduled after Close cannot use the app.
+	var admission sync.Mutex
+	var handlers sync.WaitGroup
+	sealed := false
+	handler := server.Handler
+	server.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		admission.Lock()
+		if sealed {
+			admission.Unlock()
+			return
+		}
+		handlers.Add(1)
+		admission.Unlock()
+		defer handlers.Done()
+		handler.ServeHTTP(w, r)
+	})
+	defer func() {
+		cancelRequests()
+		admission.Lock()
+		sealed = true
+		admission.Unlock()
+		handlers.Wait()
+	}()
 	done := make(chan struct{})
+	finished := make(chan error, 1)
 	go func() {
 		select {
 		case <-ctx.Done():
 			shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			_ = server.Shutdown(shutdown)
+			err := server.Shutdown(shutdown)
+			if err != nil {
+				_ = server.Close()
+			}
+			finished <- err
 		case <-done:
+			finished <- nil
 		}
 	}()
-	if err = operations.NotifyReady(); err != nil {
+	if err := ready(); err != nil {
+		cancelRequests()
 		close(done)
-		return err
+		_ = server.Close()
+		return errors.Join(err, <-finished)
 	}
-	err = server.Serve(listener)
+	err := server.Serve(listener)
+	if !errors.Is(err, http.ErrServerClosed) {
+		cancelRequests()
+	}
 	close(done)
+	shutdownErr := <-finished
+	_ = server.Close()
 	if errors.Is(err, http.ErrServerClosed) {
-		return nil
+		err = nil
 	}
-	return err
+	return errors.Join(err, shutdownErr)
 }

@@ -113,7 +113,13 @@ func (h *mieruHandle) Health(ctx context.Context) error {
 	}
 	return nil
 }
-func (h *mieruHandle) Activate()          { h.admitted.Store(true) }
+func (h *mieruHandle) Activate() {
+	h.lifecycle.Lock()
+	defer h.lifecycle.Unlock()
+	if !h.closed {
+		h.admitted.Store(true)
+	}
+}
 func (h *mieruHandle) Stats() ports.Stats { return h.total.snapshot() }
 func (h *mieruHandle) BindingStats(id identity.ID) ports.Stats {
 	for _, b := range h.bindings {

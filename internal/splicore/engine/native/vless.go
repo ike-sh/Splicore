@@ -201,7 +201,13 @@ func (h *vlessHandle) Health(ctx context.Context) error {
 	}
 	return nil
 }
-func (h *vlessHandle) Activate()          { h.admitted.Store(true) }
+func (h *vlessHandle) Activate() {
+	h.lifecycle.Lock()
+	defer h.lifecycle.Unlock()
+	if !h.closed {
+		h.admitted.Store(true)
+	}
+}
 func (h *vlessHandle) Stats() ports.Stats { return h.total.snapshot() }
 func (h *vlessHandle) BindingStats(id identity.ID) ports.Stats {
 	if m := h.users[string(id)]; m != nil {

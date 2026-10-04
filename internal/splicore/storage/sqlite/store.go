@@ -27,10 +27,12 @@ type Options struct {
 	ValidateInbound func(access.Inbound) error
 }
 type Store struct {
-	db      *sql.DB
-	lock    *os.File
-	options Options
-	write   sync.Mutex
+	db        *sql.DB
+	lock      *os.File
+	options   Options
+	write     sync.Mutex
+	closeOnce sync.Once
+	closeErr  error
 }
 
 var _ ports.Repository = (*Store)(nil)
@@ -108,15 +110,18 @@ func Open(ctx context.Context, path string, opts Options) (*Store, error) {
 }
 
 func (s *Store) Close() error {
-	var err error
-	if s.db != nil {
-		err = s.db.Close()
-	}
-	if s.lock != nil {
-		unlockFile(s.lock)
-		err = errors.Join(err, s.lock.Close())
-	}
-	return storageError(err)
+	s.closeOnce.Do(func() {
+		var err error
+		if s.db != nil {
+			err = s.db.Close()
+		}
+		if s.lock != nil {
+			unlockFile(s.lock)
+			err = errors.Join(err, s.lock.Close())
+		}
+		s.closeErr = storageError(err)
+	})
+	return s.closeErr
 }
 
 func (s *Store) State(ctx context.Context) (ports.State, error) {

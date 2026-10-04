@@ -126,6 +126,9 @@ func NewWithUnderlay(f *underlay.Factory) *Manager {
 }
 
 type Prepared struct {
+	mu              sync.Mutex // candidate consumption only; never session payload I/O
+	base            *snapshot
+	activated       bool
 	proxy           *hostnetwork.Lease
 	m               *Manager
 	s               *snapshot
@@ -137,7 +140,13 @@ type Prepared struct {
 
 // RestartSessions rebuilds outbound generations and terminates existing sessions
 // after commit; unchanged healthy listeners can retain their bound sockets.
-func (p *Prepared) RestartSessions() { p.restartSessions = true }
+func (p *Prepared) RestartSessions() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if !p.used {
+		p.restartSessions = true
+	}
+}
 
 func Validate(state client.ProfileState, credentials map[identity.ID]access.Credential, registry *registry.Outbounds) error {
 	if err := state.Validate(); err != nil {
@@ -181,6 +190,12 @@ func (m *Manager) Prepare(ctx context.Context, state client.ProfileState, creden
 	return m.PrepareWithRestart(ctx, state, credentials, registry, false)
 }
 func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileState, credentials map[identity.ID]access.Credential, registry *registry.Outbounds, restart bool) (p *Prepared, err error) {
+	m.mu.Lock()
+	closed, base := m.closed, m.current.Load()
+	m.mu.Unlock()
+	if closed || ctx.Err() != nil {
+		return nil, identity.Err(identity.Unavailable, "client runtime closed or canceled")
+	}
 	if err = Validate(state, credentials, registry); err != nil {
 		return nil, err
 	}
@@ -191,7 +206,7 @@ func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileSt
 		m.mu.Unlock()
 	}
 	s.refs.Store(1)
-	p = &Prepared{m: m, s: s, listeners: map[identity.ID]*localListener{}}
+	p = &Prepared{m: m, s: s, base: base, listeners: map[identity.ID]*localListener{}}
 	p.restartSessions = restart
 	m.prepareCounters(s)
 	defer func() {
@@ -222,7 +237,7 @@ func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileSt
 	}
 	defer bootstrap.Close()
 	m.mu.Lock()
-	closed := m.closed
+	closed = m.closed
 	m.mu.Unlock()
 	if closed {
 		return p, identity.Err(identity.Unavailable, "client runtime closed")
@@ -378,7 +393,12 @@ func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileSt
 	return p, nil
 }
 func (p *Prepared) Abort() error {
-	if p == nil || p.used {
+	if p == nil {
+		return nil
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.used {
 		return nil
 	}
 	p.used = true
@@ -388,12 +408,27 @@ func (p *Prepared) Abort() error {
 
 // Activate is called only after SQLite commit. Existing sessions own their old generation.
 func (p *Prepared) Activate() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	if p.used {
-		return nil
+		if p.activated {
+			return nil
+		}
+		return identity.Err(identity.Unavailable, "client candidate already aborted")
 	}
 	p.used = true
 	m := p.m
 	m.mu.Lock()
+	if m.closed || m.current.Load() != p.base {
+		closed := m.closed
+		m.mu.Unlock()
+		code := identity.Conflict
+		if closed {
+			code = identity.Unavailable
+		}
+		return errors.Join(identity.Err(code, "client candidate no longer owns activation"), p.abortHost(), p.s.release())
+	}
+	p.activated = true
 	m.networkOwners[p.s.network] = true
 	p.s.onReleased = func() { m.mu.Lock(); delete(m.networkOwners, p.s.network); m.mu.Unlock() }
 	removed := []*localListener{}

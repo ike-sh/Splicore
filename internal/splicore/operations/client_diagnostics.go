@@ -123,7 +123,7 @@ func clientProjection(ctx context.Context, q SupportSource) clientSummary {
 		result.Outbounds = append(result.Outbounds, clientOutboundSummary{Kind: enum(o.Kind, "direct", "proxy"), Engine: enum(o.Engine, "native"), Configured: h.Configured, Available: h.Available, Active: h.Active, LastError: enum(h.LastError, "", "outbound_connection_failed")})
 	}
 	for _, n := range s.State.Nodes {
-		v := clientNodeSummary{Name: "[REDACTED]", Protocol: enum(n.Protocol.Protocol, "snell"), EndpointClass: addressClass(n.Endpoint.Host), Port: n.Endpoint.Port, Engines: []string{}}
+		v := clientNodeSummary{Name: "[REDACTED]", Protocol: enum(n.Protocol.Protocol, "snell", "hysteria2", "tuic", "vless", "mieru"), EndpointClass: addressClass(n.Endpoint.Host), Port: n.Endpoint.Port, Engines: []string{}}
 		for _, o := range s.State.Outbounds {
 			if o.NodeID != nil && *o.NodeID == n.ID {
 				v.Engines = append(v.Engines, enum(o.Engine, "native"))
@@ -153,7 +153,13 @@ func ClientDoctorChecks(s *clientruntime.Status) []application.Check {
 		return []application.Check{{Name: "client_runtime", Status: "info", Detail: "unavailable"}}
 	}
 	count := func(n int) string { return strconv.Itoa(n) + " configured" }
-	checks := []application.Check{{Name: "client_runtime", Status: "info", Detail: enum(s.Health, "healthy", "degraded", "stopped")}, {Name: "remote_nodes", Status: "info", Detail: count(len(s.State.Nodes))}, {Name: "client_outbounds", Status: "info", Detail: count(len(s.State.Outbounds))}, {Name: "local_listeners", Status: "info", Detail: count(len(s.LocalStats))}, {Name: "client_route", Status: "info", Detail: "committed default and selected outbound references"}, {Name: "client_health", Status: "info", Detail: "passive only; remote reachability not probed"}}
+	runtimeStatus := "info"
+	if s.Health == "degraded" || s.State.Enabled && s.Health != "healthy" {
+		runtimeStatus = "fail"
+	} else if s.Health == "healthy" {
+		runtimeStatus = "pass"
+	}
+	checks := []application.Check{{Name: "client_runtime", Status: runtimeStatus, Detail: enum(s.Health, "healthy", "degraded", "stopped")}, {Name: "remote_nodes", Status: "info", Detail: count(len(s.State.Nodes))}, {Name: "client_outbounds", Status: "info", Detail: count(len(s.State.Outbounds))}, {Name: "local_listeners", Status: "info", Detail: count(len(s.LocalStats))}, {Name: "client_route", Status: "info", Detail: "committed default and selected outbound references"}, {Name: "client_health", Status: "info", Detail: "passive only; remote reachability not probed"}}
 	c := s.HostCapabilities
 	u := s.Underlay
 	underlayHealth := enum(u.Health, "healthy", "degraded")
