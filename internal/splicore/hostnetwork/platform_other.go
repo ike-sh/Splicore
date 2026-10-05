@@ -6,7 +6,7 @@ import (
 	"context"
 	"github.com/sagernet/sing-box/internal/splicore/domain/client"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing-box/internal/splicore/nativetun"
 )
 
 type Platform struct{}
@@ -25,7 +25,7 @@ func (*Platform) Read(context.Context, Record) (*Record, error) {
 func (*Platform) Write(context.Context, Record, *Record) error {
 	return identity.Err(identity.NotImplemented, "host integration unsupported")
 }
-func (*Platform) Device(string) (tun.Tun, error) {
+func (*Platform) Device(string) (nativetun.Device, error) {
 	return nil, identity.Err(identity.NotImplemented, "TUN unsupported")
 }
 func (*Platform) capturePlan(context.Context, client.TUNSettings, *Plan) error {

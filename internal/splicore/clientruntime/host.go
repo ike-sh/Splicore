@@ -12,7 +12,7 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/client"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	"github.com/sagernet/sing-box/internal/splicore/hostnetwork"
-	"github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing-box/internal/splicore/nativetun"
 )
 
 type hostController struct {
@@ -129,7 +129,7 @@ func (m *Manager) validateHostChange(state client.ProfileState, old *snapshot) e
 		return identity.Err(identity.NotImplemented, "Windows system proxy requires complete WinINET connection-state ownership")
 	}
 	if spec != nil {
-		if !tun.WithGVisor {
+		if !nativetun.Included {
 			return identity.Err(identity.NotImplemented, "TUN requires a build with with_gvisor")
 		}
 		if spec.TUN.Stack != "" && spec.TUN.Stack != "gvisor" {
@@ -266,7 +266,7 @@ func (m *Manager) closeListener(ctx context.Context, l *localListener) error {
 	l.ready.Store(false)
 	if l.tun != nil {
 		l.tun.stop()
-		err := l.tun.lease.Restore(ctx)
+		err := errors.Join(l.tun.stopError(), l.tun.lease.Restore(ctx))
 		if err == nil {
 			m.underlay.SetHostVerifier(nil)
 		}

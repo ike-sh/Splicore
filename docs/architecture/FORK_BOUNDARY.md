@@ -63,3 +63,20 @@ source files useful for merging/testing. Never mass-replace branding in network 
 Relevant actual baseline assets: `cmd/sing-box/cmd.go`, Makefile `NAME/MAIN`,
 `.github/workflows/build.yml`, `.fpm_*`, `release/config`, `release/local`,
 `release/completions`, `cmd/internal/build_shared/tag.go`.
+
+## Private Go runtime boundary
+
+Production Splicore must not depend on private Go runtime symbols via
+`//go:linkname` unless explicitly justified by a separate architecture exception.
+Use exported Go APIs; retained inherited tooling is subject to the same rule
+when it needs maintenance. Dependency-owned hooks are inventoried separately
+and must not be copied into Splicore adapters or patched in the module cache.
+QF-003 does not grant a general exception for existing dependency-owned hooks;
+their inventory remains part of dependency boundary review.
+
+QF-003 replaces only the inherited libbox OOM profiler with public
+`runtime/pprof` APIs. Its six diagnostic files now use standard gzip pprof
+protobufs; capture allocates memory and is best effort under memory pressure.
+libbox/boxdd remain retained tooling/test source outside the shipped
+`cmd/splicore` dependency graph; mobile API support is not added or removed.
+See the [QF-003 report](../reports/QF_003_PRIVATE_RUNTIME_LINKNAME_RESOLUTION_REPORT.md).

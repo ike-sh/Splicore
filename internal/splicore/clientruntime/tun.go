@@ -14,11 +14,8 @@ import (
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
 	P "github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
 	"github.com/sagernet/sing-box/internal/splicore/hostnetwork"
-	"github.com/sagernet/sing-box/log"
-	"github.com/sagernet/sing-tun"
-	"github.com/sagernet/sing/common/buf"
+	"github.com/sagernet/sing-box/internal/splicore/nativetun"
 	M "github.com/sagernet/sing/common/metadata"
-	N "github.com/sagernet/sing/common/network"
 )
 
 type tunIngress struct {
@@ -29,7 +26,8 @@ type tunIngress struct {
 	mu      sync.RWMutex // only generation acquisition and control, never payload I/O
 	staged  *snapshot
 	stopped bool
-	stack   tun.Stack
+	stopErr error
+	stack   *nativetun.Runtime
 	lease   *hostnetwork.Lease
 }
 
@@ -37,36 +35,61 @@ func newTUNIngress(m *Manager, spec client.LocalInbound, gen *snapshot) *tunIngr
 	ctx, cancel := context.WithCancel(context.Background())
 	return &tunIngress{manager: m, spec: spec, ctx: ctx, cancel: cancel, staged: gen}
 }
-func (h *tunIngress) start(device tun.Tun) error {
-	options := tun.Options{Name: h.spec.TUN.Interface, MTU: h.spec.TUN.MTU, DNSMode: tun.DNSModeDisabled, EXP_ExternalConfiguration: true}
-	for _, raw := range h.spec.TUN.Addresses {
-		prefix := netip.MustParsePrefix(raw)
-		if prefix.Addr().Is4() {
-			options.Inet4Address = append(options.Inet4Address, prefix)
-		} else {
-			options.Inet6Address = append(options.Inet6Address, prefix)
-		}
+func (h *tunIngress) start(device nativetun.Device) error {
+	h.mu.Lock()
+	if h.stopped || h.stack != nil {
+		h.mu.Unlock()
+		return net.ErrClosed
 	}
-	stack, err := startOwnedStack(tun.StackOptions{Context: h.ctx, Tun: device, TunOptions: options, UDPTimeout: h.manager.udpIdle, ICMPTimeout: 30 * time.Second, UDPNATMax: 4096, Handler: h, Logger: log.NewNOPFactory().Logger()})
+	options := nativetun.Options{MTU: h.spec.TUN.MTU, Dispatcher: h}
+	for _, raw := range h.spec.TUN.Addresses {
+		options.Addresses = append(options.Addresses, netip.MustParsePrefix(raw).Addr())
+	}
+	stack, err := nativetun.New(h.ctx, device, options)
 	if err != nil {
+		h.mu.Unlock()
 		return err
 	}
 	h.stack = stack
-	return nil
+	h.mu.Unlock()
+	return stack.Start()
 }
 func (h *tunIngress) stop() {
 	h.mu.Lock()
 	if h.stopped {
+		stack := h.stack
 		h.mu.Unlock()
+		if stack != nil {
+			err := stack.Close()
+			h.mu.Lock()
+			h.stopErr = err
+			h.mu.Unlock()
+		}
 		return
 	}
 	h.stopped = true
 	h.staged = nil
+	stack := h.stack
 	h.mu.Unlock()
 	h.cancel()
-	if h.stack != nil {
-		_ = h.stack.Close()
+	if stack != nil {
+		err := stack.Close()
+		h.mu.Lock()
+		h.stopErr = err
+		h.mu.Unlock()
 	}
+}
+
+func (h *tunIngress) stopError() error {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.stopErr
+}
+func (h *tunIngress) running() bool {
+	h.mu.RLock()
+	stack := h.stack
+	h.mu.RUnlock()
+	return stack != nil && stack.State() == nativetun.Running
 }
 func (h *tunIngress) activate() { h.mu.Lock(); h.staged = nil; h.mu.Unlock() }
 func (h *tunIngress) acquire() *snapshot {
@@ -80,18 +103,6 @@ func (h *tunIngress) acquire() *snapshot {
 		return h.staged
 	}
 	return h.manager.acquire()
-}
-func (h *tunIngress) JudgeFlow(network uint8, source, destination netip.AddrPort, first []byte) tun.FlowVerdict {
-	if h.ctx.Err() != nil {
-		return tun.FlowVerdict{Action: tun.ActionReject}
-	}
-	if network == 17 && destination.Port() == 53 && h.spec.TUN.DNSHijack {
-		return tun.FlowVerdict{Action: tun.ActionHijackDNS}
-	}
-	if network != 6 && network != 17 {
-		return tun.FlowVerdict{Action: tun.ActionReject}
-	}
-	return tun.FlowVerdict{Action: tun.ActionAccept}
 }
 func (m *Manager) registerFlow(parent context.Context, inbound identity.ID, c net.Conn, packet io.Closer) (context.Context, *session) {
 	m.mu.Lock()
@@ -126,69 +137,64 @@ func (m *Manager) finishFlow(s *session, gen *snapshot) {
 	m.mu.Unlock()
 	m.wg.Done()
 }
-func (h *tunIngress) NewConnectionEx(ctx context.Context, c net.Conn, source, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
+
+// A cancellation callback can still be closing an adapter-owned connection
+// after its context is cancelled. Join it before releasing the flow snapshot.
+func (m *Manager) closeFlowOnCancel(ctx context.Context, s *session) func() {
+	done := make(chan struct{})
+	stop := context.AfterFunc(ctx, func() {
+		defer close(done)
+		m.closeSession(s)
+	})
+	return func() {
+		if !stop() {
+			<-done
+		}
+	}
+}
+func (h *tunIngress) TCP(ctx context.Context, c net.Conn, source, destination netip.AddrPort) {
 	gen := h.acquire()
 	if gen == nil {
 		c.Close()
-		if onClose != nil {
-			onClose(net.ErrClosed)
-		}
 		return
 	}
 	flowCtx, s := h.manager.registerFlow(ctx, h.spec.ID, c, nil)
 	if s == nil {
 		gen.release()
 		c.Close()
-		if onClose != nil {
-			onClose(net.ErrClosed)
-		}
 		return
 	}
-	go func() {
-		defer h.manager.finishFlow(s, gen)
-		if onClose != nil {
-			defer onClose(nil)
-		}
-		stop := context.AfterFunc(flowCtx, func() { h.manager.closeSession(s) })
-		defer stop()
-		target := access.Endpoint{Host: destination.AddrString(), Port: destination.Port}
-		if destination.Port == 53 && h.spec.TUN.DNSHijack {
-			h.serveDNSStream(flowCtx, c, gen)
-			return
-		}
-		h.manager.serveStream(flowCtx, s, gen, target, c, func(byte) {}, func() error { return nil })
-	}()
+	defer h.manager.finishFlow(s, gen)
+	defer h.manager.closeFlowOnCancel(flowCtx, s)()
+	target := access.Endpoint{Host: destination.Addr().String(), Port: destination.Port()}
+	if destination.Port() == 53 && h.spec.TUN.DNSHijack {
+		h.serveDNSStream(flowCtx, c, gen)
+		return
+	}
+	h.manager.serveStream(flowCtx, s, gen, target, c, func(byte) {}, func() error { return nil })
 }
-func (h *tunIngress) NewPacketConnectionEx(ctx context.Context, c N.PacketConn, source, destination M.Socksaddr, onClose N.CloseHandlerFunc) {
+func (h *tunIngress) UDP(ctx context.Context, c net.Conn, source, destination netip.AddrPort) {
+	if destination.Port() == 53 && h.spec.TUN.DNSHijack {
+		h.serveDNSPacket(ctx, c)
+		return
+	}
 	gen := h.acquire()
 	if gen == nil {
 		c.Close()
-		if onClose != nil {
-			onClose(net.ErrClosed)
-		}
 		return
 	}
 	flowCtx, s := h.manager.registerFlow(ctx, h.spec.ID, nil, c)
 	if s == nil {
 		gen.release()
 		c.Close()
-		if onClose != nil {
-			onClose(net.ErrClosed)
-		}
 		return
 	}
-	go func() {
-		defer h.manager.finishFlow(s, gen)
-		if onClose != nil {
-			defer onClose(nil)
-		}
-		stop := context.AfterFunc(flowCtx, func() { h.manager.closeSession(s) })
-		defer stop()
-		h.servePacket(flowCtx, s, gen, c, destination)
-	}()
+	defer h.manager.finishFlow(s, gen)
+	defer h.manager.closeFlowOnCancel(flowCtx, s)()
+	h.servePacket(flowCtx, s, gen, c, destination)
 }
-func (h *tunIngress) servePacket(ctx context.Context, s *session, gen *snapshot, local N.PacketConn, destination M.Socksaddr) {
-	target := access.Endpoint{Host: destination.AddrString(), Port: destination.Port}
+func (h *tunIngress) servePacket(ctx context.Context, s *session, gen *snapshot, local net.Conn, destination netip.AddrPort) {
+	target := access.Endpoint{Host: destination.Addr().String(), Port: destination.Port()}
 	decision, resolved, err := selectRoute(ctx, gen, s.inbound, target, "udp", map[identity.ID]P.Action{})
 	if err != nil || decision.Selected.Kind == P.Reject {
 		return
@@ -232,9 +238,8 @@ func (h *tunIngress) servePacket(ctx context.Context, s *session, gen *snapshot,
 			if e != nil {
 				return
 			}
-			b := buf.As(append([]byte(nil), payload[:n]...))
 			local.SetWriteDeadline(time.Now().Add(5 * time.Second))
-			if e = local.WritePacket(b, destination); e != nil {
+			if _, e = local.Write(payload[:n]); e != nil {
 				return
 			}
 			health.success()
@@ -247,25 +252,20 @@ func (h *tunIngress) servePacket(ctx context.Context, s *session, gen *snapshot,
 		}
 	}()
 	defer func() { remote.Close(); local.Close(); <-done }()
-	b := buf.NewSize(65535)
-	defer b.Release()
+	payload := make([]byte, 65535)
 	for {
-		b.Reset()
 		local.SetReadDeadline(time.Now().Add(h.manager.udpIdle))
-		addr, e := local.ReadPacket(b)
+		size, e := local.Read(payload)
 		if e != nil {
 			return
 		}
-		if addr != destination {
-			return
-		} // each upstream NAT flow owns one destination
 		remote.SetWriteDeadline(time.Now().Add(5 * time.Second))
-		n, e := remote.WriteTo(b.Bytes(), M.ParseSocksaddrHostPort(resolved.Host, resolved.Port))
+		n, e := remote.WriteTo(payload[:size], M.ParseSocksaddrHostPort(resolved.Host, resolved.Port))
 		if e != nil {
 			health.failed()
 			return
 		}
-		n = min(n, b.Len())
+		n = min(n, size)
 		for _, c := range counters {
 			if c != nil {
 				c.upload.Add(int64(n))
@@ -274,26 +274,39 @@ func (h *tunIngress) servePacket(ctx context.Context, s *session, gen *snapshot,
 		}
 	}
 }
-func (h *tunIngress) NewDNSPacket(payload []byte, source, destination M.Socksaddr, writer N.PacketWriter) {
-	// Upstream owns payload scratch memory. Copy before leaving its callback.
-	request := append([]byte(nil), payload...)
-	gen := h.acquire()
-	if gen == nil {
-		return
-	}
-	ctx, s := h.manager.registerFlow(h.ctx, h.spec.ID, nil, nil)
-	if s == nil {
-		gen.release()
-		return
-	}
-	go func() {
-		defer h.manager.finishFlow(s, gen)
-		reply, err := gen.network.ExchangeDNS(ctx, request, false)
+func (h *tunIngress) serveDNSPacket(ctx context.Context, c net.Conn) {
+	payload := make([]byte, 65535)
+	for {
+		_ = c.SetReadDeadline(time.Now().Add(h.manager.udpIdle))
+		n, err := c.Read(payload)
 		if err != nil {
 			return
 		}
-		_ = writer.WritePacket(buf.As(reply), destination)
-	}()
+		// Preserve stateless UDP DNS generation selection: the endpoint owns
+		// packet affinity, but each query acquires the current DNS snapshot.
+		gen := h.acquire()
+		if gen == nil {
+			return
+		}
+		err = func() error {
+			flowCtx, s := h.manager.registerFlow(ctx, h.spec.ID, nil, nil)
+			if s == nil {
+				gen.release()
+				return net.ErrClosed
+			}
+			defer h.manager.finishFlow(s, gen)
+			reply, err := gen.network.ExchangeDNS(flowCtx, payload[:n], false)
+			if err != nil {
+				return err
+			}
+			_ = c.SetWriteDeadline(time.Now().Add(5 * time.Second))
+			_, err = c.Write(reply)
+			return err
+		}()
+		if err != nil {
+			return
+		}
+	}
 }
 func (h *tunIngress) serveDNSStream(ctx context.Context, c net.Conn, gen *snapshot) {
 	var header [2]byte

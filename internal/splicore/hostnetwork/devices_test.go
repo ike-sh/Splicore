@@ -6,11 +6,11 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing-box/internal/splicore/nativetun"
 )
 
 type ownedDeviceFixture struct {
-	tun.Tun
+	nativetun.Device
 	closes int
 	err    error
 }

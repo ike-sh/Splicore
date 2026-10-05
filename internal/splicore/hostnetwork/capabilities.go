@@ -1,6 +1,6 @@
 package hostnetwork
 
-import "github.com/sagernet/sing-tun"
+import "github.com/sagernet/sing-box/internal/splicore/nativetun"
 
 // Passive capability observations contain no host routes, addresses or proxy values.
 type Capabilities struct {
@@ -15,7 +15,7 @@ type Capabilities struct {
 
 func PlatformCapabilities() Capabilities {
 	c := platformCapabilities()
-	if tun.WithGVisor {
+	if nativetun.Included {
 		c.Stack = "gvisor"
 	} else {
 		c.Stack = "not-included"

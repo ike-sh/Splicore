@@ -252,3 +252,12 @@ Native is the sole runtime engine. Historical Phase 6/7 direction is superseded;
 
 - [Decision](adr/0035-xray-runtime-removed-from-core.md)
 - [Correction report](reports/ARCHITECTURE_CORRECTION_XRAY_BOUNDARY_REPORT.md)
+
+## Qualification Fix / Native TUN freeze
+
+- [Freeze report](reports/QUALIFICATION_FIX_NATIVE_TUN_FREEZE_REPORT.md): new local
+  candidate containing QF-001/QF-002/QF-003; platform requalification is not resumed.
+- [Native runtime](architecture/NATIVE_TUN_RUNTIME.md) and
+  [ownership](architecture/TUN_RUNTIME_OWNERSHIP.md): implemented lifecycle contracts.
+- [QF-003 resolution](reports/QF_003_PRIVATE_RUNTIME_LINKNAME_RESOLUTION_REPORT.md):
+  inherited tooling public-API boundary and review evidence.

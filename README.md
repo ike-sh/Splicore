@@ -5,7 +5,7 @@ Audience: Maintainers and operators
 Last reviewed: 2026-10-04
 Owner: Splicore maintainer
 Responsibility: Independent native Server + Client Core boundary
-Lifecycle: Experimental; Phase 14 local freeze
+Lifecycle: Experimental; Qualification Fix / Native TUN local freeze
 
 Splicore is an independent **Server + Client Core**, derived from sing-box v1.14.1.
 It is experimental, locally qualified, and distributed as one `splicore` binary.
@@ -46,8 +46,14 @@ Historical frozen reports remain preserved. The
 [correction report](docs/reports/ARCHITECTURE_CORRECTION_XRAY_BOUNDARY_REPORT.md)
 records the current superseding architecture and exact regression results.
 
+The [Qualification Fix / Native TUN freeze](docs/reports/QUALIFICATION_FIX_NATIVE_TUN_FREEZE_REPORT.md)
+records the new locally frozen candidate containing QF-001/QF-002/QF-003.
+Platform Qualification must be resumed against that new commit; it has not
+been resumed or passed by this freeze.
+
 ## License
 
 See [LICENSE](LICENSE), [NOTICE](NOTICE.md), and
 [license boundaries](docs/architecture/LICENSE_BOUNDARIES.md). Inherited runtime
-source and official embedded Mieru source remain unchanged.
+source provenance is preserved. The inherited libbox OOM profiler uses public
+Go profiling APIs after QF-003; external dependency source remains unchanged.

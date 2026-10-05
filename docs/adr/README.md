@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Developers and decision reviewers
-- Last reviewed: 2026-10-04
+- Last reviewed: 2026-10-05
 - Owner: Core maintainers
 - Responsibility: Decision navigation, individual decision status and review lifecycle.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -91,3 +91,10 @@ Native is the sole runtime engine. Historical Phase 6/7 direction is superseded;
 
 - [Decision](../adr/0035-xray-runtime-removed-from-core.md)
 - [Correction report](../reports/ARCHITECTURE_CORRECTION_XRAY_BOUNDARY_REPORT.md)
+
+## Qualification fix native runtime decision
+
+- [0036 — Official gVisor eventfd ownership](0036-official-gvisor-eventfd-lifecycle.md):
+  Accepted for the local Qualification Fix / Native TUN freeze; Splicore-owned
+  runtime and exact official stack dependency, preserving historical compatibility
+  evidence. Platform Qualification is not resumed.

@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-tun"
 )
 
 type WindowsAdapterIdentity struct {
@@ -75,9 +74,6 @@ func createOwnedWintun(driver WintunDriver, name string, id WindowsAdapterIdenti
 	return d, nil
 }
 func (d *ownedWintun) Name() (string, error) { return d.name, nil }
-func (d *ownedWintun) UpdateRouteOptions(tun.Options) error {
-	return identity.Err(identity.NotImplemented, "owned Wintun routes require a journal transaction")
-}
 func (d *ownedWintun) Start() error {
 	d.closeMu.Lock()
 	defer d.closeMu.Unlock()
@@ -101,7 +97,7 @@ func (d *ownedWintun) Start() error {
 func (d *ownedWintun) started() bool {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	return d.session != nil && !d.closing && !d.closed
+	return d.session != nil && !d.closing && !d.closed && !d.sessionStopped
 }
 func (d *ownedWintun) begin() (WintunSession, error) {
 	d.mu.Lock()
@@ -198,6 +194,19 @@ func (d *ownedWintun) closeSession() error {
 	d.closeMu.Lock()
 	defer d.closeMu.Unlock()
 	return d.stopSession()
+}
+
+// Interrupt stops borrowed packet use. The journal retains session/adapter
+// release ownership; End is performed only by its later compensation.
+func (d *ownedWintun) Interrupt() error {
+	d.mu.Lock()
+	d.sessionStopped = true
+	s := d.session
+	d.mu.Unlock()
+	if s == nil {
+		return nil
+	}
+	return s.Interrupt()
 }
 
 func windowsOwnershipRecords(generation, owner identity.ID, desired []Record) ([]Record, error) {

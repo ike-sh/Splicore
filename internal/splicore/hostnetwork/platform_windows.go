@@ -16,7 +16,7 @@ import (
 
 	"github.com/sagernet/sing-box/internal/splicore/domain/client"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing-box/internal/splicore/nativetun"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 	"golang.zx2c4.com/wireguard/windows/tunnel/winipcfg"
@@ -24,14 +24,14 @@ import (
 
 type Platform struct {
 	mu             sync.Mutex
-	devices        map[string]tun.Tun
+	devices        map[string]nativetun.Device
 	winINET        WinINETAPI
 	wintun         WintunDriver
 	authorizations map[string]Step
 }
 
 func NewPlatform() *Platform {
-	return &Platform{devices: map[string]tun.Tun{}, winINET: nativeWinINET{}, wintun: nativeWintunDriver{}, authorizations: map[string]Step{}}
+	return &Platform{devices: map[string]nativetun.Device{}, winINET: nativeWinINET{}, wintun: nativeWintunDriver{}, authorizations: map[string]Step{}}
 }
 func platformCapabilities() Capabilities {
 	p := "elevation-required"
@@ -56,7 +56,7 @@ func (*Platform) Scope() string {
 	}
 	return fmt.Sprintf("windows-machine:%x:user:%s", sha256.Sum256([]byte(machine)), user.User.Sid.String())
 }
-func (p *Platform) Device(name string) (tun.Tun, error) {
+func (p *Platform) Device(name string) (nativetun.Device, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if d := p.devices[name]; d != nil {

@@ -100,6 +100,9 @@ def main():
     dirty = bool(run("git", "status", "--porcelain"))
     build_time = datetime.datetime.fromtimestamp(a.epoch, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     toolchain = run("go", "version").split()[2]
+    match = re.fullmatch(r"go(\d+)\.(\d+)(?:\.(\d+))?", toolchain)
+    if not match or tuple(int(v or 0) for v in match.groups()) < (1, 26, 3):
+        raise RuntimeError("Splicore requires Go 1.26.3 or newer")
     ld = " ".join(f"-X {VP}.{k}={v}" for k, v in {"ProductVersion": a.version, "Commit": sha, "Dirty": str(dirty).lower(), "BuildTime": build_time, "SourceDigest": digest, "BuildTags": TAGS}.items())
     results = []
     schema_source = (REPO / "internal/splicore/version/version.go").read_text()

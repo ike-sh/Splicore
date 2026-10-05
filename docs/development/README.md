@@ -138,3 +138,10 @@ Native is the sole runtime engine. Historical Phase 6/7 direction is superseded;
 lock ordering, lifecycle fixes and crash/recovery validation. The
 [Phase 15 freeze report](../reports/PHASE_15_FREEZE_REPORT.md) records the local
 checkpoint; real platform qualification requires later scope.
+
+## Qualification Fix / Native TUN freeze
+
+The [Qualification Fix freeze report](../reports/QUALIFICATION_FIX_NATIVE_TUN_FREEZE_REPORT.md)
+records the forward candidate after maintainer review. QF-001/QF-002/QF-003 and
+the owned Native TUN runtime are included. Requalification must use the new
+frozen commit; this workflow does not resume it or start a new feature phase.

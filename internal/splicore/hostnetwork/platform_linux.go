@@ -15,7 +15,7 @@ import (
 	"github.com/sagernet/netlink/nl"
 	"github.com/sagernet/sing-box/internal/splicore/domain/client"
 	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-tun"
+	"github.com/sagernet/sing-box/internal/splicore/nativetun"
 	"golang.org/x/sys/unix"
 )
 
@@ -23,10 +23,10 @@ const SocketMark uint32 = 0x534c0001
 
 type Platform struct {
 	mu      sync.Mutex
-	devices map[string]tun.Tun
+	devices map[string]nativetun.Device
 }
 
-func NewPlatform() *Platform { return &Platform{devices: map[string]tun.Tun{}} }
+func NewPlatform() *Platform { return &Platform{devices: map[string]nativetun.Device{}} }
 func platformCapabilities() Capabilities {
 	c := Capabilities{TUN: "experimental", AutoRoute: "implemented", Driver: "linux-tun", Privilege: "CAP_NET_ADMIN-required", SystemProxy: "unsupported", LoopProtection: "dedicated-daemon-uid-main-table"}
 	if _, err := os.Stat("/dev/net/tun"); err != nil {
@@ -45,7 +45,7 @@ func (*Platform) Scope() string {
 	}
 	return "linux:" + strings.TrimSpace(string(boot)) + ":" + ns + ":uid:" + strconv.Itoa(os.Geteuid())
 }
-func (p *Platform) Device(name string) (tun.Tun, error) {
+func (p *Platform) Device(name string) (nativetun.Device, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	d := p.devices[name]
@@ -218,7 +218,7 @@ func (p *Platform) Write(ctx context.Context, key Record, value *Record) error {
 		if _, err := netlink.LinkByName(key.Interface); err == nil {
 			return identity.Err(identity.Conflict, "interface appeared before create")
 		}
-		device, err := tun.New(tun.Options{Name: value.Interface, MTU: value.MTU, DNSMode: tun.DNSModeDisabled, EXP_ExternalConfiguration: true})
+		device, err := openLinuxDevice(value.Interface, value.MTU)
 		if err != nil {
 			return identity.Err(identity.Unavailable, "TUN creation requires CAP_NET_ADMIN and device availability")
 		}

@@ -141,9 +141,25 @@ backup before importing valid configuration through Application.
 
 TUN borrows callbacks only until owned copies/references are retained, fixes counter
 maps before staged ingress starts, and joins flow/DNS workers before releasing their
-generation. gVisor endpoint creation precedes upstream Start so failed construction
-has an owned close boundary. HTTP/mixed share serveStream/selectRoute. See
+generation. The Splicore native runtime initializes protocol handlers before NIC
+attachment and ingress, and owns the actual official stack's teardown.
+HTTP/mixed share serveStream/selectRoute. See
 [host ownership](../SYSTEM_INTEGRATION.md).
+
+## TUN packet writer ownership (QF-001)
+
+The old pinned `NativeTun.WritePacket` reused device iovec/header scratch. Its
+guard and deterministic tests are retained as test-only historical regression
+evidence. The production path uses Splicore's byte device and packet bridge;
+QF-001 is eliminated by architecture. Per-call bytes and one per-device writer
+grant explicit ownership through synchronous syscall return. Packet references
+and read scratch cannot be reused before the corresponding operation completes.
+
+Runtime Close rejects writes, interrupts borrowed device use, joins packet and
+flow workers and destroys the actual stack/NIC/link. Host ownership then restores
+the lease and releases the device. Reconciled generations reuse the retained TUN
+listener. See [native runtime](NATIVE_TUN_RUNTIME.md) and
+[resource ownership](TUN_RUNTIME_OWNERSHIP.md). Validation and review are pending.
 
 ## Underlay generations
 

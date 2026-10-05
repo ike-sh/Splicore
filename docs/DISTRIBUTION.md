@@ -22,6 +22,12 @@
 
 ## Package and metadata
 
+Current source builds require Go **1.26.3 or newer**, matching the exact official
+gVisor dependency used by Splicore's owned native TUN runtime. Both build entries
+check this minimum. Linux amd64/arm64 and Windows amd64 remain one Splicore daemon;
+no external gVisor, sing-box or Xray executable is required. Native runtime
+validation does not resume Platform Qualification or change frozen history.
+
 The [build entry](../scripts/splicore-package.py) emits
 `splicore-0.0.0-dev-linux-{amd64,arm64}.tar.gz` and a Windows build. Linux packages
 contain binary, unit, minimal bootstrap, local installer, manifest, checksums,

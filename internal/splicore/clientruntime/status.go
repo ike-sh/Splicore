@@ -60,6 +60,9 @@ func (m *Manager) Status(state client.ProfileState, capabilities []ports.Outboun
 			l := m.listeners[i.ID]
 			if l == nil || !l.ready.Load() {
 				out.Health = "degraded"
+			} else if l.tun != nil && !l.tun.running() {
+				out.Health = "degraded"
+				out.LastError = "tun_runtime_failed"
 			}
 		}
 	}
