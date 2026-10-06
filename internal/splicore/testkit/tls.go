@@ -8,7 +8,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	module "github.com/sagernet/sing-box/internal/splicore/tlsconfig"
+	module "github.com/ike-sh/Splicore/internal/splicore/tlsconfig"
 	"math/big"
 	"os"
 	"path/filepath"

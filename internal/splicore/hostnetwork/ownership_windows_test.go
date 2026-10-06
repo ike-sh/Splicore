@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 )
 
 func TestIncompleteWindowsOwnershipRejectsBeforeMutation(t *testing.T) {

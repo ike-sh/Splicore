@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 )
 
 // WinINETSnapshot is LAN user intent, queried through PER_CONNECTION_OPTION.

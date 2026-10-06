@@ -98,3 +98,16 @@ Native is the sole runtime engine. Historical Phase 6/7 direction is superseded;
   Accepted for the local Qualification Fix / Native TUN freeze; Splicore-owned
   runtime and exact official stack dependency, preserving historical compatibility
   evidence. Platform Qualification is not resumed.
+
+## Phase 16 native Shadowsocks decision
+
+- [0037 — Shadowsocks editions and credential ownership](0037-native-shadowsocks-editions-and-credential-ownership.md):
+  Accepted for the consolidated Phase 16 + Phase 17 freeze; native AEAD 2017/2022 framing,
+  encrypted inbound/account/node credentials and bounded generation ownership.
+
+## Phase 17 independent core decision
+
+- [0038 — Remove sing-box / SagerNet core dependency graph](0038-remove-sager-net-core-dependency-graph.md):
+  Accepted after Final Independent Re-Review PASS; independent module identity,
+  owned runtime and zero SagerNet dependency graph. Phase 16 is consolidated
+  into the Phase 17 freeze.

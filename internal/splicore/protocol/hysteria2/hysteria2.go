@@ -6,14 +6,14 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"github.com/sagernet/sing-box/internal/splicore/clientprofile"
-	"github.com/sagernet/sing-box/internal/splicore/credential"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/domain/secret"
-	"github.com/sagernet/sing-box/internal/splicore/jsonstrict"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	"github.com/sagernet/sing-box/internal/splicore/tlsconfig"
+	"github.com/ike-sh/Splicore/internal/splicore/clientprofile"
+	"github.com/ike-sh/Splicore/internal/splicore/credential"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
+	"github.com/ike-sh/Splicore/internal/splicore/jsonstrict"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/tlsconfig"
 )
 
 type Module struct{}
@@ -45,7 +45,7 @@ func Decode(b []byte) (Settings, error) {
 	return s, nil
 }
 func (Module) Metadata() ports.ProtocolMetadata {
-	return ports.ProtocolMetadata{Roles: ports.Roles{Inbound: true, Outbound: true}, Key: Key(), ABI: 1, CredentialKinds: []access.CredentialKind{access.Password}, Availability: ports.Compiled, Qualification: "experimental", Provenance: "sing-box v1.14.1 / sing-quic v0.7.0; password identity; static TLS; no obfs"}
+	return ports.ProtocolMetadata{Roles: ports.Roles{Inbound: true, Outbound: true}, Key: Key(), ABI: 1, CredentialKinds: []access.CredentialKind{access.Password}, Availability: ports.Compiled, Qualification: "experimental", Provenance: "Splicore-owned Hysteria2 wire/lifecycle; independent AperNet QUIC; password identity; static TLS; no obfs"}
 }
 func (Module) Capabilities(ports.CapabilityContext) ports.Capabilities {
 	return ports.Capabilities{

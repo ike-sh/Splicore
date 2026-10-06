@@ -7,7 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 )
 
 func (s *Service) digest(b []byte, r identity.Revision) string {

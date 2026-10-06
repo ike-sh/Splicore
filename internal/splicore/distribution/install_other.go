@@ -5,7 +5,7 @@ package distribution
 import (
 	"context"
 	"fmt"
-	"github.com/sagernet/sing-box/internal/splicore/config"
+	"github.com/ike-sh/Splicore/internal/splicore/config"
 )
 
 func Install(context.Context, string, bool) error {

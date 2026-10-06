@@ -1,13 +1,13 @@
 package registry
 
 import (
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/engine/native"
-	"github.com/sagernet/sing-box/internal/splicore/exporter"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	"github.com/sagernet/sing-box/internal/splicore/protocol/hysteria2"
-	"github.com/sagernet/sing-box/internal/splicore/protocol/snell"
-	"github.com/sagernet/sing-box/internal/splicore/protocol/tuic"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/native"
+	"github.com/ike-sh/Splicore/internal/splicore/exporter"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/hysteria2"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/snell"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/tuic"
 )
 
 func Phase4() (*Protocols, *Engines, *Exporters, error) {

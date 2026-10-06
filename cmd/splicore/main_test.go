@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sagernet/sing-box/internal/splicore/cli"
-	"github.com/sagernet/sing-box/internal/splicore/version"
+	"github.com/ike-sh/Splicore/internal/splicore/cli"
+	"github.com/ike-sh/Splicore/internal/splicore/version"
 )
 
 func TestCommandIdentity(t *testing.T) {

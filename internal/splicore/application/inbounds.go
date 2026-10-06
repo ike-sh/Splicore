@@ -3,9 +3,9 @@ package application
 import (
 	"context"
 	"errors"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
 )
 
 func localActor() (identity.Actor, error) {
@@ -137,6 +137,16 @@ func (s *Service) ExportClient(ctx context.Context, id identity.ID, req ExportRe
 		return ExportResult{}, e
 	}
 	authorized := ports.AuthorizedBinding{Inbound: i, Binding: b, Credential: c}
+	if projection, ok := p.(ports.ClientServerCredentialProjection); ok && projection.ClientServerCredentials() {
+		secrets, ok := r.repo.(ports.ServerSecretRepository)
+		if !ok {
+			return ExportResult{}, identity.Err(identity.Unavailable, "server identity credential unavailable")
+		}
+		authorized.ServerCredentials, e = secrets.RevealInboundCredentials(ctx, i.ID)
+		if e != nil {
+			return ExportResult{}, e
+		}
+	}
 	profile, e := p.BuildClientProfile(ctx, authorized)
 	if e != nil {
 		return ExportResult{}, e

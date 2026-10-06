@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/sagernet/sing-box/internal/splicore/nativetun"
+	"github.com/ike-sh/Splicore/internal/splicore/nativetun"
 )
 
 type ownedDeviceFixture struct {

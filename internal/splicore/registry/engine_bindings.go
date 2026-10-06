@@ -1,7 +1,7 @@
 package registry
 
 import (
-	"github.com/sagernet/sing-box/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	"slices"
 )
 

@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/sagernet/sing-box/internal/splicore/version"
+	"github.com/ike-sh/Splicore/internal/splicore/version"
 	"os"
 	"path/filepath"
 	"sort"

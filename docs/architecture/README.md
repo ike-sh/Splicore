@@ -80,3 +80,13 @@ Native is the sole runtime engine. Historical Phase 6/7 direction is superseded;
 
 - [Decision](../adr/0035-xray-runtime-removed-from-core.md)
 - [Correction report](../reports/ARCHITECTURE_CORRECTION_XRAY_BOUNDARY_REPORT.md)
+
+## Phase 16 protocol integration
+
+- [Native Shadowsocks runtime](SHADOWSOCKS_RUNTIME.md): standard AEAD 2017,
+  SIP022/SIP023, credential ownership, routing and bounded TCP/UDP lifetime.
+
+## Phase 17 independent core migration
+
+- [Independent core dependencies](INDEPENDENT_CORE_DEPENDENCIES.md): target
+  ownership and dependency policy; implementation is NOT READY FOR REVIEW.

@@ -13,16 +13,14 @@ import (
 	"testing"
 	"testing/synctest"
 
-	"github.com/sagernet/gvisor/pkg/buffer"
-	"github.com/sagernet/gvisor/pkg/tcpip/stack"
-	"github.com/sagernet/sing-tun"
+	"gvisor.dev/gvisor/pkg/buffer"
+	"gvisor.dev/gvisor/pkg/tcpip/stack"
 )
 
 // Like NativeTun's iovec storage, scratch belongs to the device, not a call.
 // hold represents a syscall still consuming that storage. No payload may be
 // reused or released until WritePacket returns.
 type qfPacketDevice struct {
-	tun.GVisorTun
 	hold         <-chan struct{}
 	scratch      [64]byte
 	active, peak atomic.Int32
@@ -98,7 +96,6 @@ func TestQF001ConcurrentWritePacket(t *testing.T) {
 }
 
 type qfStack struct {
-	tun.Stack
 	onClose func() error
 	closed  atomic.Int32
 }
@@ -116,7 +113,7 @@ func TestQF001WriteAndShutdown(t *testing.T) {
 			}
 			return nil
 		}}
-		s := &ownedStack{Stack: underlying, writer: writer}
+		s := &ownedStack{Closer: underlying, writer: writer}
 		activeDone := make(chan struct{})
 		go func() {
 			defer close(activeDone)

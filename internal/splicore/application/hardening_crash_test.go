@@ -15,17 +15,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sagernet/sing-box/internal/splicore/application"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/client"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/domain/provider"
-	"github.com/sagernet/sing-box/internal/splicore/engine/native"
-	"github.com/sagernet/sing-box/internal/splicore/nodeimport"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	"github.com/sagernet/sing-box/internal/splicore/protocol/snell"
-	"github.com/sagernet/sing-box/internal/splicore/registry"
-	"github.com/sagernet/sing-box/internal/splicore/storage/sqlite"
+	"github.com/ike-sh/Splicore/internal/splicore/application"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/provider"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/native"
+	"github.com/ike-sh/Splicore/internal/splicore/nodeimport"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/snell"
+	"github.com/ike-sh/Splicore/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/storage/sqlite"
 )
 
 // Faults live only in interface wrappers in the child. Exit bypasses every

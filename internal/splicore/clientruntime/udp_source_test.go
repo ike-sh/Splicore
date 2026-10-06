@@ -2,7 +2,8 @@ package clientruntime
 
 import (
 	"context"
-	M "github.com/sagernet/sing/common/metadata"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/netaddr"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/testfixture"
 	"net"
 	"testing"
 	"time"
@@ -10,7 +11,7 @@ import (
 
 func TestSOCKSUDPRequestedSourceOwnership(t *testing.T) {
 	m, state, _, echo := udpFixture(t)
-	if c, _, err := udpControl(state, M.ParseSocksaddr("127.0.0.2:1234")); err == nil {
+	if c, _, err := udpControl(state, testfixture.Endpoint("127.0.0.2:1234")); err == nil {
 		_ = c.Close()
 		t.Fatal("foreign requested source accepted")
 	}
@@ -19,7 +20,7 @@ func TestSOCKSUDPRequestedSourceOwnership(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer owner.Close()
-	control, relay, err := udpControl(state, M.SocksaddrFromNet(owner.LocalAddr()))
+	control, relay, err := udpControl(state, testfixture.Endpoint((owner.LocalAddr()).String()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,7 +31,7 @@ func TestSOCKSUDPRequestedSourceOwnership(t *testing.T) {
 	}
 	defer foreign.Close()
 	frame, _ := encodeUDPPacket(echo.LocalAddr(), []byte("foreign-first"))
-	_, _ = foreign.WriteToUDP(frame, relay.UDPAddr())
+	_, _ = foreign.WriteToUDP(frame, netaddr.UDP(relay).(*net.UDPAddr))
 	if err = udpRoundtrip(owner, relay, echo.LocalAddr(), []byte("requested-owner")); err != nil {
 		t.Fatal(err)
 	}

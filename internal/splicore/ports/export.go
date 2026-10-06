@@ -1,6 +1,6 @@
 package ports
 
-import "github.com/sagernet/sing-box/internal/splicore/clientprofile"
+import "github.com/ike-sh/Splicore/internal/splicore/clientprofile"
 
 // Export descriptions belong to client contracts, not the application coordinator.
 type ExportDescription struct {

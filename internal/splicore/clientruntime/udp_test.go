@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/client"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/registry"
-	M "github.com/sagernet/sing/common/metadata"
-	"github.com/sagernet/sing/common/varbin"
-	"github.com/sagernet/sing/protocol/socks/socks5"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/netaddr"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/testfixture"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/socks"
+	"github.com/ike-sh/Splicore/internal/splicore/registry"
 	"net"
 	"sync"
 	"testing"
@@ -64,43 +64,29 @@ func udpFixture(t *testing.T, idle ...time.Duration) (*Manager, client.ProfileSt
 	p.Activate()
 	return m, state, r, echo
 }
-func udpControl(state client.ProfileState, source M.Socksaddr) (net.Conn, M.Socksaddr, error) {
+func udpControl(state client.ProfileState, source access.Endpoint) (net.Conn, access.Endpoint, error) {
 	e := state.LocalInbounds[0].Listen
 	c, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", e.Port), time.Second)
 	if err != nil {
-		return nil, M.Socksaddr{}, err
+		return nil, access.Endpoint{}, err
 	}
 	_ = c.SetDeadline(time.Now().Add(5 * time.Second))
-	// The inherited convenience handshake deliberately rewrites UDP source
-	// IP/port. Send the actual requested source to test the server contract.
-	err = socks5.WriteAuthRequest(c, socks5.AuthRequest{Methods: []byte{socks5.AuthTypeNotRequired}})
-	if err == nil {
-		_, err = socks5.ReadAuthResponse(varbin.StubReader(c))
-	}
-	if err == nil {
-		err = socks5.WriteRequest(c, socks5.Request{Command: socks5.CommandUDPAssociate, Destination: source})
-	}
-	var res socks5.Response
-	if err == nil {
-		res, err = socks5.ReadResponse(varbin.StubReader(c))
-	}
-	if err == nil && res.ReplyCode != socks5.ReplyCodeSuccess {
-		err = fmt.Errorf("SOCKS UDP rejected: %d", res.ReplyCode)
-	}
+	// Send the caller's exact requested source to verify port pinning.
+	res, err := socks.Handshake(c, socks.UDPAssociate, source)
 	if err != nil {
 		_ = c.Close()
-		return nil, M.Socksaddr{}, err
+		return nil, access.Endpoint{}, err
 	}
 	_ = c.SetDeadline(time.Time{})
-	return c, res.Bind, nil
+	return c, res, nil
 }
-func udpRoundtrip(pc *net.UDPConn, relay M.Socksaddr, target net.Addr, payload []byte) error {
+func udpRoundtrip(pc *net.UDPConn, relay access.Endpoint, target net.Addr, payload []byte) error {
 	b, err := encodeUDPPacket(target, payload)
 	if err != nil {
 		return err
 	}
 	_ = pc.SetDeadline(time.Now().Add(3 * time.Second))
-	if _, err = pc.WriteToUDP(b, relay.UDPAddr()); err != nil {
+	if _, err = pc.WriteToUDP(b, netaddr.UDP(relay).(*net.UDPAddr)); err != nil {
 		return err
 	}
 	b = make([]byte, 65535)
@@ -125,7 +111,7 @@ func TestSOCKSUDPAssociationLifecycleAndIsolation(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			control, relay, err := udpControl(state, M.ParseSocksaddr("0.0.0.0:0"))
+			control, relay, err := udpControl(state, testfixture.Endpoint("0.0.0.0:0"))
 			if err != nil {
 				errs <- err
 				return
@@ -162,7 +148,7 @@ func TestSOCKSUDPAssociationLifecycleAndIsolation(t *testing.T) {
 	}
 	// An association belongs to its TCP control socket. Route reconciliation
 	// closes changed associations even if its UDP client socket stays open.
-	c, relay, err := udpControl(state, M.ParseSocksaddr("0.0.0.0:0"))
+	c, relay, err := udpControl(state, testfixture.Endpoint("0.0.0.0:0"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +161,7 @@ func TestSOCKSUDPAssociationLifecycleAndIsolation(t *testing.T) {
 	if err := m.WaitIdle(ctx); err != nil {
 		t.Fatal(err)
 	}
-	released, err := net.ListenUDP("udp4", relay.UDPAddr())
+	released, err := net.ListenUDP("udp4", netaddr.UDP(relay).(*net.UDPAddr))
 	if err != nil {
 		t.Fatal("stale association socket", err)
 	}
@@ -189,7 +175,7 @@ func TestSOCKSUDPOwnershipFragmentExpiryAndShutdown(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer first.Close()
-	control, relay, err := udpControl(state, M.ParseSocksaddr("0.0.0.0:0"))
+	control, relay, err := udpControl(state, testfixture.Endpoint("0.0.0.0:0"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -197,7 +183,7 @@ func TestSOCKSUDPOwnershipFragmentExpiryAndShutdown(t *testing.T) {
 	// A malformed/fragmented packet must not claim an unspecified client port.
 	fragment, _ := encodeUDPPacket(echo.LocalAddr(), []byte("fragment"))
 	fragment[2] = 1
-	_, _ = first.WriteToUDP(fragment, relay.UDPAddr())
+	_, _ = first.WriteToUDP(fragment, netaddr.UDP(relay).(*net.UDPAddr))
 	owner, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.ParseIP("127.0.0.1")})
 	if err != nil {
 		t.Fatal(err)
@@ -207,7 +193,7 @@ func TestSOCKSUDPOwnershipFragmentExpiryAndShutdown(t *testing.T) {
 		t.Fatal(err)
 	}
 	frame, _ := encodeUDPPacket(echo.LocalAddr(), []byte("foreign"))
-	_, _ = first.WriteToUDP(frame, relay.UDPAddr())
+	_, _ = first.WriteToUDP(frame, netaddr.UDP(relay).(*net.UDPAddr))
 	_ = first.SetReadDeadline(time.Now().Add(50 * time.Millisecond))
 	b := make([]byte, 1024)
 	if _, _, err = first.ReadFromUDP(b); err == nil {
@@ -222,12 +208,12 @@ func TestSOCKSUDPOwnershipFragmentExpiryAndShutdown(t *testing.T) {
 	if err = m.WaitIdle(ctx); err != nil {
 		t.Fatal(err)
 	}
-	released, err := net.ListenUDP("udp4", relay.UDPAddr())
+	released, err := net.ListenUDP("udp4", netaddr.UDP(relay).(*net.UDPAddr))
 	if err != nil {
 		t.Fatal("expired relay leaked", err)
 	}
 	_ = released.Close()
-	c, _, err := udpControl(state, M.SocksaddrFromNet(owner.LocalAddr()))
+	c, _, err := udpControl(state, testfixture.Endpoint((owner.LocalAddr()).String()))
 	if err != nil {
 		t.Fatal(err)
 	}

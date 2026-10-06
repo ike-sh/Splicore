@@ -1,8 +1,8 @@
 package vless
 
 import (
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
 )
 
 // ValidateClientNode shares canonical flow/options validation with projections;

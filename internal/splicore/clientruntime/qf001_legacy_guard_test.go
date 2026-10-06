@@ -3,27 +3,30 @@
 package clientruntime
 
 import (
+	"io"
 	"os"
 	"sync"
 	"sync/atomic"
 
-	"github.com/sagernet/gvisor/pkg/tcpip/stack"
-
-	"github.com/sagernet/sing-tun"
+	"gvisor.dev/gvisor/pkg/tcpip/stack"
 )
 
 // Pre-create the upstream endpoint before Start. Upstream Close assumes a
 // dispatcher exists; a failed NewEndpoint would otherwise make Close unsafe.
 type preparedEndpoint struct {
-	tun.GVisorTun
+	device interface {
+		WritePacket(*stack.PacketBuffer) (int, error)
+	}
 	endpoint stack.LinkEndpoint
 	options  stack.NICOptions
 	write    chan struct{}
 	stopped  atomic.Bool
 }
 
-func newPreparedEndpoint(device tun.GVisorTun, endpoint stack.LinkEndpoint, options stack.NICOptions) *preparedEndpoint {
-	t := &preparedEndpoint{GVisorTun: device, endpoint: endpoint, options: options, write: make(chan struct{}, 1)}
+func newPreparedEndpoint(device interface {
+	WritePacket(*stack.PacketBuffer) (int, error)
+}, endpoint stack.LinkEndpoint, options stack.NICOptions) *preparedEndpoint {
+	t := &preparedEndpoint{device: device, endpoint: endpoint, options: options, write: make(chan struct{}, 1)}
 	t.write <- struct{}{}
 	return t
 }
@@ -41,7 +44,7 @@ func (t *preparedEndpoint) WritePacket(packet *stack.PacketBuffer) (int, error) 
 	if t.stopped.Load() {
 		return 0, os.ErrClosed
 	}
-	return t.GVisorTun.WritePacket(packet)
+	return t.device.WritePacket(packet)
 }
 
 func (t *preparedEndpoint) stopWrites() {
@@ -52,7 +55,7 @@ func (t *preparedEndpoint) stopWrites() {
 }
 
 type ownedStack struct {
-	tun.Stack
+	io.Closer
 	writer *preparedEndpoint
 	close  sync.Once
 	err    error
@@ -61,7 +64,7 @@ type ownedStack struct {
 func (s *ownedStack) Close() error {
 	s.close.Do(func() {
 		s.writer.stopWrites()
-		s.err = s.Stack.Close()
+		s.err = s.Closer.Close()
 	})
 	return s.err
 }

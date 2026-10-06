@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/sagernet/sing-box/internal/splicore/jsonstrict"
+	"github.com/ike-sh/Splicore/internal/splicore/jsonstrict"
 )
 
 // decodeReceipt recognizes the retired metadata key only in an owned installed

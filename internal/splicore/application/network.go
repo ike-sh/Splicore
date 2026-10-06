@@ -3,10 +3,10 @@ package application
 import (
 	"context"
 	"encoding/json"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	P "github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
-	"github.com/sagernet/sing-box/internal/splicore/jsonstrict"
-	"github.com/sagernet/sing-box/internal/splicore/networkruntime"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
+	"github.com/ike-sh/Splicore/internal/splicore/jsonstrict"
+	"github.com/ike-sh/Splicore/internal/splicore/networkruntime"
 )
 
 const ClientDocumentLimit = 2 << 20

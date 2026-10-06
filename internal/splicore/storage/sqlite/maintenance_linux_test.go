@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/sagernet/sing-box/internal/splicore/version"
+	"github.com/ike-sh/Splicore/internal/splicore/version"
 )
 
 func TestMaintenanceBackupStoppedConsistentSnapshot(t *testing.T) {

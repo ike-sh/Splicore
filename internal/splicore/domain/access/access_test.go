@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/domain/secret"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
 )
 
 func TestEndpoints(t *testing.T) {

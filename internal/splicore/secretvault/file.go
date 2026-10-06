@@ -4,7 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"io"
 	"os"
 	"path/filepath"

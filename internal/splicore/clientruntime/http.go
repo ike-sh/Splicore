@@ -13,10 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	P "github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
-	H "github.com/sagernet/sing/protocol/http"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
 )
 
 func (m *Manager) bindSelection(s *session, gen *snapshot, oid identity.ID) []*counter {
@@ -40,7 +39,7 @@ func (m *Manager) serveHTTP(ctx context.Context, s *session, reader *bufio.Reade
 		return
 	}
 	reader = bufio.NewReader(io.MultiReader(bytes.NewReader(header), reader))
-	req, err := H.ReadRequest(reader)
+	req, err := http.ReadRequest(reader)
 	if err != nil {
 		return
 	}

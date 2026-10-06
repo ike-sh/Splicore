@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sagernet/netlink"
+	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
 

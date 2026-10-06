@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sagernet/sing-box/internal/splicore/api"
-	"github.com/sagernet/sing-box/internal/splicore/application"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/registry"
-	"github.com/sagernet/sing-box/internal/splicore/storage/sqlite"
-	"github.com/sagernet/sing-box/internal/splicore/version"
+	"github.com/ike-sh/Splicore/internal/splicore/api"
+	"github.com/ike-sh/Splicore/internal/splicore/application"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/storage/sqlite"
+	"github.com/ike-sh/Splicore/internal/splicore/version"
 )
 
 func handler(t *testing.T) http.Handler {

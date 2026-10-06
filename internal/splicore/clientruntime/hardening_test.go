@@ -5,8 +5,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/sagernet/sing-box/internal/splicore/domain/client"
-	"github.com/sagernet/sing-box/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/registry"
 )
 
 func hardeningCandidate(t *testing.T, m *Manager) *Prepared {

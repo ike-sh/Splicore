@@ -37,3 +37,12 @@ Evidence: [official release](https://github.com/SagerNet/sing-box/releases/tag/v
 [baseline source](https://github.com/SagerNet/sing-box/tree/1ac1a339cb1223e9c70eae14c44411c75033c02d),
 [baseline validation](architecture/UPSTREAM_BASELINE.md),
 [sync procedure](architecture/UPSTREAM_SYNC.md).
+
+## Current Phase 17 development identity
+
+The table above describes the historical source baseline. The current working
+module is `github.com/ike-sh/Splicore`; active SagerNet source imports and module
+graph nodes are zero. Required historical provenance and licensing remain. See
+[independent dependency architecture](architecture/INDEPENDENT_CORE_DEPENDENCIES.md)
+and the [Phase 17 implementation report](reports/PHASE17_SINGBOX_DECOUPLING_REPORT.md)
+for current gates. No history, tag or public repository is changed by this work.

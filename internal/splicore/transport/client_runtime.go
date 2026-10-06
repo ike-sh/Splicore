@@ -3,9 +3,9 @@ package transport
 import (
 	"context"
 	"encoding/json"
-	"github.com/sagernet/sing-box/internal/splicore/application"
-	"github.com/sagernet/sing-box/internal/splicore/clientruntime"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/application"
+	"github.com/ike-sh/Splicore/internal/splicore/clientruntime"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
 )
 
 func (c *Client) ClientStatus(ctx context.Context) (clientruntime.Status, error) {

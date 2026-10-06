@@ -3,10 +3,10 @@ package exporter
 import (
 	"context"
 	"encoding/json"
-	"github.com/sagernet/sing-box/internal/splicore/clientprofile"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	module "github.com/sagernet/sing-box/internal/splicore/protocol/mieru"
+	"github.com/ike-sh/Splicore/internal/splicore/clientprofile"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	module "github.com/ike-sh/Splicore/internal/splicore/protocol/mieru"
 	"strings"
 )
 

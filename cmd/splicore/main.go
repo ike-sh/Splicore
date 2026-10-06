@@ -6,9 +6,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/sagernet/sing-box/internal/splicore/app"
-	"github.com/sagernet/sing-box/internal/splicore/cli"
-	"github.com/sagernet/sing-box/internal/splicore/version"
+	"github.com/ike-sh/Splicore/internal/splicore/app"
+	"github.com/ike-sh/Splicore/internal/splicore/cli"
+	"github.com/ike-sh/Splicore/internal/splicore/version"
 )
 
 func main() {

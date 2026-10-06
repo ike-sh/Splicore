@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/jsonstrict"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/jsonstrict"
 )
 
 const MaxJournalBytes = 2 << 20

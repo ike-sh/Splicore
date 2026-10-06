@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 )
 
 type WindowsDependency struct {

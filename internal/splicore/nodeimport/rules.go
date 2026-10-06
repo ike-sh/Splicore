@@ -2,9 +2,9 @@ package nodeimport
 
 import (
 	"encoding/json"
-	P "github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
-	"github.com/sagernet/sing-box/internal/splicore/domain/provider"
-	"github.com/sagernet/sing-box/internal/splicore/jsonstrict"
+	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/provider"
+	"github.com/ike-sh/Splicore/internal/splicore/jsonstrict"
 	"net/netip"
 	"strings"
 	"unicode/utf8"

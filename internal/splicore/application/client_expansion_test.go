@@ -7,23 +7,23 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/sagernet/sing-box/internal/splicore/application"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/client"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/engine/native"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	hm "github.com/sagernet/sing-box/internal/splicore/protocol/hysteria2"
-	mm "github.com/sagernet/sing-box/internal/splicore/protocol/mieru"
-	sm "github.com/sagernet/sing-box/internal/splicore/protocol/snell"
-	tm "github.com/sagernet/sing-box/internal/splicore/protocol/tuic"
-	vm "github.com/sagernet/sing-box/internal/splicore/protocol/vless"
-	"github.com/sagernet/sing-box/internal/splicore/registry"
-	"github.com/sagernet/sing-box/internal/splicore/storage/sqlite"
-	"github.com/sagernet/sing-box/internal/splicore/testkit"
-	M "github.com/sagernet/sing/common/metadata"
-	"github.com/sagernet/sing/protocol/socks"
-	"github.com/sagernet/sing/protocol/socks/socks5"
+	"github.com/ike-sh/Splicore/internal/splicore/application"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/native"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/netaddr"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/testfixture"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	hm "github.com/ike-sh/Splicore/internal/splicore/protocol/hysteria2"
+	mm "github.com/ike-sh/Splicore/internal/splicore/protocol/mieru"
+	sm "github.com/ike-sh/Splicore/internal/splicore/protocol/snell"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/socks"
+	tm "github.com/ike-sh/Splicore/internal/splicore/protocol/tuic"
+	vm "github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
+	"github.com/ike-sh/Splicore/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/storage/sqlite"
+	"github.com/ike-sh/Splicore/internal/splicore/testkit"
 	"io"
 	"net"
 	"path/filepath"
@@ -152,18 +152,18 @@ func expansionUDPTraffic(port uint16, target access.Endpoint, payload []byte) er
 	}
 	defer control.Close()
 	_ = control.SetDeadline(time.Now().Add(5 * time.Second))
-	response, err := socks.ClientHandshake5(control, socks5.CommandUDPAssociate, M.ParseSocksaddr("0.0.0.0:0"), "", "")
+	response, err := socks.Handshake(control, socks.UDPAssociate, testfixture.Endpoint("0.0.0.0:0"))
 	if err != nil {
 		return err
 	}
-	udp, err := net.Dial("udp", response.Bind.String())
+	udp, err := net.Dial("udp", netaddr.UDP(response).String())
 	if err != nil {
 		return err
 	}
-	pc := socks.NewAssociatePacketConn(udp, M.ParseSocksaddrHostPort(target.Host, target.Port), control)
+	pc := testfixture.SOCKSPacket(udp, control)
 	defer pc.Close()
 	_ = pc.SetDeadline(time.Now().Add(5 * time.Second))
-	if _, err = pc.WriteTo(payload, M.ParseSocksaddrHostPort(target.Host, target.Port)); err != nil {
+	if _, err = pc.WriteTo(payload, netaddr.UDP(access.Endpoint{Host: target.Host, Port: target.Port})); err != nil {
 		return err
 	}
 	b := make([]byte, 65535)
@@ -334,7 +334,7 @@ func TestPhase11NativeSelfInteropMatrix(t *testing.T) {
 		stack := make([]byte, 1<<20)
 		n := runtime.Stack(stack, true)
 		text := string(stack[:n])
-		pending := strings.Contains(text, "github.com/sagernet/sing-quic/") || strings.Contains(text, "github.com/enfein/mieru/v3/pkg/protocol") || strings.Contains(text, "clientruntime.(*Manager).serveUDP")
+		pending := strings.Contains(text, "github.com/ike-sh/Splicore/protocol/hysteria2/backend.") || strings.Contains(text, "github.com/ike-sh/Splicore/protocol/tuic/backend.") || strings.Contains(text, "github.com/enfein/mieru/v3/pkg/protocol") || strings.Contains(text, "clientruntime.(*Manager).serveUDP")
 		if !pending {
 			break
 		}

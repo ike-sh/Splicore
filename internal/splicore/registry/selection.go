@@ -2,9 +2,9 @@ package registry
 
 import (
 	"encoding/json"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/jsonstrict"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/jsonstrict"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	"slices"
 )
 

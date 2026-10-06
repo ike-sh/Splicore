@@ -9,13 +9,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/client"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	P "github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
-	"github.com/sagernet/sing-box/internal/splicore/hostnetwork"
-	"github.com/sagernet/sing-box/internal/splicore/nativetun"
-	M "github.com/sagernet/sing/common/metadata"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/netaddr"
+	"github.com/ike-sh/Splicore/internal/splicore/hostnetwork"
+	"github.com/ike-sh/Splicore/internal/splicore/nativetun"
 )
 
 type tunIngress struct {
@@ -260,7 +260,7 @@ func (h *tunIngress) servePacket(ctx context.Context, s *session, gen *snapshot,
 			return
 		}
 		remote.SetWriteDeadline(time.Now().Add(5 * time.Second))
-		n, e := remote.WriteTo(payload[:size], M.ParseSocksaddrHostPort(resolved.Host, resolved.Port))
+		n, e := remote.WriteTo(payload[:size], netaddr.UDP(resolved))
 		if e != nil {
 			health.failed()
 			return

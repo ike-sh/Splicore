@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	P "github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
+	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
 )
 
 func TestPhase15SystemBootstrapCannotOutliveEngine(t *testing.T) {

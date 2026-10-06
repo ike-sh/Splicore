@@ -8,10 +8,10 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	P "github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
-	"github.com/sagernet/sing-box/internal/splicore/testkit"
-	"github.com/sagernet/sing-box/internal/splicore/underlay"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
+	"github.com/ike-sh/Splicore/internal/splicore/testkit"
+	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 )
 
 func TestUnderlayDNSBootstrapDoTAndHealth(t *testing.T) {

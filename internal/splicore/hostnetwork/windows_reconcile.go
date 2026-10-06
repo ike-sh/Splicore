@@ -6,7 +6,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 )
 
 // ReconcileWindowsBypass changes the desired set of an existing generation.

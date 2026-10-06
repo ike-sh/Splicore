@@ -3,11 +3,11 @@ package registry_test
 import (
 	"context"
 	"encoding/json"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	v "github.com/sagernet/sing-box/internal/splicore/protocol/vless"
-	"github.com/sagernet/sing-box/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	v "github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
+	"github.com/ike-sh/Splicore/internal/splicore/registry"
 	"testing"
 	"time"
 )

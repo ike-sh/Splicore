@@ -11,14 +11,13 @@ import (
 	"testing"
 	"time"
 
-	mDNS "github.com/miekg/dns"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/client"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	module "github.com/sagernet/sing-box/internal/splicore/protocol/mieru"
-	"github.com/sagernet/sing-box/internal/splicore/testkit"
-	"github.com/sagernet/sing-box/internal/splicore/underlay"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	module "github.com/ike-sh/Splicore/internal/splicore/protocol/mieru"
+	"github.com/ike-sh/Splicore/internal/splicore/testkit"
+	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 )
 
 func TestUnderlayMieruConcurrentRuntimesAndTransportOwnership(t *testing.T) {
@@ -150,11 +149,8 @@ func TestUnderlayNativeSystemDNSRejectsIndependentSocketPaths(t *testing.T) {
 	}
 	defer l.Close()
 	d, _ := x.Factory.New(underlay.Scope{Purpose: underlay.SystemDNS})
-	tpt := protectedLocalDNS{f: x.Factory, d: d}
 	for _, host := range []string{"printer.local.", "outside.fixture.invalid."} {
-		q := new(mDNS.Msg)
-		q.SetQuestion(host, mDNS.TypeA)
-		if _, err := tpt.Exchange(context.Background(), q); err == nil {
+		if _, err := d.LookupNetIP(context.Background(), "ip", host); err == nil {
 			t.Fatal("unverified system path admitted")
 		}
 	}

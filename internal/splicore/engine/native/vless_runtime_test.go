@@ -7,7 +7,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"github.com/sagernet/sing-box/internal/splicore/underlay"
+	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"io"
 	"net"
 	"os"
@@ -15,17 +15,13 @@ import (
 	"testing"
 	"time"
 
-	boxtls "github.com/sagernet/sing-box/common/tls"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/domain/secret"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	v "github.com/sagernet/sing-box/internal/splicore/protocol/vless"
-	"github.com/sagernet/sing-box/internal/splicore/testkit"
-	"github.com/sagernet/sing-box/option"
-	upstream "github.com/sagernet/sing-vmess/vless"
-	"github.com/sagernet/sing/common/logger"
-	M "github.com/sagernet/sing/common/metadata"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	v "github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
+	"github.com/ike-sh/Splicore/internal/splicore/testkit"
 )
 
 // Every endpoint is owned by this test and bound to loopback. Cleanup closes
@@ -145,45 +141,90 @@ func TestVLESSNonVisionDefaultRaceTraffic(t *testing.T) {
 				t.Fatal(err)
 			}
 			h.Activate()
-			var tlsConfig boxtls.Config
-			if security != v.Plain {
-				options := option.OutboundTLSOptions{Enabled: true, ServerName: sni}
+			build := func(user int) (ports.ClientDialer, error) {
+				nid := id()
+				cred := in.Credentials[user]
+				cred.OwnerAccountID = nil
+				cred.OwnerNodeID = &nid
+				options, _ := json.Marshal(v.ClientOptions{Security: security, Flow: v.NoFlow, PacketEncoding: "xudp"})
+				node := client.RemoteNode{ID: nid, Name: "synthetic-vless", Protocol: v.Key(security), Endpoint: endpoint, CredentialID: cred.ID, Transport: client.Transport{Kind: "tcp"}, Security: client.Security{Kind: string(security)}, Options: client.Options{Schema: 1, Data: options}}
+				if security != v.Plain {
+					node.Security.TLS = access.ClientTLS{Enabled: true, ServerName: sni}
+				}
 				if security == v.TLS {
-					options.Certificate = []string{tlsMaterial.CACertificate}
+					node.Security.TLS.Trust = "explicit_ca"
+					node.Security.TLS.CACertificate = tlsMaterial.CACertificate
 				}
 				if security == v.Reality {
-					options.UTLS = &option.OutboundUTLSOptions{Enabled: true, Fingerprint: "chrome"}
-					options.Reality = &option.OutboundRealityOptions{Enabled: true, PublicKey: string(public), ShortID: "abcd"}
+					node.Security.TLS.Trust = "reality"
+					node.Security.TLS.RealityPublicKey = string(public)
+					node.Security.TLS.RealityShortID = "abcd"
 				}
-				tlsConfig, err = boxtls.NewClient(h.ctx, logger.NOP(), endpoint.Host, options)
+				d, err := (VLESSOutboundFactory{}).Build(h.ctx, node, cred)
+				if err != nil {
+					return nil, err
+				}
+				t.Cleanup(func() { _ = d.Close() })
+				return d, nil
+			}
+			dial := func(user int) (net.Conn, error) {
+				d, err := build(user)
+				if err != nil {
+					return nil, err
+				}
+				dst := access.Endpoint{Host: "127.0.0.1", Port: uint16(echo.Addr().(*net.TCPAddr).Port)}
+				c, err := d.DialContext(ctx, dst)
+				if err == nil {
+					_ = c.SetDeadline(time.Now().Add(15 * time.Second))
+				}
+				return c, err
+			}
+			t.Run("UDP-fragments-and-two-users", func(t *testing.T) {
+				target, err := net.ListenPacket("udp4", "127.0.0.1:0")
 				if err != nil {
 					t.Fatal(err)
 				}
-			}
-			dial := func(user int) (net.Conn, error) {
-				raw, err := (&net.Dialer{}).DialContext(ctx, "tcp", net.JoinHostPort(endpoint.Host, portString(endpoint.Port)))
-				if err != nil {
-					return nil, err
-				}
-				_ = raw.SetDeadline(time.Now().Add(15 * time.Second))
-				var c net.Conn = raw
-				if tlsConfig != nil {
-					c, err = boxtls.ClientHandshake(ctx, raw, tlsConfig)
+				done := make(chan struct{})
+				go func() {
+					defer close(done)
+					b := make([]byte, 65535)
+					for {
+						n, a, err := target.ReadFrom(b)
+						if err != nil {
+							return
+						}
+						_, _ = target.WriteTo(b[:n], a)
+					}
+				}()
+				defer func() { _ = target.Close(); <-done }()
+				dst := access.Endpoint{Host: "127.0.0.1", Port: uint16(target.LocalAddr().(*net.UDPAddr).Port)}
+				for user := range 2 {
+					d, err := build(user)
 					if err != nil {
-						_ = raw.Close()
-						return nil, err
+						t.Fatal(err)
+					}
+					p, err := d.(ports.ClientPacketDialer).ListenPacket(ctx, dst)
+					if err != nil {
+						t.Fatal(err)
+					}
+					defer p.Close()
+					for _, size := range []int{1, 900, 4096, 8192} {
+						_ = p.SetDeadline(time.Now().Add(5 * time.Second))
+						payload := bytes.Repeat([]byte{byte(user + 1)}, size)
+						if _, err := p.WriteTo(payload, nil); err != nil {
+							t.Fatal(err)
+						}
+						b := make([]byte, 65535)
+						n, _, err := p.ReadFrom(b)
+						if err != nil {
+							t.Fatal(err)
+						}
+						if !bytes.Equal(payload, b[:n]) {
+							t.Fatal("UDP payload integrity")
+						}
 					}
 				}
-				client, err := upstream.NewClient(in.Credentials[user].Payload.(access.UUIDPayload).UUID.Reveal(), "", logger.NOP())
-				if err == nil {
-					c, err = client.DialConn(c, M.SocksaddrFromNet(echo.Addr()))
-				}
-				if err != nil {
-					_ = raw.Close()
-					return nil, err
-				}
-				return c, nil
-			}
+			})
 			transfer := func(user, size int) error {
 				c, err := dial(user)
 				if err != nil {

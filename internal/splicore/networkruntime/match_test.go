@@ -2,8 +2,8 @@ package networkruntime
 
 import (
 	"fmt"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	P "github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
 	"net/netip"
 	"sync"
 	"testing"

@@ -6,16 +6,16 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/sagernet/sing-box/internal/splicore/application"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	P "github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
-	"github.com/sagernet/sing-box/internal/splicore/networkruntime"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	"github.com/sagernet/sing-box/internal/splicore/registry"
-	M "github.com/sagernet/sing/common/metadata"
-	"github.com/sagernet/sing/protocol/socks"
-	"github.com/sagernet/sing/protocol/socks/socks5"
+	"github.com/ike-sh/Splicore/internal/splicore/application"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/netaddr"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/testfixture"
+	"github.com/ike-sh/Splicore/internal/splicore/networkruntime"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/socks"
+	"github.com/ike-sh/Splicore/internal/splicore/registry"
 	"io"
 	"net"
 	"net/http"
@@ -72,22 +72,22 @@ func heldUDP(t *testing.T, port uint16, target access.Endpoint) net.PacketConn {
 		t.Fatal(err)
 	}
 	_ = control.SetDeadline(time.Now().Add(15 * time.Second))
-	response, err := socks.ClientHandshake5(control, socks5.CommandUDPAssociate, M.ParseSocksaddr("0.0.0.0:0"), "", "")
+	response, err := socks.Handshake(control, socks.UDPAssociate, testfixture.Endpoint("0.0.0.0:0"))
 	if err != nil {
 		control.Close()
 		t.Fatal(err)
 	}
-	udp, err := net.Dial("udp", response.Bind.String())
+	udp, err := net.Dial("udp", netaddr.UDP(response).String())
 	if err != nil {
 		control.Close()
 		t.Fatal(err)
 	}
-	return socks.NewAssociatePacketConn(udp, M.ParseSocksaddrHostPort(target.Host, target.Port), control)
+	return testfixture.SOCKSPacket(udp, control)
 }
 func checkUDP(t *testing.T, pc net.PacketConn, target access.Endpoint, payload string) {
 	t.Helper()
 	_ = pc.SetDeadline(time.Now().Add(5 * time.Second))
-	if _, err := pc.WriteTo([]byte(payload), M.ParseSocksaddrHostPort(target.Host, target.Port)); err != nil {
+	if _, err := pc.WriteTo([]byte(payload), netaddr.UDP(access.Endpoint{Host: target.Host, Port: target.Port})); err != nil {
 		t.Fatal(err)
 	}
 	b := make([]byte, 65535)

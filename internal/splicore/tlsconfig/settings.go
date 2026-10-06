@@ -7,8 +7,8 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"strings"
 )
 

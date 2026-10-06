@@ -1,7 +1,7 @@
 package registry
 
 import (
-	"github.com/sagernet/sing-box/internal/splicore/engine/native"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/native"
 	"testing"
 )
 

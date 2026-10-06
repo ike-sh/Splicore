@@ -6,7 +6,7 @@ import (
 	"context"
 	"net"
 
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 )
 
 func Listen(string) (net.Listener, error) {

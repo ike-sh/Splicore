@@ -6,9 +6,9 @@ import (
 	"net/netip"
 	"net/url"
 
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/networkruntime"
-	"github.com/sagernet/sing-box/internal/splicore/underlay"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/networkruntime"
+	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 )
 
 func resolveNode(ctx context.Context, b *networkruntime.Engine, host string, resolve bool) ([]netip.Addr, error) {

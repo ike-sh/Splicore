@@ -2,23 +2,28 @@ package native
 
 import (
 	"context"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/client"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/jsonstrict"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	module "github.com/sagernet/sing-box/internal/splicore/protocol/hysteria2"
-	"github.com/sagernet/sing-box/option"
-	upstream "github.com/sagernet/sing-box/protocol/hysteria2"
+	"crypto/tls"
+	"net"
+
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/clientconfig"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/clientio"
+	"github.com/ike-sh/Splicore/internal/splicore/jsonstrict"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	module "github.com/ike-sh/Splicore/internal/splicore/protocol/hysteria2"
+
+	"github.com/ike-sh/Splicore/protocol/hysteria2/backend"
 )
 
 type Hysteria2OutboundFactory struct{}
 
 func (Hysteria2OutboundFactory) Capability() ports.OutboundCapability {
-	return clientCapability("hysteria2", true, true, false)
+	return clientconfig.Capability("hysteria2", true, true, false)
 }
 func (Hysteria2OutboundFactory) Validate(n client.RemoteNode, c access.Credential) error {
-	if err := clientOwnership(n, c); err != nil {
+	if err := clientconfig.Ownership(n, c); err != nil {
 		return err
 	}
 	var empty struct{}
@@ -31,5 +36,46 @@ func (f Hysteria2OutboundFactory) Build(ctx context.Context, n client.RemoteNode
 	if err := f.Validate(n, c); err != nil {
 		return nil, err
 	}
-	return buildClientBox(ctx, "hysteria2", &option.Hysteria2OutboundOptions{ServerOptions: option.ServerOptions{Server: n.Endpoint.Host, ServerPort: n.Endpoint.Port}, Password: c.Payload.(access.PasswordPayload).Password.Reveal(), OutboundTLSOptionsContainer: clientTLS(n)}, upstream.RegisterOutbound)
+	tlsConfig, err := clientconfig.TLS(n.Security.TLS, n.Endpoint.Host)
+	if err != nil {
+		return nil, err
+	}
+	tlsConfig.MinVersion = tls.VersionTLS13
+	socket, err := clientconfig.PacketSocket(ctx, n.Endpoint)
+	if err != nil {
+		return nil, err
+	}
+	config := backend.ClientConfig{TLS: tlsConfig, Password: c.Payload.(access.PasswordPayload).Password.Reveal(), Socket: socket}
+	return &hysteria2Dialer{config: config, owner: clientio.New()}, nil
 }
+
+type hysteria2Dialer struct {
+	config backend.ClientConfig
+	owner  *clientio.Owner
+}
+
+func (d *hysteria2Dialer) DialContext(ctx context.Context, dst access.Endpoint) (net.Conn, error) {
+	ctx, done, err := d.owner.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer done()
+	c, err := backend.OpenTCP(ctx, d.config, dst)
+	if err != nil {
+		return nil, err
+	}
+	return d.owner.Conn(c)
+}
+func (d *hysteria2Dialer) ListenPacket(ctx context.Context, dst access.Endpoint) (net.PacketConn, error) {
+	ctx, done, err := d.owner.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer done()
+	p, err := backend.OpenPacket(ctx, d.config, dst)
+	if err != nil {
+		return nil, err
+	}
+	return d.owner.Packet(p)
+}
+func (d *hysteria2Dialer) Close() error { d.owner.Close(); return nil }

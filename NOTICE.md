@@ -21,3 +21,27 @@ Splicore identity. No Splicore binary is published in this phase.
 
 See [upstream provenance](docs/UPSTREAM.md) and
 [license boundaries](docs/architecture/LICENSE_BOUNDARIES.md).
+
+## Phase 17 internal development snapshot — 2026-10-06
+
+The Phase 0 paragraph above records the preserved baseline. The current internal
+development module is `github.com/ike-sh/Splicore`. The inherited sing-box command,
+runtime trees and SagerNet Go dependencies have been removed from this working
+snapshot. This does not remove the derivative provenance, upstream copyright or
+GPL terms. Independent protocol adapters retain source-reference attribution in
+the implementation evidence; reference peers are test processes only.
+
+Current third-party module versions and preserved license texts are listed in
+[third-party notices](THIRD_PARTY_NOTICES.md). The original embedded
+`common/windivert/assets/WinDivert64.sys` and its license remain required Windows
+build resources. At that development checkpoint, no Phase 17 publication, freeze or release
+had occurred.
+
+
+## Consolidated local freeze metadata
+
+Phase 16 and Phase 17 were consolidated into one local Independent Core
+Transition freeze commit; see
+[the freeze report](docs/reports/PHASE17_INDEPENDENT_CORE_FREEZE_REPORT.md).
+No publication or release is included. The attribution and license terms above
+remain preserved.

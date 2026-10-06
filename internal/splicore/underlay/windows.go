@@ -6,8 +6,7 @@ import (
 	"net/netip"
 	"syscall"
 
-	"github.com/sagernet/sing-box/internal/splicore/hostnetwork"
-	"github.com/sagernet/sing/common/control"
+	"github.com/ike-sh/Splicore/internal/splicore/hostnetwork"
 )
 
 // WindowsBackend combines per-socket interface protection with the existing
@@ -54,12 +53,4 @@ func (b *WindowsBackend) Reconcile(ctx context.Context, endpoints []Endpoint) er
 		return err
 	}
 	return b.Lease.ReconcileWindowsBypass(ctx, p)
-}
-
-// InterfaceControl reuses sing's public binding primitive, including its Windows
-// IP_UNICAST_IF/IPV6_UNICAST_IF handling. Native adapters reuse the same primitive
-// through their protected NetworkManager rather than duplicating socket code.
-func InterfaceControl(finder control.InterfaceFinder, name string, index int) func(context.Context, Scope, string, string, syscall.RawConn) error {
-	bind := control.BindToInterface(finder, name, index)
-	return func(_ context.Context, _ Scope, n, a string, r syscall.RawConn) error { return bind(n, a, r) }
 }

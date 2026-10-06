@@ -2,11 +2,11 @@ package tuic
 
 import (
 	"encoding/json"
-	"github.com/sagernet/sing-box/internal/splicore/credential"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/secret"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	"github.com/sagernet/sing-box/internal/splicore/protocol/creation"
+	"github.com/ike-sh/Splicore/internal/splicore/credential"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/creation"
 	"strings"
 )
 

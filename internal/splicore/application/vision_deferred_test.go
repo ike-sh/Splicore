@@ -12,16 +12,16 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/sagernet/sing-box/internal/splicore/api"
-	"github.com/sagernet/sing-box/internal/splicore/application"
-	"github.com/sagernet/sing-box/internal/splicore/cli"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	v "github.com/sagernet/sing-box/internal/splicore/protocol/vless"
-	"github.com/sagernet/sing-box/internal/splicore/registry"
-	"github.com/sagernet/sing-box/internal/splicore/transport"
-	"github.com/sagernet/sing-box/internal/splicore/version"
+	"github.com/ike-sh/Splicore/internal/splicore/api"
+	"github.com/ike-sh/Splicore/internal/splicore/application"
+	"github.com/ike-sh/Splicore/internal/splicore/cli"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	v "github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
+	"github.com/ike-sh/Splicore/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/transport"
+	"github.com/ike-sh/Splicore/internal/splicore/version"
 )
 
 type visionCountingEngine struct {

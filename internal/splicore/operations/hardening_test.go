@@ -9,11 +9,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sagernet/sing-box/internal/splicore/clientruntime"
-	"github.com/sagernet/sing-box/internal/splicore/config"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/client"
-	"github.com/sagernet/sing-box/internal/splicore/version"
+	"github.com/ike-sh/Splicore/internal/splicore/clientruntime"
+	"github.com/ike-sh/Splicore/internal/splicore/config"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/version"
 )
 
 type phase15DiagnosticSource struct {

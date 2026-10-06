@@ -2,8 +2,8 @@ package access
 
 import (
 	"encoding/base64"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/domain/secret"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
 )
 
 // PrivateKeyPayload is server key material, separate from client authentication.

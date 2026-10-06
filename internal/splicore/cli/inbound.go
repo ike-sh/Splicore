@@ -3,12 +3,12 @@ package cli
 import (
 	"context"
 	"flag"
-	"github.com/sagernet/sing-box/internal/splicore/application"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	"github.com/sagernet/sing-box/internal/splicore/registry"
-	"github.com/sagernet/sing-box/internal/splicore/secretvault"
-	"github.com/sagernet/sing-box/internal/splicore/transport"
+	"github.com/ike-sh/Splicore/internal/splicore/application"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/secretvault"
+	"github.com/ike-sh/Splicore/internal/splicore/transport"
 	"io"
 	"os"
 )

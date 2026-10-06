@@ -5,17 +5,16 @@ import (
 	"bufio"
 	"context"
 	"errors"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/client"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	P "github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
-	"github.com/sagernet/sing-box/internal/splicore/hostnetwork"
-	"github.com/sagernet/sing-box/internal/splicore/networkruntime"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	"github.com/sagernet/sing-box/internal/splicore/registry"
-	"github.com/sagernet/sing-box/internal/splicore/underlay"
-	M "github.com/sagernet/sing/common/metadata"
-	"github.com/sagernet/sing/protocol/socks/socks5"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
+	"github.com/ike-sh/Splicore/internal/splicore/hostnetwork"
+	"github.com/ike-sh/Splicore/internal/splicore/networkruntime"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/socks"
+	"github.com/ike-sh/Splicore/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"io"
 	"net"
 	"reflect"
@@ -608,53 +607,36 @@ func (m *Manager) serve(ctx context.Context, s *session, kind string) {
 	m.serveSOCKS(ctx, s, reader, gen)
 }
 func (m *Manager) serveSOCKS(ctx context.Context, s *session, reader *bufio.Reader, gen *snapshot) {
-	auth, err := socks5.ReadAuthRequest(reader)
+	if err := socks.AcceptAuth(reader, s.local); err != nil {
+		return
+	}
+	command, target, err := socks.ReadCommand(reader)
 	if err != nil {
 		return
 	}
-	accepted := false
-	for _, method := range auth.Methods {
-		if method == socks5.AuthTypeNotRequired {
-			accepted = true
-		}
-	}
-	method := socks5.AuthTypeNoAcceptedMethods
-	if accepted {
-		method = socks5.AuthTypeNotRequired
-	}
-	if socks5.WriteAuthResponse(s.local, socks5.AuthResponse{Method: method}) != nil || !accepted {
+	reply := func(code byte) { _ = socks.Respond(s.local, code, s.local.LocalAddr()) }
+	if command != socks.Connect && command != socks.UDPAssociate {
+		reply(socks.UnsupportedCommand)
 		return
 	}
-	req, err := socks5.ReadRequest(reader)
-	if err != nil {
-		return
-	}
-	reply := func(code byte) {
-		_ = socks5.WriteResponse(s.local, socks5.Response{ReplyCode: code, Bind: M.SocksaddrFromNet(s.local.LocalAddr())})
-	}
-	if req.Command != socks5.CommandConnect && req.Command != socks5.CommandUDPAssociate {
-		reply(socks5.ReplyCodeUnsupported)
-		return
-	}
-	target := access.Endpoint{Host: req.Destination.AddrString(), Port: req.Destination.Port}
-	if req.Command == socks5.CommandConnect && target.Validate() != nil {
-		reply(socks5.ReplyCodeAddressTypeUnsupported)
+	if command == socks.Connect && target.Validate() != nil {
+		reply(socks.UnsupportedAddress)
 		return
 	}
 	oid, ok := gen.routes[s.inbound]
 	if !ok || gen.outbounds[oid] == nil {
-		reply(socks5.ReplyCodeFailure)
+		reply(socks.Failure)
 		return
 	}
-	if req.Command == socks5.CommandUDPAssociate {
+	if command == socks.UDPAssociate {
 		m.mu.Lock()
 		s.kind = "udp_association"
 		m.mu.Unlock()
-		m.serveUDP(ctx, s, reader, req.Destination, gen)
+		m.serveUDP(ctx, s, reader, target, gen)
 		return
 	}
 	m.serveStream(ctx, s, gen, target, reader, reply, func() error {
-		return socks5.WriteResponse(s.local, socks5.Response{ReplyCode: socks5.ReplyCodeSuccess, Bind: M.SocksaddrFromNet(s.local.LocalAddr())})
+		return socks.Respond(s.local, socks.Succeeded, s.local.LocalAddr())
 	})
 }
 
@@ -662,11 +644,11 @@ func (m *Manager) serveSOCKS(ctx context.Context, s *session, reader *bufio.Read
 func (m *Manager) serveStream(ctx context.Context, s *session, gen *snapshot, target access.Endpoint, reader io.Reader, reply func(byte), connected func() error) {
 	selected, resolved, routeErr := selectRoute(ctx, gen, s.inbound, target, "tcp", nil)
 	if routeErr != nil {
-		reply(socks5.ReplyCodeFailure)
+		reply(socks.Failure)
 		return
 	}
 	if selected.Selected.Kind == P.Reject {
-		reply(socks5.ReplyCodeNotAllowed)
+		reply(socks.NotAllowed)
 		return
 	}
 	oid := selectedOutbound(selected.Selected)
@@ -692,7 +674,7 @@ func (m *Manager) serveStream(ctx context.Context, s *session, gen *snapshot, ta
 	cancel()
 	if err != nil {
 		adapter.failed()
-		reply(socks5.ReplyCodeForError(err))
+		reply(socks.ErrorReply(err))
 		return
 	}
 	m.mu.Lock()

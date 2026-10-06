@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sagernet/sing-box/internal/splicore/transport"
+	"github.com/ike-sh/Splicore/internal/splicore/transport"
 )
 
 func TestPhase15HTTPShutdownJoinsApplicationRequests(t *testing.T) {

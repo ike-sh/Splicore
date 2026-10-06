@@ -10,18 +10,18 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sagernet/sing-box/internal/splicore/api"
-	"github.com/sagernet/sing-box/internal/splicore/application"
-	"github.com/sagernet/sing-box/internal/splicore/config"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/engine/native"
-	"github.com/sagernet/sing-box/internal/splicore/operations"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	"github.com/sagernet/sing-box/internal/splicore/registry"
-	"github.com/sagernet/sing-box/internal/splicore/secretvault"
-	"github.com/sagernet/sing-box/internal/splicore/storage/sqlite"
-	"github.com/sagernet/sing-box/internal/splicore/transport"
-	"github.com/sagernet/sing-box/internal/splicore/version"
+	"github.com/ike-sh/Splicore/internal/splicore/api"
+	"github.com/ike-sh/Splicore/internal/splicore/application"
+	"github.com/ike-sh/Splicore/internal/splicore/config"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/native"
+	"github.com/ike-sh/Splicore/internal/splicore/operations"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/secretvault"
+	"github.com/ike-sh/Splicore/internal/splicore/storage/sqlite"
+	"github.com/ike-sh/Splicore/internal/splicore/transport"
+	"github.com/ike-sh/Splicore/internal/splicore/version"
 )
 
 func Serve(ctx context.Context, c config.Config) (err error) {
@@ -76,7 +76,7 @@ func Serve(ctx context.Context, c config.Config) (err error) {
 		defer cancel()
 		err = errors.Join(err, service.CloseRuntime(shutdown))
 	}()
-	outbounds, err := registry.NewOutbounds(native.SnellOutboundFactory{}, native.Hysteria2OutboundFactory{}, native.TUICOutboundFactory{}, native.VLESSOutboundFactory{}, native.MieruOutboundFactory{})
+	outbounds, err := registry.NewOutbounds(native.SnellOutboundFactory{}, native.Hysteria2OutboundFactory{}, native.TUICOutboundFactory{}, native.VLESSOutboundFactory{}, native.MieruOutboundFactory{}, native.ShadowsocksOutboundFactory{})
 	if err != nil {
 		return err
 	}

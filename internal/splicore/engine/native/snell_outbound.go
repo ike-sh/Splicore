@@ -2,93 +2,133 @@ package native
 
 import (
 	"context"
-	box "github.com/sagernet/sing-box"
-	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/client"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	module "github.com/sagernet/sing-box/internal/splicore/protocol/snell"
-	"github.com/sagernet/sing-box/internal/splicore/underlay"
-	"github.com/sagernet/sing-box/option"
-	upstream "github.com/sagernet/sing-box/protocol/snell"
-	M "github.com/sagernet/sing/common/metadata"
 	"net"
-	"strconv"
+	"time"
+
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/clientconfig"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/clientio"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/netaddr"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	module "github.com/ike-sh/Splicore/internal/splicore/protocol/snell"
+	"github.com/ike-sh/Splicore/internal/splicore/underlay"
+	"github.com/ike-sh/Splicore/protocol/snell/wire"
 )
 
-// SnellOutboundFactory belongs to the existing native engine; no wire implementation.
 type SnellOutboundFactory struct{}
 
 func (SnellOutboundFactory) Capability() ports.OutboundCapability {
-	c := clientCapability("snell", false, false, false)
+	c := clientconfig.Capability("snell", false, false, false)
 	c.UDPDomainResolution = "local"
 	return c
 }
 func (SnellOutboundFactory) Validate(n client.RemoteNode, c access.Credential) error {
-	if err := n.Validate(); err != nil {
-		return err
+	if e := clientconfig.Ownership(n, c); e != nil {
+		return e
 	}
 	if n.Transport.Kind != "tcp" || n.Security.Kind != "none" {
 		return identity.Err(identity.Invalid, "unsupported Snell client settings")
 	}
-	s, err := module.Decode(n.Options.Data)
-	if err != nil {
-		return err
+	s, e := module.Decode(n.Options.Data)
+	if e != nil {
+		return e
 	}
-	if n.Protocol != module.Key(s.Version) || c.OwnerNodeID == nil || *c.OwnerNodeID != n.ID || c.ID != n.CredentialID {
+	if n.Protocol != module.Key(s.Version) {
 		return identity.Err(identity.Invalid, "node protocol or credential ownership mismatch")
 	}
 	return (module.Module{Version: s.Version}).ValidateCredential(c)
 }
 func (f SnellOutboundFactory) Build(ctx context.Context, n client.RemoteNode, c access.Credential) (ports.ClientDialer, error) {
-	if err := f.Validate(n, c); err != nil {
-		return nil, err
+	if e := f.Validate(n, c); e != nil {
+		return nil, e
+	}
+	d, e := underlay.DialerFrom(ctx, underlay.PurposeFrom(ctx, underlay.ProxyUnderlay))
+	if e != nil {
+		return nil, e
+	}
+	resolver, e := underlay.DialerFrom(ctx, underlay.DNSBootstrap)
+	if e != nil {
+		return nil, e
 	}
 	s, _ := module.Decode(n.Options.Data)
 	v, _ := module.ClientVersion(s.Version)
-
-	opts := &option.SnellOutboundOptions{AbstractSnellOutboundOptions: option.AbstractSnellOutboundOptions{ServerOptions: option.ServerOptions{Server: n.Endpoint.Host, ServerPort: n.Endpoint.Port}, PSK: c.Payload.(access.PSKPayload).Key.Reveal()}, Version: v}
-	d, err := buildClientBox(ctx, "snell", opts, upstream.RegisterOutbound)
-	if err == nil {
-		d.(*snellDialer).resolveUDP = true
+	k, e := wire.NewKey(v, c.Payload.(access.PSKPayload).Key.Reveal())
+	if e != nil {
+		return nil, e
 	}
-	return d, err
+	return &snellDialer{protected: d, resolver: resolver, endpoint: n.Endpoint, key: k, owner: clientio.New()}, nil
 }
 
 type snellDialer struct {
-	resolver   *underlay.Dialer
-	box        *box.Box
-	outbound   adapter.Outbound
-	cancel     context.CancelFunc
-	resolveUDP bool
+	protected, resolver *underlay.Dialer
+	endpoint            access.Endpoint
+	key                 *wire.Key
+	owner               *clientio.Owner
 }
 
-func (d *snellDialer) DialContext(ctx context.Context, e access.Endpoint) (net.Conn, error) {
-	return d.outbound.DialContext(ctx, "tcp", M.ParseSocksaddrHostPort(e.Host, e.Port))
+func (d *snellDialer) dial(ctx context.Context) (net.Conn, error) {
+	raw, e := d.protected.DialContext(ctx, "tcp", net.JoinHostPort(d.endpoint.Host, portString(d.endpoint.Port)))
+	if e != nil {
+		return nil, e
+	}
+	return d.owner.Conn(raw)
 }
-func (d *snellDialer) Close() error { d.cancel(); return d.box.Close() }
-func (d *snellDialer) ListenPacket(ctx context.Context, e access.Endpoint) (net.PacketConn, error) {
-	if d.resolveUDP && net.ParseIP(e.Host) == nil {
-		// The frozen native server path unmaps a domain response into a domain
-		// address which Snell's IP-only response framing cannot encode. Resolve
-		// this client flow once; preserve the canonical domain and the wire codec.
-		address, err := d.resolver.LookupNetIP(ctx, "ip", e.Host)
-		if err != nil {
-			return nil, err
+func (d *snellDialer) DialContext(ctx context.Context, dst access.Endpoint) (net.Conn, error) {
+	ctx, done, e := d.owner.Begin(ctx)
+	if e != nil {
+		return nil, e
+	}
+	defer done()
+	raw, e := d.dial(ctx)
+	if e != nil {
+		return nil, e
+	}
+	c, e := wire.ClientTCP(raw, d.key, dst)
+	if e != nil {
+		_ = raw.Close()
+		return nil, e
+	}
+	return c, nil
+}
+func (d *snellDialer) ListenPacket(ctx context.Context, dst access.Endpoint) (net.PacketConn, error) {
+	ctx, done, e := d.owner.Begin(ctx)
+	if e != nil {
+		return nil, e
+	}
+	defer done()
+	if e = dst.Validate(); e != nil {
+		return nil, e
+	}
+	// Existing managed Snell UDP resolves its connected flow locally; domain
+	// responses cannot be represented by the protocol's IP-only reply codec.
+	if net.ParseIP(dst.Host) == nil {
+		ips, e := d.resolver.LookupNetIP(ctx, "ip", dst.Host)
+		if e != nil {
+			return nil, e
 		}
-		if len(address) == 0 {
+		if len(ips) == 0 {
 			return nil, net.InvalidAddrError("domain has no addresses")
 		}
-		target := M.ParseSocksaddr(net.JoinHostPort(address[0].String(), strconv.Itoa(int(e.Port))))
-		pc, err := d.outbound.ListenPacket(ctx, target)
-		if err != nil {
-			return nil, err
-		}
-		return &resolvedClientPacket{PacketConn: pc, target: target}, nil
+		dst.Host = ips[0].String()
 	}
-	return d.outbound.ListenPacket(ctx, M.ParseSocksaddrHostPort(e.Host, e.Port))
+	raw, e := d.dial(ctx)
+	if e != nil {
+		return nil, e
+	}
+	stop := context.AfterFunc(ctx, func() { _ = raw.Close() })
+	defer stop()
+	_ = raw.SetDeadline(time.Now().Add(5 * time.Second))
+	p, e := wire.ClientPacket(raw, d.key, dst)
+	if e != nil {
+		_ = raw.Close()
+		return nil, e
+	}
+	_ = raw.SetDeadline(time.Time{})
+	return &resolvedClientPacket{PacketConn: p, target: netaddr.UDP(dst)}, nil
 }
+func (d *snellDialer) Close() error { d.owner.Close(); return nil }
 
 type resolvedClientPacket struct {
 	net.PacketConn

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/testfixture"
 	"io"
 	"net"
 	"net/http"
@@ -13,13 +14,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/client"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/registry"
-	M "github.com/sagernet/sing/common/metadata"
-	"github.com/sagernet/sing/protocol/socks"
-	"github.com/sagernet/sing/protocol/socks/socks5"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/socks"
+	"github.com/ike-sh/Splicore/internal/splicore/registry"
 )
 
 func TestHTTPMixedLifecycleBufferedConnectPlainHTTPAndSOCKS(t *testing.T) {
@@ -111,7 +110,7 @@ func TestHTTPMixedLifecycleBufferedConnectPlainHTTPAndSOCKS(t *testing.T) {
 			t.Fatal(e)
 		}
 		c.SetDeadline(time.Now().Add(5 * time.Second))
-		if _, e = socks.ClientHandshake5(c, socks5.CommandConnect, M.SocksaddrFromNet(echo.Addr()), "", ""); e != nil {
+		if _, e = socks.Handshake(c, socks.Connect, testfixture.Endpoint((echo.Addr()).String())); e != nil {
 			t.Fatal(e)
 		}
 		c.Write([]byte("socks"))

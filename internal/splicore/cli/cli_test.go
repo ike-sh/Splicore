@@ -12,14 +12,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sagernet/sing-box/internal/splicore/api"
-	"github.com/sagernet/sing-box/internal/splicore/application"
-	"github.com/sagernet/sing-box/internal/splicore/cli"
-	"github.com/sagernet/sing-box/internal/splicore/config"
-	"github.com/sagernet/sing-box/internal/splicore/registry"
-	"github.com/sagernet/sing-box/internal/splicore/storage/sqlite"
-	"github.com/sagernet/sing-box/internal/splicore/transport"
-	"github.com/sagernet/sing-box/internal/splicore/version"
+	"github.com/ike-sh/Splicore/internal/splicore/api"
+	"github.com/ike-sh/Splicore/internal/splicore/application"
+	"github.com/ike-sh/Splicore/internal/splicore/cli"
+	"github.com/ike-sh/Splicore/internal/splicore/config"
+	"github.com/ike-sh/Splicore/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/storage/sqlite"
+	"github.com/ike-sh/Splicore/internal/splicore/transport"
+	"github.com/ike-sh/Splicore/internal/splicore/version"
 )
 
 func TestCLIAndAPIShareSystem(t *testing.T) {

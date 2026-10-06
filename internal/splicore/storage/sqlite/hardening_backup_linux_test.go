@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sagernet/sing-box/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
 )
 
 // Context is an existing I/O seam. The fault triggers when backup has acquired

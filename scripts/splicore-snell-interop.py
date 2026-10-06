@@ -128,7 +128,7 @@ def wait_port(p, proc):
             with socket.create_connection(("127.0.0.1", p), timeout=.2):
                 return
         except OSError:
-            time.sleep(.05)
+            os.sched_yield()
     raise RuntimeError("listener readiness timeout")
 
 def stop(proc):
@@ -140,6 +140,34 @@ def stop(proc):
             proc.kill()
             proc.wait()
             raise RuntimeError("shutdown timeout")
+
+def wait_mihomo_config(controller, path, proc, proxy_name):
+    # The listener opens before the reference tunnel enters OnRunning.
+    # Complete a synchronous local apply before the single payload attempt.
+    deadline = time.monotonic() + 10
+    while True:
+        if proc.poll() is not None or time.monotonic() > deadline:
+            raise RuntimeError("reference controller readiness timeout")
+        conn = http.client.HTTPConnection("127.0.0.1", controller, timeout=1)
+        try:
+            conn.request("GET", "/proxies")
+            response = conn.getresponse()
+            state = json.loads(response.read())
+            if response.status == 200 and proxy_name in state.get("proxies", {}):
+                break
+        except OSError:
+            os.sched_yield()
+        finally:
+            conn.close()
+    conn = http.client.HTTPConnection("127.0.0.1", controller, timeout=10)
+    try:
+        conn.request("PUT", "/configs?force=true", body=json.dumps({"path": str(path)}), headers={"Content-Type": "application/json"})
+        response = conn.getresponse()
+        response.read()
+        if response.status != 204:
+            raise RuntimeError("reference configuration barrier failed")
+    finally:
+        conn.close()
 
 def main():
     root = pathlib.Path(sys.argv[1]).resolve()
@@ -182,7 +210,7 @@ def main():
                 request("GET", "/api/v1/system")
                 return proc
             except OSError:
-                time.sleep(.05)
+                os.sched_yield()
         raise RuntimeError("Splicore API timeout")
     def request(method, path, data=None):
         conn = UnixHTTP(api)
@@ -199,7 +227,8 @@ def main():
     def client_config(client, outbound, proxy_port, name):
         path = work / (name + ".json")
         if client == "mihomo":
-            config = {"socks-port": proxy_port, "allow-lan": False, "bind-address": "127.0.0.1", "ipv6": True, "mode": "rule", "log-level": "silent", "proxies": [outbound], "rules": ["MATCH," + outbound["name"]]}
+            controller = free_port()
+            config = {"external-controller": "127.0.0.1:" + str(controller), "socks-port": proxy_port, "allow-lan": False, "bind-address": "127.0.0.1", "ipv6": True, "mode": "rule", "log-level": "silent", "proxies": [outbound], "rules": ["MATCH," + outbound["name"]]}
             args = [str(root / "clients" / client), "-d", str(work), "-f", str(path)]
         else:
             config = {"log": {"disabled": True}, "dns": {"servers": [{"type": "local", "tag": "local"}]}, "route": {"default_domain_resolver": "local"}, "inbounds": [{"type": "socks", "listen": "127.0.0.1", "listen_port": proxy_port}], "outbounds": [outbound]}
@@ -207,6 +236,8 @@ def main():
         path.write_text(json.dumps(config))
         proc = launch(args, name)
         wait_port(proxy_port, proc)
+        if client == "mihomo":
+            wait_mihomo_config(controller, path, proc, outbound["name"])
         return proc
     failures = []
     try:
@@ -217,14 +248,14 @@ def main():
         for version in (5, 6):
             p = free_port("::")
             listen_ports[version] = p
-            fixture = json.loads((pathlib.Path(__file__).resolve().parent.parent / "tests/fixtures/nobrand/snell.json").read_text())
+            fixture = {"schema": 1, "account_name": "synthetic-interop", "name": "synthetic-snell-v" + str(version), "listener": {"host": "::", "port": p}, "display_endpoint": {"host": "127.0.0.1", "port": p}, "settings": {"version": version}, "psk": os.urandom(32).hex()}
             fixture["listener"] = {"host": "::", "port": p}
             fixture["display_endpoint"] = {"host": "127.0.0.1", "port": p}
             fixture["settings"]["version"] = version
             request("POST", "/api/v1/snell/validate", fixture)
             plan = request("POST", "/api/v1/snell/plan", fixture)
             if version == 5:
-                fixture_file = work / "synthetic-nobrand.json"
+                fixture_file = work / "synthetic-owned.json"
                 fixture_file.write_text(json.dumps(fixture, indent=2))
                 def cli(*args):
                     return json.loads(subprocess.check_output([exe, "inbound", *args], stderr=subprocess.DEVNULL))
@@ -261,7 +292,6 @@ def main():
                     s.sendall(b"abnormal-close")
                     s.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0))
                     s.close()
-                    time.sleep(.2)
                     after = {k: int(v) for k, v in request("GET", "/api/v1/inbounds/" + ids[version])["stats"].items()}
                     if after["upload_bytes"] - before["upload_bytes"] < large + size or after["download_bytes"] - before["download_bytes"] < large + size or after["sessions_total"] <= before["sessions_total"]:
                         raise RuntimeError("stats did not account for actual payload")
@@ -274,7 +304,7 @@ def main():
                 while int(request("GET", "/api/v1/inbounds/" + ids[version])["stats"]["sessions_active"]) != 0:
                     if time.monotonic() > deadline:
                         raise RuntimeError("closed client retained active sessions")
-                    time.sleep(.1)
+                    os.sched_yield()
                 if endpoint == "127.0.0.1":
                     for failure in ("wrong-psk", "wrong-version", "wrong-port"):
                         bad = dict(outbound)

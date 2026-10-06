@@ -2,34 +2,18 @@ package native
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
-	"errors"
-	box "github.com/sagernet/sing-box"
-	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/adapter/certificate"
-	"github.com/sagernet/sing-box/adapter/endpoint"
-	"github.com/sagernet/sing-box/adapter/inbound"
-	"github.com/sagernet/sing-box/adapter/outbound"
-	boxservice "github.com/sagernet/sing-box/adapter/service"
-	"github.com/sagernet/sing-box/common/dialer"
-	boxtls "github.com/sagernet/sing-box/common/tls"
-	"github.com/sagernet/sing-box/dns"
-	"github.com/sagernet/sing-box/dns/transport/local"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	module "github.com/sagernet/sing-box/internal/splicore/protocol/vless"
-	"github.com/sagernet/sing-box/internal/splicore/underlay"
-	"github.com/sagernet/sing-box/log"
-	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-box/protocol/direct"
-	"github.com/sagernet/sing-tun"
-	upstream "github.com/sagernet/sing-vmess/vless"
-	"github.com/sagernet/sing/common/auth"
-	"github.com/sagernet/sing/common/json/badoption"
-	M "github.com/sagernet/sing/common/metadata"
-	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/service"
+	"github.com/gofrs/uuid/v5"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/relay"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/traffic"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	module "github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
+	"github.com/ike-sh/Splicore/internal/splicore/underlay"
+	"github.com/ike-sh/Splicore/protocol/vless/backend"
+	"github.com/ike-sh/Splicore/protocol/vless/wire"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -54,8 +38,6 @@ func (VLESSCompiler) Supports(in ports.RuntimeIntent) error {
 	return err
 }
 func (c VLESSCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (ports.PreparedRuntime, error) {
-	// Reject unsupported flow before Supports, TLS material access or construction.
-	// Only the flow field is inspected here; full settings validation follows.
 	var flow struct {
 		Flow module.Flow `json:"flow"`
 	}
@@ -69,130 +51,109 @@ func (c VLESSCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (por
 		return nil, err
 	}
 	s, _ := module.Decode(in.Inbound.Settings.Data)
-	tlsOptions := option.InboundTLSOptions{}
+	dialer, err := underlay.DialerFrom(ctx, underlay.ServerTarget)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	h := &vlessHandle{ctx: ctx, cancel: cancel, endpoint: in.Inbound.Listeners[0].Endpoint, protected: dialer, total: &traffic.Counter{}, users: map[string]*traffic.Counter{}, uuids: map[[16]byte]string{}, connections: map[net.Conn]bool{}, done: make(chan struct{})}
+	for i, b := range in.Bindings {
+		id := string(b.ID)
+		h.users[id] = &traffic.Counter{}
+		u, _ := uuid.FromString(in.Credentials[i].Payload.(access.UUIDPayload).UUID.Reveal())
+		h.uuids[[16]byte(u)] = id
+	}
 	if s.Security == module.TLS {
 		cert, key, err := tlsSnapshot(*s.TLS)
 		if err != nil {
+			cancel()
 			return nil, err
 		}
 		defer clear(key)
-		tlsOptions = option.InboundTLSOptions{Enabled: true, ServerName: s.TLS.ServerName, Certificate: []string{string(cert)}, Key: []string{string(key)}, MinVersion: "1.3", HandshakeTimeout: badoption.Duration(5 * time.Second)}
+		pair, err := tls.X509KeyPair(cert, key)
+		if err != nil {
+			cancel()
+			return nil, identity.Err(identity.Invalid, "invalid VLESS TLS snapshot")
+		}
+		tc := &tls.Config{Certificates: []tls.Certificate{pair}, MinVersion: tls.VersionTLS13}
+		h.handshake = func(ctx context.Context, c net.Conn) (net.Conn, error) {
+			tlsConn := tls.Server(c, tc)
+			if err := tlsConn.HandshakeContext(ctx); err != nil {
+				return nil, err
+			}
+			return tlsConn, nil
+		}
 	}
 	if s.Security == module.Reality {
-		ids := []string{}
-		for _, id := range s.Reality.ShortIDs {
-			ids = append(ids, string(id))
+		ids := make([]string, len(s.Reality.ShortIDs))
+		for i, id := range s.Reality.ShortIDs {
+			ids[i] = string(id)
 		}
-		tlsOptions = option.InboundTLSOptions{Enabled: true, ServerName: s.Reality.ServerName, MinVersion: "1.3", HandshakeTimeout: badoption.Duration(5 * time.Second), Reality: &option.InboundRealityOptions{Enabled: true, PrivateKey: in.ServerCredentials[0].Payload.(access.PrivateKeyPayload).Material.Reveal(), ShortID: ids, Handshake: option.InboundRealityHandshakeOptions{ServerOptions: option.ServerOptions{Server: s.Reality.Target.Host, ServerPort: s.Reality.Target.Port}}}}
-	}
-	h := &vlessHandle{endpoint: in.Inbound.Listeners[0].Endpoint, inboundID: in.Inbound.ID, total: &meter{}, users: map[string]*meter{}, connections: map[*vlessRaw]bool{}, done: make(chan struct{})}
-	for _, b := range in.Bindings {
-		h.users[string(b.ID)] = &meter{}
-	}
-	if _, err := underlay.FromContext(ctx); err != nil {
-		return nil, err
-	}
-	runtimeCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
-	h.cancel = cancel
-	runtimeCtx = service.ContextWith[adapter.PlatformInterface](runtimeCtx, serverPlatform{})
-	ir := inbound.NewRegistry()
-	inbound.Register[option.InboundTLSOptionsContainer](ir, "vless", func(ctx context.Context, r adapter.Router, l log.ContextLogger, tag string, o option.InboundTLSOptionsContainer) (adapter.Inbound, error) {
-		protected, err := protectedContext(ctx, underlay.ServerTarget)
+		h.handshake, err = backend.RealityServer(s.Reality.ServerName, in.ServerCredentials[0].Payload.(access.PrivateKeyPayload).Material.Reveal(), ids, s.Reality.Target, dialer.DialContext)
 		if err != nil {
-			return nil, err
+			cancel()
+			return nil, identity.Err(identity.Invalid, "invalid REALITY settings")
 		}
-		ctx = protected
-		h.router = r
-		h.ctx = ctx
-		if o.TLS != nil {
-			h.tls, err = boxtls.NewServer(ctx, l, *o.TLS)
-			if err != nil {
-				return nil, err
+		target := net.JoinHostPort(s.Reality.Target.Host, portString(s.Reality.Target.Port))
+		h.targetProbe = func(ctx context.Context) error {
+			c, err := dialer.DialContext(ctx, "tcp", target)
+			if err == nil {
+				_ = c.Close()
 			}
+			return err
 		}
-		h.service = upstream.NewService[string](l, h)
-		names, uuids, flows := []string{}, []string{}, []string{}
-		for n, b := range in.Bindings {
-			names = append(names, string(b.ID))
-			uuids = append(uuids, in.Credentials[n].Payload.(access.UUIDPayload).UUID.Reveal())
-			// Managed users are always flow-none. A Vision request is rejected by
-			// upstream's flow mismatch check before its Vision constructor.
-			flows = append(flows, "")
-		}
-		h.service.UpdateUsers(names, uuids, flows) // immutable after construction
-		if s.Security == module.Reality {
-			kind, _ := access.ParseHost(s.Reality.Target.Host)
-			d, err := dialer.New(ctx, option.DialerOptions{}, kind == access.DNS)
-			if err != nil {
-				return nil, err
-			}
-			h.targetProbe = func(ctx context.Context) error {
-				conn, err := d.DialContext(ctx, "tcp", M.ParseSocksaddr(net.JoinHostPort(s.Reality.Target.Host, portString(s.Reality.Target.Port))))
-				if err == nil {
-					_ = conn.Close()
-				}
-				return err
-			}
-		}
-		return &vlessOwnedInbound{Adapter: inbound.NewAdapter("vless", tag), h: h}, nil
-	})
-	or := outbound.NewRegistry()
-	direct.RegisterOutbound(or)
-	dr := dns.NewTransportRegistry()
-	local.RegisterTransport(dr)
-	runtimeCtx = box.Context(runtimeCtx, ir, protectedOutbounds{or, underlay.ServerTarget}, endpoint.NewRegistry(), protectedDNS{dr}, boxservice.NewRegistry(), certificate.NewRegistry())
-	b, err := box.New(box.Options{Context: runtimeCtx, Options: option.Options{DNS: &option.DNSOptions{RawDNSOptions: option.RawDNSOptions{Servers: []option.DNSServerOptions{{Type: "local", Tag: "local", Options: &option.LocalDNSServerOptions{}}}}}, Outbounds: []option.Outbound{{Type: "direct", Tag: "protected-direct", Options: &option.DirectOutboundOptions{}}}, Route: &option.RouteOptions{Final: "protected-direct", DefaultDomainResolver: &option.DomainResolveOptions{Server: "local"}}, Log: &option.LogOptions{Disabled: true}, Inbounds: []option.Inbound{{Type: "vless", Tag: string(in.Inbound.ID), Options: &option.InboundTLSOptionsContainer{TLS: &tlsOptions}}}}})
-	if err != nil {
-		cancel()
-		if h.tls != nil {
-			_ = h.tls.Close()
-		}
-		return nil, identity.Err(identity.Unavailable, "native VLESS construction failed")
 	}
-	h.box = b
-	b.Router().AppendTracker(h)
 	return h, nil
 }
 
 type vlessHandle struct {
-	lifecycle         sync.Mutex
-	box               *box.Box
-	router            adapter.Router
-	service           *upstream.Service[string]
-	tls               boxtls.ServerConfig
+	lifecycle, mu     sync.Mutex
 	ctx               context.Context
 	cancel            context.CancelFunc
 	endpoint          access.Endpoint
-	inboundID         identity.ID
+	protected         *underlay.Dialer
+	handshake         func(context.Context, net.Conn) (net.Conn, error)
 	targetProbe       func(context.Context) error
 	listener          net.Listener
-	mu                sync.Mutex
-	connections       map[*vlessRaw]bool
+	connections       map[net.Conn]bool
 	wg                sync.WaitGroup
 	done              chan struct{}
 	running, admitted atomic.Bool
 	started, closed   bool
-	total             *meter
-	users             map[string]*meter
+	total             *traffic.Counter
+	users             map[string]*traffic.Counter
+	uuids             map[[16]byte]string
 }
 
 func (h *vlessHandle) Start(ctx context.Context) error {
 	h.lifecycle.Lock()
 	defer h.lifecycle.Unlock()
 	if h.closed || ctx.Err() != nil {
-		return identity.Err(identity.Unavailable, "runtime closed or canceled")
+		return identity.Err(identity.Unavailable, "VLESS runtime closed or canceled")
 	}
 	if h.started {
 		return nil
 	}
-	if err := h.box.Start(); err != nil {
-		var de *identity.Error
-		if addressInUse(err) || errors.As(err, &de) && de.Code == identity.PortConflict {
+	if h.targetProbe != nil {
+		probe, cancel := context.WithTimeout(ctx, 2*time.Second)
+		err := h.targetProbe(probe)
+		cancel()
+		if err != nil {
+			return identity.Err(identity.Unavailable, "REALITY target is unavailable")
+		}
+	}
+	l, err := (&net.ListenConfig{}).Listen(ctx, "tcp", net.JoinHostPort(h.endpoint.Host, portString(h.endpoint.Port)))
+	if err != nil {
+		if addressInUse(err) {
 			return identity.Err(identity.PortConflict, "TCP listener port is already in use")
 		}
-		return identity.Err(identity.Unavailable, "VLESS runtime start failed")
+		return identity.Err(identity.Unavailable, "VLESS listener start failed")
 	}
+	h.listener = l
+	h.running.Store(true)
 	h.started = true
+	h.wg.Add(1)
+	go h.accept()
 	return nil
 }
 func (h *vlessHandle) Health(ctx context.Context) error {
@@ -208,28 +169,39 @@ func (h *vlessHandle) Activate() {
 		h.admitted.Store(true)
 	}
 }
-func (h *vlessHandle) Stats() ports.Stats { return h.total.snapshot() }
+func (h *vlessHandle) Stats() ports.Stats { return h.total.Snapshot() }
 func (h *vlessHandle) BindingStats(id identity.ID) ports.Stats {
-	if m := h.users[string(id)]; m != nil {
-		return m.snapshot()
+	if c := h.users[string(id)]; c != nil {
+		return c.Snapshot()
 	}
 	return ports.Stats{}
 }
 func (h *vlessHandle) Close(ctx context.Context) error {
 	h.lifecycle.Lock()
-	defer h.lifecycle.Unlock()
 	h.mu.Lock()
 	if !h.closed {
 		h.closed = true
 		h.admitted.Store(false)
 		h.running.Store(false)
+		connections := make([]net.Conn, 0, len(h.connections))
+		for c := range h.connections {
+			connections = append(connections, c)
+		}
 		h.mu.Unlock()
-		h.cancel()
-		_ = h.box.Close()
+		if h.cancel != nil {
+			h.cancel()
+		}
+		if h.listener != nil {
+			_ = h.listener.Close()
+		}
+		for _, c := range connections {
+			_ = c.Close()
+		}
 		go func() { h.wg.Wait(); close(h.done) }()
 	} else {
 		h.mu.Unlock()
 	}
+	h.lifecycle.Unlock()
 	select {
 	case <-h.done:
 		return nil
@@ -237,133 +209,67 @@ func (h *vlessHandle) Close(ctx context.Context) error {
 		return identity.Err(identity.Unavailable, "VLESS shutdown timed out")
 	}
 }
-
-type vlessOwnedInbound struct {
-	inbound.Adapter
-	h *vlessHandle
-}
-
-func (o *vlessOwnedInbound) Start(stage adapter.StartStage) error {
-	if stage != adapter.StartStateStart {
-		return nil
-	}
-	h := o.h
-	if h.tls != nil {
-		if err := h.tls.Start(); err != nil {
-			return err
-		}
-	}
-	// Bounded reachability gate; target TLS compatibility is tested during handshake.
-	if h.targetProbe != nil {
-		ctx, cancel := context.WithTimeout(h.ctx, 2*time.Second)
-		defer cancel()
-		if err := h.targetProbe(ctx); err != nil {
-			return identity.Err(identity.Unavailable, "REALITY target is unavailable")
-		}
-	}
-	l, err := net.Listen("tcp", net.JoinHostPort(h.endpoint.Host, portString(h.endpoint.Port)))
-	if err != nil {
-		return err
-	}
-	h.listener = l
-	h.running.Store(true)
-	h.wg.Add(1)
-	go h.accept()
-	return nil
-}
-func (o *vlessOwnedInbound) Close() error {
-	h := o.h
-	h.running.Store(false)
-	if h.listener != nil {
-		_ = h.listener.Close()
-	}
-	h.mu.Lock()
-	connections := make([]*vlessRaw, 0, len(h.connections))
-	for c := range h.connections {
-		connections = append(connections, c)
-	}
-	h.mu.Unlock()
-	for _, c := range connections {
-		_ = c.Close()
-	}
-	if h.tls != nil {
-		return h.tls.Close()
-	}
-	return nil
-}
 func (h *vlessHandle) accept() {
 	defer h.wg.Done()
 	defer h.running.Store(false)
 	for {
-		conn, err := h.listener.Accept()
+		raw, err := h.listener.Accept()
 		if err != nil {
 			return
 		}
 		h.mu.Lock()
-		if h.closed || !h.admitted.Load() {
+		if h.closed || !h.admitted.Load() || len(h.connections) >= 512 {
 			h.mu.Unlock()
-			_ = conn.Close()
+			_ = raw.Close()
 			continue
 		}
-		raw := &vlessRaw{Conn: conn, h: h}
 		h.connections[raw] = true
-		h.wg.Add(2)
+		h.wg.Add(1)
 		h.mu.Unlock()
-		_ = raw.SetDeadline(time.Now().Add(5 * time.Second))
-		go func() {
-			defer h.wg.Done()
-			var c net.Conn = raw
-			if h.tls != nil {
-				tlsConn, err := boxtls.ServerHandshake(h.ctx, raw, h.tls)
-				if err != nil {
-					_ = raw.Close()
-					return
-				}
-				c = tlsConn
-			}
-			onClose := func(error) { _ = raw.Close() }
-			if err := h.service.NewConnection(h.ctx, c, M.SocksaddrFromNet(raw.RemoteAddr()), onClose); err != nil {
-				_ = raw.Close()
-			}
-		}()
+		go h.serve(raw)
 	}
 }
-
-type vlessRaw struct {
-	net.Conn
-	h    *vlessHandle
-	once sync.Once
-}
-
-func (c *vlessRaw) Close() error {
-	err := c.Conn.Close()
-	c.once.Do(func() { c.h.mu.Lock(); delete(c.h.connections, c); c.h.mu.Unlock(); c.h.wg.Done() })
-	return err
-}
-func (h *vlessHandle) NewConnectionEx(ctx context.Context, c net.Conn, src, dst M.Socksaddr, onClose N.CloseHandlerFunc) {
-	user, ok := auth.UserFromContext[string](ctx)
-	if !ok || h.users[user] == nil || !h.admitted.Load() {
-		N.CloseOnHandshakeFailure(c, onClose, net.ErrClosed)
+func (h *vlessHandle) serve(raw net.Conn) {
+	defer h.wg.Done()
+	defer raw.Close()
+	defer func() { h.mu.Lock(); delete(h.connections, raw); h.mu.Unlock() }()
+	_ = raw.SetDeadline(time.Now().Add(5 * time.Second))
+	var c net.Conn = raw
+	if h.handshake != nil {
+		var err error
+		c, err = h.handshake(h.ctx, raw)
+		if err != nil {
+			return
+		}
+		defer c.Close()
+	}
+	request, err := wire.ReadRequest(c)
+	if err != nil {
 		return
 	}
-	_ = c.SetDeadline(time.Time{})
-	h.router.RouteConnectionEx(ctx, c, adapter.InboundContext{Inbound: string(h.inboundID), InboundType: "vless", User: user, Source: src, Destination: dst}, onClose)
-}
-func (h *vlessHandle) NewPacketConnectionEx(ctx context.Context, c N.PacketConn, src, dst M.Socksaddr, onClose N.CloseHandlerFunc) {
-	user, ok := auth.UserFromContext[string](ctx)
-	if !ok || h.users[user] == nil || !h.admitted.Load() {
-		N.CloseOnHandshakeFailure(c, onClose, net.ErrClosed)
+	id, ok := h.uuids[request.UUID]
+	if !ok || !h.admitted.Load() {
 		return
 	}
+	user := h.users[id]
 	_ = c.SetDeadline(time.Time{})
-	h.router.RoutePacketConnectionEx(ctx, c, adapter.InboundContext{Inbound: string(h.inboundID), InboundType: "vless", User: user, Source: src, Destination: dst}, onClose)
-}
-func (h *vlessHandle) RoutedConnection(_ context.Context, c net.Conn, m adapter.InboundContext, _ adapter.Rule, _ adapter.Outbound) net.Conn {
-	return meteredConn(c, h.total, h.users[m.User])
-}
-func (h *vlessHandle) RoutedPacketConnection(_ context.Context, c N.PacketConn, m adapter.InboundContext, _ adapter.Rule, _ adapter.Outbound) N.PacketConn {
-	return meteredPacket(c, h.total, h.users[m.User])
-}
-func (h *vlessHandle) RoutedFlow(context.Context, adapter.InboundContext, adapter.Rule, adapter.Outbound) tun.FlowTracker {
-	return nil
+	stream := &backend.Conn{Conn: c, Server: true}
+	if request.Command == wire.TCP {
+		target, err := h.protected.DialContext(h.ctx, "tcp", net.JoinHostPort(request.Destination.Host, portString(request.Destination.Port)))
+		if err != nil {
+			return
+		}
+		defer target.Close()
+		counted := traffic.Conn(stream, h.total, user)
+		defer counted.Close()
+		relay.Join(h.ctx, counted, target)
+		return
+	}
+	_ = backend.Packets(h.ctx, stream, request, func(ctx context.Context, p net.PacketConn) error {
+		counted := traffic.Packet(p, h.total, user)
+		defer counted.Close()
+		return relay.Packets(ctx, counted, func(ctx context.Context, dst access.Endpoint) (net.Conn, error) {
+			return h.protected.DialContext(ctx, "udp", net.JoinHostPort(dst.Host, portString(dst.Port)))
+		}, 5*time.Second)
+	})
 }

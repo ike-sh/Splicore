@@ -3,7 +3,7 @@ package ports
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 )
 
 // CreationCodec validates a bounded command and generates typed credentials.
@@ -30,15 +30,16 @@ type CreationUser struct {
 	Policy                  *PolicyDraft
 }
 type CreationDraft struct {
-	Name              string
-	Engine            string
-	Protocol          access.ProtocolKey
-	Transport         string
-	Listener, Display access.Endpoint
-	Settings          json.RawMessage
-	Users             []CreationUser
-	TLSVerification   bool
-	ServerPayloads    []access.Payload
+	Name                 string
+	Engine               string
+	Protocol             access.ProtocolKey
+	Transport            string
+	AdditionalTransports []string
+	Listener, Display    access.Endpoint
+	Settings             json.RawMessage
+	Users                []CreationUser
+	TLSVerification      bool
+	ServerPayloads       []access.Payload
 }
 
 func (CreationDraft) Format(s fmt.State, v rune) { _, _ = s.Write([]byte("CreationDraft{[REDACTED]}")) }

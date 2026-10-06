@@ -9,10 +9,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/sagernet/sing-box/internal/splicore/domain/client"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/hostnetwork"
-	"github.com/sagernet/sing-box/internal/splicore/nativetun"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/hostnetwork"
+	"github.com/ike-sh/Splicore/internal/splicore/nativetun"
 )
 
 type hostController struct {

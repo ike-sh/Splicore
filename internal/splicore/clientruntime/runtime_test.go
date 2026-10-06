@@ -2,6 +2,7 @@ package clientruntime
 
 import (
 	"context"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/testfixture"
 	"io"
 	"net"
 	"strconv"
@@ -10,14 +11,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/client"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	"github.com/sagernet/sing-box/internal/splicore/registry"
-	M "github.com/sagernet/sing/common/metadata"
-	"github.com/sagernet/sing/protocol/socks"
-	"github.com/sagernet/sing/protocol/socks/socks5"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/socks"
+	"github.com/ike-sh/Splicore/internal/splicore/registry"
 )
 
 type retirementFactory struct{ built []*retirementDialer }
@@ -122,7 +121,7 @@ func TestRetiredGenerationClosesAfterSessionConnection(t *testing.T) {
 	}
 	defer held.Close()
 	_ = held.SetDeadline(time.Now().Add(5 * time.Second))
-	_, err = socks.ClientHandshake5(held, socks5.CommandConnect, M.SocksaddrFromNet(echo.Addr()), "", "")
+	_, err = socks.Handshake(held, socks.Connect, testfixture.Endpoint((echo.Addr()).String()))
 	if err != nil {
 		t.Fatal(err)
 	}

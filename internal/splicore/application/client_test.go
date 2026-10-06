@@ -7,19 +7,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/sagernet/sing-box/internal/splicore/api"
-	"github.com/sagernet/sing-box/internal/splicore/application"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/client"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/engine/native"
-	"github.com/sagernet/sing-box/internal/splicore/protocol/snell"
-	"github.com/sagernet/sing-box/internal/splicore/registry"
-	"github.com/sagernet/sing-box/internal/splicore/storage/sqlite"
-	"github.com/sagernet/sing-box/internal/splicore/transport"
-	M "github.com/sagernet/sing/common/metadata"
-	"github.com/sagernet/sing/protocol/socks"
-	"github.com/sagernet/sing/protocol/socks/socks5"
+	"github.com/ike-sh/Splicore/internal/splicore/api"
+	"github.com/ike-sh/Splicore/internal/splicore/application"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/native"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/snell"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/socks"
+	"github.com/ike-sh/Splicore/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/storage/sqlite"
+	"github.com/ike-sh/Splicore/internal/splicore/transport"
 	"io"
 	"net"
 	"net/http"
@@ -87,7 +85,7 @@ func socksConn(port uint16, target access.Endpoint) (net.Conn, error) {
 		return nil, err
 	}
 	_ = c.SetDeadline(time.Now().Add(30 * time.Second))
-	_, err = socks.ClientHandshake5(c, socks5.CommandConnect, M.ParseSocksaddrHostPort(target.Host, target.Port), "", "")
+	_, err = socks.Handshake(c, socks.Connect, access.Endpoint{Host: target.Host, Port: target.Port})
 	if err != nil {
 		c.Close()
 		return nil, err

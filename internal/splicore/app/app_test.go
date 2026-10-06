@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/sagernet/sing-box/internal/splicore/config"
+	"github.com/ike-sh/Splicore/internal/splicore/config"
 )
 
 func TestBootstrapFailsBeforeServing(t *testing.T) {

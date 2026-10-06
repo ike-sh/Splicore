@@ -3,7 +3,7 @@ package snell
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/sagernet/sing-box/internal/splicore/domain/secret"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
 	"strings"
 	"testing"
 )

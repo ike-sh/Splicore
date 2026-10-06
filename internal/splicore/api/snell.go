@@ -2,8 +2,8 @@ package api
 
 import (
 	"encoding/json"
-	"github.com/sagernet/sing-box/internal/splicore/application"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/application"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"io"
 	"net/http"
 	"strings"

@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/sagernet/sing-box/internal/splicore/config"
-	"github.com/sagernet/sing-box/internal/splicore/hostnetwork"
+	"github.com/ike-sh/Splicore/internal/splicore/config"
+	"github.com/ike-sh/Splicore/internal/splicore/hostnetwork"
 )
 
 // RecoverHost runs after the daemon has exited, under its original service user.

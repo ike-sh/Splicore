@@ -7,11 +7,11 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"github.com/sagernet/sing-box/internal/splicore/clientprofile"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/domain/secret"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/clientprofile"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	"io"
 	"strconv"
 )
@@ -60,7 +60,7 @@ func invalid() error {
 	return identity.Err(identity.Invalid, "unsupported Snell settings or credential")
 }
 func (m Module) Metadata() ports.ProtocolMetadata {
-	return ports.ProtocolMetadata{Roles: ports.Roles{Inbound: true, Outbound: true}, Key: Key(m.Version), ABI: 1, CredentialKinds: []access.CredentialKind{access.PSK}, Availability: ports.Compiled, Qualification: "experimental", Provenance: "sing-box v1.14.1 constructors; single binding; no QUIC proxy mode"}
+	return ports.ProtocolMetadata{Roles: ports.Roles{Inbound: true, Outbound: true}, Key: Key(m.Version), ABI: 1, CredentialKinds: []access.CredentialKind{access.PSK}, Availability: ports.Compiled, Qualification: "experimental", Provenance: "Splicore-owned Snell wire and lifecycle; single binding; no QUIC proxy mode"}
 }
 
 // ClientVersion is the canonical, explicit server-to-client compatibility mapping.
@@ -75,9 +75,9 @@ func ClientVersion(server int) (int, error) {
 	}
 }
 func (m Module) Capabilities(ports.CapabilityContext) ports.Capabilities {
-	clients := []ports.ClientCompatibility{{Format: ports.SingBox, Client: "sing-box", Version: "1.14.1", Evidence: "docs/reports/PHASE_2_SNELL_VERTICAL_SLICE_REPORT.md; Linux TCP/UDP base profile"}}
+	clients := []ports.ClientCompatibility{{Format: ports.SingBox, Client: "sing-box", Version: "1.14.1", Evidence: "docs/reports/PHASE17_SINGBOX_DECOUPLING_REPORT.md; Round 2 Linux TCP/UDP v4/v6"}}
 	if m.Version == 5 {
-		clients = append(clients, ports.ClientCompatibility{Format: ports.Mihomo, Client: "mihomo", Version: "1.19.30", Evidence: "docs/reports/PHASE_2_SNELL_VERTICAL_SLICE_REPORT.md; explicit v4 client / v5 server"})
+		clients = append(clients, ports.ClientCompatibility{Format: ports.Mihomo, Client: "mihomo", Version: "1.19.30", Evidence: "docs/reports/PHASE17_SINGBOX_DECOUPLING_REPORT.md; Round 2 explicit v4 client / v5 server"})
 	}
 	return ports.Capabilities{Transport: ports.TransportCapabilities{TCP: true, UDPPayload: true, IPv4: true, IPv6: true, DomainEndpoint: true}, Identity: ports.IdentityCapabilities{MultiUserNative: false, AttributedPayload: ports.Native, NativeStats: ports.Native, StatsUnits: "authenticated payload bytes; routed sessions; process lifetime"}, Policy: ports.PolicyCapabilities{Quota: ports.Unsupported, SpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported}, Mutation: ports.MutationCapabilities{Users: ports.MutationUnavailable, Listener: ports.MutationUnavailable}, Clients: clients}
 }

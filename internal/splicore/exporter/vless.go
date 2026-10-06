@@ -3,11 +3,11 @@ package exporter
 import (
 	"context"
 	"encoding/json"
-	"github.com/sagernet/sing-box/internal/splicore/clientprofile"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	module "github.com/sagernet/sing-box/internal/splicore/protocol/vless"
-	"github.com/sagernet/sing-box/internal/splicore/tlsconfig"
+	"github.com/ike-sh/Splicore/internal/splicore/clientprofile"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	module "github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
+	"github.com/ike-sh/Splicore/internal/splicore/tlsconfig"
 )
 
 type VLESS struct{ Target ports.Format }

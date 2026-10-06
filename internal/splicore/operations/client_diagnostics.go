@@ -2,11 +2,11 @@ package operations
 
 import (
 	"context"
-	"github.com/sagernet/sing-box/internal/splicore/application"
-	"github.com/sagernet/sing-box/internal/splicore/clientruntime"
-	"github.com/sagernet/sing-box/internal/splicore/domain/client"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/underlay"
+	"github.com/ike-sh/Splicore/internal/splicore/application"
+	"github.com/ike-sh/Splicore/internal/splicore/clientruntime"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"strconv"
 	"time"
 )
@@ -123,7 +123,7 @@ func clientProjection(ctx context.Context, q SupportSource) clientSummary {
 		result.Outbounds = append(result.Outbounds, clientOutboundSummary{Kind: enum(o.Kind, "direct", "proxy"), Engine: enum(o.Engine, "native"), Configured: h.Configured, Available: h.Available, Active: h.Active, LastError: enum(h.LastError, "", "outbound_connection_failed")})
 	}
 	for _, n := range s.State.Nodes {
-		v := clientNodeSummary{Name: "[REDACTED]", Protocol: enum(n.Protocol.Protocol, "snell", "hysteria2", "tuic", "vless", "mieru"), EndpointClass: addressClass(n.Endpoint.Host), Port: n.Endpoint.Port, Engines: []string{}}
+		v := clientNodeSummary{Name: "[REDACTED]", Protocol: enum(n.Protocol.Protocol, "snell", "hysteria2", "tuic", "vless", "mieru", "shadowsocks"), EndpointClass: addressClass(n.Endpoint.Host), Port: n.Endpoint.Port, Engines: []string{}}
 		for _, o := range s.State.Outbounds {
 			if o.NodeID != nil && *o.NodeID == n.ID {
 				v.Engines = append(v.Engines, enum(o.Engine, "native"))

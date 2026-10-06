@@ -1,148 +1,94 @@
-// Package native composes unmodified sing-box constructors with owned lifecycle.
 package native
 
 import (
 	"context"
-	"errors"
-	"github.com/sagernet/sing-box/internal/splicore/underlay"
+	"io"
 	"net"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	box "github.com/sagernet/sing-box"
-	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/adapter/certificate"
-	"github.com/sagernet/sing-box/adapter/endpoint"
-	"github.com/sagernet/sing-box/adapter/inbound"
-	"github.com/sagernet/sing-box/adapter/outbound"
-	boxservice "github.com/sagernet/sing-box/adapter/service"
-	"github.com/sagernet/sing-box/dns"
-	"github.com/sagernet/sing-box/dns/transport/local"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	module "github.com/sagernet/sing-box/internal/splicore/protocol/snell"
-	"github.com/sagernet/sing-box/log"
-	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing-box/protocol/direct"
-	upstream "github.com/sagernet/sing-box/protocol/snell"
-	"github.com/sagernet/sing-tun"
-	"github.com/sagernet/sing/common/bufio"
-	M "github.com/sagernet/sing/common/metadata"
-	N "github.com/sagernet/sing/common/network"
-	"github.com/sagernet/sing/service"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/netaddr"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/relay"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/traffic"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	module "github.com/ike-sh/Splicore/internal/splicore/protocol/snell"
+	"github.com/ike-sh/Splicore/internal/splicore/underlay"
+	"github.com/ike-sh/Splicore/protocol/snell/wire"
 )
 
 type SnellCompiler struct{}
 
 func (SnellCompiler) ProtocolID() string { return "snell" }
-func (SnellCompiler) Supports(i ports.RuntimeIntent) error {
-	s, e := module.Decode(i.Inbound.Settings.Data)
+func (SnellCompiler) Supports(in ports.RuntimeIntent) error {
+	s, e := module.Decode(in.Inbound.Settings.Data)
 	if e != nil {
 		return e
 	}
-	_, e = (module.Module{Version: s.Version}).BuildRuntime(context.Background(), i)
+	_, e = (module.Module{Version: s.Version}).BuildRuntime(context.Background(), in)
 	return e
 }
-func (e SnellCompiler) Compile(ctx context.Context, i ports.RuntimeIntent) (ports.PreparedRuntime, error) {
-	if err := e.Supports(i); err != nil {
-		return nil, err
+func (f SnellCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (ports.PreparedRuntime, error) {
+	if e := f.Supports(in); e != nil {
+		return nil, e
 	}
-	s, _ := module.Decode(i.Inbound.Settings.Data)
-	h := &Handle{connections: make(map[*rawConn]bool), endpoint: i.Inbound.Listeners[0].Endpoint, done: make(chan struct{})}
-	// Runtime lifetime is independent of a canceled apply request. The coordinator owns Close.
-	if _, err := underlay.FromContext(ctx); err != nil {
-		return nil, err
+	d, e := underlay.DialerFrom(ctx, underlay.ServerTarget)
+	if e != nil {
+		return nil, e
 	}
-	runtimeCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
-	runtimeCtx = service.ContextWith[adapter.PlatformInterface](runtimeCtx, serverPlatform{})
-	h.cancel = cancel
-	ir := inbound.NewRegistry()
-	inbound.Register[option.SnellInboundOptions](ir, "snell", func(ctx context.Context, r adapter.Router, l log.ContextLogger, tag string, o option.SnellInboundOptions) (adapter.Inbound, error) {
-		stock, err := upstream.NewInbound(ctx, r, l, tag, o)
-		if err != nil {
-			return nil, err
-		}
-		h.stock = stock
-		h.handler = stock.(adapter.ConnectionHandler)
-		h.ctx = ctx
-		return &ownedInbound{Inbound: stock, h: h}, nil
-	})
-	or := outbound.NewRegistry()
-	direct.RegisterOutbound(or)
-	dr := dns.NewTransportRegistry()
-	local.RegisterTransport(dr)
-	runtimeCtx = box.Context(runtimeCtx, ir, protectedOutbounds{or, underlay.ServerTarget}, endpoint.NewRegistry(), protectedDNS{dr}, boxservice.NewRegistry(), certificate.NewRegistry())
-	psk := i.Credentials[0].Payload.(access.PSKPayload).Key.Reveal()
-	b, err := box.New(box.Options{Context: runtimeCtx, Options: option.Options{DNS: &option.DNSOptions{RawDNSOptions: option.RawDNSOptions{Servers: []option.DNSServerOptions{{Type: "local", Tag: "local", Options: &option.LocalDNSServerOptions{}}}}}, Outbounds: []option.Outbound{{Type: "direct", Tag: "protected-direct", Options: &option.DirectOutboundOptions{}}}, Route: &option.RouteOptions{Final: "protected-direct", DefaultDomainResolver: &option.DomainResolveOptions{Server: "local"}}, Log: &option.LogOptions{Disabled: true}, Inbounds: []option.Inbound{{Type: "snell", Tag: string(i.Inbound.ID), Options: &option.SnellInboundOptions{Version: s.Version, AbstractSnellInboundOptions: option.AbstractSnellInboundOptions{PSK: psk}}}}}})
-	if err != nil {
-		cancel()
-		if h.stock != nil {
-			_ = h.stock.Close()
-		}
-		return nil, identity.Err(identity.Unavailable, "native runtime construction failed")
+	s, _ := module.Decode(in.Inbound.Settings.Data)
+	k, e := wire.NewKey(s.Version, in.Credentials[0].Payload.(access.PSKPayload).Key.Reveal())
+	if e != nil {
+		return nil, e
 	}
-	h.box = b
-	b.Router().AppendTracker(h)
-	return h, nil
+	owned, cancel := context.WithCancel(context.WithoutCancel(ctx))
+	return &Handle{ctx: owned, cancel: cancel, protected: d, key: k, endpoint: in.Inbound.Listeners[0].Endpoint, total: &traffic.Counter{}, connections: map[net.Conn]bool{}, done: make(chan struct{})}, nil
 }
 
+// Handle owns listening, accepted and target sockets through shutdown join.
+// Record state belongs to wire.Tunnel, never to the runtime's scratch space.
 type Handle struct {
-	lifecycle   sync.Mutex
-	box         *box.Box
-	stock       adapter.Inbound
-	handler     adapter.ConnectionHandler
-	ctx         context.Context
-	cancel      context.CancelFunc
-	endpoint    access.Endpoint
-	mu          sync.Mutex
-	listener    net.Listener
-	connections map[*rawConn]bool
-	wg          sync.WaitGroup
-	done        chan struct{}
-	running     atomic.Bool
-	admitted    atomic.Bool
-	closed      bool
-	started     bool
-	upload      atomic.Int64
-	download    atomic.Int64
-	sessions    atomic.Int64
-	active      atomic.Int64
+	lifecycle, mu     sync.Mutex
+	ctx               context.Context
+	cancel            context.CancelFunc
+	protected         *underlay.Dialer
+	key               *wire.Key
+	endpoint          access.Endpoint
+	listener          net.Listener
+	connections       map[net.Conn]bool
+	wg                sync.WaitGroup
+	done              chan struct{}
+	total             *traffic.Counter
+	closed, started   bool
+	running, admitted atomic.Bool
 }
 
+func portString(p uint16) string { return strconv.Itoa(int(p)) }
 func (h *Handle) Start(ctx context.Context) error {
 	h.lifecycle.Lock()
 	defer h.lifecycle.Unlock()
-	if ctx.Err() != nil {
-		return identity.Err(identity.Unavailable, "runtime start canceled")
+	if h.closed || ctx.Err() != nil {
+		return identity.Err(identity.Unavailable, "Snell runtime closed or canceled")
 	}
-	h.mu.Lock()
-	closed, started := h.closed, h.started
-	h.mu.Unlock()
-	if closed {
-		return identity.Err(identity.Unavailable, "runtime closed")
-	}
-	if started {
+	if h.started {
 		return nil
 	}
-	if err := h.box.Start(); err != nil {
-		var de *identity.Error
-		if errors.As(err, &de) && de.Code == identity.PortConflict {
+	lc := net.ListenConfig{}
+	l, e := lc.Listen(ctx, "tcp", net.JoinHostPort(h.endpoint.Host, portString(h.endpoint.Port)))
+	if e != nil {
+		if addressInUse(e) {
 			return identity.Err(identity.PortConflict, "listener port is already in use")
 		}
-		return identity.Err(identity.Unavailable, "native runtime start failed; listener port may be in use")
+		return identity.Err(identity.Unavailable, "Snell listener start failed")
 	}
-	h.mu.Lock()
+	h.listener = l
 	h.started = true
-	h.mu.Unlock()
-	return nil
-}
-func (h *Handle) Health(ctx context.Context) error {
-	if ctx.Err() != nil || !h.running.Load() {
-		return identity.Err(identity.Unavailable, "native listener is not healthy")
-	}
+	h.running.Store(true)
+	h.wg.Add(1)
+	go h.accept()
 	return nil
 }
 func (h *Handle) Activate() {
@@ -152,76 +98,44 @@ func (h *Handle) Activate() {
 		h.admitted.Store(true)
 	}
 }
-func (h *Handle) Stats() ports.Stats {
-	return ports.Stats{Upload: h.upload.Load(), Download: h.download.Load(), Sessions: h.sessions.Load(), Active: h.active.Load()}
+func (h *Handle) Health(ctx context.Context) error {
+	if ctx.Err() != nil || !h.running.Load() {
+		return identity.Err(identity.Unavailable, "Snell listener is not healthy")
+	}
+	return nil
 }
+func (h *Handle) Stats() ports.Stats { return h.total.Snapshot() }
 func (h *Handle) Close(ctx context.Context) error {
 	h.lifecycle.Lock()
-	defer h.lifecycle.Unlock()
 	h.mu.Lock()
-	if h.closed {
-		done := h.done
-		h.mu.Unlock()
-		select {
-		case <-done:
-			return nil
-		case <-ctx.Done():
-			return identity.Err(identity.Unavailable, "runtime shutdown timed out")
-		}
-	}
+	first := !h.closed
 	h.closed = true
-	h.admitted.Store(false)
 	h.mu.Unlock()
-	h.cancel()
-	_ = h.box.Close()
-	go func() { h.wg.Wait(); close(h.done) }()
+	if first {
+		h.admitted.Store(false)
+		h.running.Store(false)
+		h.cancel()
+		if h.listener != nil {
+			_ = h.listener.Close()
+		}
+		h.mu.Lock()
+		all := make([]net.Conn, 0, len(h.connections))
+		for c := range h.connections {
+			all = append(all, c)
+		}
+		h.mu.Unlock()
+		for _, c := range all {
+			_ = c.Close()
+		}
+		go func() { h.wg.Wait(); close(h.done) }()
+	}
+	h.lifecycle.Unlock()
 	select {
 	case <-h.done:
 		return nil
 	case <-ctx.Done():
-		return identity.Err(identity.Unavailable, "runtime shutdown timed out")
+		return identity.Err(identity.Unavailable, "Snell shutdown timed out")
 	}
-}
-
-type ownedInbound struct {
-	adapter.Inbound
-	h *Handle
-}
-
-func (o *ownedInbound) Start(stage adapter.StartStage) error {
-	if stage != adapter.StartStateStart {
-		return nil
-	}
-	l, err := net.Listen("tcp", net.JoinHostPort(o.h.endpoint.Host, portString(o.h.endpoint.Port)))
-	if err != nil {
-		if addressInUse(err) {
-			return identity.Err(identity.PortConflict, "listener port is already in use")
-		}
-		return err
-	}
-	o.h.listener = l
-	o.h.running.Store(true)
-	o.h.wg.Add(1)
-	go o.h.accept()
-	return nil
-}
-func portString(p uint16) string { return strconv.Itoa(int(p)) }
-func (o *ownedInbound) Close() error {
-	h := o.h
-	h.running.Store(false)
-	if h.listener != nil {
-		_ = h.listener.Close()
-	}
-	h.mu.Lock()
-	conns := make([]*rawConn, 0, len(h.connections))
-	for c := range h.connections {
-		conns = append(conns, c)
-	}
-	h.mu.Unlock()
-	for _, c := range conns {
-		_ = c.Close()
-	}
-	return h.stock.Close()
 }
 func (h *Handle) accept() {
 	defer h.wg.Done()
@@ -232,75 +146,122 @@ func (h *Handle) accept() {
 			return
 		}
 		h.mu.Lock()
-		if h.closed || !h.admitted.Load() {
+		if h.closed || !h.admitted.Load() || len(h.connections) >= 256 {
 			h.mu.Unlock()
 			_ = c.Close()
 			continue
 		}
-		raw := &rawConn{Conn: c, h: h}
-		h.connections[raw] = true
+		h.connections[c] = true
 		h.wg.Add(1)
 		h.mu.Unlock()
-		// Bound unauthenticated sockets. Authenticated routes clear this deadline below.
-		_ = c.SetDeadline(time.Now().Add(5 * time.Second))
-		go func() {
-			defer h.wg.Done()
-			h.handler.NewConnection(h.ctx, raw, adapter.InboundContext{Source: M.SocksaddrFromNet(c.RemoteAddr())}, func(error) { _ = raw.Close() })
-		}()
+		go h.serve(c)
 	}
 }
-
-type rawConn struct {
-	net.Conn
-	h    *Handle
-	once sync.Once
+func (h *Handle) addTarget(c net.Conn) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.closed {
+		_ = c.Close()
+		return false
+	}
+	h.connections[c] = true
+	return true
 }
-
-func (c *rawConn) Close() error {
-	e := c.Conn.Close()
-	c.once.Do(func() { c.h.mu.Lock(); delete(c.h.connections, c); c.h.mu.Unlock() })
-	return e
+func (h *Handle) remove(c net.Conn) { h.mu.Lock(); delete(h.connections, c); h.mu.Unlock() }
+func (h *Handle) serve(raw net.Conn) {
+	defer h.wg.Done()
+	defer raw.Close()
+	defer h.remove(raw)
+	_ = raw.SetReadDeadline(time.Now().Add(5 * time.Second))
+	_ = wire.Serve(raw, h.key, func(tunnel *wire.Tunnel, dst access.Endpoint) error {
+		_ = raw.SetReadDeadline(time.Time{})
+		if !h.admitted.Load() {
+			return net.ErrClosed
+		}
+		target, e := h.protected.DialContext(h.ctx, "tcp", net.JoinHostPort(dst.Host, portString(dst.Port)))
+		if e != nil {
+			return e
+		}
+		if !h.addTarget(target) {
+			return net.ErrClosed
+		}
+		defer h.remove(target)
+		defer target.Close()
+		counted := traffic.Conn(tunnel, h.total)
+		defer counted.Close()
+		relay.Join(h.ctx, counted, target)
+		return nil
+	}, func(packet *wire.Packet) error {
+		_ = raw.SetReadDeadline(time.Time{})
+		if !h.admitted.Load() {
+			return net.ErrClosed
+		}
+		return h.serveUDP(packet)
+	})
 }
-func (h *Handle) RoutedConnection(_ context.Context, c net.Conn, _ adapter.InboundContext, _ adapter.Rule, _ adapter.Outbound) net.Conn {
-	_ = c.SetDeadline(time.Time{})
-	h.sessions.Add(1)
-	h.active.Add(1)
-	return &countConn{ExtendedConn: bufio.NewInt64CounterConn(c, []*atomic.Int64{&h.upload}, []*atomic.Int64{&h.download}), h: h}
-}
-
-type countConn struct {
-	N.ExtendedConn
-	h    *Handle
-	once sync.Once
-}
-
-func (c *countConn) Close() error {
-	c.once.Do(func() { c.h.active.Add(-1) })
-	return c.ExtendedConn.Close()
-}
-func (c *countConn) Upstream() any           { return c.ExtendedConn }
-func (c *countConn) ReaderReplaceable() bool { return true }
-func (c *countConn) WriterReplaceable() bool { return true }
-func (h *Handle) RoutedPacketConnection(_ context.Context, c N.PacketConn, _ adapter.InboundContext, _ adapter.Rule, _ adapter.Outbound) N.PacketConn {
-	_ = c.SetDeadline(time.Time{})
-	h.sessions.Add(1)
-	h.active.Add(1)
-	return &countPacket{PacketConn: bufio.NewInt64CounterPacketConn(c, []*atomic.Int64{&h.upload}, nil, []*atomic.Int64{&h.download}, nil), h: h}
-}
-
-type countPacket struct {
-	N.PacketConn
-	h    *Handle
-	once sync.Once
-}
-
-func (c *countPacket) Close() error {
-	c.once.Do(func() { c.h.active.Add(-1) })
-	return c.PacketConn.Close()
-}
-func (c *countPacket) Upstream() any           { return c.PacketConn }
-func (c *countPacket) ReaderReplaceable() bool { return true }
-func (c *countPacket) WriterReplaceable() bool { return true }
-func (h *Handle) RoutedFlow(context.Context, adapter.InboundContext, adapter.Rule, adapter.Outbound) tun.FlowTracker {
-	return nil
+func (h *Handle) serveUDP(packet net.PacketConn) error {
+	defer packet.Close()
+	release := traffic.Open(false, h.total)
+	defer release()
+	targets := map[access.Endpoint]net.Conn{}
+	var readers sync.WaitGroup
+	defer func() {
+		_ = packet.Close()
+		for _, c := range targets {
+			_ = c.Close()
+		}
+		readers.Wait()
+		for _, c := range targets {
+			h.remove(c)
+		}
+	}()
+	buffer := make([]byte, 65535)
+	for {
+		n, a, e := packet.ReadFrom(buffer)
+		if e != nil {
+			return e
+		}
+		dst, e := netaddr.From(a)
+		if e != nil {
+			return e
+		}
+		target := targets[dst]
+		if target == nil {
+			if len(targets) >= 128 {
+				return wire.ErrFrame
+			}
+			target, e = h.protected.DialContext(h.ctx, "udp", net.JoinHostPort(dst.Host, portString(dst.Port)))
+			if e != nil {
+				return e
+			}
+			if !h.addTarget(target) {
+				return net.ErrClosed
+			}
+			targets[dst] = target
+			readers.Add(1)
+			go func(c net.Conn) {
+				defer readers.Done()
+				scratch := make([]byte, 65535)
+				for {
+					n, e := c.Read(scratch)
+					if e != nil {
+						return
+					}
+					if _, e = packet.WriteTo(scratch[:n], c.RemoteAddr()); e != nil {
+						_ = packet.Close()
+						return
+					}
+					traffic.CountDownload(n, h.total)
+				}
+			}(target)
+		}
+		nw, e := target.Write(buffer[:n])
+		if e != nil {
+			return e
+		}
+		if nw != n {
+			return io.ErrShortWrite
+		}
+		traffic.CountUpload(n, h.total)
+	}
 }

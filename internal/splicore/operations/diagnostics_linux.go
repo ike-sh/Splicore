@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"github.com/sagernet/sing-box/internal/splicore/application"
+	"github.com/ike-sh/Splicore/internal/splicore/application"
 	"os"
 	"os/exec"
 	"syscall"

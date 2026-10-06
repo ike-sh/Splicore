@@ -4,21 +4,16 @@ import (
 	"context"
 	"errors"
 	"github.com/gofrs/uuid/v5"
-	"github.com/sagernet/sing-box/internal/splicore/underlay"
+	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"net"
-	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	"github.com/sagernet/sing-vmess"
-	upstream "github.com/sagernet/sing-vmess/vless"
-	"github.com/sagernet/sing/common/logger"
-	M "github.com/sagernet/sing/common/metadata"
-	N "github.com/sagernet/sing/common/network"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/protocol/vless/wire"
 )
 
 func TestVisionCompilerHardGateBeforeMaterialOrConstruction(t *testing.T) {
@@ -33,37 +28,35 @@ func TestVisionCompilerHardGateBeforeMaterialOrConstruction(t *testing.T) {
 	}
 }
 
-type rejectedVisionHandler struct{ calls atomic.Int64 }
-
-func (h *rejectedVisionHandler) NewConnectionEx(context.Context, net.Conn, M.Socksaddr, M.Socksaddr, N.CloseHandlerFunc) {
-	h.calls.Add(1)
-}
-func (h *rejectedVisionHandler) NewPacketConnectionEx(context.Context, N.PacketConn, M.Socksaddr, M.Socksaddr, N.CloseHandlerFunc) {
-	h.calls.Add(1)
-}
-
 func TestVisionWireRequestCannotReachConstructor(t *testing.T) {
 	user, err := identity.NewID()
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := &rejectedVisionHandler{}
-	service := upstream.NewService[string](logger.NOP(), handler)
-	service.UpdateUsers([]string{"Alice"}, []string{string(user)}, []string{""})
+	var constructors atomic.Int64
 	server, client := net.Pipe()
 	defer server.Close()
 	defer client.Close()
 	_ = client.SetDeadline(time.Now().Add(5 * time.Second))
 	_ = server.SetDeadline(time.Now().Add(5 * time.Second))
 	done := make(chan error, 1)
-	go func() { done <- service.NewConnection(context.Background(), server, M.Socksaddr{}, nil) }()
-	// Write only the existing request header. NewConn does not create VisionConn.
+	go func() {
+		_, err := wire.ReadRequest(server)
+		if err == nil {
+			constructors.Add(1)
+		}
+		done <- err
+	}()
+	// An actual protobuf flow addon is rejected before any runtime constructor.
 	credential, _ := uuid.FromString(string(user))
-	conn := upstream.NewConn(client, credential, vmess.CommandTCP, M.ParseSocksaddr("127.0.0.1:12345"), upstream.FlowVision)
-	if _, err := conn.Write(nil); err != nil {
+	addon := append([]byte{0x0a, byte(len("xtls-rprx-vision"))}, "xtls-rprx-vision"...)
+	header := append([]byte{0}, credential[:]...)
+	header = append(header, byte(len(addon)))
+	header = append(header, addon...)
+	if err := wire.Write(client, header); err != nil {
 		t.Fatal(err)
 	}
-	if err := <-done; err == nil || !strings.Contains(err.Error(), "flow mismatch") || handler.calls.Load() != 0 {
+	if err := <-done; !errors.Is(err, wire.ErrFlow) || constructors.Load() != 0 {
 		t.Fatal("Vision request reached runtime")
 	}
 }

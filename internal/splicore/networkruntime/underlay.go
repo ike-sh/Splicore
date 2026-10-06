@@ -2,7 +2,7 @@ package networkruntime
 
 import (
 	"context"
-	"github.com/sagernet/sing-box/internal/splicore/underlay"
+	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"net/netip"
 )
 

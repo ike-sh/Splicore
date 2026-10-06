@@ -10,9 +10,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/sagernet/sing-box/internal/splicore/config"
-	"github.com/sagernet/sing-box/internal/splicore/secretvault"
-	"github.com/sagernet/sing-box/internal/splicore/version"
+	"github.com/ike-sh/Splicore/internal/splicore/config"
+	"github.com/ike-sh/Splicore/internal/splicore/secretvault"
+	"github.com/ike-sh/Splicore/internal/splicore/version"
 )
 
 func Initialize(c config.Config) error {

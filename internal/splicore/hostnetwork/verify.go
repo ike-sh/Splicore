@@ -2,7 +2,7 @@ package hostnetwork
 
 import (
 	"context"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 )
 
 // Verify reads back every live resource of this journal generation. Borrowed

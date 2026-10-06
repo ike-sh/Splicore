@@ -4,10 +4,10 @@ import (
 	"context"
 	"crypto/hmac"
 	"encoding/json"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/domain/policy"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/policy"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	"time"
 )
 
@@ -110,6 +110,13 @@ func (s *Service) creationResources(d ports.CreationDraft, node identity.ID, cod
 	}
 	data := d.Settings
 	out.inbound = access.Inbound{ID: id, NodeID: node, Name: d.Name, Protocol: d.Protocol, Engine: d.Engine, Enabled: true, Listeners: []access.Listener{{ID: listener, Transport: d.Transport, Endpoint: d.Listener}}, DisplayEndpoints: []access.DisplayEndpoint{{ID: display, Endpoint: d.Display}}, Tags: []string{}, Settings: access.Settings{Schema: 1, Data: data}, Stamp: stamp}
+	for _, transport := range d.AdditionalTransports {
+		lid, e := newID()
+		if e != nil {
+			return out, e
+		}
+		out.inbound.Listeners = append(out.inbound.Listeners, access.Listener{ID: lid, Transport: transport, Endpoint: d.Listener})
+	}
 	for _, payload := range d.ServerPayloads {
 		cid, err := newID()
 		if err != nil {

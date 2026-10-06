@@ -3,8 +3,8 @@ package ports
 import (
 	"context"
 	"encoding/json"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"strconv"
 )
 
@@ -18,33 +18,55 @@ type RuntimeHandle interface {
 	Stats() Stats
 }
 type Stats struct {
-	Upload   int64 `json:"upload_bytes"`
-	Download int64 `json:"download_bytes"`
-	Sessions int64 `json:"sessions_total"`
-	Active   int64 `json:"sessions_active"`
+	Upload      int64 `json:"upload_bytes"`
+	Download    int64 `json:"download_bytes"`
+	Sessions    int64 `json:"sessions_total"`
+	Active      int64 `json:"sessions_active"`
+	TCPSessions int64 `json:"tcp_sessions_total,omitempty"`
+	TCPActive   int64 `json:"tcp_sessions_active,omitempty"`
+	UDPSessions int64 `json:"udp_sessions_total,omitempty"`
+	UDPActive   int64 `json:"udp_sessions_active,omitempty"`
 }
 
 func (s Stats) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
-		Upload   string `json:"upload_bytes"`
-		Download string `json:"download_bytes"`
-		Sessions string `json:"sessions_total"`
-		Active   string `json:"sessions_active"`
-	}{strconv.FormatInt(s.Upload, 10), strconv.FormatInt(s.Download, 10), strconv.FormatInt(s.Sessions, 10), strconv.FormatInt(s.Active, 10)})
+		Upload      string `json:"upload_bytes"`
+		Download    string `json:"download_bytes"`
+		Sessions    string `json:"sessions_total"`
+		Active      string `json:"sessions_active"`
+		TCPSessions string `json:"tcp_sessions_total,omitempty"`
+		TCPActive   string `json:"tcp_sessions_active,omitempty"`
+		UDPSessions string `json:"udp_sessions_total,omitempty"`
+		UDPActive   string `json:"udp_sessions_active,omitempty"`
+	}{strconv.FormatInt(s.Upload, 10), strconv.FormatInt(s.Download, 10), strconv.FormatInt(s.Sessions, 10), strconv.FormatInt(s.Active, 10), optionalCounter(s.TCPSessions), optionalCounter(s.TCPActive), optionalCounter(s.UDPSessions), optionalCounter(s.UDPActive)})
+}
+func optionalCounter(n int64) string {
+	if n == 0 {
+		return ""
+	}
+	return strconv.FormatInt(n, 10)
 }
 func (s *Stats) UnmarshalJSON(b []byte) error {
 	var v struct {
-		Upload   string `json:"upload_bytes"`
-		Download string `json:"download_bytes"`
-		Sessions string `json:"sessions_total"`
-		Active   string `json:"sessions_active"`
+		Upload      string `json:"upload_bytes"`
+		Download    string `json:"download_bytes"`
+		Sessions    string `json:"sessions_total"`
+		Active      string `json:"sessions_active"`
+		TCPSessions string `json:"tcp_sessions_total"`
+		TCPActive   string `json:"tcp_sessions_active"`
+		UDPSessions string `json:"udp_sessions_total"`
+		UDPActive   string `json:"udp_sessions_active"`
 	}
 	if json.Unmarshal(b, &v) != nil {
 		return identity.Err(identity.Invalid, "invalid stats response")
 	}
-	values := []string{v.Upload, v.Download, v.Sessions, v.Active}
-	out := []*int64{&s.Upload, &s.Download, &s.Sessions, &s.Active}
+	values := []string{v.Upload, v.Download, v.Sessions, v.Active, v.TCPSessions, v.TCPActive, v.UDPSessions, v.UDPActive}
+	out := []*int64{&s.Upload, &s.Download, &s.Sessions, &s.Active, &s.TCPSessions, &s.TCPActive, &s.UDPSessions, &s.UDPActive}
 	for n, value := range values {
+		if n >= 4 && value == "" {
+			*out[n] = 0
+			continue
+		}
 		v, e := strconv.ParseInt(value, 10, 64)
 		if e != nil || v < 0 {
 			return identity.Err(identity.Invalid, "invalid stats counter")

@@ -12,12 +12,12 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/sagernet/sing-box/internal/splicore/application"
-	"github.com/sagernet/sing-box/internal/splicore/config"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/operations"
-	"github.com/sagernet/sing-box/internal/splicore/transport"
-	"github.com/sagernet/sing-box/internal/splicore/version"
+	"github.com/ike-sh/Splicore/internal/splicore/application"
+	"github.com/ike-sh/Splicore/internal/splicore/config"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/operations"
+	"github.com/ike-sh/Splicore/internal/splicore/transport"
+	"github.com/ike-sh/Splicore/internal/splicore/version"
 )
 
 type Dependencies struct {

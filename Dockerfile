@@ -1,7 +1,7 @@
 FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS builder
 LABEL maintainer="nekohasekai <contact-git@sekai.icu>"
-COPY . /go/src/github.com/sagernet/sing-box
-WORKDIR /go/src/github.com/sagernet/sing-box
+COPY . /go/src/github.com/ike-sh/Splicore
+WORKDIR /go/src/github.com/ike-sh/Splicore
 ARG TARGETOS TARGETARCH
 ARG GOPROXY=""
 ENV GOPROXY ${GOPROXY}
@@ -16,7 +16,7 @@ RUN set -ex \
     && export LDFLAGS_SHARED=$(cat release/LDFLAGS) \
     && go build -v -trimpath -tags "$TAGS" \
         -o /go/bin/sing-box \
-        -ldflags "-X \"github.com/sagernet/sing-box/constant.Version=$VERSION\" $LDFLAGS_SHARED -s -w -buildid=" \
+        -ldflags "-X \"github.com/ike-sh/Splicore/constant.Version=$VERSION\" $LDFLAGS_SHARED -s -w -buildid=" \
         ./cmd/sing-box
 FROM --platform=$TARGETPLATFORM alpine AS dist
 LABEL maintainer="nekohasekai <contact-git@sekai.icu>"

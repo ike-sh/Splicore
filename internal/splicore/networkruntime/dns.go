@@ -3,20 +3,18 @@ package networkruntime
 import (
 	"container/list"
 	"context"
+	"crypto/tls"
+	"encoding/binary"
 	"encoding/json"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/netaddr"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/tlsconfig"
+	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"github.com/miekg/dns"
-	T "github.com/sagernet/sing-box/common/tls"
-	D "github.com/sagernet/sing-box/dns"
-	transport "github.com/sagernet/sing-box/dns/transport"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	P "github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	"github.com/sagernet/sing-box/internal/splicore/underlay"
-	"github.com/sagernet/sing-box/log"
-	"github.com/sagernet/sing-box/option"
-	"github.com/sagernet/sing/common/json/badoption"
-	M "github.com/sagernet/sing/common/metadata"
+	"io"
 	"net"
 	"net/netip"
 	"strconv"
@@ -70,7 +68,7 @@ func (e *Engine) dialPurpose(ctx context.Context, a P.Action, network string, ta
 			var pc net.PacketConn
 			pc, err = p.ListenPacket(ctx, target)
 			if err == nil {
-				conn = &connectedPacket{pc, M.ParseSocksaddrHostPort(target.Host, target.Port)}
+				conn = &connectedPacket{pc, netaddr.UDP(target)}
 			}
 		}
 	}
@@ -80,17 +78,6 @@ func (e *Engine) dialPurpose(ctx context.Context, a P.Action, network string, ta
 	return e.owner.Conn(conn)
 }
 
-type dnsDialer struct {
-	engine *Engine
-	action P.Action
-}
-
-func (d dnsDialer) DialContext(ctx context.Context, network string, dst M.Socksaddr) (net.Conn, error) {
-	return d.engine.dial(ctx, d.action, network, access.Endpoint{Host: dst.AddrString(), Port: dst.Port})
-}
-func (d dnsDialer) ListenPacket(ctx context.Context, dst M.Socksaddr) (net.PacketConn, error) {
-	return nil, identity.Err(identity.NotImplemented, "DNS transport uses connected TCP/UDP only")
-}
 func portString(p uint16) string { return strconv.Itoa(int(p)) }
 
 type dnsKey struct {
@@ -350,48 +337,10 @@ func (e *Engine) question(ctx context.Context, s P.DNSServer, endpoint access.En
 	}
 	e.dnsMisses.Add(1)
 	e.dnsCounts[s.ID].queries.Add(1)
-	logger := log.NewNOPFactory().Logger()
-	dialer := dnsDialer{e, action}
-	addr := M.ParseSocksaddrHostPort(endpoint.Host, endpoint.Port)
-	a := D.NewTransportAdapter(s.Type, string(s.ID), nil)
 	request := new(dns.Msg)
 	request.SetQuestion(dns.Fqdn(domain), kind)
-	var conn net.Conn
-	var response *dns.Msg
-	var err error
-	switch s.Type {
-	case "udp":
-		t := transport.NewUDPRaw(logger, a, dialer, addr)
-		defer t.Close()
-		response, err = t.Exchange(ctx, request)
-	case "tcp":
-		conn, err = dialer.DialContext(ctx, "tcp", addr)
-	case "dot":
-		options := option.OutboundTLSOptions{Enabled: true, ServerName: s.TLS.ServerName}
-		if s.TLS.CACertificate != "" {
-			options.Certificate = badoption.Listable[string]{s.TLS.CACertificate}
-		}
-		tlsConfig, configErr := T.NewSTDClient(ctx, logger, s.Endpoint.Host, options)
-		if configErr != nil {
-			return nil, false, identity.Err(identity.Invalid, "invalid DNS trust store")
-		}
-		conn, err = T.NewDialer(dialer, tlsConfig).DialTLSContext(ctx, addr)
-	default:
-		return nil, false, identity.Err(identity.Invalid, "unsupported DNS transport")
-	}
-	if conn != nil {
-		// One owned exchange, using the existing bounded DNS framing. No connection-reuse
-		// probes that would introduce extra A/AAAA questions outside the chosen strategy.
-		defer conn.Close()
-		stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
-		defer stop()
-		if deadline, ok := ctx.Deadline(); ok {
-			_ = conn.SetDeadline(deadline)
-		}
-		if err = transport.WriteMessage(conn, request.Id, request); err == nil {
-			response, err = transport.ReadMessage(conn)
-		}
-	}
+	request.Compress = true
+	response, err := e.exchangeDNS(ctx, s, endpoint, action, request, s.Type)
 	if err != nil {
 		return nil, false, identity.Err(identity.Unavailable, "DNS exchange failed")
 	}
@@ -427,4 +376,99 @@ func dnsTTL(m *dns.Msg) uint32 {
 		return 0
 	}
 	return minimum
+}
+
+// One exchange owns one protected socket and all framing bytes. The independent
+// DNS library owns message encoding; only TCP's two-byte length is composed here.
+func (e *Engine) exchangeDNS(ctx context.Context, s P.DNSServer, endpoint access.Endpoint, action P.Action, request *dns.Msg, transport string) (*dns.Msg, error) {
+	network := "tcp"
+	if transport == "udp" {
+		network = "udp"
+	}
+	if transport != "tcp" && transport != "udp" && transport != "dot" {
+		return nil, identity.Err(identity.Invalid, "unsupported DNS transport")
+	}
+	conn, err := e.dial(ctx, action, network, endpoint)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	if transport == "dot" {
+		cfg := &tls.Config{ServerName: s.TLS.ServerName}
+		if s.TLS.CACertificate != "" {
+			cfg.RootCAs, err = tlsconfig.CAPool(s.TLS.CACertificate)
+			if err != nil {
+				return nil, identity.Err(identity.Invalid, "invalid DNS trust store")
+			}
+		}
+		secured := tls.Client(conn, cfg)
+		if err = secured.HandshakeContext(ctx); err != nil {
+			return nil, err
+		}
+		conn = secured
+	}
+	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	defer stop()
+	if deadline, ok := ctx.Deadline(); ok {
+		_ = conn.SetDeadline(deadline)
+	}
+	packet, err := request.Pack()
+	if err != nil {
+		return nil, err
+	}
+	if len(packet) > 65535 {
+		return nil, dns.ErrBuf
+	}
+	if network == "tcp" {
+		packet = append(binary.BigEndian.AppendUint16(nil, uint16(len(packet))), packet...)
+	}
+	written, err := conn.Write(packet)
+	if err == nil && written != len(packet) {
+		err = io.ErrShortWrite
+	}
+	if err != nil {
+		return nil, err
+	}
+	for {
+		var b []byte
+		if network == "tcp" {
+			var length [2]byte
+			if _, err = io.ReadFull(conn, length[:]); err != nil {
+				return nil, err
+			}
+			n := int(binary.BigEndian.Uint16(length[:]))
+			if n < 12 {
+				return nil, dns.ErrShortRead
+			}
+			b = make([]byte, n)
+			if _, err = io.ReadFull(conn, b); err != nil {
+				return nil, err
+			}
+		} else {
+			b = make([]byte, 65535)
+			n, readErr := conn.Read(b)
+			if readErr != nil {
+				return nil, readErr
+			}
+			b = b[:n]
+		}
+		response := new(dns.Msg)
+		if err = response.Unpack(b); err != nil {
+			if network == "udp" {
+				continue
+			}
+			return nil, err
+		}
+		if response.Id != request.Id || !response.Response {
+			if network == "udp" {
+				continue
+			}
+			return nil, dns.ErrId
+		}
+		if network == "udp" && response.Truncated {
+			_ = conn.Close()
+			return e.exchangeDNS(ctx, s, endpoint, action, request, "tcp")
+		}
+		return response, nil
+	}
 }

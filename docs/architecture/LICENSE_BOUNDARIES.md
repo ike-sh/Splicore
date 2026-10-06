@@ -64,3 +64,16 @@ does not import the daemon or gRPC. The concrete
 audit hashes each module's LICENSE/NOTICE/AUTHORS and compares baseline versions.
 No CGO requirement. Binary size/build time and exact selected versions are in
 [Phase 8 report](../reports/PHASE_8_MIERU_NATIVE_INTEGRATION_REPORT.md). No release is authorized.
+
+## Phase 17 independent core snapshot
+
+Historical baseline/Mieru sections above remain provenance records. The current
+module is `github.com/ike-sh/Splicore`; inherited nonproduct code and SagerNet Go
+dependencies were removed after closure audits. Keep root GPL terms, upstream
+attribution and remaining file notices. Current independent versions and
+verbatim texts are in [third-party notices](../../THIRD_PARTY_NOTICES.md).
+The external round2-license-attempt2 inventory hashes 95 notice files from 69
+locally materialized selected modules and records successful go mod verify.
+Graph-only non-linked modules are listed separately. Binary metadata identifies
+actual product modules. No distribution or license change is performed in this
+implementation round.

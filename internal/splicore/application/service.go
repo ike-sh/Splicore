@@ -8,17 +8,17 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/sagernet/sing-box/internal/splicore/underlay"
+	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/sagernet/sing-box/internal/splicore/clientruntime"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	"github.com/sagernet/sing-box/internal/splicore/registry"
-	"github.com/sagernet/sing-box/internal/splicore/version"
+	"github.com/ike-sh/Splicore/internal/splicore/clientruntime"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/version"
 )
 
 type System struct {
@@ -337,6 +337,31 @@ func (s *Service) Doctor(ctx context.Context, transport string) (Doctor, error) 
 		}
 	}
 	d.Checks = append(d.Checks, Check{"runtime_consistency", runtimeStatus, "passive committed state and runtime health comparison"})
+	if s.runtime != nil {
+		s.runtime.mu.Lock()
+		inbounds, validationErr := s.runtime.repo.Inbounds(ctx)
+		if validationErr == nil {
+			for _, in := range inbounds {
+				intent, err := s.projection(ctx, in, state.Revision)
+				if err == nil {
+					module, e := s.protocols.Get(in.Protocol)
+					err = e
+					if err == nil {
+						_, err = module.BuildRuntime(ctx, intent)
+					}
+				}
+				status := "pass"
+				if err != nil {
+					status = "fail"
+				}
+				d.Checks = append(d.Checks, Check{"inbound_" + string(in.ID) + "_validation", status, "protocol settings, credentials and account-binding references"})
+			}
+		}
+		s.runtime.mu.Unlock()
+		if validationErr != nil {
+			return Doctor{}, validationErr
+		}
+	}
 	providerStatus := "pass"
 	if system.Providers.Degraded > 0 || system.Providers.LastError != "" {
 		providerStatus = "fail"

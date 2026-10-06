@@ -145,3 +145,11 @@ The [Qualification Fix freeze report](../reports/QUALIFICATION_FIX_NATIVE_TUN_FR
 records the forward candidate after maintainer review. QF-001/QF-002/QF-003 and
 the owned Native TUN runtime are included. Requalification must use the new
 frozen commit; this workflow does not resume it or start a new feature phase.
+
+## Phase 16 implementation review
+
+The [Native Shadowsocks implementation report](../reports/PHASE16_NATIVE_SHADOWSOCKS_IMPLEMENTATION_REPORT.md)
+records SS/SS2022 integration and actual acceptance evidence. The
+[runtime architecture](../architecture/SHADOWSOCKS_RUNTIME.md) and
+[Proposed ADR 0037](../adr/0037-native-shadowsocks-editions-and-credential-ownership.md)
+define the protocol integration template. This stage performs no freeze or release.

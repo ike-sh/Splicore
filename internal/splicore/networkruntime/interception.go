@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	P "github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
 )
 
 // ExchangeDNS uses the Phase 12 matcher, detours, trust checks and bounded cache.

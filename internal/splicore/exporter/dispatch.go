@@ -2,9 +2,9 @@ package exporter
 
 import (
 	"context"
-	"github.com/sagernet/sing-box/internal/splicore/clientprofile"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/clientprofile"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
 )
 
 // Dispatcher is a format registry over protocol keys; unsupported keys fail closed.

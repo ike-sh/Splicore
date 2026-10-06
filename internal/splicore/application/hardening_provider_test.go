@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sagernet/sing-box/internal/splicore/application"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/provider"
-	"github.com/sagernet/sing-box/internal/splicore/nodeimport"
-	"github.com/sagernet/sing-box/internal/splicore/protocol/snell"
+	"github.com/ike-sh/Splicore/internal/splicore/application"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/provider"
+	"github.com/ike-sh/Splicore/internal/splicore/nodeimport"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/snell"
 )
 
 func TestPhase15LateProviderFailureCannotDegradeReplacement(t *testing.T) {

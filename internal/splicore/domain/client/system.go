@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"slices"
 
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 )
 
 // TUNSettings is Splicore intent, independent of upstream runtime JSON.

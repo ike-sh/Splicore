@@ -1,11 +1,11 @@
 package registry
 
 import (
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	hm "github.com/sagernet/sing-box/internal/splicore/protocol/hysteria2"
-	sm "github.com/sagernet/sing-box/internal/splicore/protocol/snell"
-	tm "github.com/sagernet/sing-box/internal/splicore/protocol/tuic"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	hm "github.com/ike-sh/Splicore/internal/splicore/protocol/hysteria2"
+	sm "github.com/ike-sh/Splicore/internal/splicore/protocol/snell"
+	tm "github.com/ike-sh/Splicore/internal/splicore/protocol/tuic"
 	"testing"
 )
 

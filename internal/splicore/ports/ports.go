@@ -4,10 +4,10 @@ package ports
 import (
 	"context"
 
-	"github.com/sagernet/sing-box/internal/splicore/clientprofile"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/domain/policy"
+	"github.com/ike-sh/Splicore/internal/splicore/clientprofile"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/policy"
 )
 
 type Availability string
@@ -113,10 +113,15 @@ type RuntimeIntent struct {
 	Revision          identity.Revision
 }
 type AuthorizedBinding struct {
-	Binding    access.Binding
-	Inbound    access.Inbound
-	Credential access.Credential
+	Binding           access.Binding
+	Inbound           access.Inbound
+	Credential        access.Credential
+	ServerCredentials []access.Credential
 }
+
+// ClientServerCredentialProjection permits explicit client export of a protocol's
+// shared identity key. Protocols with private server-only keys do not implement it.
+type ClientServerCredentialProjection interface{ ClientServerCredentials() bool }
 type Protocol interface {
 	Metadata() ProtocolMetadata
 	Capabilities(CapabilityContext) Capabilities

@@ -6,15 +6,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gofrs/uuid/v5"
-	"github.com/sagernet/sing-box/internal/splicore/clientprofile"
-	"github.com/sagernet/sing-box/internal/splicore/credential"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/domain/secret"
-	"github.com/sagernet/sing-box/internal/splicore/jsonstrict"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	"github.com/sagernet/sing-box/internal/splicore/protocol/creation"
-	"github.com/sagernet/sing-box/internal/splicore/tlsconfig"
+	"github.com/ike-sh/Splicore/internal/splicore/clientprofile"
+	"github.com/ike-sh/Splicore/internal/splicore/credential"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
+	"github.com/ike-sh/Splicore/internal/splicore/jsonstrict"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/creation"
+	"github.com/ike-sh/Splicore/internal/splicore/tlsconfig"
 	"strings"
 )
 
@@ -70,7 +70,7 @@ func GenerateCredential() (access.Payload, error) {
 	return access.UUIDPasswordPayload{UUID: secret.New(string(id)), Password: pass}, nil
 }
 func (Module) Metadata() ports.ProtocolMetadata {
-	return ports.ProtocolMetadata{Roles: ports.Roles{Inbound: true, Outbound: true}, Key: Key(), ABI: 1, CredentialKinds: []access.CredentialKind{access.UUIDPassword}, Availability: ports.Compiled, Qualification: "experimental", Provenance: "sing-box v1.14.1 / sing-quic v0.7.0; TUIC v5; UUID+password; static TLS; cubic/native; 0-RTT disabled"}
+	return ports.ProtocolMetadata{Roles: ports.Roles{Inbound: true, Outbound: true}, Key: Key(), ABI: 1, CredentialKinds: []access.CredentialKind{access.UUIDPassword}, Availability: ports.Compiled, Qualification: "experimental", Provenance: "Splicore-owned TUIC v5 wire/lifecycle; independent quic-go; UUID+password; static TLS; cubic/native; 0-RTT disabled"}
 }
 func (Module) Capabilities(ports.CapabilityContext) ports.Capabilities {
 	return ports.Capabilities{Transport: ports.TransportCapabilities{TCP: true, UDPTransport: true, UDPPayload: true, IPv4: true, IPv6: true, DomainEndpoint: true}, Identity: ports.IdentityCapabilities{MultiUserNative: true, PerUserStats: true, AttributedPayload: ports.Native, NativeStats: ports.Native, StatsUnits: "authenticated payload bytes; routed sessions; runtime generation"}, Security: ports.SecurityCapabilities{TLS: true}, Policy: ports.PolicyCapabilities{Quota: ports.Unsupported, SpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported}, Mutation: ports.MutationCapabilities{Users: ports.Restart, Listener: ports.MutationUnavailable}, Clients: []ports.ClientCompatibility{{Format: ports.Mihomo, Client: "mihomo", Version: "1.19.30", Evidence: "docs/reports/PHASE_4_TUIC_VERTICAL_SLICE_REPORT.md"}, {Format: ports.SingBox, Client: "sing-box", Version: "1.14.1", Evidence: "docs/reports/PHASE_4_TUIC_VERTICAL_SLICE_REPORT.md"}}}

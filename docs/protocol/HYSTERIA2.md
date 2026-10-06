@@ -2,29 +2,34 @@
 
 - Documentation status: Canonical
 - Audience: Protocol, runtime, client and integration developers
-- Last reviewed: 2026-10-01
+- Last reviewed: 2026-10-06 (Phase 17 Review Fix Round 1)
 - Owner: Protocol maintainers
-- Responsibility: The bounded Phase 3 Hysteria2 contract and its limitations.
+- Responsibility: The current bounded managed Hysteria2 contract and its limitations.
 - Lifecycle: Update with managed HY2 options, credentials, capabilities or qualification changes.
 
 ## Scope and provenance
 
-Hysteria2 is experimental. The managed profile uses sing-box v1.14.1
-(`1ac1a339cb1223e9c70eae14c44411c75033c02d`) and its pinned sing-quic v0.7.0
-Hysteria2 service. There is no Splicore wire, QUIC, congestion-control or TLS
-implementation. [ADR 0014](../adr/0014-hysteria2-runtime-composition.md) describes
-the owned socket composition and restart semantics. The
-[Phase 3 report](../reports/PHASE_3_HYSTERIA2_VERTICAL_SLICE_REPORT.md) owns actual
-test outcomes, tool versions and exact evidence, including Snell regression.
+Hysteria2 is experimental. Splicore owns the application
+[wire codec](../../protocol/hysteria2/wire/codec.go) and
+[connection/stream/datagram backend](../../protocol/hysteria2/backend/server.go).
+QUIC and HTTP/3 use the independent pinned `github.com/apernet/quic-go`
+`v0.63.1-0.20261004180939-a10df75c260c`; TLS uses Go's TLS implementation.
+Splicore does not implement cryptographic primitives or congestion control.
+The [native inbound](../../internal/splicore/engine/native/hysteria2.go) owns
+the admitted UDP socket, immutable credential map, routing and counters.
+Each [outbound flow](../../protocol/hysteria2/backend/client.go) owns its socket,
+QUIC transport and HTTP/3 transport; its Close joins receiving work and releases
+those resources. The server tracks parent connections, child associations and
+workers, cancels them on shutdown, and joins them before completing Close.
 
-Baseline source audit: [stock inbound](../../protocol/hysteria2/inbound.go),
-[options](../../option/hysteria2.go), [stock outbound](../../protocol/hysteria2/outbound.go),
-[baseline tests](../../test/hysteria2_test.go),
-[service](https://github.com/SagerNet/sing-quic/blob/v0.7.0/hysteria2/service.go)
-and [UDP implementation](https://github.com/SagerNet/sing-quic/blob/v0.7.0/hysteria2/packet.go).
+[ADR 0014](../adr/0014-hysteria2-runtime-composition.md) and the
+[Phase 3 report](../reports/PHASE_3_HYSTERIA2_VERTICAL_SLICE_REPORT.md) describe
+historical composition and evidence. The
+[Phase 17 report](../reports/PHASE17_SINGBOX_DECOUPLING_REPORT.md) records the
+current independent implementation and development validation.
 The native password map selects an authenticated user; no username is transmitted.
-Stock options also contain obfuscation, masquerade, bandwidth, advanced QUIC and
-realm options. They remain outside the managed schema and reject as unknown fields.
+Obfuscation, masquerade, bandwidth, advanced QUIC and realm options remain outside
+the managed schema and reject as unknown fields.
 
 ## Capabilities
 
@@ -40,7 +45,9 @@ realm options. They remain outside the managed schema and reject as unknown fiel
 | HotUserUpdate | false; stop/reconstruct the affected Inbound |
 | HotReload / listener mutation | Unavailable |
 | Quota / speed / max-session enforcement | Unsupported |
-| obfs / masquerade / hopping / realm / URI | Deferred |
+| obfs / masquerade / hopping / realm | Unsupported |
+| URI import | Bounded hy2/hysteria2 import; SNI and verified TLS only |
+| Congestion-control selector | Unavailable; backend default Reno mode |
 | Qualification | Experimental; never Stable |
 
 The shared Native Engine resolves protocol compilers from a map. Format exporters
@@ -77,14 +84,35 @@ The four independent meanings are:
 Traffic policies require explicit `policy_mode: "metadata_only"`. Per-user
 quota/upload/download values persist in domain TrafficPolicy records referenced
 by Binding overrides. Views and plans say `policy_enforced: false`. Native
-HY2 bandwidth negotiation is a connection-level congestion/bandwidth hint,
-not Account speed enforcement. This profile uses BBR and ignores client bandwidth
-hints; policy values never enter native options or exports. Payload may exceed
+HY2 bandwidth headers do not implement Account speed enforcement. This profile
+uses the pinned QUIC backend's default sender in Reno mode; no BBR sender is selected.
+The client advertises `Hysteria-CC-RX: 0`; the server responds `auto` and does not
+use client bandwidth hints to select a different congestion controller.
+Policy values never enter native options or exports. Payload may exceed
 the stored quota/rate values; that is not enforcement qualification.
+
+Managed inbound settings contain TLS only. Native outbound options must be an
+empty object. Neither API nor CLI exposes a HY2 `cubic` or `bbr` selector.
+HY2 URI CC parameters and external sing-box `congestion_control` / Mihomo
+`congestion-controller` fields reject as unsupported, including `cubic` and
+`bbr`. Import reports `unsupported_client_capability`; fields are not silently
+discarded. This existing rejection contract is covered by regression tests.
+The pinned backend calls `congestion.NewCubicSender` with `reno=true` both at
+construction and path reset. Despite the type name, its congestion avoidance
+and loss response therefore use the Reno branches; this is not evidence of
+active CUBIC. Splicore does not replace this sender. TUIC's separate fixed
+`cubic` option does not configure HY2. No accepted HY2
+configuration is changed by this documentation correction.
+
+HTTP authentication and TCP request/response padding uses `crypto/rand.Reader`.
+Length ranges remain [256, 2048), [64, 512), and [128, 1024), respectively;
+content remains the 62-character alphanumeric alphabet. Length sampling and
+content rejection sampling avoid modulo bias. Random-source errors propagate
+or reject authentication; there is no noncryptographic fallback.
 
 ## Transaction and recovery
 
-Both implemented protocols share pending → build → start → health → SQL commit
+Managed protocol lifecycles share pending → build → start → health → SQL commit
 → admission. Candidate UDP reads drop packets until durable commit, including
 TLS/auth packets. UDP conflicts are typed `port_conflict`; failed construction,
 start, health or commit closes the candidate and fails its journal record.
@@ -96,12 +124,12 @@ candidate with admission closed, commits the enabled flag, then admits traffic.
 It closes every existing session on that Inbound, including other users. It
 does not restart the daemon or other Inbounds. Failure reconstructs the old
 committed projection; failure to reconstruct leaves a degraded runtime requiring
-recovery. Never call the unsynchronized library UpdateUsers during traffic.
+recovery. Credentials are immutable snapshots for each constructed generation.
 
-Shutdown cancels authenticated QUIC sessions while retaining a writable owned
-socket for a bounded 100 ms grace interval, then closes the service, socket and
-Box routing. This allows close notifications before socket release; it is not a
-promise of lossless delivery on arbitrary networks. Clients must reconnect.
+Shutdown closes admission, cancels authenticated QUIC sessions, closes the
+listener, transport and owned socket, and waits for the parent and child workers.
+There is no managed 100 ms grace interval or inherited Box routing owner.
+Clients must reconnect; shutdown is not a lossless-delivery guarantee.
 SQLite alone supplies committed resources/credentials after restart; TLS file
 references must still resolve. Imported documents and generated client configs
 are never recovery authorities.
@@ -114,6 +142,15 @@ Views expose aggregate and per-Binding values. Each Account in this slice has
 one Binding, so its usage is that Binding's usage; shared cross-Inbound Account
 aggregation and durable billing remain deferred. Counters reset on Inbound
 replacement/recovery and are not durable quota meters.
+
+Phase 17 mixed-stress resource evidence samples goroutines, FDs, eventfds,
+listeners, routed sessions, client generations, leases and RSS at workload
+boundaries. Short HY2 flows can finish between samples; an active-TCP value of
+zero does not imply no TCP traffic. SocketFDs, host-generation and interface
+helper peak fields are not measured maxima. End-state cleanup is measured
+directly. These limits affect resource/performance observability, not framing,
+padding, packet correctness or the separately checked payload tests. They are
+not RTT or congestion-control measurements, and do not certify a platform.
 
 Passwords use the generic encrypted Credential kind `password` with an Account
 owner and typed payload. There are no HY2 fields on Account. Ordinary GET,
@@ -129,7 +166,7 @@ Private-key contents stay out of SQLite and every ClientProfile/export.
 | sing-box | 1.14.1 | `sing-box-outbound`; explicit CA, SNI, h3, insecure=false |
 | Mihomo | 1.19.30 | `mihomo-config-fragment` containing proxies; non-leaf CA pin, SNI, skip-cert-verify=false |
 | Surge | Any | UnsupportedExport |
-| URI | Any | Deferred; no invented URI |
+| URI export | Any | Deferred; URI import is a separate bounded contract |
 
 Mihomo's [CA fingerprint verifier](https://github.com/MetaCubeX/mihomo/blob/v1.19.30/component/ca/fingerprint.go)
 verifies leaf chain, validity and SNI when the pin matches a non-leaf certificate.

@@ -5,6 +5,7 @@ package clientruntime
 import (
 	"context"
 	"errors"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/testfixture"
 	"io"
 	"net"
 	"net/netip"
@@ -13,19 +14,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
+	"github.com/ike-sh/Splicore/internal/splicore/hostnetwork"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/socks"
+	"github.com/ike-sh/Splicore/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/testkit"
+	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"github.com/miekg/dns"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/client"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	P "github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
-	"github.com/sagernet/sing-box/internal/splicore/hostnetwork"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	"github.com/sagernet/sing-box/internal/splicore/registry"
-	"github.com/sagernet/sing-box/internal/splicore/testkit"
-	"github.com/sagernet/sing-box/internal/splicore/underlay"
-	M "github.com/sagernet/sing/common/metadata"
-	"github.com/sagernet/sing/protocol/socks"
-	"github.com/sagernet/sing/protocol/socks/socks5"
 )
 
 // No connection is sent to these synthetic endpoint IPs. This test-only adapter
@@ -152,7 +151,7 @@ func TestUnderlayDynamicDNSReusedTUNAndRuntimeRetirement(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		if _, e = socks.ClientHandshake5(c, socks5.CommandConnect, M.ParseSocksaddr("203.0.113.1:80"), "", ""); e != nil {
+		if _, e = socks.Handshake(c, socks.Connect, testfixture.Endpoint("203.0.113.1:80")); e != nil {
 			c.Close()
 			t.Fatal(e)
 		}

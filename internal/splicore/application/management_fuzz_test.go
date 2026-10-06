@@ -2,7 +2,7 @@ package application_test
 
 import (
 	"context"
-	"github.com/sagernet/sing-box/internal/splicore/application"
+	"github.com/ike-sh/Splicore/internal/splicore/application"
 	"path/filepath"
 	"reflect"
 	"testing"

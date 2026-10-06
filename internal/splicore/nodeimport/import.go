@@ -11,15 +11,16 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/client"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/domain/provider"
-	"github.com/sagernet/sing-box/internal/splicore/exporter"
-	"github.com/sagernet/sing-box/internal/splicore/jsonstrict"
-	hm "github.com/sagernet/sing-box/internal/splicore/protocol/hysteria2"
-	tm "github.com/sagernet/sing-box/internal/splicore/protocol/tuic"
-	vm "github.com/sagernet/sing-box/internal/splicore/protocol/vless"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/provider"
+	"github.com/ike-sh/Splicore/internal/splicore/exporter"
+	"github.com/ike-sh/Splicore/internal/splicore/jsonstrict"
+	hm "github.com/ike-sh/Splicore/internal/splicore/protocol/hysteria2"
+	ssm "github.com/ike-sh/Splicore/internal/splicore/protocol/shadowsocks"
+	tm "github.com/ike-sh/Splicore/internal/splicore/protocol/tuic"
+	vm "github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
 )
 
 type Credential struct {
@@ -157,6 +158,17 @@ func ParseURI(raw string) (Candidate, error) {
 	var c Candidate
 	if len(raw) > provider.MaxURI || !utf8.ValidString(raw) || strings.ContainsAny(raw, "\r\n\x00") {
 		return c, invalid()
+	}
+	if strings.HasPrefix(raw, "ss://") {
+		v, e := ssm.ParseURI(raw)
+		if e != nil {
+			return c, e
+		}
+		m, _ := ssm.Lookup(v.Method)
+		options, _ := json.Marshal(ssm.ClientOptions{Method: v.Method, UDP: true})
+		c.Node = client.RemoteNode{Name: v.Name, Protocol: ssm.Key(m.Edition), Endpoint: v.Endpoint, Transport: client.Transport{Kind: "tcp"}, Security: client.Security{Kind: "none"}, Options: client.Options{Schema: 1, Data: options}}
+		c.Credential = Credential{Kind: v.Credential.Kind(), Value: ssm.Material(v.Credential)}
+		return c, nil
 	}
 	u, e := url.Parse(raw)
 	if e != nil || u.Opaque != "" {

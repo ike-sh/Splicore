@@ -3,6 +3,8 @@ package clientruntime
 import (
 	"context"
 	"fmt"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/netaddr"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/testfixture"
 	"io"
 	"net"
 	"os"
@@ -12,14 +14,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sagernet/sing-box/internal/splicore/domain/client"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	P "github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
-	"github.com/sagernet/sing-box/internal/splicore/networkruntime"
-	"github.com/sagernet/sing-box/internal/splicore/registry"
-	M "github.com/sagernet/sing/common/metadata"
-	"github.com/sagernet/sing/protocol/socks"
-	"github.com/sagernet/sing/protocol/socks/socks5"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
+	"github.com/ike-sh/Splicore/internal/splicore/networkruntime"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/socks"
+	"github.com/ike-sh/Splicore/internal/splicore/registry"
 )
 
 type phase15Resources struct{ Goroutines, FDs, Listeners, Sessions, Generations, Leases int }
@@ -150,8 +150,8 @@ func TestPhase15OwnedNetworkLifecycle10x(t *testing.T) {
 			}
 			defer c.Close()
 			_ = c.SetDeadline(time.Now().Add(5 * time.Second))
-			target := M.ParseSocksaddr(tcpEcho.Addr().String())
-			if _, err = socks.ClientHandshake5(c, socks5.CommandConnect, target, "", ""); err != nil {
+			target := testfixture.Endpoint(tcpEcho.Addr().String())
+			if _, err = socks.Handshake(c, socks.Connect, target); err != nil {
 				t.Fatal(err)
 			}
 			pc, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.ParseIP("127.0.0.1")})
@@ -159,7 +159,7 @@ func TestPhase15OwnedNetworkLifecycle10x(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer pc.Close()
-			control, relay, err := udpControl(state, M.ParseSocksaddr(pc.LocalAddr().String()))
+			control, relay, err := udpControl(state, testfixture.Endpoint(pc.LocalAddr().String()))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -203,7 +203,7 @@ func TestPhase15OwnedNetworkLifecycle10x(t *testing.T) {
 				t.Fatal("listener not released", err)
 			}
 			probe.Close()
-			rebound, err := net.ListenUDP("udp4", relay.UDPAddr())
+			rebound, err := net.ListenUDP("udp4", netaddr.UDP(relay).(*net.UDPAddr))
 			if err != nil {
 				t.Fatal("UDP relay not released", err)
 			}

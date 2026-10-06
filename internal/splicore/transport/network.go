@@ -3,7 +3,7 @@ package transport
 import (
 	"context"
 	"encoding/json"
-	"github.com/sagernet/sing-box/internal/splicore/networkruntime"
+	"github.com/ike-sh/Splicore/internal/splicore/networkruntime"
 )
 
 func (c *Client) RouteExplain(ctx context.Context, q networkruntime.Query) (networkruntime.Explanation, error) {

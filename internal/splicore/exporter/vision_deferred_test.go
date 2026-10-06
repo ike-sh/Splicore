@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/exporter"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/exporter"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
 )
 
 func TestVisionDeferredAllExportersAndURIImport(t *testing.T) {

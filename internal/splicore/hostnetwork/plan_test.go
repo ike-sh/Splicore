@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/sagernet/sing-box/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
 )
 
 func TestBootstrapMappedIPv4UsesIPv4BypassRoute(t *testing.T) {

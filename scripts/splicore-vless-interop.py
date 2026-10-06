@@ -99,7 +99,7 @@ def main():
                 request("GET", "/api/v1/system")
                 return process
             except OSError:
-                time.sleep(.05)
+                os.sched_yield()
         raise RuntimeError("Splicore startup timeout")
 
 
@@ -112,6 +112,9 @@ def main():
             config["rules"] = ["MATCH," + config["proxies"][0]["name"]]
             home = private / (name + "-home")
             home.mkdir(mode=0o700, exist_ok=True)
+            controller = helper.free_port()
+            config["external-controller"] = f"127.0.0.1:{controller}"
+            path = home / "config.json"
             args = [str(root / "clients/mihomo"), "-d", str(home), "-f", str(path)]
             check = args + ["-t"]
         else:
@@ -123,6 +126,8 @@ def main():
             subprocess.run(check, check=True, stdout=log, stderr=subprocess.STDOUT)
         process = launch(args, name)
         helper.wait_port(port, process)
+        if client == "mihomo":
+            helper.wait_mihomo_config(controller, path, process, config["proxies"][0]["name"])
         return process, port
 
     def view():
@@ -163,14 +168,8 @@ def main():
         raise RuntimeError("invalid client forwarded proxy traffic")
 
     def reconnect(proxy):
-        deadline = time.monotonic() + 15
-        while True:
-            try:
-                return helper.tcp_payload(proxy, tcp.server_address)
-            except (OSError, RuntimeError, TimeoutError):
-                if time.monotonic() >= deadline:
-                    raise RuntimeError("existing client failed reconnect") from None
-                time.sleep(.1)
+        return helper.tcp_payload(proxy, tcp.server_address)
+
 
     try:
         subprocess.run([exe, "key", "init", "--file", str(key)], check=True, stdout=subprocess.DEVNULL)
@@ -228,7 +227,7 @@ def main():
                 settings["tls"] = {"server_name": sni, "certificate_file": str(cert), "private_key_file": str(cert_key), "ca_certificate": ca_cert.read_text(encoding="utf-8")}
         forbidden.extend(u["uuid"] for u in fixture["users"])
         daemon = start_server()
-        fixture_file = private / "synthetic-nobrand.json"
+        fixture_file = private / "synthetic-owned.json"
         fixture_file.write_text(json.dumps(fixture), encoding="utf-8")
         def cli(*args):
             result = subprocess.run([exe, "inbound", *args, "--protocol", "vless"], capture_output=True)
@@ -318,7 +317,7 @@ def main():
                     stream.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0))
                     stream.close()
                     counters = snapshot()[identities[user]]
-                    delta = {k: counters[k] - before[identities[user]][k] for k in counters}
+                    delta = {k: counters[k] - before[identities[user]].get(k, 0) for k in counters}
                     if engine == "native" and (delta["upload_bytes"] < sent + large + udp_bytes or delta["download_bytes"] < sent + large + udp_bytes):
                         raise RuntimeError("attributed payload counters incomplete")
                     row = {"client": client, "version": version, "sha256": next(c["binary_sha256"] for c in json.loads((root / "clients/clients.json").read_text(encoding="utf-8")) if c["client"] == client), "user": user, "endpoint": endpoint, "security": security, "flow": flow, "tcp": "PASS", "udp": "PASS", "concurrent": 16, "large_bytes": large, "udp_packets": 32, "reconnect": "PASS", "abnormal_close": "PASS", "upload_delta": delta["upload_bytes"], "download_delta": delta["download_bytes"], "result": "PASS"}
@@ -331,7 +330,7 @@ def main():
                 while int(view()["stats"]["sessions_active"]):
                     if time.monotonic() > deadline:
                         raise RuntimeError("closed clients retained active sessions")
-                    time.sleep(.1)
+                    os.sched_yield()
                 if security != "tls":
                     export("uri", "", identities["Alice"])
                 if endpoint == "127.0.0.1":

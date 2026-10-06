@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sagernet/sing-box/internal/splicore/version"
+	"github.com/ike-sh/Splicore/internal/splicore/version"
 )
 
 const BinaryPath = "/usr/local/bin/splicore"

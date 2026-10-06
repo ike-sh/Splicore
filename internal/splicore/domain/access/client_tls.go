@@ -2,7 +2,7 @@ package access
 
 import (
 	"crypto/x509"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 )
 
 // ClientTLS contains only public client trust material. It cannot represent a

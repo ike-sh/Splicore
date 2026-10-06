@@ -104,18 +104,20 @@ def main(protocol="hysteria2"):
                 request("GET", "/api/v1/system")
                 return proc
             except OSError:
-                time.sleep(.05)
+                os.sched_yield()
         raise RuntimeError("Splicore startup timeout")
 
     def start_client(client, exported, name):
         port = helper.free_port()
         path = private / (name + ".json")
         if client == "mihomo":
-            config = {"socks-port": port, "allow-lan": False, "bind-address": "127.0.0.1", "ipv6": True, "mode": "rule", "log-level": "silent"}
+            controller = helper.free_port()
+            config = {"external-controller": "127.0.0.1:" + str(controller), "socks-port": port, "allow-lan": False, "bind-address": "127.0.0.1", "ipv6": True, "mode": "rule", "log-level": "silent"}
             config.update(exported)
             config["rules"] = ["MATCH," + config["proxies"][0]["name"]]
             client_home = private / (name + "-home")
             client_home.mkdir(mode=0o700, exist_ok=True)
+            path = client_home / "config.json"
             args = [str(root / "clients/mihomo"), "-d", str(client_home), "-f", str(path)]
             check = args + ["-t"]
         else:
@@ -127,6 +129,8 @@ def main(protocol="hysteria2"):
             subprocess.run(check, check=True, stdout=log, stderr=subprocess.STDOUT)
         proc = launch(args, name)
         helper.wait_port(port, proc)
+        if client == "mihomo":
+            helper.wait_mihomo_config(controller, path, proc, config["proxies"][0]["name"])
         return proc, port
 
     def view():
@@ -160,14 +164,7 @@ def main(protocol="hysteria2"):
         raise RuntimeError("invalid client accepted payload")
 
     def reconnect_tcp(port):
-        deadline = time.monotonic() + 20
-        while True:
-            try:
-                return helper.tcp_payload(port, tcp.server_address)
-            except (OSError, RuntimeError, TimeoutError):
-                if time.monotonic() >= deadline:
-                    raise RuntimeError("existing client failed to reconnect") from None
-                time.sleep(.2)
+        return helper.tcp_payload(port, tcp.server_address)
 
     try:
         subprocess.run([exe, "key", "init", "--file", str(key)], check=True, stdout=subprocess.DEVNULL)
@@ -186,7 +183,9 @@ def main(protocol="hysteria2"):
         with socket.socket(socket.AF_INET6, socket.SOCK_DGRAM) as sock:
             sock.bind(("::", 0))
             listen_port = sock.getsockname()[1]
-        fixture = json.loads((repo / ("tests/fixtures/nobrand/"+protocol+".json")).read_text(encoding="utf-8"))
+        fixture = {"schema": 1, "name": "synthetic-" + protocol, "listener": {"host": "::", "port": listen_port}, "display_endpoint": {"host": "127.0.0.1", "port": listen_port}, "settings": {"tls": {"server_name": sni}}, "policy_mode": "metadata_only", "users": [{"account_name": "Alice", "traffic_policy": {"quota_bytes": 1048576, "upload_bps": 1000}}, {"account_name": "Bob", "traffic_policy": {"quota_bytes": 2097152, "download_bps": 2000}}]}
+        if protocol == "tuic":
+            fixture["settings"].update(version=5, congestion_control="cubic", udp_relay_mode="native")
         fixture["listener"] = {"host": "::", "port": listen_port}
         fixture["display_endpoint"] = {"host": "127.0.0.1", "port": listen_port}
         fixture["settings"]["tls"].update(certificate_file=str(cert), private_key_file=str(cert_key), ca_certificate=ca_cert.read_text(encoding="utf-8"))
@@ -198,7 +197,7 @@ def main(protocol="hysteria2"):
                 import uuid
                 user["uuid"] = str(uuid.uuid4())
                 passwords.append(user["uuid"])
-        fixture_file = private / "synthetic-nobrand.json"
+        fixture_file = private / "synthetic-owned.json"
         fixture_file.write_text(json.dumps(fixture), encoding="utf-8")
         daemon = start_server()
         # Actual CLI validates/plans/applies the synthetic migration document.
@@ -266,7 +265,7 @@ def main(protocol="hysteria2"):
                 while int(view()["stats"]["sessions_active"]):
                     if time.monotonic() > deadline:
                         raise RuntimeError("client close leaked sessions")
-                    time.sleep(.1)
+                    os.sched_yield()
                 if endpoint == "127.0.0.1":
                     valid = export(client, version, identities["Alice"])
                     for case in (("wrong-password", "wrong-uuid", "wrong-sni", "untrusted-ca") if protocol=="tuic" else ("wrong-password", "wrong-sni", "untrusted-ca")):

@@ -13,7 +13,7 @@ import (
 	"sync/atomic"
 	"syscall"
 
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 )
 
 type Purpose uint8

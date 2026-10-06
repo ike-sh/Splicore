@@ -19,7 +19,7 @@ try {
     if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[0-9a-f]{40}$') { throw 'Cannot identify Git source' }
     $dirty = if ((& git status --porcelain)) { 'true' } else { 'false' }
     if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect source status' }
-    $versionPackage = 'github.com/sagernet/sing-box/internal/splicore/version'
+    $versionPackage = 'github.com/ike-sh/Splicore/internal/splicore/version'
     $linkFlags = "-X $versionPackage.ProductVersion=$ProductVersion -X $versionPackage.Commit=$commit -X $versionPackage.Dirty=$dirty -X $versionPackage.BuildTime=$BuildTime"
     & go build -trimpath -ldflags $linkFlags -o $Output ./cmd/splicore
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

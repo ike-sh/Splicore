@@ -5,23 +5,24 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/sagernet/sing-box/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/traffic"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
 )
 
 func TestPhase15StoppedHandleRejectsStaleActivation(t *testing.T) {
 	done := make(chan struct{})
 	close(done)
 	snell := &Handle{closed: true, done: done}
-	vless := &vlessHandle{closed: true, done: done, total: &meter{}}
-	quic := &quicHandle{closed: true, total: &meter{}}
-	mieru := &mieruHandle{closed: true, done: done, total: &meter{}}
+	vless := &vlessHandle{closed: true, done: done, total: &traffic.Counter{}}
+	hy2 := &hysteria2Handle{closed: true, total: &traffic.Counter{}}
+	tuic := &tuicHandle{closed: true, total: &traffic.Counter{}}
 	for _, tc := range []struct {
 		name     string
 		handle   ports.RuntimeHandle
 		admitted func() bool
 	}{
 		{"snell", snell, snell.admitted.Load}, {"vless", vless, vless.admitted.Load},
-		{"quic", quic, quic.admitted.Load}, {"mieru", mieru, mieru.admitted.Load},
+		{"hysteria2", hy2, hy2.admitted.Load}, {"tuic", tuic, tuic.admitted.Load},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			barrier := make(chan struct{})

@@ -11,11 +11,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/sagernet/netlink"
-	"github.com/sagernet/netlink/nl"
-	"github.com/sagernet/sing-box/internal/splicore/domain/client"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/nativetun"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/nativetun"
+	"github.com/vishvananda/netlink"
+	"github.com/vishvananda/netlink/nl"
 	"golang.org/x/sys/unix"
 )
 
@@ -170,7 +170,7 @@ func (p *Platform) Read(ctx context.Context, key Record) (*Record, error) {
 			return nil, identity.Err(identity.Conflict, "multiple policy rules collide")
 		}
 		r := matching[0]
-		if r.Src.IsValid() || r.Dst.IsValid() || r.Tos != 0 || r.TunID != 0 || r.Goto != -1 || r.Flow != -1 || r.IifName != "" || r.OifName != "" || r.SuppressIfgroup != -1 || r.SuppressPrefixlen != -1 || r.Dport != nil || r.Sport != nil || r.IPProto != 0 || r.Mask != -1 && !(r.Mark != 0 && uint64(r.Mask) == 0xffffffff) {
+		if r.Src != nil || r.Dst != nil || r.Tos != 0 || r.TunID != 0 || r.Goto != -1 || r.Flow != -1 || r.IifName != "" || r.OifName != "" || r.SuppressIfgroup != -1 || r.SuppressPrefixlen != -1 || r.Dport != nil || r.Sport != nil || r.IPProto != 0 || r.Mask != nil && !(r.Mark != 0 && *r.Mask == 0xffffffff) {
 			return nil, identity.Err(identity.Conflict, "external policy rule selectors preserved")
 		}
 		if err = strictRuleAction(key); err != nil {
@@ -264,7 +264,6 @@ func (p *Platform) Write(ctx context.Context, key Record, value *Record) error {
 		r.Priority = key.Priority
 		r.Table = key.Table
 		r.Mark = key.Mark
-		r.MarkSet = key.Mark != 0
 		r.Invert = key.Invert
 		if key.UID != nil {
 			r.UIDRange = netlink.NewRuleUIDRange(*key.UID, *key.UID)

@@ -3,9 +3,9 @@ package sqlite
 import (
 	"context"
 	"encoding/json"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/domain/provider"
-	"github.com/sagernet/sing-box/internal/splicore/jsonstrict"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/provider"
+	"github.com/ike-sh/Splicore/internal/splicore/jsonstrict"
 )
 
 func providerAAD(id identity.ID) []byte { return []byte("Splicore/provider-source/1/" + string(id)) }

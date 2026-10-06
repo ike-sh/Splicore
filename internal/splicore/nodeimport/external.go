@@ -3,15 +3,16 @@ package nodeimport
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/client"
-	"github.com/sagernet/sing-box/internal/splicore/domain/provider"
-	"github.com/sagernet/sing-box/internal/splicore/jsonstrict"
-	hm "github.com/sagernet/sing-box/internal/splicore/protocol/hysteria2"
-	mm "github.com/sagernet/sing-box/internal/splicore/protocol/mieru"
-	sm "github.com/sagernet/sing-box/internal/splicore/protocol/snell"
-	tm "github.com/sagernet/sing-box/internal/splicore/protocol/tuic"
-	vm "github.com/sagernet/sing-box/internal/splicore/protocol/vless"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/provider"
+	"github.com/ike-sh/Splicore/internal/splicore/jsonstrict"
+	hm "github.com/ike-sh/Splicore/internal/splicore/protocol/hysteria2"
+	mm "github.com/ike-sh/Splicore/internal/splicore/protocol/mieru"
+	ssm "github.com/ike-sh/Splicore/internal/splicore/protocol/shadowsocks"
+	sm "github.com/ike-sh/Splicore/internal/splicore/protocol/snell"
+	tm "github.com/ike-sh/Splicore/internal/splicore/protocol/tuic"
+	vm "github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
 	"gopkg.in/yaml.v3"
 	"io"
 	"strings"
@@ -111,6 +112,9 @@ type externalNode struct {
 	Version        int          `json:"version"`
 	PSK            string       `json:"psk"`
 	Password       string       `json:"password"`
+	Method         string       `json:"method"`
+	Cipher         string       `json:"cipher"`
+	Network        string       `json:"network"`
 	UUID           string       `json:"uuid"`
 	Username       string       `json:"username"`
 	TLS            *externalTLS `json:"tls"`
@@ -185,7 +189,7 @@ func parseExternal(format string, body []byte) (Result, error) {
 }
 func externalCandidate(format string, n externalNode) (Candidate, error) {
 	var c Candidate
-	if n.UDP != nil && !*n.UDP {
+	if n.UDP != nil && !*n.UDP && n.Type != "ss" && n.Type != "shadowsocks" {
 		return c, unsupported()
 	}
 	if n.Type != "snell" && n.Type != "tuic" && n.Version != 0 {
@@ -224,6 +228,29 @@ func externalCandidate(format string, n externalNode) (Candidate, error) {
 	}
 	options := any(map[string]any{})
 	switch n.Type {
+	case "ss", "shadowsocks":
+		if format == "mihomo" && (n.Type != "ss" || n.Method != "") || format == "sing-box" && (n.Type != "shadowsocks" || n.Cipher != "") || n.PSK != "" || n.UUID != "" || n.Username != "" || n.TLS != nil || n.SNI != "" || len(n.ALPN) > 0 || n.Network != "" && n.Network != "tcp" {
+			return c, unsupported()
+		}
+		method := n.Method + n.Cipher
+		m, e := ssm.Lookup(method)
+		if e != nil {
+			return c, e
+		}
+		c.Node.Protocol = ssm.Key(m.Edition)
+		udp := n.Network != "tcp"
+		if n.UDP != nil {
+			if format != "mihomo" || n.Network != "" {
+				return c, unsupported()
+			}
+			udp = *n.UDP
+		}
+		options = ssm.ClientOptions{Method: method, UDP: udp}
+		kind := access.Password
+		if m.Edition == "2022" {
+			kind = access.PSK
+		}
+		c.Credential = Credential{kind, n.Password}
 	case "snell":
 		if n.Password != "" || n.UUID != "" || n.Username != "" || n.Version < 4 || n.Version > 6 || n.TLS != nil || n.SNI != "" || len(n.ALPN) > 0 {
 			return c, unsupported()
@@ -321,6 +348,9 @@ func externalCandidate(format string, n externalNode) (Candidate, error) {
 		return c, unsupported()
 	}
 	// Protocol-specific options on another protocol must never be discarded.
+	if n.Type != "ss" && n.Type != "shadowsocks" && (n.Method != "" || n.Cipher != "" || n.Network != "") {
+		return c, unsupported()
+	}
 	if n.Type != "tuic" && (n.Congestion != "" || n.CongestionM != "" || n.Relay != "" || n.RelayM != "" || n.Heartbeat != "" || n.HeartbeatM != 0) || n.Type != "mieru" && (n.Transport != "" || n.MTU != 0 || n.Multiplexing != "") || n.Type != "vless" && (n.Flow != "" || n.PacketEncoding != "" || n.RealityM != nil || n.Fingerprint != "" || n.TLS != nil && (n.TLS.Reality != nil || n.TLS.UTLS != nil)) {
 		return c, unsupported()
 	}

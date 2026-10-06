@@ -17,7 +17,7 @@ import tarfile
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 TAGS = "with_quic,with_utls,with_gvisor"
-VP = "github.com/sagernet/sing-box/internal/splicore/version"
+VP = "github.com/ike-sh/Splicore/internal/splicore/version"
 
 def run(*args, env=None):
     if args and args[0] == "git":

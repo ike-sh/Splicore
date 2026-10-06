@@ -2,11 +2,11 @@ package exporter
 
 import (
 	"fmt"
-	"github.com/sagernet/sing-box/internal/splicore/clientprofile"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/domain/secret"
-	module "github.com/sagernet/sing-box/internal/splicore/protocol/vless"
+	"github.com/ike-sh/Splicore/internal/splicore/clientprofile"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
+	module "github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
 	"net"
 	"net/url"
 	"strconv"

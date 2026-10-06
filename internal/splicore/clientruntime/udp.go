@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	P "github.com/sagernet/sing-box/internal/splicore/domain/networkpolicy"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
-	"github.com/sagernet/sing/common/buf"
-	M "github.com/sagernet/sing/common/metadata"
-	"github.com/sagernet/sing/protocol/socks/socks5"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/netaddr"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/address"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/socks"
 	"io"
 	"net"
+	"net/netip"
 	"strconv"
 	"sync"
 	"time"
@@ -27,45 +28,46 @@ func parseUDPPacket(b []byte) (access.Endpoint, []byte, error) {
 		return access.Endpoint{}, nil, errUDPPacket
 	}
 	r := bytes.NewReader(b[3:])
-	a, err := M.SocksaddrSerializer.ReadAddrPort(r)
+	e, err := address.ReadSOCKS(r)
 	if err != nil {
 		return access.Endpoint{}, nil, errUDPPacket
 	}
-	e := access.Endpoint{Host: a.AddrString(), Port: a.Port}
 	if e.Validate() != nil {
 		return e, nil, errUDPPacket
 	}
 	return e, b[len(b)-r.Len():], nil
 }
 func encodeUDPPacket(a net.Addr, p []byte) ([]byte, error) {
-	target := M.SocksaddrFromNet(a)
-	b := buf.NewSize(3 + M.SocksaddrSerializer.AddrPortLen(target) + len(p))
-	defer b.Release()
-	if err := b.WriteZeroN(3); err != nil {
+	target, err := netaddr.From(a)
+	if err != nil {
 		return nil, err
 	}
-	if err := M.SocksaddrSerializer.WriteAddrPort(b, target); err != nil {
+	encoded, err := address.MarshalSOCKS(target)
+	if err != nil {
 		return nil, err
 	}
-	_, _ = b.Write(p)
-	return append([]byte(nil), b.Bytes()...), nil
+	b := make([]byte, 3, 3+len(encoded)+len(p))
+	b = append(b, encoded...)
+	return append(b, p...), nil
+
 }
 
-func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, requested M.Socksaddr, gen *snapshot) {
+func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, requested access.Endpoint, gen *snapshot) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	reply := func(code byte, addr net.Addr) error {
-		return socks5.WriteResponse(s.local, socks5.Response{ReplyCode: code, Bind: M.SocksaddrFromNet(addr)})
+		return socks.Respond(s.local, code, addr)
 	}
 	peer := s.local.RemoteAddr().(*net.TCPAddr).AddrPort().Addr().Unmap()
-	if requested.IsFqdn() || requested.Addr.IsValid() && !requested.Addr.IsUnspecified() && requested.Addr.Unmap() != peer {
-		_ = reply(socks5.ReplyCodeNotAllowed, s.local.LocalAddr())
+	requestedIP, parseErr := netip.ParseAddr(requested.Host)
+	if parseErr != nil || !requestedIP.IsUnspecified() && requestedIP.Unmap() != peer {
+		_ = reply(socks.NotAllowed, s.local.LocalAddr())
 		return
 	}
 	localIP := s.local.LocalAddr().(*net.TCPAddr).IP
 	relay, err := net.ListenUDP("udp", &net.UDPAddr{IP: localIP})
 	if err != nil {
-		_ = reply(socks5.ReplyCodeFailure, s.local.LocalAddr())
+		_ = reply(socks.Failure, s.local.LocalAddr())
 		return
 	}
 	m.mu.Lock()
@@ -119,7 +121,7 @@ func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, re
 			}
 		}
 	}()
-	if reply(socks5.ReplyCodeSuccess, relay.LocalAddr()) != nil {
+	if reply(socks.Succeeded, relay.LocalAddr()) != nil {
 		return
 	}
 	_ = s.local.SetDeadline(time.Time{})
@@ -243,7 +245,7 @@ func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, re
 		}
 		flow := selections[target]
 		_ = pc.SetWriteDeadline(time.Now().Add(5 * time.Second))
-		written, err := pc.WriteTo(payload, M.ParseSocksaddrHostPort(flow.target.Host, flow.target.Port))
+		written, err := pc.WriteTo(payload, netaddr.UDP(flow.target))
 		if err != nil {
 			flow.health.failed()
 			continue

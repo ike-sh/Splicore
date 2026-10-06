@@ -2,10 +2,10 @@ package vless
 
 import (
 	"context"
-	"github.com/sagernet/sing-box/internal/splicore/clientprofile"
-	"github.com/sagernet/sing-box/internal/splicore/domain/access"
-	"github.com/sagernet/sing-box/internal/splicore/domain/identity"
-	"github.com/sagernet/sing-box/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/clientprofile"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	"strings"
 )
 
@@ -16,7 +16,7 @@ func (m Module) Metadata() ports.ProtocolMetadata {
 	if m.Security == Reality && !RealityCompiled {
 		availability = ports.NotCompiled
 	}
-	return ports.ProtocolMetadata{Roles: ports.Roles{Inbound: true, Outbound: true}, Key: Key(m.Security), ABI: 1, CredentialKinds: []access.CredentialKind{access.UUID}, Availability: availability, Qualification: "experimental", Provenance: "sing-box v1.14.1 / sing-vmess v0.2.8; TCP; UUID; XUDP; no flow; Vision deferred/unsupported; REALITY requires with_utls"}
+	return ports.ProtocolMetadata{Roles: ports.Roles{Inbound: true, Outbound: true}, Key: Key(m.Security), ABI: 1, CredentialKinds: []access.CredentialKind{access.UUID}, Availability: availability, Qualification: "experimental", Provenance: "Splicore-owned VLESS v0/XUDP wire/lifecycle; TCP; UUID; no flow; Vision deferred/unsupported; REALITY requires with_utls"}
 }
 func (m Module) Capabilities(c ports.CapabilityContext) ports.Capabilities {
 	available := (c.Engine == "" || c.Engine == "native") && m.Metadata().Availability == ports.Compiled
