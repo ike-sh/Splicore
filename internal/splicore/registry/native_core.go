@@ -7,6 +7,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/mieru"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/shadowsocks"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/trojan"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
 )
 
@@ -20,12 +21,12 @@ func NativeCore() (*Protocols, *Engines, *Exporters, error) {
 		entry, _ := p.Get(key)
 		protocols = append(protocols, entry)
 	}
-	protocols = append(protocols, mieru.Module{}, shadowsocks.Module{Edition: "2017"}, shadowsocks.Module{Edition: "2022"})
+	protocols = append(protocols, mieru.Module{}, shadowsocks.Module{Edition: "2017"}, shadowsocks.Module{Edition: "2022"}, trojan.Module{})
 	p, e = NewProtocols(protocols...)
 	if e != nil {
 		return nil, nil, nil, e
 	}
-	n, e := native.NewEngine(native.SnellCompiler{}, native.Hysteria2Compiler{}, native.TUICCompiler{}, native.VLESSCompiler{}, native.MieruCompiler{}, native.NewShadowsocksCompiler())
+	n, e := native.NewEngine(native.SnellCompiler{}, native.Hysteria2Compiler{}, native.TUICCompiler{}, native.VLESSCompiler{}, native.MieruCompiler{}, native.NewShadowsocksCompiler(), native.TrojanCompiler{})
 	if e != nil {
 		return nil, nil, nil, e
 	}
@@ -59,6 +60,7 @@ func NativeCore() (*Protocols, *Engines, *Exporters, error) {
 		for _, edition := range []string{"2017", "2022"} {
 			mapping[shadowsocks.Key(edition)] = exporter.Shadowsocks{Target: d.Target}
 		}
+		mapping[trojan.Key()] = exporter.Trojan{Target: d.Target}
 		d.Protocols = mapping
 		entries[n] = d
 	}

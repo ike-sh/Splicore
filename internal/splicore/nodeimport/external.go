@@ -11,6 +11,7 @@ import (
 	mm "github.com/ike-sh/Splicore/internal/splicore/protocol/mieru"
 	ssm "github.com/ike-sh/Splicore/internal/splicore/protocol/shadowsocks"
 	sm "github.com/ike-sh/Splicore/internal/splicore/protocol/snell"
+	trm "github.com/ike-sh/Splicore/internal/splicore/protocol/trojan"
 	tm "github.com/ike-sh/Splicore/internal/splicore/protocol/tuic"
 	vm "github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
 	"gopkg.in/yaml.v3"
@@ -178,6 +179,14 @@ func parseExternal(format string, body []byte) (Result, error) {
 			out.Issues = append(out.Issues, Issue{i + 1, "Unsupported", "unknown_client_field"})
 			continue
 		}
+		if n.Type == "trojan" {
+			var fields map[string]json.RawMessage
+			_ = json.Unmarshal(b, &fields)
+			if value, present := fields["udp"]; present && bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+				out.Issues = append(out.Issues, Issue{i + 1, "Unsupported", "ambiguous_udp_capability"})
+				continue
+			}
+		}
 		c, e := externalCandidate(format, n)
 		if e != nil {
 			out.Issues = append(out.Issues, Issue{i + 1, "Unsupported", "unsupported_client_capability"})
@@ -189,7 +198,7 @@ func parseExternal(format string, body []byte) (Result, error) {
 }
 func externalCandidate(format string, n externalNode) (Candidate, error) {
 	var c Candidate
-	if n.UDP != nil && !*n.UDP && n.Type != "ss" && n.Type != "shadowsocks" {
+	if n.UDP != nil && !*n.UDP && n.Type != "ss" && n.Type != "shadowsocks" && n.Type != "trojan" {
 		return c, unsupported()
 	}
 	if n.Type != "snell" && n.Type != "tuic" && n.Version != 0 {
@@ -228,6 +237,21 @@ func externalCandidate(format string, n externalNode) (Candidate, error) {
 	}
 	options := any(map[string]any{})
 	switch n.Type {
+	case "trojan":
+		if n.PSK != "" || n.UUID != "" || n.Username != "" || n.Version != 0 || n.Network != "" && n.Network != "tcp" || format == "sing-box" && (n.TLS == nil || n.UDP != nil) {
+			return c, unsupported()
+		}
+		udp := n.Network != "tcp"
+		if n.UDP != nil {
+			if format != "mihomo" || n.Network != "" {
+				return c, unsupported()
+			}
+			udp = *n.UDP
+		}
+		c.Node.Protocol = trm.Key()
+		c.Node.Security = client.Security{Kind: "tls", TLS: tls}
+		c.Credential = Credential{access.Password, n.Password}
+		options = trm.ClientOptions{UDP: udp}
 	case "ss", "shadowsocks":
 		if format == "mihomo" && (n.Type != "ss" || n.Method != "") || format == "sing-box" && (n.Type != "shadowsocks" || n.Cipher != "") || n.PSK != "" || n.UUID != "" || n.Username != "" || n.TLS != nil || n.SNI != "" || len(n.ALPN) > 0 || n.Network != "" && n.Network != "tcp" {
 			return c, unsupported()
@@ -348,7 +372,7 @@ func externalCandidate(format string, n externalNode) (Candidate, error) {
 		return c, unsupported()
 	}
 	// Protocol-specific options on another protocol must never be discarded.
-	if n.Type != "ss" && n.Type != "shadowsocks" && (n.Method != "" || n.Cipher != "" || n.Network != "") {
+	if n.Type != "ss" && n.Type != "shadowsocks" && (n.Method != "" || n.Cipher != "" || n.Network != "" && n.Type != "trojan") {
 		return c, unsupported()
 	}
 	if n.Type != "tuic" && (n.Congestion != "" || n.CongestionM != "" || n.Relay != "" || n.RelayM != "" || n.Heartbeat != "" || n.HeartbeatM != 0) || n.Type != "mieru" && (n.Transport != "" || n.MTU != 0 || n.Multiplexing != "") || n.Type != "vless" && (n.Flow != "" || n.PacketEncoding != "" || n.RealityM != nil || n.Fingerprint != "" || n.TLS != nil && (n.TLS.Reality != nil || n.TLS.UTLS != nil)) {

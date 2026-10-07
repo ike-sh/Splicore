@@ -111,3 +111,12 @@ Native is the sole runtime engine. Historical Phase 6/7 direction is superseded;
   Accepted after Final Independent Re-Review PASS; independent module identity,
   owned runtime and zero SagerNet dependency graph. Phase 16 is consolidated
   into the Phase 17 freeze.
+
+## Phase 18 standard Trojan decision
+
+- [0039 — Native standard Trojan TLS and association ownership](0039-native-standard-trojan-tls-and-association-ownership.md):
+  Accepted after final independent Phase 18 re-review PASS; shared encrypted
+  credentials and TLS, terminal framed IO, bounded
+  associations, generic user mutation and explicit fallback deferral.
+  Phase 18 locally frozen after exact-index EOL recovery; first blocked attempt
+  preserved in the canonical Freeze report.

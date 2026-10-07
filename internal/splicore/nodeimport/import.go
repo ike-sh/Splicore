@@ -3,6 +3,7 @@
 package nodeimport
 
 import (
+	"errors"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/jsonstrict"
 	hm "github.com/ike-sh/Splicore/internal/splicore/protocol/hysteria2"
 	ssm "github.com/ike-sh/Splicore/internal/splicore/protocol/shadowsocks"
+	trm "github.com/ike-sh/Splicore/internal/splicore/protocol/trojan"
 	tm "github.com/ike-sh/Splicore/internal/splicore/protocol/tuic"
 	vm "github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
 )
@@ -175,6 +177,16 @@ func ParseURI(raw string) (Candidate, error) {
 		return c, invalid()
 	}
 	switch u.Scheme {
+	case "trojan":
+		v, e := trm.ParseURI(raw)
+		if e != nil {
+			var classified *identity.Error
+			if errors.As(e, &classified) && classified.Code == identity.UnsupportedExport { return c, errUnsupported }
+			return c, e
+		}
+		options, _ := json.Marshal(trm.ClientOptions{UDP: true})
+		c.Node = client.RemoteNode{Name: v.Name, Protocol: trm.Key(), Endpoint: v.Endpoint, Transport: client.Transport{Kind: "tcp"}, Security: client.Security{Kind: "tls", TLS: v.TLS}, Options: client.Options{Schema: 1, Data: options}}
+		c.Credential = Credential{access.Password, v.Password.Reveal()}
 	case "mieru", "mierus":
 		return parseMieruURI(raw)
 	case "tuic":

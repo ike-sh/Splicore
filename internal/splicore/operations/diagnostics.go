@@ -191,7 +191,7 @@ func recentCrashes(c config.Config) []ExitRecord {
 		if err != nil {
 			continue
 		}
-		result = append(result, ExitRecord{Schema: 1, Version: v.Version, Commit: v.Commit, Component: enum(raw.Component, "process", "engine", "protocol"), Engine: enum(raw.Engine, "native"), Protocol: enum(raw.Protocol, "none", "snell", "hysteria2", "tuic", "vless", "mieru", "shadowsocks"), Timestamp: at.UTC().Format(time.RFC3339Nano), Classification: ExitClass(raw.Classification)})
+		result = append(result, ExitRecord{Schema: 1, Version: v.Version, Commit: v.Commit, Component: enum(raw.Component, "process", "engine", "protocol"), Engine: enum(raw.Engine, "native"), Protocol: enum(raw.Protocol, "none", "snell", "hysteria2", "tuic", "vless", "mieru", "shadowsocks", "trojan"), Timestamp: at.UTC().Format(time.RFC3339Nano), Classification: ExitClass(raw.Classification)})
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].Timestamp > result[j].Timestamp })
 	if len(result) > 16 {
@@ -231,7 +231,7 @@ func SupportBundle(ctx context.Context, c config.Config, v version.Info, q Suppo
 		if page, err := q.Inbounds(ctx); err == nil {
 			for _, i := range page.Items {
 				for _, l := range i.Inbound.Listeners {
-					listeners = append(listeners, listenerSummary{Protocol: enum(i.Inbound.Protocol.Protocol, "snell", "hysteria2", "tuic", "vless", "mieru", "shadowsocks"), Engine: enum(i.Inbound.Engine, "native"), Health: enum(i.Health, "healthy", "failed", "stopped", "prepared", "starting"), Enabled: i.Inbound.Enabled, Transport: enum(l.Transport, "tcp", "udp"), AddressClass: addressClass(l.Endpoint.Host), LowPort: l.Endpoint.Port > 0 && l.Endpoint.Port < 1024, Bindings: len(i.Bindings)})
+					listeners = append(listeners, listenerSummary{Protocol: enum(i.Inbound.Protocol.Protocol, "snell", "hysteria2", "tuic", "vless", "mieru", "shadowsocks", "trojan"), Engine: enum(i.Inbound.Engine, "native"), Health: enum(i.Health, "healthy", "failed", "stopped", "prepared", "starting"), Enabled: i.Inbound.Enabled, Transport: enum(l.Transport, "tcp", "udp"), AddressClass: addressClass(l.Endpoint.Host), LowPort: l.Endpoint.Port > 0 && l.Endpoint.Port < 1024, Bindings: len(i.Bindings)})
 				}
 			}
 		}

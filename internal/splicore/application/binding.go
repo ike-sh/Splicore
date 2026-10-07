@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
@@ -9,10 +10,16 @@ import (
 )
 
 type BindingRequest struct {
+	Action           string            `json:"action,omitempty"`
+	Credential       *CredentialInput  `json:"credential,omitempty"`
 	BindingID        identity.ID       `json:"binding_id"`
 	Enabled          bool              `json:"enabled"`
 	ResourceRevision identity.Revision `json:"resource_revision"`
 	Revision         identity.Revision `json:"revision"`
+}
+
+func (BindingRequest) Format(s fmt.State, _ rune) {
+	_, _ = s.Write([]byte("BindingRequest{[REDACTED]}"))
 }
 
 // SetBinding replaces only its owned Inbound. Rollback restores committed credentials.
@@ -71,13 +78,36 @@ func (s *Service) SetBinding(ctx context.Context, id identity.ID, req BindingReq
 	if target.Revision != req.ResourceRevision {
 		return op, identity.RevisionConflict(target.Revision)
 	}
+	if req.Action != "" && req.Action != "rotate" && req.Action != "delete" || (req.Action == "rotate") != (req.Credential != nil) {
+		return op, identity.Err(identity.Invalid, "invalid binding mutation")
+	}
+	var rotated access.Credential
+	if req.Action == "rotate" {
+		rotated, err = repo.RevealCredential(ctx, target.CredentialID)
+		if err != nil {
+			return op, err
+		}
+		payload, e := access.DecodeRemotePayload(req.Credential.Kind, req.Credential.Value)
+		if e != nil || req.Credential.Kind != rotated.Kind {
+			return op, identity.Err(identity.Invalid, "invalid credential rotation")
+		}
+		rotated.Payload = payload
+		if p.ValidateCredential(rotated) != nil {
+			return op, identity.Err(identity.Invalid, "invalid credential rotation")
+		}
+	}
 	oldIntent, err := s.projection(ctx, i, state.Revision)
 	if err != nil {
 		return op, err
 	}
-	target.Enabled = req.Enabled
+	if req.Action == "" {
+		target.Enabled = req.Enabled
+	}
 	candidate := ports.RuntimeIntent{Inbound: i, Revision: state.Revision, ServerCredentials: oldIntent.ServerCredentials}
 	for _, b := range bs {
+		if req.Action == "delete" && b.ID == target.ID {
+			continue
+		}
 		a, err := repo.Account(ctx, b.AccountID)
 		if err != nil {
 			return op, err
@@ -88,6 +118,9 @@ func (s *Service) SetBinding(ctx context.Context, id identity.ID, req BindingReq
 		c, err := repo.RevealCredential(ctx, b.CredentialID)
 		if err != nil {
 			return op, err
+		}
+		if req.Action == "rotate" && b.ID == target.ID {
+			c = rotated
 		}
 		candidate.Bindings = append(candidate.Bindings, b)
 		candidate.Credentials = append(candidate.Credentials, c)
@@ -150,6 +183,16 @@ func (s *Service) SetBinding(ctx context.Context, id identity.ID, req BindingReq
 		return op, err
 	}
 	err = repo.CommitOperation(ctx, op, func(w ports.Writer) error {
+		if req.Action != "" {
+			uw, ok := w.(ports.UserWriter)
+			if !ok {
+				return identity.Err(identity.NotImplemented, "user writer unavailable")
+			}
+			if req.Action == "delete" {
+				return uw.DeleteBindingUser(*target, req.ResourceRevision)
+			}
+			return uw.RotateBindingCredential(*target, rotated, req.ResourceRevision)
+		}
 		bw, ok := w.(ports.BindingWriter)
 		if !ok {
 			return identity.Err(identity.NotImplemented, "binding writer unavailable")

@@ -90,3 +90,12 @@ Native is the sole runtime engine. Historical Phase 6/7 direction is superseded;
 
 - [Independent core dependencies](INDEPENDENT_CORE_DEPENDENCIES.md): target
   ownership and dependency policy; implementation is NOT READY FOR REVIEW.
+
+## Phase 18 native standard Trojan
+
+- [Native Trojan runtime](TROJAN_RUNTIME.md): TLS, SHA-224 identity, TCP/UDP,
+  generic managed-user transactions and bounded association ownership.
+  Implementation reviewed and locally frozen after exact-index EOL recovery.
+  Initial blocked attempt is preserved. See the
+  [Phase 18 Freeze report](../reports/PHASE18_NATIVE_TROJAN_FREEZE_REPORT.md).
+  Platform qualification remains unchanged.

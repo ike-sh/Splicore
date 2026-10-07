@@ -43,6 +43,9 @@ rule("engine/native/vless.go", "Compile", "Protected", "VLESS server target / RE
 rule("engine/native/vless.go", "Start", "Intentionally Local", "VLESS server ingress", "Owned admission listener")
 rule("engine/native/vless.go", "serve", "Protected", "VLESS server TCP/UDP target", "Injected ServerTarget dialer; per-connection parser and per-session packet ownership")
 rule("engine/native/vless_outbound.go", "open", "Protected", "VLESS proxy underlay", "Injected purpose-specific dialer; TLS/REALITY wraps the owned socket")
+rule("engine/native/trojan.go", "Start", "Intentionally Local", "Trojan TLS ingress", "Owned admission-gated TCP listener; TLS wraps accepted socket")
+rule("engine/native/trojan.go", "serve", "Protected", "Trojan TCP/UDP server target", "Injected ServerTarget dialer; shared joined relay owns bounded UDP target sockets")
+rule("engine/native/trojan_outbound.go", "open", "Protected", "Trojan TLS proxy underlay", "Injected purpose-specific protected TCP dialer; TLS never constructs a separate socket")
 rule("engine/native/shadowsocks.go", "serve", "Protected", "Shadowsocks server TCP target", "Injected ServerTarget dialer; native handle owns authenticated stream")
 rule("engine/native/shadowsocks_udp.go", "routePacket", "Protected", "Shadowsocks server UDP target", "Injected ServerTarget connected UDP socket; bounded association owns reader/socket")
 rule("engine/native/shadowsocks.go", "Start", "Intentionally Local", "Shadowsocks TCP/UDP ingress", "Validated owned listeners; remote target uses protected router")
@@ -99,6 +102,8 @@ for root in ("internal/splicore", "cmd/splicore", "protocol"):
 # Constructor enforcement and essential socket/ownership gates must remain in
 # the production implementation even when the scanner sees the same function.
 invariants = {
+    prefix + "engine/native/trojan.go": ["underlay.DialerFrom(ctx, underlay.ServerTarget)", "h.protected.DialContext", "len(h.connections) >= 512", "h.wg.Wait()"],
+    prefix + "engine/native/trojan_outbound.go": ["underlay.DialerFrom", "d.protected.DialContext", "d.owner.Begin", "d.owner.Conn", "d.owner.Packet", "tls.Client(raw,"],
     prefix + "engine/clientconfig/packet.go": ["underlay.DialerFrom", "underlay.DNSBootstrap", "protected.ListenPacket", "address.String()"],
     prefix + "engine/native/shadowsocks.go": ["underlay.FromContext", "underlay.DialerFrom(ctx, underlay.ServerTarget)", "h.protected = protected"],
     prefix + "engine/native/shadowsocks_outbound.go": ["underlay.DialerFrom", "d.protected.DialContext", "d.owner.Conn"],

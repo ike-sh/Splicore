@@ -31,6 +31,11 @@
   ],
   [
     "internal/splicore/clientruntime/runtime.go",
+    "DialContext",
+    "return d.protected.DialContext(ctx, \"tcp\", net.JoinHostPort(e.Host, strconv.Itoa(int(e.Port))))"
+  ],
+  [
+    "internal/splicore/clientruntime/runtime.go",
     "PrepareWithRestart",
     "l, err = (&net.ListenConfig{}).Listen(ctx, \"tcp\", net.JoinHostPort(i.Listen.Host, strconv.Itoa(int(i.Listen.Port))))"
   ],
@@ -40,19 +45,14 @@
     "remote, err := gen.outbounds[oid].DialContext(dialCtx, target)"
   ],
   [
-    "internal/splicore/clientruntime/runtime.go",
-    "DialContext",
-    "return d.protected.DialContext(ctx, \"tcp\", net.JoinHostPort(e.Host, strconv.Itoa(int(e.Port))))"
-  ],
-  [
     "internal/splicore/clientruntime/tun.go",
     "servePacket",
     "remote, err := health.ListenPacket(dialCtx, resolved)"
   ],
   [
     "internal/splicore/clientruntime/udp.go",
-    "serveUDP",
-    "relay, err := net.ListenUDP(\"udp\", &net.UDPAddr{IP: localIP})"
+    "ListenPacket",
+    "c, err := d.protected.DialContext(ctx, \"udp\", net.JoinHostPort(e.Host, strconv.Itoa(int(e.Port))))"
   ],
   [
     "internal/splicore/clientruntime/udp.go",
@@ -61,8 +61,8 @@
   ],
   [
     "internal/splicore/clientruntime/udp.go",
-    "ListenPacket",
-    "c, err := d.protected.DialContext(ctx, \"udp\", net.JoinHostPort(e.Host, strconv.Itoa(int(e.Port))))"
+    "serveUDP",
+    "relay, err := net.ListenUDP(\"udp\", &net.UDPAddr{IP: localIP})"
   ],
   [
     "internal/splicore/engine/clientconfig/packet.go",
@@ -136,13 +136,33 @@
   ],
   [
     "internal/splicore/engine/native/snell_outbound.go",
+    "ListenPacket",
+    "ips, e := d.resolver.LookupNetIP(ctx, \"ip\", dst.Host)"
+  ],
+  [
+    "internal/splicore/engine/native/snell_outbound.go",
     "dial",
     "raw, e := d.protected.DialContext(ctx, \"tcp\", net.JoinHostPort(d.endpoint.Host, portString(d.endpoint.Port)))"
   ],
   [
-    "internal/splicore/engine/native/snell_outbound.go",
-    "ListenPacket",
-    "ips, e := d.resolver.LookupNetIP(ctx, \"ip\", dst.Host)"
+    "internal/splicore/engine/native/trojan.go",
+    "Start",
+    "l, err := (&net.ListenConfig{}).Listen(ctx, \"tcp\", net.JoinHostPort(h.endpoint.Host, portString(h.endpoint.Port)))"
+  ],
+  [
+    "internal/splicore/engine/native/trojan.go",
+    "serve",
+    "return h.protected.DialContext(ctx, \"udp\", net.JoinHostPort(dst.Host, portString(dst.Port)))"
+  ],
+  [
+    "internal/splicore/engine/native/trojan.go",
+    "serve",
+    "target, err := h.protected.DialContext(h.ctx, \"tcp\", net.JoinHostPort(r.Destination.Host, portString(r.Destination.Port)))"
+  ],
+  [
+    "internal/splicore/engine/native/trojan_outbound.go",
+    "open",
+    "raw, err := d.protected.DialContext(ctx, \"tcp\", net.JoinHostPort(d.node.Endpoint.Host, portString(d.node.Endpoint.Port)))"
   ],
   [
     "internal/splicore/engine/native/tuic.go",
@@ -172,12 +192,12 @@
   [
     "internal/splicore/engine/native/vless.go",
     "serve",
-    "target, err := h.protected.DialContext(h.ctx, \"tcp\", net.JoinHostPort(request.Destination.Host, portString(request.Destination.Port)))"
+    "return h.protected.DialContext(ctx, \"udp\", net.JoinHostPort(dst.Host, portString(dst.Port)))"
   ],
   [
     "internal/splicore/engine/native/vless.go",
     "serve",
-    "return h.protected.DialContext(ctx, \"udp\", net.JoinHostPort(dst.Host, portString(dst.Port)))"
+    "target, err := h.protected.DialContext(h.ctx, \"tcp\", net.JoinHostPort(request.Destination.Host, portString(request.Destination.Port)))"
   ],
   [
     "internal/splicore/engine/native/vless_outbound.go",
@@ -236,43 +256,13 @@
   ],
   [
     "internal/splicore/underlay/factory.go",
-    "Resolver",
-    "return &net.Resolver{PreferGo: true, Dial: func(ctx context.Context, network, address string) (net.Conn, error) {"
-  ],
-  [
-    "internal/splicore/underlay/factory.go",
-    "LookupNetIP",
-    "return net.DefaultResolver.LookupNetIP(ctx, network, host)"
-  ],
-  [
-    "internal/splicore/underlay/factory.go",
-    "LookupNetIP",
-    "return d.Resolver().LookupNetIP(ctx, network, host)"
-  ],
-  [
-    "internal/splicore/underlay/factory.go",
-    "LookupIP",
-    "return net.DefaultResolver.LookupIP(ctx, network, host)"
-  ],
-  [
-    "internal/splicore/underlay/factory.go",
-    "LookupIP",
-    "ips, err := d.LookupNetIP(ctx, network, host)"
-  ],
-  [
-    "internal/splicore/underlay/factory.go",
-    "dialNumeric",
-    "return (&net.Dialer{Control: d.Control}).DialContext(ctx, network, address)"
-  ],
-  [
-    "internal/splicore/underlay/factory.go",
-    "DialContext",
-    "return (&net.Dialer{Control: d.Control}).DialContext(ctx, network, address)"
-  ],
-  [
-    "internal/splicore/underlay/factory.go",
     "DialContext",
     "ips, err := d.LookupNetIP(ctx, \"ip\", host)"
+  ],
+  [
+    "internal/splicore/underlay/factory.go",
+    "DialContext",
+    "return (&net.Dialer{Control: d.Control}).DialContext(ctx, network, address)"
   ],
   [
     "internal/splicore/underlay/factory.go",
@@ -283,6 +273,36 @@
     "internal/splicore/underlay/factory.go",
     "ListenPacket",
     "}}).ListenPacket(ctx, network, local)"
+  ],
+  [
+    "internal/splicore/underlay/factory.go",
+    "LookupIP",
+    "ips, err := d.LookupNetIP(ctx, network, host)"
+  ],
+  [
+    "internal/splicore/underlay/factory.go",
+    "LookupIP",
+    "return net.DefaultResolver.LookupIP(ctx, network, host)"
+  ],
+  [
+    "internal/splicore/underlay/factory.go",
+    "LookupNetIP",
+    "return d.Resolver().LookupNetIP(ctx, network, host)"
+  ],
+  [
+    "internal/splicore/underlay/factory.go",
+    "LookupNetIP",
+    "return net.DefaultResolver.LookupNetIP(ctx, network, host)"
+  ],
+  [
+    "internal/splicore/underlay/factory.go",
+    "Resolver",
+    "return &net.Resolver{PreferGo: true, Dial: func(ctx context.Context, network, address string) (net.Conn, error) {"
+  ],
+  [
+    "internal/splicore/underlay/factory.go",
+    "dialNumeric",
+    "return (&net.Dialer{Control: d.Control}).DialContext(ctx, network, address)"
   ],
   [
     "protocol/hysteria2/backend/client.go",
@@ -312,12 +332,12 @@
   [
     "protocol/mieru/backend/mieru.go",
     "route",
-    "remote, e := h.protected.DialContext(h.ctx, \"tcp\", dst.String())"
+    "packet, e := h.protected.ListenPacket(h.ctx, \"udp\", \":0\", \"\")"
   ],
   [
     "protocol/mieru/backend/mieru.go",
     "route",
-    "packet, e := h.protected.ListenPacket(h.ctx, \"udp\", \":0\", \"\")"
+    "remote, e := h.protected.DialContext(h.ctx, \"tcp\", dst.String())"
   ],
   [
     "protocol/mieru/backend/mieru_outbound.go",

@@ -9,6 +9,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/nodeimport"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/trojan"
 	"net"
 	"net/url"
 	"slices"
@@ -118,6 +119,18 @@ func (s *Service) ExportNodes(ctx context.Context, r NodeExportRequest) (NodeExp
 			continue
 		}
 		profile := clientprofile.Profile{ID: n.ID, Schema: 1, Protocol: n.Protocol, Endpoint: n.Endpoint, Credentials: cred.Payload, TLS: n.Security.TLS, Transport: clientprofile.Transport{Kind: n.Transport.Kind}, UDPPayload: true, Options: access.Settings{Schema: 1, Data: slices.Clone(n.Options.Data)}, Metadata: n.Metadata}
+		if n.Protocol == trojan.Key() {
+			options, err := trojan.DecodeClientOptions(n.Options.Data)
+			if err != nil {
+				return NodeExport{}, err
+			}
+			profile.UDPPayload = options.UDP
+			profile.Metadata = identity.Metadata{}
+			for k, v := range n.Metadata {
+				profile.Metadata[k] = v
+			}
+			profile.Metadata["display_name"] = n.Name
+		}
 		if r.Format == "uri" && n.Protocol.Protocol == "hysteria2" {
 			if n.Security.TLS.Trust != "system" {
 				return NodeExport{}, identity.Err(identity.UnsupportedExport, "URI cannot represent trust")

@@ -99,6 +99,13 @@ type MultiBindingRepository interface {
 type BindingWriter interface {
 	SetBindingEnabled(identity.ID, bool, identity.Revision) error
 }
+
+// UserWriter extends the same generation transaction to managed user secrets.
+// Deletion requires exclusive binding/credential/account references.
+type UserWriter interface {
+	RotateBindingCredential(access.Binding, access.Credential, identity.Revision) error
+	DeleteBindingUser(access.Binding, identity.Revision) error
+}
 type AttributedStats interface{ BindingStats(identity.ID) Stats }
 
 // ServerSecretRepository reveals only inbound-owned encrypted server credentials.
