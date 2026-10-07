@@ -9,6 +9,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/shadowsocks"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/trojan"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/vmess"
 )
 
 func NativeCore() (*Protocols, *Engines, *Exporters, error) {
@@ -21,12 +22,12 @@ func NativeCore() (*Protocols, *Engines, *Exporters, error) {
 		entry, _ := p.Get(key)
 		protocols = append(protocols, entry)
 	}
-	protocols = append(protocols, mieru.Module{}, shadowsocks.Module{Edition: "2017"}, shadowsocks.Module{Edition: "2022"}, trojan.Module{})
+	protocols = append(protocols, mieru.Module{}, shadowsocks.Module{Edition: "2017"}, shadowsocks.Module{Edition: "2022"}, trojan.Module{}, vmess.Module{})
 	p, e = NewProtocols(protocols...)
 	if e != nil {
 		return nil, nil, nil, e
 	}
-	n, e := native.NewEngine(native.SnellCompiler{}, native.Hysteria2Compiler{}, native.TUICCompiler{}, native.VLESSCompiler{}, native.MieruCompiler{}, native.NewShadowsocksCompiler(), native.TrojanCompiler{})
+	n, e := native.NewEngine(native.SnellCompiler{}, native.Hysteria2Compiler{}, native.TUICCompiler{}, native.VLESSCompiler{}, native.MieruCompiler{}, native.NewShadowsocksCompiler(), native.TrojanCompiler{}, native.NewVMessCompiler())
 	if e != nil {
 		return nil, nil, nil, e
 	}
@@ -61,6 +62,7 @@ func NativeCore() (*Protocols, *Engines, *Exporters, error) {
 			mapping[shadowsocks.Key(edition)] = exporter.Shadowsocks{Target: d.Target}
 		}
 		mapping[trojan.Key()] = exporter.Trojan{Target: d.Target}
+		mapping[vmess.Key()] = exporter.VMess{Target: d.Target}
 		d.Protocols = mapping
 		entries[n] = d
 	}

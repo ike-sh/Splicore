@@ -205,6 +205,26 @@
     "c, err := d.protected.DialContext(ctx, \"tcp\", net.JoinHostPort(d.node.Endpoint.Host, portString(d.node.Endpoint.Port)))"
   ],
   [
+    "internal/splicore/engine/native/vmess.go",
+    "Start",
+    "l, err := (&net.ListenConfig{}).Listen(ctx, \"tcp\", net.JoinHostPort(h.endpoint.Host, portString(h.endpoint.Port)))"
+  ],
+  [
+    "internal/splicore/engine/native/vmess.go",
+    "serve",
+    "return h.protected.DialContext(ctx, \"udp\", net.JoinHostPort(dst.Host, portString(dst.Port)))"
+  ],
+  [
+    "internal/splicore/engine/native/vmess.go",
+    "serve",
+    "target, err := h.protected.DialContext(h.ctx, \"tcp\", net.JoinHostPort(r.Destination.Host, portString(r.Destination.Port)))"
+  ],
+  [
+    "internal/splicore/engine/native/vmess_outbound.go",
+    "open",
+    "c, err := d.protected.DialContext(ctx, \"tcp\", net.JoinHostPort(d.node.Endpoint.Host, portString(d.node.Endpoint.Port)))"
+  ],
+  [
     "internal/splicore/networkruntime/dns.go",
     "dialPurpose",
     "conn, err = d.DialContext(ctx, network, net.JoinHostPort(target.Host, portString(target.Port)))"

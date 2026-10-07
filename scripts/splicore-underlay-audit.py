@@ -46,6 +46,9 @@ rule("engine/native/vless_outbound.go", "open", "Protected", "VLESS proxy underl
 rule("engine/native/trojan.go", "Start", "Intentionally Local", "Trojan TLS ingress", "Owned admission-gated TCP listener; TLS wraps accepted socket")
 rule("engine/native/trojan.go", "serve", "Protected", "Trojan TCP/UDP server target", "Injected ServerTarget dialer; shared joined relay owns bounded UDP target sockets")
 rule("engine/native/trojan_outbound.go", "open", "Protected", "Trojan TLS proxy underlay", "Injected purpose-specific protected TCP dialer; TLS never constructs a separate socket")
+rule("engine/native/vmess.go", "Start", "Intentionally Local", "VMess raw/TLS ingress", "Owned admission-gated listener; bounded pre-auth; TLS wraps accepted socket")
+rule("engine/native/vmess.go", "serve", "Protected", "VMess TCP/standard UDP target", "Injected ServerTarget dialer; shared joined relay owns fixed-destination target sockets")
+rule("engine/native/vmess_outbound.go", "open", "Protected", "VMess proxy TCP underlay", "Injected purpose-specific protected dialer; shared TLS wraps the same owned socket")
 rule("engine/native/shadowsocks.go", "serve", "Protected", "Shadowsocks server TCP target", "Injected ServerTarget dialer; native handle owns authenticated stream")
 rule("engine/native/shadowsocks_udp.go", "routePacket", "Protected", "Shadowsocks server UDP target", "Injected ServerTarget connected UDP socket; bounded association owns reader/socket")
 rule("engine/native/shadowsocks.go", "Start", "Intentionally Local", "Shadowsocks TCP/UDP ingress", "Validated owned listeners; remote target uses protected router")
@@ -104,6 +107,8 @@ for root in ("internal/splicore", "cmd/splicore", "protocol"):
 invariants = {
     prefix + "engine/native/trojan.go": ["underlay.DialerFrom(ctx, underlay.ServerTarget)", "h.protected.DialContext", "len(h.connections) >= 512", "h.wg.Wait()"],
     prefix + "engine/native/trojan_outbound.go": ["underlay.DialerFrom", "d.protected.DialContext", "d.owner.Begin", "d.owner.Conn", "d.owner.Packet", "tls.Client(raw,"],
+    prefix + "engine/native/vmess.go": ["underlay.DialerFrom(ctx, underlay.ServerTarget)", "h.protected.DialContext", "len(h.connections) >= 512", "h.wg.Wait()", "wire.ReadRequest", "relay.Packets"],
+    prefix + "engine/native/vmess_outbound.go": ["underlay.DialerFrom", "d.protected.DialContext", "d.owner.Begin", "d.owner.Conn", "d.owner.Packet", "tls.Client(raw,"],
     prefix + "engine/clientconfig/packet.go": ["underlay.DialerFrom", "underlay.DNSBootstrap", "protected.ListenPacket", "address.String()"],
     prefix + "engine/native/shadowsocks.go": ["underlay.FromContext", "underlay.DialerFrom(ctx, underlay.ServerTarget)", "h.protected = protected"],
     prefix + "engine/native/shadowsocks_outbound.go": ["underlay.DialerFrom", "d.protected.DialContext", "d.owner.Conn"],

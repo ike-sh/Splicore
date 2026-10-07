@@ -174,6 +174,18 @@ func parseExternal(format string, body []byte) (Result, error) {
 		return out, invalid()
 	}
 	for i, b := range entries {
+		var kind struct {
+			Type string `json:"type"`
+		}
+		if json.Unmarshal(b, &kind) == nil && kind.Type == "vmess" {
+			c, err := externalVMess(format, b)
+			if err != nil {
+				out.Issues = append(out.Issues, vmessIssue(i+1, err, "unsupported_vmess_capability"))
+			} else {
+				out.Candidates = append(out.Candidates, c)
+			}
+			continue
+		}
 		var n externalNode
 		if jsonstrict.DecodeLimit(b, &n, provider.MaxLine) != nil {
 			out.Issues = append(out.Issues, Issue{i + 1, "Unsupported", "unknown_client_field"})

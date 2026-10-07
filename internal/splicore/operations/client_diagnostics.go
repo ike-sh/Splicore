@@ -6,6 +6,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/clientruntime"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/vmess"
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"strconv"
 	"time"
@@ -25,12 +26,13 @@ type providerSummary struct {
 	RefreshAgeSeconds int64             `json:"refresh_age_seconds"`
 }
 type clientNodeSummary struct {
-	Name          string   `json:"name"`
-	Protocol      string   `json:"protocol"`
-	EndpointClass string   `json:"endpoint_address_class"`
-	Port          uint16   `json:"endpoint_port"`
-	Engines       []string `json:"engines"`
-	Available     bool     `json:"available"`
+	Name            string   `json:"name"`
+	Protocol        string   `json:"protocol"`
+	EndpointClass   string   `json:"endpoint_address_class"`
+	Port            uint16   `json:"endpoint_port"`
+	Engines         []string `json:"engines"`
+	Available       bool     `json:"available"`
+	PayloadSecurity string   `json:"payload_security,omitempty"`
 }
 type clientListenerSummary struct {
 	Kind         string      `json:"kind"`
@@ -123,7 +125,12 @@ func clientProjection(ctx context.Context, q SupportSource) clientSummary {
 		result.Outbounds = append(result.Outbounds, clientOutboundSummary{Kind: enum(o.Kind, "direct", "proxy"), Engine: enum(o.Engine, "native"), Configured: h.Configured, Available: h.Available, Active: h.Active, LastError: enum(h.LastError, "", "outbound_connection_failed")})
 	}
 	for _, n := range s.State.Nodes {
-		v := clientNodeSummary{Name: "[REDACTED]", Protocol: enum(n.Protocol.Protocol, "snell", "hysteria2", "tuic", "vless", "mieru", "shadowsocks", "trojan"), EndpointClass: addressClass(n.Endpoint.Host), Port: n.Endpoint.Port, Engines: []string{}}
+		v := clientNodeSummary{Name: "[REDACTED]", Protocol: enum(n.Protocol.Protocol, "snell", "hysteria2", "tuic", "vless", "mieru", "shadowsocks", "trojan", "vmess"), EndpointClass: addressClass(n.Endpoint.Host), Port: n.Endpoint.Port, Engines: []string{}}
+		if n.Protocol == vmess.Key() {
+			if options, err := vmess.DecodeClientOptions(n.Options.Data); err == nil {
+				v.PayloadSecurity = vmess.ResolvedSecurity(options.Security)
+			}
+		}
 		for _, o := range s.State.Outbounds {
 			if o.NodeID != nil && *o.NodeID == n.ID {
 				v.Engines = append(v.Engines, enum(o.Engine, "native"))

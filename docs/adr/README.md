@@ -120,3 +120,9 @@ Native is the sole runtime engine. Historical Phase 6/7 direction is superseded;
   associations, generic user mutation and explicit fallback deferral.
   Phase 18 locally frozen after exact-index EOL recovery; first blocked attempt
   preserved in the canonical Freeze report.
+
+## Phase 19 modern VMess decision
+
+- [0040 — Modern VMess and replay/clock ownership](0040-modern-vmess-and-replay-clock-ownership.md):
+  Proposed; alterId0 AEAD boundary, shared managed resources and bounded
+  generation-independent replay history. Independent review is pending.

@@ -99,3 +99,9 @@ Native is the sole runtime engine. Historical Phase 6/7 direction is superseded;
   Initial blocked attempt is preserved. See the
   [Phase 18 Freeze report](../reports/PHASE18_NATIVE_TROJAN_FREEZE_REPORT.md).
   Platform qualification remains unchanged.
+
+## Phase 19 native modern VMess
+
+- [Native VMess runtime](VMESS_RUNTIME.md): modern AEAD/alterId0, raw TCP/shared
+  TLS, payload modes, compiler-owned replay and shared TCP/UDP lifecycle.
+  Implementation review and freeze are separate; platform qualification is unchanged.

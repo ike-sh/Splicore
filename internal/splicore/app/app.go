@@ -76,7 +76,7 @@ func Serve(ctx context.Context, c config.Config) (err error) {
 		defer cancel()
 		err = errors.Join(err, service.CloseRuntime(shutdown))
 	}()
-	outbounds, err := registry.NewOutbounds(native.SnellOutboundFactory{}, native.Hysteria2OutboundFactory{}, native.TUICOutboundFactory{}, native.VLESSOutboundFactory{}, native.MieruOutboundFactory{}, native.ShadowsocksOutboundFactory{}, native.TrojanOutboundFactory{})
+	outbounds, err := registry.NewOutbounds(native.SnellOutboundFactory{}, native.Hysteria2OutboundFactory{}, native.TUICOutboundFactory{}, native.VLESSOutboundFactory{}, native.MieruOutboundFactory{}, native.ShadowsocksOutboundFactory{}, native.TrojanOutboundFactory{}, native.VMessOutboundFactory{})
 	if err != nil {
 		return err
 	}

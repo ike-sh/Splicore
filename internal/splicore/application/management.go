@@ -12,8 +12,10 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/provider"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
 	"github.com/ike-sh/Splicore/internal/splicore/nodeimport"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	vmm "github.com/ike-sh/Splicore/internal/splicore/protocol/vmess"
 	"maps"
 	"reflect"
 	"slices"
@@ -386,6 +388,12 @@ func (s *Service) diffNodes(ctx context.Context, p *managementPlan, parsed nodei
 		}
 		n.CredentialID = cid
 		cred, e := remoteCredential(n.ID, cid, CredentialInput{Kind: candidate.Credential.Kind, Value: candidate.Credential.Value})
+		if n.Protocol == vmm.Key() && candidate.Credential.Kind == access.UUID && (access.UUIDPayload{UUID: secret.New(candidate.Credential.Value)}).Validate() != nil {
+			e = vmm.InvalidCredential()
+		}
+		if e == nil && n.Protocol == vmm.Key() && n.Transport.Kind != "tcp" {
+			e = vmm.Unsupported("unsupported_transport")
+		}
 		if e == nil {
 			if owner != nil {
 				n.Provenance = provider.Provenance{Origin: "provider", ProviderID: owner.ID, Key: key}
@@ -405,6 +413,7 @@ func (s *Service) diffNodes(ctx context.Context, p *managementPlan, parsed nodei
 		}
 		if e != nil {
 			kind := "Invalid"
+			change := "invalid_or_unsupported_node"
 			var domain *identity.Error
 			if errors.As(e, &domain) {
 				switch domain.Code {
@@ -412,7 +421,12 @@ func (s *Service) diffNodes(ctx context.Context, p *managementPlan, parsed nodei
 					kind = "Unsupported"
 				}
 			}
-			p.preview.Entries = append(p.preview.Entries, DiffEntry{Kind: kind, Index: i + 1, Change: "invalid_or_unsupported_node"})
+			if n.Protocol == vmm.Key() {
+				if k, code, ok := vmm.ImportError(e); ok {
+					kind, change = k, code
+				}
+			}
+			p.preview.Entries = append(p.preview.Entries, DiffEntry{Kind: kind, Index: i + 1, Change: change})
 			if mode == "strict" {
 				p.preview.Applicable = false
 				p.preview.Reason = "strict_import_rejected"

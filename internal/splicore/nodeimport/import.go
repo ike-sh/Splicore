@@ -3,9 +3,9 @@
 package nodeimport
 
 import (
-	"errors"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -23,6 +23,7 @@ import (
 	trm "github.com/ike-sh/Splicore/internal/splicore/protocol/trojan"
 	tm "github.com/ike-sh/Splicore/internal/splicore/protocol/tuic"
 	vm "github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
+	vmm "github.com/ike-sh/Splicore/internal/splicore/protocol/vmess"
 )
 
 type Credential struct {
@@ -127,9 +128,14 @@ func Parse(format string, body []byte) (Result, error) {
 			}
 			c, e := ParseURI(line)
 			if e != nil {
+				if strings.HasPrefix(line, "vmess://") {
+					out.Issues = append(out.Issues, vmessIssue(i+1, e, "unsupported_uri"))
+					continue
+				}
 				kind := "Invalid"
 				code := "invalid_uri"
-				if e == errUnsupported {
+				var classified *identity.Error
+				if e == errUnsupported || errors.As(e, &classified) && classified.Code == identity.UnsupportedExport {
 					kind = "Unsupported"
 					code = "unsupported_uri"
 				}
@@ -172,6 +178,20 @@ func ParseURI(raw string) (Candidate, error) {
 		c.Credential = Credential{Kind: v.Credential.Kind(), Value: ssm.Material(v.Credential)}
 		return c, nil
 	}
+	if strings.HasPrefix(raw, "vmess://") {
+		v, e := vmm.ParseURI(raw)
+		if e != nil {
+			return c, e
+		}
+		options, _ := json.Marshal(vmm.ClientOptions{Security: v.Security, UDP: true})
+		security := client.Security{Kind: "none"}
+		if v.TLS.Enabled {
+			security = client.Security{Kind: "tls", TLS: v.TLS}
+		}
+		c.Node = client.RemoteNode{Name: v.Name, Protocol: vmm.Key(), Endpoint: v.Endpoint, Transport: client.Transport{Kind: "tcp"}, Security: security, Options: client.Options{Schema: 1, Data: options}}
+		c.Credential = Credential{Kind: access.UUID, Value: v.UUID.Reveal()}
+		return c, nil
+	}
 	u, e := url.Parse(raw)
 	if e != nil || u.Opaque != "" {
 		return c, invalid()
@@ -181,7 +201,9 @@ func ParseURI(raw string) (Candidate, error) {
 		v, e := trm.ParseURI(raw)
 		if e != nil {
 			var classified *identity.Error
-			if errors.As(e, &classified) && classified.Code == identity.UnsupportedExport { return c, errUnsupported }
+			if errors.As(e, &classified) && classified.Code == identity.UnsupportedExport {
+				return c, errUnsupported
+			}
 			return c, e
 		}
 		options, _ := json.Marshal(trm.ClientOptions{UDP: true})
