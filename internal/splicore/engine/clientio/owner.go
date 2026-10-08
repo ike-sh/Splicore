@@ -48,6 +48,18 @@ func (o *Owner) add(c io.Closer) error {
 	return nil
 }
 func (o *Owner) remove(c io.Closer) { o.mu.Lock(); delete(o.sockets, c); o.mu.Unlock() }
+
+// Track owns a composite whose Close interrupts and joins its workers. On
+// rejection the caller closes it, so registration never waits on unstarted work.
+func (o *Owner) Track(c io.Closer) (func(), error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.closed {
+		return nil, net.ErrClosed
+	}
+	o.sockets[c] = true
+	return func() { o.remove(c) }, nil
+}
 func (o *Owner) Conn(c net.Conn) (net.Conn, error) {
 	w := &conn{Conn: c, owner: o}
 	if err := o.add(w); err != nil {

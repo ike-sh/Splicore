@@ -25,7 +25,7 @@ def rule(path, functions, classification, purpose, evidence):
 rule("clientruntime/runtime.go", "PrepareWithRestart", "Intentionally Local", "application ingress", "Validated local listen endpoint; no remote dial")
 rule("clientruntime/runtime.go", "serveStream DialContext", "Protected", "DIRECT / selected outbound", "Logical selectRoute -> leased adapter -> injected provider")
 rule("clientruntime/http.go", "serveHTTP", "Protected", "HTTP selected outbound", "Snapshot-owned selected adapter; target route chosen before protection")
-rule("clientruntime/udp.go", "serveUDP", "Intentionally Local", "SOCKS UDP relay", "Loopback relay; selected remote packet adapter is separately protected")
+rule("clientruntime/udp.go", "serveUDP", "Intentionally Local", "SOCKS UDP relay", "Validated listener address with explicit LAN opt-in; selected remote packet adapter is separately protected")
 rule("clientruntime/udp.go", "ListenPacket", "Protected", "DIRECT UDP", "Protected connected UDP socket per association")
 rule("clientruntime/tun.go", "servePacket", "Protected", "TUN selected outbound", "Snapshot ref retained until packet workers joined")
 rule("clientruntime/lease.go", "DialContext ListenPacket", "Protected", "adapter delegation", "Reference-counted adapter; production constructors require factory")
@@ -49,6 +49,7 @@ rule("engine/native/trojan_outbound.go", "open", "Protected", "Trojan TLS proxy 
 rule("engine/native/vmess.go", "Start", "Intentionally Local", "VMess raw/TLS ingress", "Owned admission-gated listener; bounded pre-auth; TLS wraps accepted socket")
 rule("engine/native/vmess.go", "serve", "Protected", "VMess TCP/standard UDP target", "Injected ServerTarget dialer; shared joined relay owns fixed-destination target sockets")
 rule("engine/native/vmess_outbound.go", "open", "Protected", "VMess proxy TCP underlay", "Injected purpose-specific protected dialer; shared TLS wraps the same owned socket")
+rule("engine/native/proxy_outbound.go", "open ListenPacket", "Protected", "SOCKS5/HTTP control and SOCKS5 UDP relay", "Injected ProxyUnderlay dialer; distinct relay IP also uses per-socket protection; composite Close joins control watcher")
 rule("engine/native/shadowsocks.go", "serve", "Protected", "Shadowsocks server TCP target", "Injected ServerTarget dialer; native handle owns authenticated stream")
 rule("engine/native/shadowsocks_udp.go", "routePacket", "Protected", "Shadowsocks server UDP target", "Injected ServerTarget connected UDP socket; bounded association owns reader/socket")
 rule("engine/native/shadowsocks.go", "Start", "Intentionally Local", "Shadowsocks TCP/UDP ingress", "Validated owned listeners; remote target uses protected router")
@@ -105,6 +106,7 @@ for root in ("internal/splicore", "cmd/splicore", "protocol"):
 # Constructor enforcement and essential socket/ownership gates must remain in
 # the production implementation even when the scanner sees the same function.
 invariants = {
+    prefix + "engine/native/proxy_outbound.go": ["underlay.DialerFrom", "d.protected.DialContext", "d.owner.Begin", "d.owner.Conn", "d.owner.Track(p)", "<-p.done", "go p.watch()"],
     prefix + "engine/native/trojan.go": ["underlay.DialerFrom(ctx, underlay.ServerTarget)", "h.protected.DialContext", "len(h.connections) >= 512", "h.wg.Wait()"],
     prefix + "engine/native/trojan_outbound.go": ["underlay.DialerFrom", "d.protected.DialContext", "d.owner.Begin", "d.owner.Conn", "d.owner.Packet", "tls.Client(raw,"],
     prefix + "engine/native/vmess.go": ["underlay.DialerFrom(ctx, underlay.ServerTarget)", "h.protected.DialContext", "len(h.connections) >= 512", "h.wg.Wait()", "wire.ReadRequest", "relay.Packets"],

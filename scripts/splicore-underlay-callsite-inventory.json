@@ -57,7 +57,7 @@
   [
     "internal/splicore/clientruntime/udp.go",
     "serveUDP",
-    "pc, err = pd.ListenPacket(dialCtx, resolved)"
+    "raw, err = pd.ListenPacket(dialCtx, resolved)"
   ],
   [
     "internal/splicore/clientruntime/udp.go",
@@ -88,6 +88,16 @@
     "internal/splicore/engine/native/hysteria2.go",
     "udp",
     "return h.protected.DialContext(ctx, \"udp\", net.JoinHostPort(dst.Host, portString(dst.Port)))"
+  ],
+  [
+    "internal/splicore/engine/native/proxy_outbound.go",
+    "ListenPacket",
+    "udp, e := d.protected.DialContext(ctx, \"udp\", net.JoinHostPort(bind.Host, strconv.Itoa(int(bind.Port))))"
+  ],
+  [
+    "internal/splicore/engine/native/proxy_outbound.go",
+    "open",
+    "conn, err = d.protected.DialContext(ctx, \"tcp\", net.JoinHostPort(d.node.Endpoint.Host, strconv.Itoa(int(d.node.Endpoint.Port))))"
   ],
   [
     "internal/splicore/engine/native/shadowsocks.go",

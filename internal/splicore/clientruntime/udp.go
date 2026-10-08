@@ -1,7 +1,6 @@
 package clientruntime
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
@@ -9,13 +8,14 @@ import (
 	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
 	"github.com/ike-sh/Splicore/internal/splicore/engine/netaddr"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
-	"github.com/ike-sh/Splicore/internal/splicore/protocol/address"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/socks"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/socks5"
 	"io"
 	"net"
 	"net/netip"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -23,33 +23,22 @@ var errUDPPacket = errors.New("invalid SOCKS UDP datagram")
 
 const maxAssociationFlows = 32
 
-func parseUDPPacket(b []byte) (access.Endpoint, []byte, error) {
-	if len(b) < 4 || b[0] != 0 || b[1] != 0 || b[2] != 0 {
-		return access.Endpoint{}, nil, errUDPPacket
-	}
-	r := bytes.NewReader(b[3:])
-	e, err := address.ReadSOCKS(r)
-	if err != nil {
-		return access.Endpoint{}, nil, errUDPPacket
-	}
-	if e.Validate() != nil {
-		return e, nil, errUDPPacket
-	}
-	return e, b[len(b)-r.Len():], nil
-}
+func parseUDPPacket(b []byte) (access.Endpoint, []byte, error) { return socks5.ParsePacket(b) }
 func encodeUDPPacket(a net.Addr, p []byte) ([]byte, error) {
-	target, err := netaddr.From(a)
-	if err != nil {
-		return nil, err
+	target, e := netaddr.From(a)
+	if e != nil {
+		return nil, e
 	}
-	encoded, err := address.MarshalSOCKS(target)
-	if err != nil {
-		return nil, err
-	}
-	b := make([]byte, 3, 3+len(encoded)+len(p))
-	b = append(b, encoded...)
-	return append(b, p...), nil
+	return socks5.EncodePacket(target, p)
+}
 
+type udpFlow struct {
+	net.PacketConn
+	dead atomic.Bool
+}
+type retiredUDPFlow struct {
+	key   access.Endpoint
+	owner *udpFlow
 }
 
 func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, requested access.Endpoint, gen *snapshot) {
@@ -80,7 +69,7 @@ func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, re
 	}
 	stop := context.AfterFunc(ctx, func() { _ = relay.Close(); _ = s.local.Close() })
 	defer stop()
-	flows := map[access.Endpoint]net.PacketConn{}
+	flows := map[access.Endpoint]*udpFlow{}
 	type flowSelection struct {
 		target   access.Endpoint
 		counters []*counter
@@ -88,14 +77,14 @@ func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, re
 	}
 	selections := map[access.Endpoint]flowSelection{}
 	affinity := map[identity.ID]P.Action{}
-	counters := []*counter{&s.stats, gen.inCounters[s.inbound]}
+	counters := []*counter{&s.stats, gen.inCounters[s.inbound], gen.accountCounters[s.account]}
 	counted := map[*counter]bool{}
 	for _, c := range counters {
 		if c != nil {
 			counted[c] = true
 		}
 	}
-	finished := make(chan access.Endpoint, maxAssociationFlows)
+	finished := make(chan retiredUDPFlow, maxAssociationFlows)
 	var workers sync.WaitGroup
 	// Only this receive loop creates flows and adds workers. It finishes before
 	// cleanup begins Wait, so no flow can be registered during shutdown.
@@ -148,14 +137,21 @@ func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, re
 		_ = relay.SetReadDeadline(time.Now().Add(m.udpIdle))
 		for draining := true; draining; {
 			select {
-			case key := <-finished:
-				delete(flows, key)
-				delete(selections, key)
+			case retired := <-finished:
+				if flows[retired.key] == retired.owner {
+					delete(flows, retired.key)
+					delete(selections, retired.key)
+				}
 			default:
 				draining = false
 			}
 		}
 		pc := flows[target]
+		if pc != nil && pc.dead.Load() {
+			delete(flows, target)
+			delete(selections, target)
+			pc = nil
+		}
 		if pc == nil {
 			if len(flows) >= maxAssociationFlows {
 				continue
@@ -173,12 +169,14 @@ func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, re
 				cancel()
 				continue
 			}
-			pc, err = pd.ListenPacket(dialCtx, resolved)
+			var raw net.PacketConn
+			raw, err = pd.ListenPacket(dialCtx, resolved)
 			cancel()
 			if err != nil {
 				health.failed()
 				continue
 			}
+			pc = &udpFlow{PacketConn: raw}
 			if ctx.Err() != nil {
 				_ = pc.Close()
 				return
@@ -197,7 +195,7 @@ func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, re
 				s.dialer = health
 			}
 			m.mu.Unlock()
-			flowCounters := []*counter{&s.stats, gen.inCounters[s.inbound], gen.outCounters[oid], gen.nodeCounters[node]}
+			flowCounters := []*counter{&s.stats, gen.inCounters[s.inbound], gen.outCounters[oid], gen.nodeCounters[node], gen.accountCounters[s.account]}
 			for _, c := range flowCounters {
 				if c != nil && !counted[c] {
 					counted[c] = true
@@ -209,9 +207,16 @@ func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, re
 			selections[target] = flowSelection{resolved, flowCounters, health}
 			destination := *source // immutable per-association destination, never scratch state
 			workers.Add(1)
-			go func(pc net.PacketConn, key access.Endpoint, counters []*counter, health *dialerLease) {
+			go func(pc *udpFlow, key access.Endpoint, counters []*counter, health *dialerLease) {
 				defer workers.Done()
-				defer func() { _ = pc.Close(); finished <- key }()
+				defer func() {
+					pc.dead.Store(true)
+					_ = pc.Close()
+					select {
+					case finished <- retiredUDPFlow{key, pc}:
+					case <-ctx.Done():
+					}
+				}()
 				response := make([]byte, 65535)
 				for {
 					_ = pc.SetReadDeadline(time.Now().Add(m.udpIdle))
@@ -233,6 +238,7 @@ func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, re
 					if sent != len(frame) {
 						continue
 					}
+					_ = relay.SetReadDeadline(time.Now().Add(m.udpIdle))
 					health.success()
 					for _, c := range counters {
 						if c != nil {
@@ -244,10 +250,17 @@ func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, re
 			}(pc, target, flowCounters, health)
 		}
 		flow := selections[target]
+		_ = pc.SetReadDeadline(time.Now().Add(m.udpIdle))
 		_ = pc.SetWriteDeadline(time.Now().Add(5 * time.Second))
 		written, err := pc.WriteTo(payload, netaddr.UDP(flow.target))
 		if err != nil {
 			flow.health.failed()
+			pc.dead.Store(true)
+			_ = pc.Close()
+			if flows[target] == pc {
+				delete(flows, target)
+				delete(selections, target)
+			}
 			continue
 		}
 		// Some inherited packet wrappers return frame bytes; account only payload.

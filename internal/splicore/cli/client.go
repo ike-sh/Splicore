@@ -70,6 +70,14 @@ func clientCLI(ctx context.Context, args []string, out, errOut io.Writer, deps D
 							items = append(items, o)
 						}
 					}
+				case "local-binding":
+					for _, i := range status.State.LocalInbounds {
+						for _, b := range i.Bindings {
+							if args[1] == "list" || string(b.ID) == *id {
+								items = append(items, b)
+							}
+						}
+					}
 				case "local-inbound":
 					for _, i := range status.State.LocalInbounds {
 						if args[1] == "list" || string(i.ID) == *id {

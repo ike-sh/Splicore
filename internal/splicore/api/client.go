@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"github.com/ike-sh/Splicore/internal/splicore/application"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"io"
 	"net/http"
@@ -18,7 +19,7 @@ func clientRoute(w http.ResponseWriter, r *http.Request, q application.Queries) 
 	if !strings.HasPrefix(r.URL.Path, "/api/v1/") || len(parts) < 1 {
 		return false
 	}
-	resources := map[string]string{"nodes": "node", "outbounds": "outbound", "local-inbounds": "local-inbound"}
+	resources := map[string]string{"nodes": "node", "outbounds": "outbound", "local-inbounds": "local-inbound", "local-bindings": "local-binding"}
 	resource, collection := resources[parts[0]]
 	if !collection && parts[0] != "client" {
 		return false
@@ -29,7 +30,7 @@ func clientRoute(w http.ResponseWriter, r *http.Request, q application.Queries) 
 			allowed = "GET, POST"
 		} else if len(parts) == 2 {
 			allowed = "GET, PUT, DELETE"
-		} else if parts[0] == "nodes" && len(parts) == 3 && parts[2] == "credential" {
+		} else if (parts[0] == "nodes" || parts[0] == "local-bindings") && len(parts) == 3 && parts[2] == "credential" {
 			allowed = "POST"
 		}
 	} else if len(parts) == 2 {
@@ -111,6 +112,12 @@ func clientRoute(w http.ResponseWriter, r *http.Request, q application.Queries) 
 				result = status.State.Outbounds
 			case "local-inbound":
 				result = status.State.LocalInbounds
+			case "local-binding":
+				items := []access.Binding{}
+				for _, i := range status.State.LocalInbounds {
+					items = append(items, i.Bindings...)
+				}
+				result = items
 			}
 			if len(parts) == 2 {
 				var found any
@@ -125,6 +132,14 @@ func clientRoute(w http.ResponseWriter, r *http.Request, q application.Queries) 
 					for _, o := range status.State.Outbounds {
 						if string(o.ID) == parts[1] {
 							found = o
+						}
+					}
+				case "local-binding":
+					for _, i := range status.State.LocalInbounds {
+						for _, b := range i.Bindings {
+							if string(b.ID) == parts[1] {
+								found = b
+							}
 						}
 					}
 				case "local-inbound":
@@ -199,8 +214,8 @@ func clientRoute(w http.ResponseWriter, r *http.Request, q application.Queries) 
 		if r.Method == http.MethodDelete {
 			m.Action = "delete"
 		}
-	} else if parts[0] == "nodes" && len(parts) == 3 && parts[2] == "credential" && r.Method == http.MethodPost {
-		m.Resource = "node"
+	} else if (parts[0] == "nodes" || parts[0] == "local-bindings") && len(parts) == 3 && parts[2] == "credential" && r.Method == http.MethodPost {
+		m.Resource = resource
 		m.Action = "rotate"
 		m.ID = identity.ID(parts[1])
 	} else if parts[0] == "client" && len(parts) == 2 && parts[1] == "host-integration" && r.Method == http.MethodPut {

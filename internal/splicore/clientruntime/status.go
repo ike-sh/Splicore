@@ -22,6 +22,7 @@ type OutboundHealth struct {
 	Stats      TrafficStats `json:"stats"`
 }
 type SessionView struct {
+	AccountID  identity.ID  `json:"account_id,omitempty"`
 	ID         identity.ID  `json:"id"`
 	InboundID  identity.ID  `json:"local_inbound_id"`
 	OutboundID identity.ID  `json:"outbound_id,omitempty"`
@@ -30,6 +31,8 @@ type SessionView struct {
 	Stats      TrafficStats `json:"stats"`
 }
 type Status struct {
+	Accounts         []Observation              `json:"accounts"`
+	ProxyInterfaces  []ports.OutboundCapability `json:"proxy_interfaces"`
 	Underlay         underlay.Status            `json:"underlay"`
 	HostCapabilities hostnetwork.Capabilities   `json:"host_capabilities"`
 	Host             hostnetwork.Status         `json:"host_network"`
@@ -49,6 +52,10 @@ type Status struct {
 func (m *Manager) Status(state client.ProfileState, capabilities []ports.OutboundCapability) Status {
 	out := Status{State: state.Clone(), Health: "stopped", LocalSOCKSTCP: true, LocalSOCKSUDP: "supported", OutboundAdapters: capabilities, LocalStats: []Observation{}, Outbounds: []OutboundHealth{}, Nodes: []Observation{}, Sessions: []SessionView{}}
 	out.Network = m.NetworkStatus()
+	out.Accounts = []Observation{}
+	for _, kind := range []string{"socks5", "http", "mixed"} {
+		out.ProxyInterfaces = append(out.ProxyInterfaces, ports.OutboundCapability{Protocol: kind, Engine: "native", Role: "client_inbound", TCP: true, UDP: kind != "http", IPv4: true, IPv6: true, Domain: true, Qualification: "experimental"})
+	}
 	out.Underlay = m.underlay.Status()
 	out.Host = m.HostStatus()
 	out.HostCapabilities = hostnetwork.PlatformCapabilities()
@@ -109,8 +116,12 @@ func (m *Manager) Status(state client.ProfileState, capabilities []ports.Outboun
 		out.Nodes = append(out.Nodes, v)
 	}
 	for _, s := range m.sessions {
-		out.Sessions = append(out.Sessions, SessionView{ID: s.id, InboundID: s.inbound, OutboundID: s.outbound, NodeID: s.node, Kind: s.kind, Stats: s.stats.stats()})
+		out.Sessions = append(out.Sessions, SessionView{AccountID: s.account, ID: s.id, InboundID: s.inbound, OutboundID: s.outbound, NodeID: s.node, Kind: s.kind, Stats: s.stats.stats()})
 	}
+	for id, c := range m.accountStats {
+		out.Accounts = append(out.Accounts, Observation{ID: id, Stats: c.stats()})
+	}
+	sort.Slice(out.Accounts, func(i, j int) bool { return out.Accounts[i].ID < out.Accounts[j].ID })
 	sort.Slice(out.Sessions, func(i, j int) bool { return out.Sessions[i].ID < out.Sessions[j].ID })
 	return out
 }

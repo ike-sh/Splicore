@@ -244,7 +244,11 @@ func (e *Engine) lookup(ctx context.Context, domain string, id identity.ID, boot
 	} else {
 		action := server.Detour
 		if !bootstrap {
-			action, err = e.Select(action, nil, true, 0)
+			network := "tcp"
+			if server.Type == "udp" {
+				network = "udp"
+			}
+			action, err = e.selectNetwork(action, nil, true, 0, network)
 			if err != nil {
 				e.dnsFailures.Add(1)
 				return out, err

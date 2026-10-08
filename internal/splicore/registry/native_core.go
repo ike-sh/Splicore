@@ -6,6 +6,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/exporter"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/mieru"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/proxy"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/shadowsocks"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/trojan"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
@@ -63,6 +64,8 @@ func NativeCore() (*Protocols, *Engines, *Exporters, error) {
 		}
 		mapping[trojan.Key()] = exporter.Trojan{Target: d.Target}
 		mapping[vmess.Key()] = exporter.VMess{Target: d.Target}
+		mapping[proxy.Key("socks5")] = exporter.Proxy{Target: d.Target}
+		mapping[proxy.Key("http")] = exporter.Proxy{Target: d.Target}
 		d.Protocols = mapping
 		entries[n] = d
 	}

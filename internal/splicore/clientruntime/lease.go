@@ -31,6 +31,16 @@ func (l *dialerLease) success() { l.health.Store(succeededHealth) }
 func (l *dialerLease) DialContext(ctx context.Context, e access.Endpoint) (net.Conn, error) {
 	return l.dialer.DialContext(ctx, e)
 }
+func (l *dialerLease) SupportsNetwork(network string) bool {
+	if s, ok := l.dialer.(ports.ClientNetworkSupport); ok {
+		return s.SupportsNetwork(network)
+	}
+	if network == "tcp" {
+		return true
+	}
+	_, ok := l.dialer.(ports.ClientPacketDialer)
+	return ok
+}
 func (l *dialerLease) ListenPacket(ctx context.Context, e access.Endpoint) (net.PacketConn, error) {
 	p, ok := l.dialer.(ports.ClientPacketDialer)
 	if !ok {

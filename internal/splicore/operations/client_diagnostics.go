@@ -35,6 +35,8 @@ type clientNodeSummary struct {
 	PayloadSecurity string   `json:"payload_security,omitempty"`
 }
 type clientListenerSummary struct {
+	Auth         bool        `json:"auth"`
+	AllowLAN     bool        `json:"allow_lan"`
 	Kind         string      `json:"kind"`
 	AddressClass string      `json:"address_class"`
 	Port         uint16      `json:"port"`
@@ -125,7 +127,7 @@ func clientProjection(ctx context.Context, q SupportSource) clientSummary {
 		result.Outbounds = append(result.Outbounds, clientOutboundSummary{Kind: enum(o.Kind, "direct", "proxy"), Engine: enum(o.Engine, "native"), Configured: h.Configured, Available: h.Available, Active: h.Active, LastError: enum(h.LastError, "", "outbound_connection_failed")})
 	}
 	for _, n := range s.State.Nodes {
-		v := clientNodeSummary{Name: "[REDACTED]", Protocol: enum(n.Protocol.Protocol, "snell", "hysteria2", "tuic", "vless", "mieru", "shadowsocks", "trojan", "vmess"), EndpointClass: addressClass(n.Endpoint.Host), Port: n.Endpoint.Port, Engines: []string{}}
+		v := clientNodeSummary{Name: "[REDACTED]", Protocol: enum(n.Protocol.Protocol, "snell", "hysteria2", "tuic", "vless", "mieru", "shadowsocks", "trojan", "vmess", "socks5", "http"), EndpointClass: addressClass(n.Endpoint.Host), Port: n.Endpoint.Port, Engines: []string{}}
 		if n.Protocol == vmess.Key() {
 			if options, err := vmess.DecodeClientOptions(n.Options.Data); err == nil {
 				v.PayloadSecurity = vmess.ResolvedSecurity(options.Security)
@@ -140,7 +142,7 @@ func clientProjection(ctx context.Context, q SupportSource) clientSummary {
 		result.Nodes = append(result.Nodes, v)
 	}
 	for _, i := range s.State.LocalInbounds {
-		v := clientListenerSummary{Kind: enum(i.Kind, "socks5", "http", "mixed", "tun"), AddressClass: addressClass(i.Listen.Host), Port: i.Listen.Port}
+		v := clientListenerSummary{Auth: i.Auth, AllowLAN: i.AllowLAN, Kind: enum(i.Kind, "socks5", "http", "mixed", "tun"), AddressClass: addressClass(i.Listen.Host), Port: i.Listen.Port}
 		if i.TUN != nil {
 			mode := "unchanged"
 			if i.TUN.DNSHijack {
@@ -167,6 +169,11 @@ func ClientDoctorChecks(s *clientruntime.Status) []application.Check {
 		runtimeStatus = "pass"
 	}
 	checks := []application.Check{{Name: "client_runtime", Status: runtimeStatus, Detail: enum(s.Health, "healthy", "degraded", "stopped")}, {Name: "remote_nodes", Status: "info", Detail: count(len(s.State.Nodes))}, {Name: "client_outbounds", Status: "info", Detail: count(len(s.State.Outbounds))}, {Name: "local_listeners", Status: "info", Detail: count(len(s.LocalStats))}, {Name: "client_route", Status: "info", Detail: "committed default and selected outbound references"}, {Name: "client_health", Status: "info", Detail: "passive only; remote reachability not probed"}}
+	for _, i := range s.State.LocalInbounds {
+		if i.AllowLAN && !i.Auth {
+			checks = append(checks, application.Check{Name: "unauthenticated_lan_proxy", Status: "warn", Detail: "explicit allow_lan without authentication"})
+		}
+	}
 	c := s.HostCapabilities
 	u := s.Underlay
 	underlayHealth := enum(u.Health, "healthy", "degraded")

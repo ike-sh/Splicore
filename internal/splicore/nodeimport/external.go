@@ -177,6 +177,15 @@ func parseExternal(format string, body []byte) (Result, error) {
 		var kind struct {
 			Type string `json:"type"`
 		}
+		if json.Unmarshal(b, &kind) == nil && (kind.Type == "socks" || kind.Type == "socks5" || kind.Type == "http") {
+			c, err := externalProxy(format, b)
+			if err != nil {
+				out.Issues = append(out.Issues, Issue{i + 1, "Unsupported", "unsupported_proxy_capability"})
+			} else {
+				out.Candidates = append(out.Candidates, c)
+			}
+			continue
+		}
 		if json.Unmarshal(b, &kind) == nil && kind.Type == "vmess" {
 			c, err := externalVMess(format, b)
 			if err != nil {

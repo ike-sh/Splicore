@@ -103,6 +103,14 @@ func (s *Store) ClientState(ctx context.Context) (client.ProfileState, error) {
 	if state.Validate() != nil {
 		return client.ProfileState{}, identity.Err(identity.Corrupt, "invalid committed client state")
 	}
+	for _, inbound := range state.LocalInbounds {
+		for _, binding := range inbound.Bindings {
+			var owner identity.ID
+			if err = tx.QueryRowContext(ctx, "SELECT c.account_id FROM credentials c JOIN accounts a ON a.id=c.account_id WHERE c.id=?", binding.CredentialID).Scan(&owner); err != nil || owner != binding.AccountID {
+				return client.ProfileState{}, identity.Err(identity.Corrupt, "invalid committed local binding reference")
+			}
+		}
+	}
 	return state, nil
 }
 
@@ -148,6 +156,10 @@ func (w *writer) ReplaceClient(state client.ProfileState, secrets []access.Crede
 			return e
 		}
 	}
+	obsolete, err := w.localBindingCredentials()
+	if err != nil {
+		return err
+	}
 	for _, q := range []string{"DELETE FROM client_routes", "DELETE FROM local_inbounds", "DELETE FROM client_outbounds"} {
 		if err := w.exec(q); err != nil {
 			return err
@@ -160,8 +172,8 @@ func (w *writer) ReplaceClient(state client.ProfileState, secrets []access.Crede
 		}
 	}
 	for _, c := range secrets {
-		if c.OwnerNodeID == nil {
-			return identity.Err(identity.Invalid, "remote credential owner required")
+		if c.OwnerNodeID == nil && c.OwnerAccountID == nil {
+			return identity.Err(identity.Invalid, "client credential owner required")
 		}
 		if err := w.CreateCredential(c); err != nil {
 			return err
@@ -211,12 +223,27 @@ func (w *writer) ReplaceClient(state client.ProfileState, secrets []access.Crede
 		}
 	}
 	for _, i := range state.LocalInbounds {
+		for _, binding := range i.Bindings {
+			var account, owner identity.ID
+			if err = w.tx.QueryRowContext(w.ctx, "SELECT id FROM accounts WHERE id=?", binding.AccountID).Scan(&account); err != nil {
+				return identity.Err(identity.Invalid, "local account reference invalid")
+			}
+			if err = w.tx.QueryRowContext(w.ctx, "SELECT account_id FROM credentials WHERE id=?", binding.CredentialID).Scan(&owner); err != nil || owner != binding.AccountID {
+				return identity.Err(identity.Invalid, "local credential reference invalid")
+			}
+			delete(obsolete, binding.CredentialID)
+		}
 		b, _ := json.Marshal(i)
 		var id any
 		if i.SelectedOutbound != "" {
 			id = i.SelectedOutbound
 		}
 		if err = w.exec("INSERT INTO local_inbounds VALUES(?,?,?)", i.ID, id, string(b)); err != nil {
+			return err
+		}
+	}
+	for id := range obsolete {
+		if err = w.exec("DELETE FROM credentials WHERE id=? AND account_id IS NOT NULL AND id NOT IN (SELECT credential_id FROM bindings)", id); err != nil {
 			return err
 		}
 	}
@@ -239,4 +266,24 @@ func (w *writer) ReplaceClient(state client.ProfileState, secrets []access.Crede
 	}
 	return w.exec("UPDATE client_profiles SET enabled=? WHERE singleton=1", state.Enabled)
 
+}
+
+func (w *writer) localBindingCredentials() (map[identity.ID]bool, error) {
+	out := map[identity.ID]bool{}
+	rows, e := w.tx.QueryContext(w.ctx, "SELECT document FROM local_inbounds")
+	if e != nil {
+		return nil, storageError(e)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var raw []byte
+		var i client.LocalInbound
+		if rows.Scan(&raw) != nil || json.Unmarshal(raw, &i) != nil {
+			return nil, identity.Err(identity.Corrupt, "local binding document invalid")
+		}
+		for _, b := range i.Bindings {
+			out[b.CredentialID] = true
+		}
+	}
+	return out, rows.Err()
 }

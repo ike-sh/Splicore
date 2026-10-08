@@ -3,6 +3,7 @@ package networkruntime
 import (
 	"context"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
 	"github.com/ike-sh/Splicore/internal/splicore/engine/clientio"
@@ -132,6 +133,51 @@ func (e *Engine) memberHealth(g *groupState, a P.Action) Sample {
 
 // affinity is private to one SOCKS UDP association. Explain peeks without counters or I/O.
 func (e *Engine) Select(a P.Action, affinity map[identity.ID]P.Action, count bool, depth int) (P.Action, error) {
+	return e.selectNetwork(a, affinity, count, depth, "tcp")
+}
+func (e *Engine) supports(a P.Action, network string, depth int) bool {
+	if depth > 8 {
+		return false
+	}
+	if network != "udp" {
+		return true
+	}
+	if a.Kind == P.Direct {
+		return true
+	}
+	if a.Kind == P.Group {
+		g := e.groups[a.ID]
+		if g == nil {
+			return false
+		}
+		if g.spec.Type == "selector" {
+			return e.supports(g.spec.Selector.Selected, network, depth+1)
+		}
+		for _, m := range g.spec.Members {
+			if e.supports(m, network, depth+1) {
+				return true
+			}
+		}
+		return false
+	}
+	if a.Kind != P.Outbound && a.Kind != P.Direct {
+		return true
+	}
+	id := a.ID
+	if a.Kind == P.Direct {
+		id = client.Direct
+	}
+	d := e.dialers[id]
+	if s, ok := d.(ports.ClientNetworkSupport); ok {
+		return s.SupportsNetwork(network)
+	}
+	_, ok := d.(ports.ClientPacketDialer)
+	return ok
+}
+func (e *Engine) selectNetwork(a P.Action, affinity map[identity.ID]P.Action, count bool, depth int, network string) (P.Action, error) {
+	if !e.supports(a, network, depth) {
+		return P.Action{}, unavailable()
+	}
 	if depth > 8 {
 		return P.Action{}, unavailable()
 	}
@@ -160,7 +206,7 @@ func (e *Engine) Select(a P.Action, affinity map[identity.ID]P.Action, count boo
 		}
 	case "fallback":
 		for _, m := range spec.Members {
-			if e.memberHealth(g, m).State == "healthy" {
+			if e.supports(m, network, depth+1) && e.memberHealth(g, m).State == "healthy" {
 				chosen = m
 				break
 			}
@@ -169,7 +215,7 @@ func (e *Engine) Select(a P.Action, affinity map[identity.ID]P.Action, count boo
 		best := int64(1 << 62)
 		for _, m := range spec.Members {
 			s := e.memberHealth(g, m)
-			if s.State == "healthy" && s.LatencyMS < best {
+			if e.supports(m, network, depth+1) && s.State == "healthy" && s.LatencyMS < best {
 				best = s.LatencyMS
 				chosen = m
 			}
@@ -179,7 +225,7 @@ func (e *Engine) Select(a P.Action, affinity map[identity.ID]P.Action, count boo
 		g.mu.Unlock()
 		if previous.Kind != "" {
 			s := e.memberHealth(g, previous)
-			if s.State == "healthy" && s.LatencyMS <= best+int64(spec.URLTest.ToleranceMS) {
+			if e.supports(previous, network, depth+1) && s.State == "healthy" && s.LatencyMS <= best+int64(spec.URLTest.ToleranceMS) {
 				chosen = previous
 			}
 		}
@@ -187,7 +233,7 @@ func (e *Engine) Select(a P.Action, affinity map[identity.ID]P.Action, count boo
 		candidates := []P.Action{}
 		for _, m := range spec.Members {
 			s := e.memberHealth(g, m)
-			if s.State == "healthy" || spec.Probe() == nil && s.State == "unknown" {
+			if e.supports(m, network, depth+1) && (s.State == "healthy" || spec.Probe() == nil && s.State == "unknown") {
 				candidates = append(candidates, m)
 			}
 		}
@@ -202,7 +248,7 @@ func (e *Engine) Select(a P.Action, affinity map[identity.ID]P.Action, count boo
 	if chosen.Kind == "" {
 		return P.Action{}, unavailable()
 	}
-	terminal, err := e.Select(chosen, affinity, count, depth+1)
+	terminal, err := e.selectNetwork(chosen, affinity, count, depth+1, network)
 	if err != nil {
 		return P.Action{}, err
 	}
@@ -225,7 +271,7 @@ func (e *Engine) Explain(q Query, fallback P.Action, count bool, affinity map[id
 	if out.Action.Kind == P.Group {
 		out.Group = out.Action.ID
 	}
-	selected, err := e.Select(out.Action, affinity, count, 0)
+	selected, err := e.selectNetwork(out.Action, affinity, count, 0, q.Network)
 	out.Selected = selected
 	out.Available = err == nil && selected.Kind != P.Reject
 	return out, err

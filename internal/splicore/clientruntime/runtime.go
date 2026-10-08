@@ -12,7 +12,9 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/hostnetwork"
 	"github.com/ike-sh/Splicore/internal/splicore/networkruntime"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	httpproxy "github.com/ike-sh/Splicore/internal/splicore/protocol/http"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/socks"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/socks5"
 	"github.com/ike-sh/Splicore/internal/splicore/registry"
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"io"
@@ -25,6 +27,7 @@ import (
 )
 
 type counter struct {
+	errors                                      atomic.Int64
 	upload, download, total, active             atomic.Int64
 	udpTotal, udpActive, packetsUp, packetsDown atomic.Int64
 }
@@ -38,10 +41,12 @@ var succeededHealth = &passiveHealth{available: true}
 var failedHealth = &passiveHealth{lastError: "outbound_connection_failed"}
 
 func (c *counter) stats() TrafficStats {
-	return TrafficStats{Stats: ports.Stats{Upload: c.upload.Load(), Download: c.download.Load(), Sessions: c.total.Load(), Active: c.active.Load()}, UDPAssociations: c.udpTotal.Load(), UDPActive: c.udpActive.Load(), PacketsUpload: c.packetsUp.Load(), PacketsDownload: c.packetsDown.Load()}
+	return TrafficStats{Errors: c.errors.Load(), Stats: ports.Stats{Upload: c.upload.Load(), Download: c.download.Load(), Sessions: c.total.Load(), Active: c.active.Load()}, UDPAssociations: c.udpTotal.Load(), UDPActive: c.udpActive.Load(), PacketsUpload: c.packetsUp.Load(), PacketsDownload: c.packetsDown.Load()}
 }
 
 type snapshot struct {
+	accountCounters                       map[identity.ID]*counter
+	auth                                  map[identity.ID][]proxyIdentity
 	underlay                              *underlay.Lease
 	onReleased                            func()
 	onCleanup                             func(error)
@@ -90,6 +95,7 @@ type localListener struct {
 	done   chan struct{}
 }
 type session struct {
+	account                 identity.ID
 	id                      identity.ID
 	inbound, outbound, node identity.ID
 	packetLocal             io.Closer
@@ -102,8 +108,10 @@ type session struct {
 	stats                   counter
 }
 type Manager struct {
-	underlay *underlay.Factory
-	host     *hostController
+	accountLookup func(context.Context, identity.ID) (access.Account, error)
+	accountStats  map[identity.ID]*counter
+	underlay      *underlay.Factory
+	host          *hostController
 	// routeMu protects acquiring a generation reference versus retirement, never payload I/O.
 	routeMu                      sync.RWMutex
 	current                      atomic.Pointer[snapshot]
@@ -149,6 +157,12 @@ func (p *Prepared) RestartSessions() {
 
 func Validate(state client.ProfileState, credentials map[identity.ID]access.Credential, registry *registry.Outbounds) error {
 	if err := state.Validate(); err != nil {
+		return err
+	}
+	if err := validateProxyAuth(state, credentials); err != nil {
+		return err
+	}
+	if err := validateNetworkCapabilities(state, registry); err != nil {
 		return err
 	}
 	nodes := map[identity.ID]client.RemoteNode{}
@@ -208,6 +222,9 @@ func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileSt
 	p = &Prepared{m: m, s: s, base: base, listeners: map[identity.ID]*localListener{}}
 	p.restartSessions = restart
 	m.prepareCounters(s)
+	if err = m.prepareProxyAuth(ctx, s, credentials); err != nil {
+		return p, err
+	}
 	defer func() {
 		if err != nil {
 			err = errors.Join(err, p.Abort())
@@ -439,6 +456,7 @@ func (p *Prepared) Activate() error {
 	}
 	m.listeners = p.listeners
 	m.inStats, m.outStats, m.nodeStats = p.s.inCounters, p.s.outCounters, p.s.nodeCounters
+	m.accountStats = p.s.accountCounters
 	m.routeMu.Lock()
 	old := m.current.Swap(p.s)
 	m.routeMu.Unlock()
@@ -590,15 +608,12 @@ func (m *Manager) serve(ctx context.Context, s *session, kind string) {
 		return
 	}
 	if kind == "mixed" {
-		first, err := reader.Peek(1)
+		detected, err := httpproxy.Detect(reader)
 		if err != nil {
+			m.proxyFailure(s, gen)
 			return
 		}
-		if first[0] == 5 {
-			kind = "socks5"
-		} else {
-			kind = "http"
-		}
+		kind = detected
 	}
 	if kind == "http" {
 		m.serveHTTP(ctx, s, reader, gen)
@@ -607,14 +622,17 @@ func (m *Manager) serve(ctx context.Context, s *session, kind string) {
 	m.serveSOCKS(ctx, s, reader, gen)
 }
 func (m *Manager) serveSOCKS(ctx context.Context, s *session, reader *bufio.Reader, gen *snapshot) {
-	if err := socks.AcceptAuth(reader, s.local); err != nil {
+	if err := socks5.AcceptAuthWithVerifier(reader, s.local, m.proxyVerifier(s, gen)); err != nil {
+		m.proxyFailure(s, gen)
 		return
 	}
 	command, target, err := socks.ReadCommand(reader)
 	if err != nil {
+		m.proxyFailure(s, gen)
+		_ = socks.Respond(s.local, socks.UnsupportedAddress, s.local.LocalAddr())
 		return
 	}
-	reply := func(code byte) { _ = socks.Respond(s.local, code, s.local.LocalAddr()) }
+	reply := func(code byte) { m.proxyFailure(s, gen); _ = socks.Respond(s.local, code, s.local.LocalAddr()) }
 	if command != socks.Connect && command != socks.UDPAssociate {
 		reply(socks.UnsupportedCommand)
 		return
@@ -685,14 +703,15 @@ func (m *Manager) serveStream(ctx context.Context, s *session, gen *snapshot, ta
 		_ = remote.Close()
 		return
 	}
-	for _, c := range []*counter{&s.stats, ic, oc, nc} {
+	ac := gen.accountCounters[s.account]
+	for _, c := range []*counter{&s.stats, ic, oc, nc, ac} {
 		if c != nil {
 			c.total.Add(1)
 			c.active.Add(1)
 		}
 	}
 	defer func() {
-		for _, c := range []*counter{&s.stats, ic, oc, nc} {
+		for _, c := range []*counter{&s.stats, ic, oc, nc, ac} {
 			if c != nil {
 				c.active.Add(-1)
 			}
@@ -702,7 +721,7 @@ func (m *Manager) serveStream(ctx context.Context, s *session, gen *snapshot, ta
 		return
 	}
 	_ = s.local.SetDeadline(time.Time{})
-	counters := []*counter{&s.stats, ic, oc, nc}
+	counters := []*counter{&s.stats, ic, oc, nc, ac}
 	done := make(chan error, 2)
 	copyStream := func(dst net.Conn, src io.Reader, upload bool) {
 		_, e := io.Copy(&countWriter{writer: dst, counters: counters, upload: upload, onRead: adapter.success}, src)

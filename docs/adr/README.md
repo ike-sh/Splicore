@@ -126,3 +126,10 @@ Native is the sole runtime engine. Historical Phase 6/7 direction is superseded;
 - [0040 — Modern VMess and replay/clock ownership](0040-modern-vmess-and-replay-clock-ownership.md):
   Proposed; alterId0 AEAD boundary, shared managed resources and bounded
   generation-independent replay history. Independent review is pending.
+
+## Phase 20 generic proxy interfaces decision
+
+- [0041 — Generic proxy interfaces and credential ownership](0041-generic-proxy-interfaces-and-credentials.md):
+  Proposed; consolidate local SOCKS5/HTTP/Mixed, typed local bindings in existing
+  listener documents, strict no-auth upstream marker and shared remote DNS policy.
+  Phase 20 review is pending.

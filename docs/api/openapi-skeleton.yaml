@@ -5888,6 +5888,318 @@
           }
         }
       }
+    },
+    "/api/v1/local-bindings": {
+      "get": {
+        "operationId": "clientLocalBindingList",
+        "x-implementation-status": "phase20",
+        "description": "Experimental protected local client control; no query parameters.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LocalBinding"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "operationId": "clientLocalBindingCreate",
+        "x-implementation-status": "phase20",
+        "description": "Experimental protected local client control; no query parameters. If-Match is the shared global committed revision; conflicts return 409.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientBindingBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/local-bindings/{id}": {
+      "get": {
+        "operationId": "clientLocalBindingGet",
+        "x-implementation-status": "phase20",
+        "description": "Experimental protected local client control; no query parameters.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalBinding"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "operationId": "clientLocalBindingUpdate",
+        "x-implementation-status": "phase20",
+        "description": "Experimental protected local client control; no query parameters. If-Match is the shared global committed revision; conflicts return 409.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientBindingBody"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "clientLocalBindingDelete",
+        "x-implementation-status": "phase20",
+        "description": "Experimental protected local client control; no query parameters. If-Match is the shared global committed revision; conflicts return 409.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientEmptyBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/local-bindings/{id}/credential": {
+      "post": {
+        "operationId": "clientLocalBindingRotateCredential",
+        "x-implementation-status": "phase20",
+        "description": "Experimental protected local client control; no query parameters. If-Match is the shared global committed revision; conflicts return 409.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ID"
+          },
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "405": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "409": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "422": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "501": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientCredentialBody"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -9466,6 +9778,21 @@
           },
           "tun": {
             "$ref": "#/components/schemas/TUNSettings"
+          },
+          "auth": {
+            "type": "boolean",
+            "default": false
+          },
+          "allow_lan": {
+            "type": "boolean",
+            "default": false
+          },
+          "bindings": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {
+              "$ref": "#/components/schemas/LocalBinding"
+            }
           }
         },
         "required": [
@@ -9506,7 +9833,8 @@
               }
             }
           }
-        ]
+        ],
+        "description": "SOCKS5 / HTTP / Mixed local listener; numeric loopback default. Nonloopback requires explicit allow_lan. TUN rejects auth, allow_lan and bindings."
       },
       "LocalInboundInput": {
         "type": "object",
@@ -9543,7 +9871,7 @@
             "properties": {
               "host": {
                 "type": "string",
-                "description": "Defaults to 127.0.0.1; loopback IP only."
+                "description": "Defaults to 127.0.0.1; numeric IP. Nonloopback requires explicit allow_lan=true."
               },
               "port": {
                 "type": "integer",
@@ -9560,6 +9888,21 @@
           },
           "tun": {
             "$ref": "#/components/schemas/TUNSettings"
+          },
+          "auth": {
+            "type": "boolean",
+            "default": false
+          },
+          "allow_lan": {
+            "type": "boolean",
+            "default": false
+          },
+          "bindings": {
+            "type": "array",
+            "maxItems": 128,
+            "items": {
+              "$ref": "#/components/schemas/LocalBinding"
+            }
           }
         },
         "required": [
@@ -9598,7 +9941,8 @@
               }
             }
           }
-        ]
+        ],
+        "description": "SOCKS5 / HTTP / Mixed local listener; numeric loopback default. Nonloopback requires explicit allow_lan. TUN rejects auth, allow_lan and bindings."
       },
       "ClientRoute": {
         "type": "object",
@@ -9778,6 +10122,9 @@
               "tun_udp",
               "dns"
             ]
+          },
+          "account_id": {
+            "$ref": "#/components/schemas/ID"
           }
         },
         "required": [
@@ -9940,6 +10287,18 @@
           },
           "underlay": {
             "$ref": "#/components/schemas/UnderlayStatus"
+          },
+          "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClientObservation"
+            }
+          },
+          "proxy_interfaces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OutboundAdapter"
+            }
           }
         },
         "required": [
@@ -9955,7 +10314,9 @@
           "network_runtime",
           "host_network",
           "host_capabilities",
-          "underlay"
+          "underlay",
+          "accounts",
+          "proxy_interfaces"
         ]
       },
       "ServerRuntimeStatus": {
@@ -10004,7 +10365,8 @@
               "dns-profile",
               "route-profile",
               "host-integration",
-              "host-network"
+              "host-network",
+              "local-binding"
             ]
           },
           "action": {
@@ -10069,6 +10431,9 @@
           },
           "host_integration": {
             "$ref": "#/components/schemas/HostIntegration"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/LocalBindingInput"
           }
         },
         "required": [
@@ -10351,6 +10716,11 @@
           "udp_packets_download": {
             "type": "string",
             "pattern": "^(0|[1-9][0-9]*)$"
+          },
+          "errors_total": {
+            "type": "string",
+            "pattern": "^(0|[1-9][0-9]*)$",
+            "description": "Shared protocol/dial failure counter; omitted historical inputs decode as zero."
           }
         },
         "required": [
@@ -12756,6 +13126,117 @@
           "contains_secrets"
         ],
         "description": "Protected explicit client-secret export; never a passive read/support response."
+      },
+      "LocalBinding": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "account_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "inbound_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "credential_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/Revision"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "account_id",
+          "inbound_id",
+          "credential_id",
+          "enabled",
+          "revision",
+          "created_at",
+          "updated_at"
+        ],
+        "description": "Local listener binding using existing Account and encrypted account-owned Credential. No policy_override_id in Phase20."
+      },
+      "LocalBindingInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ID"
+              },
+              {
+                "const": ""
+              }
+            ]
+          },
+          "account_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "inbound_id": {
+            "$ref": "#/components/schemas/ID"
+          },
+          "credential_id": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ID"
+              },
+              {
+                "const": ""
+              }
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "revision": {
+            "$ref": "#/components/schemas/Revision"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "account_id",
+          "inbound_id",
+          "enabled"
+        ],
+        "description": "Create assigns ID/credential/stamps. Update preserves references and changes only enabled; other fields match the existing binding."
+      },
+      "ClientBindingBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "binding": {
+            "$ref": "#/components/schemas/LocalBindingInput"
+          },
+          "credential": {
+            "$ref": "#/components/schemas/ClientCredentialInput"
+          }
+        },
+        "required": [
+          "binding"
+        ],
+        "description": "Create requires write-only username_password credential. Update takes existing binding with changed enabled."
       }
     },
     "parameters": {

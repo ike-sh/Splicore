@@ -13,6 +13,7 @@ import (
 	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/proxy"
 	"github.com/ike-sh/Splicore/internal/splicore/registry"
 	"reflect"
 	"sync"
@@ -28,6 +29,7 @@ type CredentialInput struct {
 func (c CredentialInput) Format(s fmt.State, _ rune) { _, _ = s.Write([]byte(secret.Redacted)) }
 
 type ClientMutation struct {
+	Binding      *access.Binding         `json:"binding,omitempty"`
 	Host         *client.HostIntegration `json:"host_integration,omitempty"`
 	Network      *P.Config               `json:"network,omitempty"`
 	RouteRule    *P.RouteRule            `json:"route_rule,omitempty"`
@@ -88,6 +90,7 @@ func (s *Service) EnableClientRuntime(ctx context.Context, factories *registry.O
 	}
 	c := &clientState{repo: repo, factories: factories, manager: clientruntime.NewWithUnderlay(s.underlay), management: newManagementState()}
 	s.client = c
+	c.manager.ConfigureAccounts(repo.Account)
 	if len(hostDirectory) > 0 {
 		if err := c.manager.ConfigureHost(ctx, hostDirectory[0]); err != nil {
 			c.recoveryError = "host_recovery_failed"
@@ -150,6 +153,25 @@ func (s *Service) clientCredentials(ctx context.Context, state client.ProfileSta
 	for _, c := range newCredentials {
 		out[c.ID] = c
 	}
+	for _, i := range state.LocalInbounds {
+		for _, b := range i.Bindings {
+			a, err := s.client.repo.Account(ctx, b.AccountID)
+			if err != nil || a.Validate() != nil {
+				return nil, proxy.Invalid()
+			}
+			c, ok := out[b.CredentialID]
+			if !ok {
+				c, err = s.client.repo.RevealCredential(ctx, b.CredentialID)
+				if err != nil {
+					return nil, err
+				}
+			}
+			if c.OwnerAccountID == nil || *c.OwnerAccountID != b.AccountID {
+				return nil, proxy.Invalid()
+			}
+			out[c.ID] = c
+		}
+	}
 	for _, n := range state.Nodes {
 		if _, ok := out[n.CredentialID]; ok {
 			continue
@@ -190,7 +212,7 @@ func (s *Service) clientCandidate(ctx context.Context, b json.RawMessage) (clien
 	}
 	// Exact shapes keep secrets and protocol options out of unrelated mutation paths.
 	count := 0
-	for _, present := range []bool{m.Host != nil, m.Node != nil, m.Outbound != nil, m.LocalInbound != nil, m.Route != nil, m.Network != nil, m.RouteRule != nil, m.RuleSet != nil, m.PolicyGroup != nil, m.DNSServer != nil, m.DNSRule != nil, m.DNSProfile != nil, m.RouteProfile != nil, m.Selected != nil} {
+	for _, present := range []bool{m.Binding != nil, m.Host != nil, m.Node != nil, m.Outbound != nil, m.LocalInbound != nil, m.Route != nil, m.Network != nil, m.RouteRule != nil, m.RuleSet != nil, m.PolicyGroup != nil, m.DNSServer != nil, m.DNSRule != nil, m.DNSProfile != nil, m.RouteProfile != nil, m.Selected != nil} {
 		if present {
 			count++
 		}
@@ -198,7 +220,7 @@ func (s *Service) clientCandidate(ctx context.Context, b json.RawMessage) (clien
 	if m.Action == "delete" && count != 0 {
 		return invalid()
 	}
-	if m.Resource != "node" && m.Credential != nil {
+	if m.Resource != "node" && m.Resource != "local-binding" && m.Credential != nil {
 		return invalid()
 	}
 	if m.Action == "create" && m.ID != "" {
@@ -207,6 +229,10 @@ func (s *Service) clientCandidate(ctx context.Context, b json.RawMessage) (clien
 	id := m.ID
 	out.id = id
 	switch m.Resource {
+	case "local-binding":
+		if err = s.mutateLocalBinding(ctx, &out, m, count); err != nil {
+			return out, err
+		}
 	case "node":
 		pos := -1
 		for i, n := range state.Nodes {
@@ -554,6 +580,11 @@ func (s *Service) ApplyClient(ctx context.Context, req ApplyRequest) (result Cli
 	prepared, err = c.manager.PrepareWithRestart(ctx, candidate.state, credentials, c.factories, restart)
 	if err != nil {
 		return result, err
+	}
+	// Refresh local authentication sessions without rebuilding unchanged upstream
+	// adapters or discarding their passive health on unrelated listener changes.
+	if candidate.mutation.Resource == "local-binding" || candidate.mutation.Resource == "local-inbound" && candidate.mutation.Action == "update" {
+		prepared.RestartSessions()
 	}
 	err = c.repo.CommitOperation(ctx, op, func(w ports.Writer) error {
 		cw, ok := w.(ports.ClientWriter)

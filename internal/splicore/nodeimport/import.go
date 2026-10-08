@@ -167,6 +167,9 @@ func ParseURI(raw string) (Candidate, error) {
 	if len(raw) > provider.MaxURI || !utf8.ValidString(raw) || strings.ContainsAny(raw, "\r\n\x00") {
 		return c, invalid()
 	}
+	if strings.HasPrefix(raw, "socks://") || strings.HasPrefix(raw, "socks5://") || strings.HasPrefix(raw, "socks5h://") || strings.HasPrefix(raw, "http://") {
+		return parseProxyURI(raw)
+	}
 	if strings.HasPrefix(raw, "ss://") {
 		v, e := ssm.ParseURI(raw)
 		if e != nil {

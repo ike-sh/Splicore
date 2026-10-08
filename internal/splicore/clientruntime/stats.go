@@ -11,6 +11,7 @@ import (
 // Upload/Download are application payload bytes in either transport. These are
 // projections at each dimension, never values to sum across dimensions.
 type TrafficStats struct {
+	Errors int64
 	ports.Stats
 	UDPAssociations int64
 	UDPActive       int64
@@ -35,11 +36,19 @@ func (s *TrafficStats) UnmarshalJSON(b []byte) error {
 		}
 		*target = n
 	}
+	if v, ok := fields["errors_total"]; ok {
+		n, e := strconv.ParseInt(v, 10, 64)
+		if e != nil || n < 0 {
+			return identity.Err(identity.Invalid, "invalid client error counter")
+		}
+		s.Errors = n
+	}
 	return nil
 }
 
 func (s TrafficStats) MarshalJSON() ([]byte, error) {
 	return json.Marshal(map[string]string{
+		"errors_total": strconv.FormatInt(s.Errors, 10),
 		"upload_bytes": strconv.FormatInt(s.Upload, 10), "download_bytes": strconv.FormatInt(s.Download, 10),
 		"sessions_total": strconv.FormatInt(s.Sessions, 10), "sessions_active": strconv.FormatInt(s.Active, 10),
 		"udp_associations_total": strconv.FormatInt(s.UDPAssociations, 10), "udp_associations_active": strconv.FormatInt(s.UDPActive, 10),

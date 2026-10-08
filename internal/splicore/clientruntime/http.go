@@ -11,11 +11,14 @@ import (
 	"net/textproto"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
+	httpproxy "github.com/ike-sh/Splicore/internal/splicore/protocol/http"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/socks5"
 )
 
 func (m *Manager) bindSelection(s *session, gen *snapshot, oid identity.ID) []*counter {
@@ -28,24 +31,35 @@ func (m *Manager) bindSelection(s *session, gen *snapshot, oid identity.ID) []*c
 	m.mu.Lock()
 	s.outbound, s.node, s.dialer, s.kind = oid, node, gen.outbounds[oid], "tcp"
 	m.mu.Unlock()
-	return []*counter{&s.stats, gen.inCounters[s.inbound], gen.outCounters[oid], gen.nodeCounters[node]}
+	return []*counter{&s.stats, gen.inCounters[s.inbound], gen.outCounters[oid], gen.nodeCounters[node], gen.accountCounters[s.account]}
 }
 
 // One HTTP request per local connection bounds lifetime. CONNECT retains any
 // bytes already read by the upstream bounded parser, including pipelined TLS.
 func (m *Manager) serveHTTP(ctx context.Context, s *session, reader *bufio.Reader, gen *snapshot) {
-	header, err := readBoundedHTTPHeader(reader)
-	if err != nil {
-		return
-	}
-	reader = bufio.NewReader(io.MultiReader(bytes.NewReader(header), reader))
-	req, err := http.ReadRequest(reader)
-	if err != nil {
-		return
-	}
-	defer req.Body.Close()
 	fail := func(status int) {
-		_, _ = fmt.Fprintf(s.local, "HTTP/1.1 %d %s\r\nConnection: close\r\nContent-Length: 0\r\n\r\n", status, http.StatusText(status))
+		m.proxyFailure(s, gen)
+		challenge := ""
+		if status == 407 {
+			challenge = "Proxy-Authenticate: Basic realm=\"Splicore\"\r\n"
+		}
+		_ = socks5.WriteFull(s.local, []byte(fmt.Sprintf("HTTP/1.1 %d %s\r\n%sConnection: close\r\nContent-Length: 0\r\n\r\n", status, http.StatusText(status), challenge)))
+	}
+	req, next, err := httpproxy.ReadRequest(reader)
+	if err != nil {
+		fail(400)
+		return
+	}
+	reader = next
+	// Close the transport before Body.Close: rejected streaming bodies must never
+	// be drained waiting for a client that is waiting for the rejection response.
+	defer func() { _ = s.local.Close(); _ = req.Body.Close() }()
+	if verify := m.proxyVerifier(s, gen); verify != nil {
+		pair, e := httpproxy.Basic(req.Header.Get("Proxy-Authorization"))
+		if e != nil || !verify(pair.Username, pair.Password) {
+			fail(407)
+			return
+		}
 	}
 	if req.Method == http.MethodConnect {
 		host, port, e := net.SplitHostPort(req.Host)
@@ -56,8 +70,7 @@ func (m *Manager) serveHTTP(ctx context.Context, s *session, reader *bufio.Reade
 			return
 		}
 		m.serveStream(ctx, s, gen, target, reader, func(byte) { fail(502) }, func() error {
-			_, e := io.WriteString(s.local, "HTTP/1.1 200 Connection Established\r\n\r\n")
-			return e
+			return socks5.WriteFull(s.local, []byte("HTTP/1.1 200 Connection Established\r\n\r\n"))
 		})
 		return
 	}
@@ -116,10 +129,30 @@ func (m *Manager) serveHTTP(ctx context.Context, s *session, reader *bufio.Reade
 			defer c.active.Add(-1)
 		}
 	}
-	stripProxyHeaders(req.Header)
-	stripProxyHeaders(req.Trailer)
+	req = forwardHTTPRequest(req)
 	req.RequestURI = ""
 	req.Close = true
+	// After the streaming request finishes, one reader watches disconnects.
+	// Canceling the transport also wakes a stalled response body.
+	ctx, cancel := context.WithCancel(ctx)
+	requestDone, watchDone := make(chan struct{}), make(chan struct{})
+	body := &requestBody{ReadCloser: req.Body, done: requestDone}
+	if req.Body == http.NoBody {
+		body.finish()
+	} else {
+		req.Body = body
+	}
+	go func() {
+		defer close(watchDone)
+		select {
+		case <-ctx.Done():
+			return
+		case <-requestDone:
+		}
+		_, _ = io.Copy(io.Discard, reader)
+		cancel()
+	}()
+	defer func() { cancel(); _ = s.local.Close(); <-watchDone }()
 	req = req.WithContext(ctx)
 	// No transparent HTTPS interception, redirects, or environment proxy fallback.
 	_ = s.local.SetDeadline(time.Time{})
@@ -129,42 +162,37 @@ func (m *Manager) serveHTTP(ctx context.Context, s *session, reader *bufio.Reade
 		return
 	}
 	defer resp.Body.Close()
-	stripProxyHeaders(resp.Header)
-	stripProxyHeaders(resp.Trailer)
-	resp.Close = true
-	_ = resp.Write(s.local)
-}
-
-func readBoundedHTTPHeader(reader *bufio.Reader) ([]byte, error) {
-	var raw bytes.Buffer
-	for {
-		line, err := reader.ReadSlice('\n')
-		if raw.Len()+len(line) > 64<<10 {
-			return nil, fmt.Errorf("HTTP header exceeds limit")
-		}
-		raw.Write(line)
-		if err == bufio.ErrBufferFull {
-			continue
-		}
-		if err != nil {
-			return nil, err
-		}
-		if bytes.Equal(line, []byte("\r\n")) || bytes.Equal(line, []byte("\n")) {
-			return raw.Bytes(), nil
-		}
+	// Response trailers have the same late-population ownership requirement.
+	out := new(http.Response)
+	*out = *resp
+	out.Header = resp.Header.Clone()
+	out.Trailer = forwardHTTPTrailers(resp.Header, resp.Trailer)
+	out.Body = forwardHTTPBody(resp.Body, resp.Trailer, out.Trailer)
+	stripProxyHeaders(out.Header)
+	out.Close = true
+	if err = out.Write(s.local); err != nil && ctx.Err() == nil {
+		m.proxyFailure(s, gen)
 	}
 }
 
-func stripProxyHeaders(h http.Header) {
-	for _, value := range h.Values("Connection") {
-		for _, name := range strings.Split(value, ",") {
-			h.Del(strings.TrimSpace(name))
-		}
-	}
-	for _, name := range []string{"Connection", "Proxy-Connection", "Proxy-Authorization", "Proxy-Authenticate", "Keep-Alive", "TE", "Trailer", "Upgrade"} {
-		h.Del(name)
-	}
+type requestBody struct {
+	io.ReadCloser
+	done chan struct{}
+	once sync.Once
 }
+
+func (b *requestBody) finish() { b.once.Do(func() { close(b.done) }) }
+func (b *requestBody) Read(p []byte) (int, error) {
+	n, e := b.ReadCloser.Read(p)
+	if e == io.EOF {
+		b.finish()
+	}
+	return n, e
+}
+func (b *requestBody) Close() error { e := b.ReadCloser.Close(); b.finish(); return e }
+
+func readBoundedHTTPHeader(r *bufio.Reader) ([]byte, error) { return httpproxy.ReadHeader(r) }
+func stripProxyHeaders(h http.Header)                       { httpproxy.StripHeaders(h) }
 
 type meteredConn struct {
 	net.Conn
@@ -220,7 +248,19 @@ func (c *responseHeaderConn) Read(p []byte) (int, error) {
 			}
 		}
 	}
+	// Preserve safe trailer declarations for the response parser. Late values
+	// are copied separately by forwardHTTPBody; nominated fields stay excluded.
+	declared := make(http.Header)
+	for _, value := range header.Values("Trailer") {
+		for _, name := range strings.Split(value, ",") {
+			declared[strings.TrimSpace(name)] = nil
+		}
+	}
+	trailers := forwardHTTPTrailers(http.Header(header), declared)
 	stripProxyHeaders(http.Header(header))
+	for name := range trailers {
+		header.Add("Trailer", name)
+	}
 	if closeConnection {
 		header.Set("Connection", "close")
 	}

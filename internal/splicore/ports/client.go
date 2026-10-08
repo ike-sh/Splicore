@@ -37,6 +37,9 @@ type ClientDialer interface {
 type ClientPacketDialer interface {
 	ListenPacket(context.Context, access.Endpoint) (net.PacketConn, error)
 }
+
+// ClientNetworkSupport prevents a generic lease from inventing UDP capability.
+type ClientNetworkSupport interface{ SupportsNetwork(string) bool }
 type OutboundFactory interface {
 	Capability() OutboundCapability
 	Validate(client.RemoteNode, access.Credential) error

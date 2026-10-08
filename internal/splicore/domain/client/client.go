@@ -110,12 +110,15 @@ func (o Outbound) Validate() error {
 }
 
 type LocalInbound struct {
-	TUN              *TUNSettings    `json:"tun,omitempty"`
-	ID               identity.ID     `json:"id"`
-	Name             string          `json:"name"`
-	Kind             string          `json:"kind"`
-	Listen           access.Endpoint `json:"listen,omitzero"`
-	SelectedOutbound identity.ID     `json:"selected_outbound,omitempty"`
+	AllowLAN         bool             `json:"allow_lan,omitempty"`
+	Auth             bool             `json:"auth,omitempty"`
+	Bindings         []access.Binding `json:"bindings,omitempty"`
+	TUN              *TUNSettings     `json:"tun,omitempty"`
+	ID               identity.ID      `json:"id"`
+	Name             string           `json:"name"`
+	Kind             string           `json:"kind"`
+	Listen           access.Endpoint  `json:"listen,omitzero"`
+	SelectedOutbound identity.ID      `json:"selected_outbound,omitempty"`
 }
 
 func (i LocalInbound) Validate() error {
@@ -126,7 +129,7 @@ func (i LocalInbound) Validate() error {
 		return invalid()
 	}
 	if i.Kind == "tun" {
-		if i.TUN == nil || i.Listen != (access.Endpoint{}) {
+		if i.TUN == nil || i.Listen != (access.Endpoint{}) || i.Auth || i.AllowLAN || len(i.Bindings) > 0 {
 			return invalid()
 		}
 		return i.TUN.Validate()
@@ -138,8 +141,19 @@ func (i LocalInbound) Validate() error {
 		return err
 	}
 	ip, err := netip.ParseAddr(i.Listen.Host)
-	if err != nil || !ip.IsLoopback() {
-		return identity.Err(identity.Invalid, "unauthenticated local SOCKS requires a loopback IP")
+	if err != nil || !ip.IsLoopback() && !i.AllowLAN {
+		return identity.Err(identity.Invalid, "local proxy requires loopback or explicit allow_lan")
+	}
+	if len(i.Bindings) > 128 {
+		return invalid()
+	}
+	seen, accounts := map[identity.ID]bool{}, map[identity.ID]bool{}
+	for _, b := range i.Bindings {
+		if b.Validate() != nil || b.InboundID != i.ID || b.PolicyOverrideID != nil || seen[b.ID] || accounts[b.AccountID] {
+			return invalid()
+		}
+		seen[b.ID] = true
+		accounts[b.AccountID] = true
 	}
 	if i.SelectedOutbound != "" {
 		return ValidateOutboundID(i.SelectedOutbound)
@@ -229,6 +243,7 @@ func (s ProfileState) Validate() error {
 	ids := map[identity.ID]bool{}
 	listeners := map[access.Endpoint]bool{}
 	tunNames := map[string]bool{}
+	bindings := map[identity.ID]bool{}
 	for _, i := range s.LocalInbounds {
 		if err := i.Validate(); err != nil {
 			return err
@@ -237,6 +252,12 @@ func (s ProfileState) Validate() error {
 			return invalid()
 		}
 		ids[i.ID] = true
+		for _, b := range i.Bindings {
+			if bindings[b.ID] {
+				return invalid()
+			}
+			bindings[b.ID] = true
+		}
 		if i.Kind == "tun" {
 			if len(tunNames) != 0 || tunNames[i.TUN.Interface] {
 				return identity.Err(identity.Invalid, "one owned TUN per client runtime")
