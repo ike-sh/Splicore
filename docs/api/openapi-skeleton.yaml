@@ -6347,7 +6347,8 @@
                   "type": "string"
                 },
                 "evidence": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "Public informational reference. An empty string means no public reference is supplied; client and version remain compatibility declarations."
                 }
               },
               "required": [

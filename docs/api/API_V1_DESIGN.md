@@ -62,6 +62,13 @@ across a changing domain snapshot. Usage window UTC `[from,to)`, bounded range;
 byte counts and revisions serialize as decimal strings to avoid JS precision loss.
 GET returns quoted revision ETag; never returns password/PSK/token/key payload.
 
+Capability responses retain declared client/version compatibility pairs under
+`qualified_clients`. Each item includes the required `client`, `version` and
+`evidence` strings. `evidence` is empty when no public reference is supplied.
+An empty value does not remove the compatibility declaration or change the
+protocol's `qualification`; compatibility remains bounded by the listed version
+and protocol profile.
+
 ## Mutation semantics and future CRUD
 
 Resource create/PATCH/disable/delete, Binding assignment/credential rotation,
