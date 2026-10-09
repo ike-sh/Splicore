@@ -1,113 +1,34 @@
-# API Documentation
+# Local control API
 
-- Documentation status: Canonical
-- Audience: API, CLI and integration developers
-- Last reviewed: 2026-10-03
-- Owner: API maintainers
-- Responsibility: Contract authority, semantic references and API change workflow.
-- Lifecycle: Update with contract ownership or API scope changes.
+API v1 invokes application queries and transactional commands. Linux production
+control uses a protected Unix-domain socket selected by the bootstrap; it is not
+a public HTTP listener. Access is bounded by local socket ownership/permissions.
+Windows production local control transport is unavailable.
 
-## Current native implementation
+```sh
+curl --unix-socket /run/splicore/splicore.sock http://localhost/api/v1/system
+curl --unix-socket /run/splicore/splicore.sock http://localhost/api/v1/capabilities
+```
 
-OpenAPI marks Foundation/runtime/Snell/HY2/Binding operations and generic
-registered protocol validate/plan/apply routes, including VLESS. Phase 5 exposes
-separate protocol and engine identities plus per-protocol engine implementations.
-Export is explicitly secret-returning and supports explicit Binding selection;
-reads redact credentials. Generic resource/subscription/import routes remain deferred.
+`system` reports product/health, schemas, revision and runtime summaries. The
+capability endpoint reports supported protocol/engine profiles and accepts
+bounded pagination. Each `qualified_clients` item retains the declared client
+and version and includes the required `evidence` string. This string is empty
+when no public reference is supplied; an empty value does not remove the
+compatibility declaration or change protocol qualification.
 
-## Current state and authority
+Reads and errors are JSON; errors carry a typed code, safe
+message, request ID and, when relevant, the current revision. Responses disable
+caching. A system response exposes the revision as an ETag.
 
-The API has a **Foundation implementation** of the System and Capabilities reads.
-Marked Snell/HY2/generic creation operations are experimental; other routes remain proposed.
-The [OpenAPI 3.1 skeleton](openapi-skeleton.yaml) is
-the machine authority for paths, methods, parameters, schemas,
-responses and HTTP security descriptions. JSON syntax is valid YAML. Its
-version is a contract marker, not a product release. Each operation records its
-implementation maturity. The Foundation test transport is Windows httptest;
-the runnable production control transport is protected Linux UDS.
+Server resources, client resources, network/routing/DNS and providers have typed
+operations. Changes validate and plan normalized intent before application;
+revision and identity guards reject stale/conflicting mutations. Plans and
+management previews are distinct resource-specific contracts, not generic SQL
+transactions. Ordinary reads do not reveal credentials.
 
-[API v1 design](API_V1_DESIGN.md) owns transport/authentication boundaries,
-pagination and numeric semantics, mutation preconditions, asynchronous operation
-behavior and future scope. It does not maintain a duplicate endpoint reference.
-Planned CRUD/token-reveal work is not an existing route.
-
-## Related specifications
-
-- [Domain model](../architecture/DOMAIN_MODEL.md): resources and ownership.
-- [State authority](../architecture/CONFIG_STATE_AUTHORITY.md): imports and committed reads.
-- [Transactions](../architecture/TRANSACTION_MODEL.md): revision, idempotency, health and commit outcome.
-- [Security](../architecture/SECURITY_BOUNDARIES.md): peer/control identity and secret redaction.
-- [Subscriptions](../architecture/SUBSCRIPTION_MODEL.md): separate public access and token scope.
-- [ADR 0008](../adr/0008-api-boundary.md): API/application boundary rationale; proposed.
-
-## Maintenance
-
-Change OpenAPI when the surface changes. Update semantic Markdown when behavior
-or security changes; both must agree. Future runtime implementation must conform
-to the contract and include applicable contract tests. Validate OpenAPI 3.1,
-all references, unique operation IDs and redacted read schemas before review.
-Transport permissions/peer authentication need implementation tests; schema
-validation alone cannot qualify them.
-
-See [documentation policy](../DOCUMENTATION_POLICY.md),
-[development workflow](../development/README.md) and [all docs](../README.md).
-
-## VLESS contract boundary
-
-CreationDocument includes typed VLESS settings, UUID users and write-only optional
-server_secret.private_key. Engine is a bounded selector; plans/inbound reads expose
-resolved engine independently of protocol identity. Capabilities list native only, with actual build-dependent REALITY support and
-compiled availability. Vision is
-DEFERRED / UNSUPPORTED. Canonical flow permits only none; Vision create/import requests
-return typed not_implemented (HTTP 501), exports return unsupported_export (HTTP 422).
-Ordinary inbound settings remain redacted and contain no credential payloads.
-Scoped export may reveal UUID/public key/short ID/SNI; never server private key,
-internal target or actual listener. URI uses vless-uri content_shape. Live safe
-responses and synthetic request schemas are checked with the current OpenAPI.
-
-## Safe engine diagnostics
-
-System engines and capabilities engine_implementations.node_status report
-compiled native availability. No external version/health/child PID/path resources
-exist. Unsupported engine pairs and mask requests fail explicitly before pending;
-explicit metadata_only never claims policy enforcement. Imports retain Unsupported
-classification and never strip features into runnable nodes.
-
-## Local service/distribution operations
-
-Phase 9 introduces local service/package/backup/support CLI commands, with no
-new network API routes. See [installation](../INSTALLATION.md),
-[operations](../OPERATIONS.md) and [bundle contract](../SUPPORT_BUNDLE.md).
-Optional Version.source_digest/build_tags expose exact build provenance in the
-existing system response; the machine schema is updated with those fields.
-
-## Phase 10 client surface
-
-OpenAPI marks node/outbound/local-inbound CRUD, credential rotation, route,
-client runtime/lifecycle and client validate/plan/apply as `phase10`. These run in
-the same control plane; generic server resource CRUD/subscriptions remain deferred.
-System adds separate server_runtimes/client_runtime projections. Capability roles
-express inbound/outbound support; exact proxy adapters are reported in client status.
-Credentials are write-only inputs and absent from read schemas. See
-[client CLI](../CLI.md), [client runtime](../architecture/CLIENT_RUNTIME.md) and
-[control semantics](API_V1_DESIGN.md#phase-10-client-control-semantics).
-
-## Phase 11 client expansion
-
-Existing generic node/outbound APIs support six registered protocol/engine pairs.
-No protocol-specific route is added. Public client TLS fields, bounded adapter options,
-credential-pair inputs, role-specific capability dimensions and eight decimal-string
-client counters are documented in the machine schema. Server RuntimeStats is unchanged.
-Local SOCKS UDP status is `supported`; session kind is `tcp` or `udp_association`.
-See [control semantics](API_V1_DESIGN.md#phase-11-client-observations).
-
-## Core network and TUN control
-
-LocalInbound supports socks5/http/mixed/tun. Client status includes host_network and host_capabilities. Protected GET /client/host-network exposes Core recovery status; POST /client/host-network/repair uses existing revision/plan semantics and requires stopped listeners. TUN intent lives in local-inbounds. The former desktop host-integration endpoint is removed. No raw OS commands are accepted. See [system integration](../SYSTEM_INTEGRATION.md).
-
-## Current architecture correction
-
-Native is the sole runtime engine. Historical Phase 6/7 direction is superseded; FinalMask/Sudoku are out of scope.
-
-- [Decision](../adr/0035-xray-runtime-removed-from-core.md)
-- [Correction report](../reports/ARCHITECTURE_CORRECTION_XRAY_BOUNDARY_REPORT.md)
+The retained `internal/splicore/api`, application command/request types and domain
+types define implemented routes and JSON shapes. Start with the [CLI](../CLI.md)
+for operational examples. Do not treat upstream sing-box configuration or an
+external client export as an API mutation. See [state authority](../CONFIGURATION.md)
+and [architecture](../ARCHITECTURE.md).

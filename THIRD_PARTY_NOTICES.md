@@ -1,23 +1,10 @@
-# Third-party notices — Phase 17 internal development snapshot
+# Third-party notices
 
-- Documentation status: Experimental
-- Audience: Maintainers and distributors
-- Last reviewed: 2026-10-06
-- Owner: Splicore maintainers
-- Responsibility: Exact selected module license/copyright texts.
-- Lifecycle: Regenerate after dependency graph changes.
-
-Root LICENSE and NOTICE.md remain authoritative for Splicore derivative provenance.
-Phase 21 adds independent Gorilla WebSocket v1.5.3 (BSD-2-Clause) and uses the
-already selected grpc-go v1.80.0 (Apache-2.0) directly. Their complete notices are
-listed below. No Xray, sing-box or Mihomo implementation source is imported.
-This inventory records locally materialized selected modules, including test/tool
-dependencies. Full graph-only non-linked nodes are listed in external evidence;
-they are not represented as linked product code. No publication is performed.
-
-License/copyright/NOTICE/AUTHORS texts below are preserved verbatim from the
-selected module cache. go mod verify passed. Concrete product modules are also
-verified against the three binary metadata inventories.
+The root LICENSE and NOTICE.md preserve Splicore's derivative provenance.
+The following pinned-module attribution set retains complete license, copyright,
+NOTICE and AUTHORS texts verbatim. It includes modules that are not linked by
+every production target or feature combination. The source module graph is
+unchanged; individual dependency terms remain applicable.
 
 | Module | Selected version | Preserved notices |
 | --- | --- | --- |
@@ -91,25 +78,3 @@ verified against the three binary metadata inventories.
 | modernc.org/sqlite | v1.59.0 | [AUTHORS](licenses/third-party/modernc.org/sqlite/v1.59.0/AUTHORS), [LICENSE](licenses/third-party/modernc.org/sqlite/v1.59.0/LICENSE), [LICENSE-SQLITE](licenses/third-party/modernc.org/sqlite/v1.59.0/LICENSE-SQLITE), [LICENSE-SQLITE_VEC](licenses/third-party/modernc.org/sqlite/v1.59.0/LICENSE-SQLITE_VEC) |
 | modernc.org/strutil | v1.2.1 | [AUTHORS](licenses/third-party/modernc.org/strutil/v1.2.1/AUTHORS), [LICENSE](licenses/third-party/modernc.org/strutil/v1.2.1/LICENSE) |
 | modernc.org/token | v1.1.0 | [LICENSE](licenses/third-party/modernc.org/token/v1.1.0/LICENSE) |
-
-## Replacement dependency decisions
-
-| Module/version | Purpose | Why standard library is insufficient | License text |
-| --- | --- | --- | --- |
-| github.com/apernet/quic-go v0.63.1-0.20261004180939-a10df75c260c | HY2 QUIC/HTTP3 transport | Go has no QUIC/HTTP3 substrate; use official fork, no protocol primitive rewrite | MIT |
-| github.com/quic-go/quic-go v0.63.0 | TUIC QUIC/datagrams | Go has no QUIC substrate | MIT |
-| github.com/metacubex/utls v1.8.7 | Existing independent REALITY/TLS integration | Standard TLS lacks required REALITY API and client handshake profile | BSD terms |
-| github.com/miekg/dns v1.1.72 | Managed DNS wire, TTL, TCP/UDP and TLS exchange | net.Resolver does not expose required DNS transport/answer policy | BSD terms |
-| github.com/vishvananda/netlink v1.3.1 | Existing owned Linux route/underlay host boundary | net has no netlink route/rule API | Apache-2.0 |
-| gvisor.dev/gvisor v0.0.0-20261004063249-f57b8fc79db4 | Official Native TUN TCP/IP stack | No standard userspace TCP/IP stack; custom implementation prohibited | Apache-2.0 |
-| github.com/enfein/mieru/v3 v3.38.0 | Official Mieru protocol SDK | Preserve official protocol without custom rewrite | GPLv3 text; source headers GPL-3.0-or-later |
-| lukechampine.com/blake3 v1.3.0 | SS2022 BLAKE3 primitive | Standard library lacks BLAKE3; custom primitive prohibited | MIT |
-
-Exact source/notice hashes: external round2-license-attempt2/inventory.json.
-SagerNet full graph nodes: 0. No local replace directive, vendored substitute,
-cache-source modification or external-core production subprocess was added.
-
-Orphan WinDivert binaries and their adjacent license were removed from the active
-tree in Phase 21 Deep Core Purge; their exact bytes remain in precleanup evidence.
-No retained source embeds or derives from those driver assets. Historical sing-box GPL attribution remains even
-though its active Go dependencies and inherited dead runtime were removed.

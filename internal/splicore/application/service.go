@@ -81,6 +81,8 @@ type Features struct {
 	SupportedFlows      []string       `json:"supported_flows,omitempty"`
 	SupportedTransports []string       `json:"supported_transports,omitempty"`
 }
+// QualifiedClient preserves a declared client/version compatibility pair.
+// Evidence is a public informational string, empty when none is published.
 type QualifiedClient struct {
 	Client   string `json:"client"`
 	Version  string `json:"version"`
@@ -249,9 +251,7 @@ func (s *Service) Capabilities(ctx context.Context, cursor string, limit int) (C
 		c := p.Capabilities(ports.CapabilityContext{Platform: s.build.Platform})
 		clients := []QualifiedClient{}
 		for _, q := range c.Clients {
-			if q.Evidence != "" {
-				clients = append(clients, QualifiedClient{q.Client, q.Version, q.Evidence})
-			}
+			clients = append(clients, QualifiedClient{q.Client, q.Version, q.Evidence})
 		}
 		page.Items = append(page.Items, Capability{Roles: m.Roles, Protocol: key.Protocol, WireVersion: key.WireVersion, FeatureProfile: key.FeatureProfile, Availability: m.Availability, Qualification: m.Qualification, Features: Features{Implementation: implementation(m.Qualification), TCP: c.Transport.TCP, UDPTransport: c.Transport.UDPTransport, UDPPayload: c.Transport.UDPPayload, IPv4: c.Transport.IPv4, IPv6: c.Transport.IPv6, DomainEndpoint: c.Transport.DomainEndpoint, NativeMultiUser: c.Identity.MultiUserNative, NativeStats: c.Identity.NativeStats, PerUserStats: c.Identity.PerUserStats, HotUserUpdate: c.Mutation.Users == ports.Hot, AttributedPayload: c.Identity.AttributedPayload, NativeQuota: c.Policy.Quota, NativeSpeedLimit: c.Policy.SpeedLimit, MaxSessions: c.Policy.MaxSessions, UserMutation: c.Mutation.Users, ListenerMutation: c.Mutation.Listener, HotReload: c.Mutation.HotReload, TLS: c.Security.TLS, Reality: c.Security.Reality, Vision: c.Security.Vision, SupportedFlows: c.Security.Flows, SupportedTransports: c.Transport.Kinds}, QualifiedClients: clients})
 		item := &page.Items[len(page.Items)-1]

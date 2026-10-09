@@ -75,9 +75,9 @@ func ClientVersion(server int) (int, error) {
 	}
 }
 func (m Module) Capabilities(ports.CapabilityContext) ports.Capabilities {
-	clients := []ports.ClientCompatibility{{Format: ports.SingBox, Client: "sing-box", Version: "1.14.1", Evidence: "docs/reports/PHASE17_SINGBOX_DECOUPLING_REPORT.md; Round 2 Linux TCP/UDP v4/v6"}}
+	clients := []ports.ClientCompatibility{{Format: ports.SingBox, Client: "sing-box", Version: "1.14.1", Evidence: ""}}
 	if m.Version == 5 {
-		clients = append(clients, ports.ClientCompatibility{Format: ports.Mihomo, Client: "mihomo", Version: "1.19.30", Evidence: "docs/reports/PHASE17_SINGBOX_DECOUPLING_REPORT.md; Round 2 explicit v4 client / v5 server"})
+		clients = append(clients, ports.ClientCompatibility{Format: ports.Mihomo, Client: "mihomo", Version: "1.19.30", Evidence: ""})
 	}
 	return ports.Capabilities{Transport: ports.TransportCapabilities{TCP: true, UDPPayload: true, IPv4: true, IPv6: true, DomainEndpoint: true}, Identity: ports.IdentityCapabilities{MultiUserNative: false, AttributedPayload: ports.Native, NativeStats: ports.Native, StatsUnits: "authenticated payload bytes; routed sessions; process lifetime"}, Policy: ports.PolicyCapabilities{Quota: ports.Unsupported, SpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported}, Mutation: ports.MutationCapabilities{Users: ports.MutationUnavailable, Listener: ports.MutationUnavailable}, Clients: clients}
 }

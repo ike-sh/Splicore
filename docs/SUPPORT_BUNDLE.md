@@ -1,11 +1,4 @@
-# Redacted Local Support Bundle
-
-- Documentation status: Canonical
-- Audience: Operators, support reviewers and security maintainers
-- Last reviewed: 2026-10-04
-- Owner: Security and distribution maintainers
-- Responsibility: Bundle content, private output and blocking secret tests.
-- Lifecycle: Update with each new diagnostic field or input source.
+# Redacted support bundles
 
 ```sh
 sudo install -d -m 700 /absolute/private/support
@@ -14,42 +7,15 @@ sudo /usr/local/bin/splicore support-bundle \
   --output /absolute/private/support/splicore-support.tar.gz
 ```
 
-The destination must be a new file in a 0700 directory owned by the invoking
-principal. Output is 0600; existing files and symlink paths reject. No upload
-occurs. Offline generation is supported and marks unavailable information.
+The destination must be new in a private directory owned by the invoking
+principal. Output is 0600; existing files and symlink paths are rejected.
+Generation does not upload anything. Offline generation marks unavailable data.
 
-## Archive contract
+The archive contains bounded projections of version, system/doctor health,
+redacted configuration/listeners/client state, sanitized crash records and unit
+journal summaries. Provider diagnostics omit source URLs, authentication and raw
+feed contents. No database/WAL, master key, raw bootstrap, credential payload,
+raw journal messages or panic stack is copied. Projection fields are allowlisted.
 
-| File | Included |
-| --- | --- |
-| version.json | Validated build identity, platform and compiled schema versions. |
-| system.json | Health enum, DB schema, registry/pending counts and engine availability. |
-| doctor.json | Fixed check names, statuses and safe details; no raw errors. |
-| config.redacted.json | Schema and canonical-path/configured booleans only. |
-| listeners.json | Protocol/engine/health/transport enums, address class, low-port flag and binding count. |
-| journal.summary.json | At most 128 recent unit entries summarized by priority; no MESSAGE, cursor or hostname. |
-| client.redacted.json | Fixed client health/role/count flags, name redaction, endpoint address class/port, engine and outbound availability; no metadata/options/secrets. |
-| crashes.json | At most 16 validated, re-projected exit records. |
-
-No real listener hosts, account/inbound/binding IDs or names, tags, client export,
-DB/WAL, keys, raw bootstrap, journal messages or panic stacks are
-copied. Redaction uses allowlisted projections instead of trying to recognize
-every password substring. Journald is bounded by entry count, field filtering,
-scanner size and command timeout. Individual archive projections are bounded.
-
-The blocking test injects synthetic Snell PSK, HY2/TUIC/Mieru passwords, VLESS
-UUID, REALITY private key and API token into diagnostic input fields and crash
-records, then scans every decompressed file. Installed-system validation also
-injects those values into local journald and verifies the produced archive.
-Phase 10 extends the hostile-input gate to every client free-form field, including
-node names/domains/options/metadata/IDs and health errors. Eight projections are
-scanned after decompression. Changing the bundle contract requires this gate. Operators should still review
-the extracted summary before deliberately sharing it.
-
-## Phase 14 provider projection
-
-Passive support includes provider kind/format/status/error class/generation, node/stale
-counts and last-success age. Provider names, source origins/URLs, auth, validators,
-raw subscription content, tags/metadata and candidate settings are omitted. Doctor
-lists provider/scheduler counts and stale state; it never fetches or probes nodes.
-Explicit secret node export is an independent protected operation, never bundle input.
+Inspect the extracted summary before deliberately sharing it. Explicit secret
+export is a separate operation and is never support-bundle input.

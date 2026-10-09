@@ -11,11 +11,8 @@
 .DS_Store
 /config.d/
 /venv/
-CLAUDE.md
-AGENTS.md
-/.claude/
 
-# Local generated outputs; canonical fixtures and JSON configuration stay visible.
+# Generated build and editor outputs.
 *.test
 *.prof
 *.pprof

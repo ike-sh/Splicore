@@ -1,64 +1,52 @@
-# Experimental Linux Installation
+# Installation
 
-- Documentation status: Canonical
-- Audience: Linux operators and distribution reviewers
-- Last reviewed: 2026-10-02
-- Owner: Distribution maintainers
-- Responsibility: Local installation and first start of the Phase 9 candidate.
-- Lifecycle: Update with layout, package or service changes.
+## Build from source
 
-## Qualification
-
-This is an experimental local development package, with no public release or
-stable channel. See [distribution contract](DISTRIBUTION.md) for artifact identity
-and actual platform qualification. Use an isolated machine for evaluation.
-The installer requires Linux, running systemd, GNU tar/coreutils, useradd and root.
-Root installs files; the long-running process uses the dedicated `splicore` user.
-
-## Build and inspect
-
-From a source checkout with its pinned Go dependencies already available:
+Go 1.26.3 or newer is required. From the source checkout:
 
 ```sh
-python3 scripts/splicore-package.py --output /absolute/external/build \
-  --epoch 1790966400 --version 0.0.0-dev
+go build -trimpath -tags with_quic,with_utls,with_gvisor ./cmd/splicore
+./splicore version
 ```
 
-The output includes Linux amd64/arm64 tarballs, a Windows build and `update.json`.
-Use the exact archive SHA256 from independently trusted metadata. A checksum
-proves integrity relative to that metadata, not publisher authenticity.
-Extract and inspect `manifest.json`, `SHA256SUMS`, licenses and this documentation.
-Never execute an installer or binary from an untrusted package.
+For cross compilation, set `GOOS` and `GOARCH` to `linux/amd64`,
+`windows/amd64` or `linux/arm64`; set `CGO_ENABLED=0` and choose an output with
+`-o`. Windows uses `splicore.exe`. The optional
+[PowerShell build helper](../scripts/splicore-build.ps1) injects version and
+timestamp metadata and uses the default feature set, without REALITY or native
+TUN; use the command above for the full feature set.
+
+## Run the Linux Core
+
+[distribution/splicore.yaml](../distribution/splicore.yaml) is a minimal bootstrap
+for process paths and the protected local API socket. Prepare its state directory
+for the account that will run the Core, and protect the configuration and state.
+The API socket parent must exist with appropriate ownership and permissions.
 
 ```sh
-sudo sh scripts/install.sh --artifact /absolute/path/splicore-0.0.0-dev-linux-amd64.tar.gz \
+./splicore validate distribution/splicore.yaml
+./splicore run --config distribution/splicore.yaml
+```
+
+First startup creates a private master key only when both the key and database
+are absent, and applies embedded SQLite migrations. An existing database without
+its original key is rejected. The bootstrap creates no sample users or proxy
+listeners. Manage resources through the [CLI](CLI.md) or [API](api/README.md).
+
+## Native Linux packages
+
+For a separately supplied, trusted native package, the retained
+[installer](../scripts/install.sh) verifies a pinned local artifact and invokes
+the Core's package verifier/installer. It requires Linux, systemd, GNU
+tar/coreutils, useradd and root. It does not download a package or change firewall
+rules. See [distribution](DISTRIBUTION.md) for the package contract.
+
+```sh
+sudo sh scripts/install.sh --artifact /absolute/path/splicore-linux-amd64.tar.gz \
   --sha256 EXACT_64_CHARACTER_SHA256 --start
-sudo systemctl status splicore.service
-sudo /usr/local/bin/splicore doctor --config /etc/splicore/splicore.yaml
 ```
 
-Omitting `--start` enables the unit without starting it. Installation does not
-download anything or change firewall rules. Bootstrap is preserved during updates.
-
-## First start and authority
-
-The minimal [bootstrap](../distribution/splicore.yaml) contains process paths
-only. SQLite remains the sole account/inbound/credential authority. No sample
-proxy account or listener is created. The first start creates a 0600 master key
-only when both the key and database are absent, then applies existing migrations.
-An existing database without its original key fails rather than rekeying it.
-
-Layout uses `/var/lib/splicore/state.db`, preserving the existing database name.
-State and runtime directories are 0700; config is root:splicore 0640; key and
-SQLite files are service-owned 0600. Back up the key together with SQLite.
-
-## Single core installation
-
-Only the Splicore binary is installed. Mieru is embedded. No external runtime,
-artifact pin, download or runtime directory is required. FinalMask/Sudoku are
-out of scope; future NoBrand can deploy an independent Xray service.
-For experimental upgrade preflight see [UPGRADE](UPGRADE.md).
-
-## Phase 13 host integration
-
-Packages include with_gvisor and optional splicore-tun.conf. Standard service keeps CAP_NET_BIND_SERVICE; explicitly install the shipped drop-in as /etc/systemd/system/splicore.service.d/20-tun.conf, then daemon-reload/restart before enabling TUN. It adds NET_ADMIN to the same dedicated-user service and retains all hardening. No driver is supplied/downloaded. See [Linux](PLATFORM_LINUX.md) and [Windows](PLATFORM_WINDOWS.md).
+Omit `--start` to enable the unit without starting it. The long-running service
+uses the dedicated `splicore` account. The source checkout does not itself provide
+a ready-made binary package. [Operations](OPERATIONS.md) describes service assets
+and platform limits; Linux arm64 remains build-only.

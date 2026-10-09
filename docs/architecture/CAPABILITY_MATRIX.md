@@ -1,56 +1,39 @@
-# Current capability matrix
+# Protocol and feature capabilities
 
-Documentation status: Current architecture correction
-Audience: Maintainers and operators
-Last reviewed: 2026-10-04
-Owner: Splicore maintainer
-Responsibility: Independent native Server + Client Core boundary
-Lifecycle: Experimental; Phase 14 local freeze
+Protocol profiles are experimental. Native is the runtime engine; protocol
+identity does not imply ownership of another Core process.
 
-All runtime protocols are Experimental, under EngineID native. Protocol != Engine
-is preserved; it does not authorize third-party runtime ownership.
+| Protocol/profile | Server and client payload | Security/transport |
+| --- | --- | --- |
+| Shadowsocks AEAD / SS2022 | TCP / UDP | Edition-specific symmetric credentials |
+| Snell v5/v6 | TCP / UDP | PSK; v5 uses the v4 compatibility adapter |
+| Hysteria2 | TCP / UDP | QUIC/TLS and explicit trust |
+| TUIC v5 | TCP / UDP | QUIC/TLS and UUID/password |
+| VLESS flow-none | TCP / XUDP | Plain/TLS; supported raw REALITY |
+| Mieru | TCP / UDP | Embedded TCP/UDP library transport |
+| Trojan standard | TCP / UDP | TLS/password |
+| VMess AEAD | TCP / UDP | UUID; supported security profiles |
+| SOCKS5 / HTTP proxy nodes | Profile-dependent | Canonical node/auth settings |
 
-| Protocol | Server TCP/UDP payload | Client TCP/UDP payload | Endpoint | Security |
-| --- | --- | --- | --- | --- |
-| Snell v5/v6 | Yes / Yes | Yes / Yes | IPv4/IPv6/domain | PSK, inherited wire |
-| Hysteria2 | Yes / Yes | Yes / Yes | IPv4/IPv6/domain | QUIC/TLS, explicit trust |
-| TUIC v5 | Yes / Yes | Yes / Yes | IPv4/IPv6/domain | QUIC/TLS, UUID/password |
-| VLESS flow-none | Yes / XUDP | Yes / XUDP | IPv4/IPv6/domain | Plain/TLS/REALITY |
-| Mieru | Yes / Yes | Yes / Yes | IPv4/IPv6/domain | Official embedded TCP/UDP transport |
+Local entry includes SOCKS5 TCP/UDP, HTTP, Mixed and native TUN. Routing supports
+DIRECT/REJECT and bounded selectors, URL-Test, fallback and load balance. DNS,
+proxy providers, RuleSet providers, canonical imports and encrypted source
+storage share the control plane.
 
-Snell v5 canonical intent uses the inherited v4 compatibility adapter; v6 maps to
-v6. No wire is rewritten. REALITY requires `with_utls`. QUIC requires `with_quic`.
-All-five native client adapters support bounded canonical validation and stats;
-global SDK metrics never enter attributed accounting.
+Raw TCP/TLS, WebSocket, HTTPUpgrade and gRPC streams are available to
+VMess/VLESS/Trojan under their profile limits. Other protocols retain their own
+transport and reject these stream wrappers. REALITY requires `with_utls`;
+native TUN requires `with_gvisor`. The recommended distribution profile includes
+`with_quic`; current QUIC adapters are present in both default and tagged builds.
+See [transport details](SHARED_TRANSPORT.md).
 
-| Shared product feature | State |
-| --- | --- |
-| DIRECT / REJECT | Implemented builtins |
-| SOCKS TCP/UDP, HTTP | Implemented local ingress |
-| TUN, routing/DNS/policy | Implemented; platform qualification limits below |
-| Selector / URL-Test / Fallback / Load-Balance | Implemented bounded profiles |
-| Import/proxy provider/RuleSet provider | Phase 14 implemented, unfrozen |
-| Atomic previews, identity, encrypted sources, offline recovery | Retained |
-| Vision | Deferred / Unsupported; explicit rejection |
-| FinalMask / Sudoku | OUT OF SCOPE FOR SPLICORE; imports Unsupported |
-| Xray engine/server/client/child/artifact | Absent |
-| External runtime required | No |
+Vision and new REALITY/stream-wrapper combinations are unsupported.
+FinalMask/Sudoku are outside runtime scope. No external Core runtime is required.
+Mutation and quota/rate/session capabilities are protocol-specific; unsupported
+strict policy fails closed. For example, VLESS user changes restart the affected
+runtime generation. Read the live capability API rather than assuming uniform
+hot mutation behavior.
 
-Native server binding counters are runtime-generation payload/session evidence,
-not durable billing. Quota/rate/session enforcement is limited by the actual
-capability API; strict unsupported policy fails closed. Hot mutation capabilities
-are protocol-specific; VLESS user changes restart the affected native generation.
-
-Production egress inventory covers DIRECT, DNS/bootstrap, health, five native
-clients, native server targets and provider fetch, with Unknown=0 required. No
-external-child egress surface remains. TUN generations retain shared leases and
-host journal debt correctly.
-
-Local evidence includes Linux default race/checkptr and disposable WSL kernel/service
-tests. Native Ubuntu auto-route/real Windows system-network qualification remain
-uncertified; Windows race is not executed, Linux arm64 build-only. Wintun
-fixtures are contract evidence, not real host certification.
-
-Historical reports remain unchanged and are superseded for current Xray support by
-[ADR 0035](../adr/0035-xray-runtime-removed-from-core.md) and the
-[correction report](../reports/ARCHITECTURE_CORRECTION_XRAY_BOUNDARY_REPORT.md).
+Platform support remains experimental and partially qualified. Linux arm64 is
+build-only; native Linux auto-route and real Windows host networking are not
+fully qualified. See [platform limits](../OPERATIONS.md).

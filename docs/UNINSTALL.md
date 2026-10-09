@@ -1,49 +1,18 @@
-# Experimental Linux Uninstall
+# Uninstall
 
-- Documentation status: Canonical
-- Audience: Linux operators and integration authors
-- Last reviewed: 2026-10-04
-- Owner: Distribution maintainers
-- Responsibility: Program removal, retained state and explicit purge safety.
-- Lifecycle: Update with ownership validation or removal behavior.
-
-## Remove the program
+For an installation owned by the native package installer:
 
 ```sh
 sudo /usr/local/bin/splicore package uninstall
 ```
 
-The command stops and disables the sole unit, removes its binary/unit and reloads
-systemd. It retains `/etc/splicore`, SQLite, credentials, key, engine artifacts,
-backups and the non-login service identity. Reinstall using the pinned local
-[installer](INSTALLATION.md); retained bootstrap and domain state are reused.
-Do not reuse the service UID for another principal.
+The command stops/disables the service, removes its binary/unit and reloads
+systemd. Configuration, SQLite, the master key, backups and the locked service
+identity remain for a later reinstall. Do not reuse that identity for another
+principal. Owned host networking recovery must succeed before removal proceeds.
 
-## Purge
-
-```sh
-sudo /usr/local/bin/splicore package uninstall --purge
-```
-
-`--purge` is the explicit destructive authorization. It additionally deletes
-only `/etc/splicore`, `/var/lib/splicore` and `/var/lib/splicore-upgrades` after
-validating ownership markers, fixed clean paths and complete trees. Symlinks,
-foreign-owned entries, mount boundaries and special files reject. The account
-and root-owned installation lock are retained. Journald data remains under the
-host's journald retention policy. No firewall rules are added or removed.
-
-If the program has already been removed, reinstall it first and then purge.
-Back up matching DB/key/config before purge; deleted credentials cannot be
-recovered without that backup. Run destructive validation only in a disposable
-environment.
-
-## Phase 13 host integration
-
-Stop before removal, restore the private host journal as the original service UID, and refuse removal/purge on recovery failure. Domain state remains by default. Purge validates paths after restoration. Never chown a journal, flush a table or remove an unrelated adapter. Administrator-installed service drop-ins are not automatically removed; remove the optional TUN profile explicitly when retiring it. See [system integration](SYSTEM_INTEGRATION.md).
-
-## Phase 14 retained resources
-
-Default uninstall retains canonical providers, nodes, tags, encrypted credentials and
-RuleSets with existing SQLite/key state. Reinstall restores offline without a refresh
-prerequisite. Explicit purge removes this state under existing path/ownership guards.
-Scheduler belongs to the sole splicore.service and exits with it; no second service.
+Explicitly add `--purge` only when removal of the retained configuration, state
+and upgrade backups is intended. Ownership/path checks still apply. The installer
+does not remove unrelated networking or another product's files. A manually
+deployed source build has no package receipt; manage that deployment's files
+through the mechanism used to install it.

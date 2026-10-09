@@ -1,9 +1,0 @@
-PASS mandatory documents: 24
-PASS ADRs: 12; six required sections each
-PASS local Markdown links: 167
-PASS cited source paths
-PASS OpenAPI 3.1 validator: 0.7.2
-PASS OpenAPI operations: 13 ; all local refs and required routes
-PASS Account read schema excludes credential secrets
-PASS explicit required answers: 1..38
-PASS additions confined to NOTICE.md and docs/

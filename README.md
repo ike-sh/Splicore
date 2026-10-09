@@ -1,47 +1,49 @@
 # Splicore
 
-Documentation status: Current
-Audience: Maintainers and operators
-Last reviewed: 2026-10-09
-Owner: Splicore maintainer
-Responsibility: Independent proxy Core identity and entry points
-Lifecycle: Experimental; Phase 21 cleanup awaiting independent review
+Splicore is an independent **proxy core** for Server Core and Client Core use.
+One `splicore` binary provides proxy protocols, local traffic entry, routing,
+DNS, policy and a persistent control plane. It is derived in part from sing-box;
+it does not require an external Xray, sing-box or Mihomo process.
 
-Splicore is an independent **proxy core** usable as Server Core and Client Core,
-derived in part from sing-box v1.14.1. It runs as one `splicore` binary.
-
-Protocols include SS/SS2022, Snell, Hysteria2, TUIC, VLESS, Mieru, Trojan and VMess;
-SOCKS5/HTTP proxy nodes and SOCKS5/HTTP/Mixed/TUN traffic entry use shared routing,
-DNS, policy and protected networking. Shared stream transports include Raw,
-WebSocket, HTTPUpgrade, gRPC, TLS and supported REALITY integration.
-SQLite, encrypted credentials, API/CLI transactions, providers and Core service
-deployment belong to its control plane. The authoritative boundary is
-[Core scope](docs/architecture/CORE_SCOPE.md).
-
-Vision is deferred/unsupported. FinalMask/Sudoku are outside Splicore runtime scope.
-No external core child process is required. Splicore has no desktop client, GUI,
-tray, system proxy controller or PAC ownership.
+Protocols include Shadowsocks/SS2022, Snell, Hysteria2, TUIC, VLESS, Mieru,
+Trojan and VMess, with SOCKS5/HTTP proxy nodes and SOCKS5/HTTP/Mixed/TUN local
+entry. Shared stream transports include raw TCP, WebSocket, HTTPUpgrade and
+gRPC, with TLS and the supported raw VLESS REALITY profile.
+See the [capability matrix](docs/architecture/CAPABILITY_MATRIX.md) for limits.
 
 ## Build
 
+Use Go 1.26.3 or newer:
+
 ```sh
-go build -tags with_quic,with_utls,with_gvisor ./cmd/splicore
-go test ./...
-go test -race -tags with_quic,with_utls,with_gvisor ./internal/splicore/...
+go build -trimpath -tags with_quic,with_utls,with_gvisor ./cmd/splicore
 ```
 
-See [installation](docs/INSTALLATION.md), [operations](docs/OPERATIONS.md),
-[architecture](docs/ARCHITECTURE.md), [capabilities](docs/architecture/CAPABILITY_MATRIX.md)
-and [documentation](docs/README.md).
+`with_utls` enables REALITY, and `with_gvisor` enables the native TUN stack.
+The recommended profile includes `with_quic`; current QUIC adapters are included
+in both default and tagged builds. Build outputs are `splicore`
+on Linux and `splicore.exe` on Windows.
 
-Historical platform qualification remains PARTIALLY PASSED. Phase 21 is NOT
-PLATFORM QUALIFIED; native Ubuntu auto-route and real Windows host networking
-remain uncertified, Windows race is not executed, Linux arm64 is BUILD ONLY.
-Historical frozen reports remain preserved. Deep Core Purge requires targeted
-independent review before any Freeze.
+Start with [installation](docs/INSTALLATION.md), [configuration](docs/CONFIGURATION.md),
+[CLI usage](docs/CLI.md), [operations](docs/OPERATIONS.md) and the
+[documentation index](docs/README.md). Integrators can use the
+[local API](docs/api/README.md) and [architecture overview](docs/ARCHITECTURE.md).
+
+## Scope and platform limits
+
+Splicore includes native Core networking and Linux service assets. GUI, tray,
+desktop system proxy/PAC management, mobile/desktop application shells and
+container distribution are outside its [Core scope](docs/architecture/CORE_SCOPE.md).
+Vision is unsupported; FinalMask and Sudoku are outside runtime scope.
+
+Platform support is experimental and partially qualified. Linux arm64 is
+**build-only**. Native Linux auto-route and real Windows host networking have
+unqualified areas. Windows production local control/service integration is
+unavailable; a successful Windows build is not a host networking qualification.
 
 ## License
 
-See [LICENSE](LICENSE), [NOTICE](NOTICE.md), [third-party notices](THIRD_PARTY_NOTICES.md)
-and [license boundaries](docs/architecture/LICENSE_BOUNDARIES.md).
-Inherited source copyright and derivative provenance remain preserved.
+The preserved [LICENSE](LICENSE), [NOTICE](NOTICE.md),
+[third-party notices](THIRD_PARTY_NOTICES.md) and
+[license boundaries](docs/architecture/LICENSE_BOUNDARIES.md) describe attribution
+and licensing. Existing source copyright notices remain intact.

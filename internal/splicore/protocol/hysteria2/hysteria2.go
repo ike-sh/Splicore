@@ -53,7 +53,7 @@ func (Module) Capabilities(ports.CapabilityContext) ports.Capabilities {
 		Identity:  ports.IdentityCapabilities{MultiUserNative: true, PerUserStats: true, AttributedPayload: ports.Native, NativeStats: ports.Native, StatsUnits: "authenticated payload bytes; routed sessions; runtime generation"},
 		Security:  ports.SecurityCapabilities{TLS: true}, Policy: ports.PolicyCapabilities{Quota: ports.Unsupported, SpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported},
 		Mutation: ports.MutationCapabilities{Users: ports.Restart, Listener: ports.MutationUnavailable},
-		Clients:  []ports.ClientCompatibility{{Format: ports.Mihomo, Client: "mihomo", Version: "1.19.30", Evidence: "docs/reports/PHASE_3_HYSTERIA2_VERTICAL_SLICE_REPORT.md"}, {Format: ports.SingBox, Client: "sing-box", Version: "1.14.1", Evidence: "docs/reports/PHASE_3_HYSTERIA2_VERTICAL_SLICE_REPORT.md"}},
+		Clients:  []ports.ClientCompatibility{{Format: ports.Mihomo, Client: "mihomo", Version: "1.19.30", Evidence: ""}, {Format: ports.SingBox, Client: "sing-box", Version: "1.14.1", Evidence: ""}},
 	}
 }
 func (Module) ValidateInbound(i access.Inbound) error {
