@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/netip"
 	"reflect"
-	"strconv"
 	"time"
 
 	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
@@ -16,12 +15,10 @@ import (
 )
 
 type hostController struct {
-	capabilities  *hostnetwork.Capabilities // injected adapter snapshot; nil uses real platform
-	manager       *hostnetwork.Manager
-	platform      *hostnetwork.Platform
-	proxy         *hostnetwork.Lease
-	proxyListener *localListener // protected by Manager.mu
-	lastError     string
+	capabilities *hostnetwork.Capabilities // injected adapter snapshot; nil uses real platform
+	manager      *hostnetwork.Manager
+	platform     *hostnetwork.Platform
+	lastError    string
 }
 
 // Counter maps are fixed before a staged TUN can dispatch a flow.
@@ -55,7 +52,7 @@ func (m *Manager) prepareCounters(s *snapshot) {
 }
 
 // ConfigureHost acquires the private operational journal and reconciles it before
-// restoring SQLite intent. Opening it never enables a route, proxy or TUN.
+// restoring SQLite intent. Opening it never enables a route or TUN.
 func (m *Manager) ConfigureHost(ctx context.Context, directory string) error {
 	platform := hostnetwork.NewPlatform()
 	store, err := hostnetwork.OpenStore(directory)
@@ -125,9 +122,6 @@ func (m *Manager) validateHostChange(state client.ProfileState, old *snapshot) e
 	if spec != nil && capabilities.TUN == "blocked-partial-construction" {
 		return identity.Err(identity.NotImplemented, "Windows TUN requires recoverable partial-construction ownership")
 	}
-	if state.Host.SystemProxy.Enabled && capabilities.SystemProxy == "blocked-incomplete-ownership" {
-		return identity.Err(identity.NotImplemented, "Windows system proxy requires complete WinINET connection-state ownership")
-	}
 	if spec != nil {
 		if !nativetun.Included {
 			return identity.Err(identity.NotImplemented, "TUN requires a build with with_gvisor")
@@ -136,27 +130,13 @@ func (m *Manager) validateHostChange(state client.ProfileState, old *snapshot) e
 			return identity.Err(identity.NotImplemented, "owned TUN integration uses the official gvisor stack")
 		}
 	}
-	if (spec != nil || state.Host.SystemProxy.Enabled) && m.host == nil {
-		return identity.Err(identity.Unavailable, "durable host recovery must be configured before enabling host integration")
+	if spec != nil && m.host == nil {
+		return identity.Err(identity.Unavailable, "durable host recovery must be configured before enabling TUN")
 	}
 	if old != nil && old.state.Enabled {
 		prior := tunSpec(old.state)
 		if prior != nil && spec != nil && (prior.ID != spec.ID || !reflect.DeepEqual(prior.TUN, spec.TUN)) {
 			return identity.Err(identity.Conflict, "stop TUN before editing interface settings")
-		}
-		if old.state.Host.SystemProxy.Enabled && state.Host.SystemProxy.Enabled && !reflect.DeepEqual(old.state.Host, state.Host) {
-			return identity.Err(identity.Conflict, "disable system proxy before changing its listener")
-		}
-		if old.state.Host.SystemProxy.Enabled && state.Host.SystemProxy.Enabled {
-			for _, i := range old.state.LocalInbounds {
-				if i.ID == state.Host.SystemProxy.LocalInbound {
-					for _, j := range state.LocalInbounds {
-						if j.ID == i.ID && (i.Kind != j.Kind || i.Listen != j.Listen) {
-							return identity.Err(identity.Conflict, "disable system proxy before editing its listener")
-						}
-					}
-				}
-			}
 		}
 	}
 	return nil
@@ -209,59 +189,9 @@ func (p *Prepared) prepareHost(ctx context.Context) error {
 			p.newListeners = append(p.newListeners, listener)
 		}
 	}
-	m.mu.Lock()
-	proxyActive := m.host != nil && m.host.proxy != nil
-	m.mu.Unlock()
-	if p.s.state.Host.SystemProxy.Enabled && !proxyActive {
-		var endpoint string
-		for _, i := range p.s.state.LocalInbounds {
-			if i.ID == p.s.state.Host.SystemProxy.LocalInbound {
-				endpoint = net.JoinHostPort(i.Listen.Host, strconv.Itoa(int(i.Listen.Port)))
-			}
-		}
-		plan, err := m.host.manager.SystemProxyPlan(endpoint)
-		if err != nil {
-			return err
-		}
-		lease, err := m.host.manager.Prepare(ctx, plan, func() error {
-			l := p.listeners[p.s.state.Host.SystemProxy.LocalInbound]
-			if l == nil || l.socket == nil || l.spec.Kind != "http" && l.spec.Kind != "mixed" || l.socket.Addr().String() != endpoint {
-				return identity.Err(identity.Unavailable, "system proxy listener unavailable")
-			}
-			return nil
-		})
-		p.proxy = lease
-		return err
-	}
 	return nil
 }
 
-// An accept failure restores the owned proxy immediately. The specific listener
-// pointer prevents a retired worker from restoring a replacement generation.
-func (m *Manager) listenerFailed(l *localListener) {
-	m.mu.Lock()
-	if m.host == nil || m.host.proxy == nil || m.host.proxyListener != l {
-		m.mu.Unlock()
-		return
-	}
-	lease := m.host.proxy
-	m.mu.Unlock()
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	err := lease.Restore(ctx)
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.host.proxy != lease {
-		return
-	}
-	if err == nil {
-		m.host.proxy = nil
-		m.host.proxyListener = nil
-		m.host.lastError = "host_activation_degraded"
-	} else {
-		m.host.lastError = "host_restore_failed"
-	}
-}
 func (m *Manager) closeListener(ctx context.Context, l *localListener) error {
 	l.ready.Store(false)
 	if l.tun != nil {
@@ -289,9 +219,6 @@ func (p *Prepared) abortHost() error {
 	var err error
 	for _, l := range p.newListeners {
 		err = errors.Join(err, p.m.closeListener(cleanup, l))
-	}
-	if p.proxy != nil {
-		err = errors.Join(err, p.proxy.Restore(cleanup))
 	}
 	return err
 }

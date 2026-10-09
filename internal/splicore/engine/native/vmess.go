@@ -5,10 +5,12 @@ import (
 	"crypto/tls"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	streamcfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/engine/relay"
 	"github.com/ike-sh/Splicore/internal/splicore/engine/traffic"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	module "github.com/ike-sh/Splicore/internal/splicore/protocol/vmess"
+	shared "github.com/ike-sh/Splicore/internal/splicore/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"github.com/ike-sh/Splicore/protocol/vmess/backend"
 	"github.com/ike-sh/Splicore/protocol/vmess/wire"
@@ -61,6 +63,9 @@ func (c *VMessCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (po
 	}
 	ctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	h := &vmessHandle{ctx: ctx, cancel: cancel, endpoint: in.Inbound.Listeners[0].Endpoint, protected: d, tls: tc, connections: map[net.Conn]bool{}, users: map[string]*traffic.Counter{}, total: &traffic.Counter{}, done: make(chan struct{}), replay: c.replay, now: c.now}
+	if s.Stream != nil {
+		h.transport = *s.Stream
+	}
 	for i, b := range in.Bindings {
 		id := string(b.ID)
 		h.users[id] = &traffic.Counter{}
@@ -70,6 +75,8 @@ func (c *VMessCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (po
 }
 
 type vmessHandle struct {
+	transport         streamcfg.Config
+	transportTLS      *tls.Config
 	lifecycle, mu     sync.Mutex
 	ctx               context.Context
 	cancel            context.CancelFunc
@@ -104,6 +111,14 @@ func (h *vmessHandle) Start(ctx context.Context) error {
 			return identity.Err(identity.PortConflict, "TCP listener port is already in use")
 		}
 		return identity.Err(identity.Unavailable, "VMess listener start failed")
+	}
+	if h.transport.Type() != "tcp" {
+		wrapped, e := shared.WrapListener(l, h.transport, h.tls)
+		if e != nil {
+			l.Close()
+			return e
+		}
+		l = wrapped
 	}
 	h.listener = l
 	h.started = true
@@ -189,7 +204,7 @@ func (h *vmessHandle) serve(raw net.Conn) {
 	defer func() { h.mu.Lock(); delete(h.connections, raw); h.mu.Unlock() }()
 	_ = raw.SetDeadline(time.Now().Add(5 * time.Second))
 	var c net.Conn = raw
-	if h.tls != nil {
+	if h.tls != nil && h.transport.Type() == "tcp" {
 		tc := tls.Server(raw, h.tls)
 		if tc.HandshakeContext(h.ctx) != nil {
 			return

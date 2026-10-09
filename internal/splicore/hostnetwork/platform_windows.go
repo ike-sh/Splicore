@@ -25,20 +25,19 @@ import (
 type Platform struct {
 	mu             sync.Mutex
 	devices        map[string]nativetun.Device
-	winINET        WinINETAPI
 	wintun         WintunDriver
 	authorizations map[string]Step
 }
 
 func NewPlatform() *Platform {
-	return &Platform{devices: map[string]nativetun.Device{}, winINET: nativeWinINET{}, wintun: nativeWintunDriver{}, authorizations: map[string]Step{}}
+	return &Platform{devices: map[string]nativetun.Device{}, wintun: nativeWintunDriver{}, authorizations: map[string]Step{}}
 }
 func platformCapabilities() Capabilities {
 	p := "elevation-required"
 	if windows.GetCurrentProcessToken().IsElevated() {
 		p = "elevated"
 	}
-	return Capabilities{TUN: "blocked-partial-construction", AutoRoute: "unsupported", Driver: DriverStatus(), Privilege: p, SystemProxy: "blocked-incomplete-ownership", LoopProtection: "auto-route-fail-closed"}
+	return Capabilities{TUN: "blocked-partial-construction", AutoRoute: "unsupported", Driver: DriverStatus(), Privilege: p, LoopProtection: "auto-route-fail-closed"}
 }
 func (*Platform) Scope() string {
 	user, err := windows.GetCurrentProcessToken().GetTokenUser()
@@ -65,8 +64,6 @@ func (p *Platform) Device(name string) (nativetun.Device, error) {
 	return nil, identity.Err(identity.Unavailable, "owned TUN device unavailable")
 }
 
-const proxyKey = `Software\Microsoft\Windows\CurrentVersion\Internet Settings`
-
 func (p *Platform) Read(ctx context.Context, key Record) (*Record, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -87,50 +84,6 @@ func (p *Platform) Read(ctx context.Context, key Record) (*Record, error) {
 			}
 		}
 		return p.readOwnedAdapter(key)
-	}
-	if key.Kind == "wininet" {
-		s, err := p.winINET.Capture(ctx)
-		if err != nil {
-			return nil, err
-		}
-		out.WinINET = &s
-		return out, out.Validate()
-	}
-	if key.Kind == "proxy" {
-		k, err := registry.OpenKey(registry.CURRENT_USER, proxyKey, registry.QUERY_VALUE)
-		if err != nil {
-			return nil, err
-		}
-		defer k.Close()
-		for name := range key.Proxy.Values {
-			var value ProxyValue
-			data, typ, err := k.GetValue(name, make([]byte, 16384))
-			if errors.Is(err, windows.ERROR_FILE_NOT_FOUND) {
-				out.Proxy.Values[name] = value
-				continue
-			}
-			if err != nil || data > 8192 {
-				return nil, identity.Err(identity.Invalid, "unsupported system proxy value")
-			}
-			value.Present, value.Type = true, typ
-			if typ == registry.DWORD {
-				n, _, e := k.GetIntegerValue(name)
-				if e != nil || n > 1<<32-1 {
-					return nil, identity.Err(identity.Invalid, "invalid system proxy integer")
-				}
-				value.Number = uint32(n)
-			} else if typ == registry.SZ {
-				text, _, e := k.GetStringValue(name)
-				if e != nil {
-					return nil, e
-				}
-				value.Text = text
-			} else {
-				return nil, identity.Err(identity.Invalid, "unsupported system proxy registry type")
-			}
-			out.Proxy.Values[name] = value
-		}
-		return out, out.Validate()
 	}
 	iface, err := net.InterfaceByName(key.Interface)
 	if err != nil {
@@ -186,27 +139,6 @@ func (p *Platform) Write(ctx context.Context, key Record, value *Record) error {
 			return identity.Err(identity.NotImplemented, "durable Windows route ownership required")
 		}
 		return writeWindowsRoute(ctx, key, value)
-	}
-	if key.Kind == "wininet" {
-		if !p.authorized(key, value) {
-			return identity.Err(identity.NotImplemented, "durable WinINET ownership authorization required")
-		}
-		if value == nil || value.WinINET == nil {
-			return identity.Err(identity.Invalid, "missing WinINET target state")
-		}
-		before, err := p.winINET.Capture(ctx)
-		if err != nil {
-			return err
-		}
-		if !p.authorizedCurrent(key, &Record{Kind: "wininet", WinINET: &before}, value) {
-			return identity.Err(identity.Conflict, "WinINET state changed after durable snapshot")
-		}
-		return applyWinINET(ctx, p.winINET, before, *value.WinINET)
-	}
-	// Schema-1 five-value proxy records remain readable for diagnosis, but cannot
-	// authorize writes. Current activation uses one typed LAN WinINET snapshot.
-	if key.Kind == "proxy" {
-		return identity.Err(identity.NotImplemented, "Windows system proxy requires complete WinINET connection-state ownership")
 	}
 	// The pinned public constructor loses its adapter on StartSession failure.
 	// Never enter a creation path whose partial ownership cannot be recovered.

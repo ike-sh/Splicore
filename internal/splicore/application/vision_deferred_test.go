@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/ike-sh/Splicore/internal/splicore/registry/testfixture"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -57,9 +58,9 @@ func (visionBypassCodec) ValidateInbound(access.Inbound) error { return nil }
 
 func TestVisionRejectedAPIConfigImportCLIAndNoCommittedState(t *testing.T) {
 	ctx := context.Background()
-	s, store := setupProtocols(t, filepath.Join(t.TempDir(), "state", "state.db"), nil, registry.Phase5)
+	s, store := setupProtocols(t, filepath.Join(t.TempDir(), "state", "state.db"), nil, testfixture.Phase5)
 	defer stop(t, s, store)
-	p, _, x, _ := registry.Phase5()
+	p, _, x, _ := testfixture.Phase5()
 	var calls atomic.Int64
 	engines, _ := registry.NewEngines(visionCountingEngine{calls: &calls})
 	svc, err := application.New(store, p, engines, x, version.Current())
@@ -122,7 +123,7 @@ func TestVisionRejectedAPIConfigImportCLIAndNoCommittedState(t *testing.T) {
 
 func TestVisionMissedValidatorStillRollsBackBeforeRuntimeConstruction(t *testing.T) {
 	ctx := context.Background()
-	s, store := setupProtocols(t, filepath.Join(t.TempDir(), "state", "state.db"), nil, registry.Phase5)
+	s, store := setupProtocols(t, filepath.Join(t.TempDir(), "state", "state.db"), nil, testfixture.Phase5)
 	defer stop(t, s, store)
 	p, err := registry.NewProtocols(visionBypassCodec{Module: v.Module{Security: v.Plain}})
 	if err != nil {
@@ -130,7 +131,7 @@ func TestVisionMissedValidatorStillRollsBackBeforeRuntimeConstruction(t *testing
 	}
 	var calls atomic.Int64
 	engines, _ := registry.NewEngines(visionCountingEngine{calls: &calls})
-	_, _, exports, _ := registry.Phase5()
+	_, _, exports, _ := testfixture.Phase5()
 	svc, err := application.New(store, p, engines, exports, version.Current())
 	if err != nil {
 		t.Fatal(err)

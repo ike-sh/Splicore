@@ -191,7 +191,7 @@ func ParseURI(raw string) (Candidate, error) {
 		if v.TLS.Enabled {
 			security = client.Security{Kind: "tls", TLS: v.TLS}
 		}
-		c.Node = client.RemoteNode{Name: v.Name, Protocol: vmm.Key(), Endpoint: v.Endpoint, Transport: client.Transport{Kind: "tcp"}, Security: security, Options: client.Options{Schema: 1, Data: options}}
+		c.Node = client.RemoteNode{Name: v.Name, Protocol: vmm.Key(), Endpoint: v.Endpoint, Transport: v.Transport, Security: security, Options: client.Options{Schema: 1, Data: options}}
 		c.Credential = Credential{Kind: access.UUID, Value: v.UUID.Reveal()}
 		return c, nil
 	}
@@ -210,7 +210,7 @@ func ParseURI(raw string) (Candidate, error) {
 			return c, e
 		}
 		options, _ := json.Marshal(trm.ClientOptions{UDP: true})
-		c.Node = client.RemoteNode{Name: v.Name, Protocol: trm.Key(), Endpoint: v.Endpoint, Transport: client.Transport{Kind: "tcp"}, Security: client.Security{Kind: "tls", TLS: v.TLS}, Options: client.Options{Schema: 1, Data: options}}
+		c.Node = client.RemoteNode{Name: v.Name, Protocol: trm.Key(), Endpoint: v.Endpoint, Transport: v.Transport, Security: client.Security{Kind: "tls", TLS: v.TLS}, Options: client.Options{Schema: 1, Data: options}}
 		c.Credential = Credential{access.Password, v.Password.Reveal()}
 	case "mieru", "mierus":
 		return parseMieruURI(raw)
@@ -256,7 +256,7 @@ func ParseURI(raw string) (Candidate, error) {
 		if e != nil {
 			return c, errUnsupported
 		}
-		c.Node = client.RemoteNode{Name: v.Name, Protocol: vm.Key(v.Security), Endpoint: v.Endpoint, Transport: client.Transport{Kind: "tcp"}, Security: client.Security{Kind: string(v.Security)}, Options: client.Options{Schema: 1}}
+		c.Node = client.RemoteNode{Name: v.Name, Protocol: vm.Key(v.Security), Endpoint: v.Endpoint, Transport: v.Transport, Security: client.Security{Kind: string(v.Security)}, Options: client.Options{Schema: 1}}
 		c.Node.Options.Data, _ = json.Marshal(vm.ClientOptions{Security: v.Security, Flow: v.Flow, PacketEncoding: "xudp"})
 		if v.Security == vm.Reality {
 			c.Node.Security.TLS = access.ClientTLS{Enabled: true, ServerName: v.ServerName, Trust: "reality", RealityPublicKey: string(v.PublicKey), RealityShortID: string(v.ShortID)}

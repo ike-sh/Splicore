@@ -13,7 +13,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--root", type=pathlib.Path, default=pathlib.Path(__file__).resolve().parents[1])
 parser.add_argument("--output", type=pathlib.Path, required=True)
 args = parser.parse_args()
-pattern = re.compile(r"net\.(?:Dial(?:er|Timeout|Context|TCP|UDP|Unix)?|Listen(?:Config|Packet|TCP|UDP|Unix)?|DefaultResolver|Resolver)\b|\.(?:DialContext|ListenPacket|LookupNetIP|LookupIP|LookupIPAddr)\(|\b(?:transport|c\.transport)\.(?:Dial|DialEarly|Listen)\(|\bn\.(?:Dial|Resolve)\(|\bdial\(callCtx,|api\.NewClient\(|server\.NewServer\(|cmd\.Start\(")
+pattern = re.compile(r"net\.(?:Dial(?:er|Timeout|Context|TCP|UDP|Unix)?|Listen(?:Config|Packet|TCP|UDP|Unix)?|DefaultResolver|Resolver)\b|\.(?:DialContext|ListenPacket|LookupNetIP|LookupIP|LookupIPAddr)\(|\b(?:transport|c\.transport)\.(?:Dial|DialEarly|Listen)\(|\bn\.(?:Dial|Resolve)\(|\bdial\(|shared\.Dial\(|grpc\.NewClient\(|api\.NewClient\(|server\.NewServer\(|cmd\.Start\(")
 signature = re.compile(r"^func\s+(?:\([^)]*\)\s+)?([A-Za-z_][A-Za-z_0-9]*)\(")
 prefix = "internal/splicore/"
 rules = {}
@@ -21,6 +21,12 @@ rules = {}
 def rule(path, functions, classification, purpose, evidence):
     for fn in functions.split():
         rules[(prefix + path, fn)] = (classification, purpose, evidence)
+
+rule("streamtransport/transport.go", "Dial", "Protected", "shared WebSocket/HTTPUpgrade/raw TCP+TLS", "Every socket comes from injected approved dial; WebSocket NetDialContext/NetDialTLSContext override all dialing; Proxy nil")
+rule("streamtransport/grpc.go", "dialGRPC", "Protected", "shared gRPC HTTP/2 underlay", "WithContextDialer injects approved numeric/endpoint socket; grpc-go never uses ambient default dialer")
+rule("engine/native/snell_outbound.go", "DialContext", "Protected", "Snell proxy underlay delegation", "d.dial uses injected ProxyUnderlay and returns owned socket")
+rule("engine/relay/packet.go", "target", "Protected", "server UDP target delegation", "Native protocol passes approved ServerTarget callback; relay owns bounded connected sockets")
+rule("networkruntime/dns.go", "exchangeDNS", "Protected", "managed DNS outbound delegation", "Snapshot-owned selected protected dial path; no ambient resolver")
 
 rule("clientruntime/runtime.go", "PrepareWithRestart", "Intentionally Local", "application ingress", "Validated local listen endpoint; no remote dial")
 rule("clientruntime/runtime.go", "serveStream DialContext", "Protected", "DIRECT / selected outbound", "Logical selectRoute -> leased adapter -> injected provider")
@@ -106,11 +112,13 @@ for root in ("internal/splicore", "cmd/splicore", "protocol"):
 # Constructor enforcement and essential socket/ownership gates must remain in
 # the production implementation even when the scanner sees the same function.
 invariants = {
+	 prefix + "streamtransport/transport.go": ["NetDialContext:", "NetDialTLSContext", "Proxy: nil", "dial(ctx,", "tls.Client(raw,"],
+	 prefix + "streamtransport/grpc.go": ["grpc.WithContextDialer", "dial(ctx,", "grpc.NewClient"],
     prefix + "engine/native/proxy_outbound.go": ["underlay.DialerFrom", "d.protected.DialContext", "d.owner.Begin", "d.owner.Conn", "d.owner.Track(p)", "<-p.done", "go p.watch()"],
     prefix + "engine/native/trojan.go": ["underlay.DialerFrom(ctx, underlay.ServerTarget)", "h.protected.DialContext", "len(h.connections) >= 512", "h.wg.Wait()"],
-    prefix + "engine/native/trojan_outbound.go": ["underlay.DialerFrom", "d.protected.DialContext", "d.owner.Begin", "d.owner.Conn", "d.owner.Packet", "tls.Client(raw,"],
+    prefix + "engine/native/trojan_outbound.go": ["underlay.DialerFrom", "d.protected.DialContext", "d.owner.Begin", "d.owner.Conn", "d.owner.Packet", "shared.Dial("],
     prefix + "engine/native/vmess.go": ["underlay.DialerFrom(ctx, underlay.ServerTarget)", "h.protected.DialContext", "len(h.connections) >= 512", "h.wg.Wait()", "wire.ReadRequest", "relay.Packets"],
-    prefix + "engine/native/vmess_outbound.go": ["underlay.DialerFrom", "d.protected.DialContext", "d.owner.Begin", "d.owner.Conn", "d.owner.Packet", "tls.Client(raw,"],
+    prefix + "engine/native/vmess_outbound.go": ["underlay.DialerFrom", "d.protected.DialContext", "d.owner.Begin", "d.owner.Conn", "d.owner.Packet", "shared.Dial("],
     prefix + "engine/clientconfig/packet.go": ["underlay.DialerFrom", "underlay.DNSBootstrap", "protected.ListenPacket", "address.String()"],
     prefix + "engine/native/shadowsocks.go": ["underlay.FromContext", "underlay.DialerFrom(ctx, underlay.ServerTarget)", "h.protected = protected"],
     prefix + "engine/native/shadowsocks_outbound.go": ["underlay.DialerFrom", "d.protected.DialContext", "d.owner.Conn"],

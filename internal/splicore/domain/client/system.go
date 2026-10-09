@@ -3,7 +3,6 @@ package client
 import (
 	"net/netip"
 	"regexp"
-	"slices"
 
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 )
@@ -49,32 +48,6 @@ func (t TUNSettings) Validate() error {
 	}
 	if !t.AutoRoute && (len(t.Include) > 0 || len(t.Exclude) > 0) {
 		return identity.Err(identity.Invalid, "route capture settings require auto_route")
-	}
-	return nil
-}
-
-type SystemProxySettings struct {
-	Enabled      bool        `json:"enabled"`
-	LocalInbound identity.ID `json:"local_inbound,omitempty"`
-	Backend      string      `json:"backend,omitempty"`
-}
-type HostIntegration struct {
-	SystemProxy SystemProxySettings `json:"system_proxy"`
-}
-
-func (h HostIntegration) Validate(inbounds []LocalInbound) error {
-	p := h.SystemProxy
-	if !p.Enabled {
-		if p.LocalInbound != "" || p.Backend != "" {
-			return invalid()
-		}
-		return nil
-	}
-	if p.LocalInbound.Validate() != nil || p.Backend != "wininet" {
-		return identity.Err(identity.Invalid, "unsupported system proxy intent")
-	}
-	if !slices.ContainsFunc(inbounds, func(i LocalInbound) bool { return i.ID == p.LocalInbound && (i.Kind == "http" || i.Kind == "mixed") }) {
-		return identity.Err(identity.Invalid, "system proxy requires an owned HTTP or mixed listener")
 	}
 	return nil
 }

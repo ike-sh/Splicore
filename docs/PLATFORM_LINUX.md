@@ -30,7 +30,7 @@ Administrator-created drop-ins are administrator-owned and require explicit remo
 IPv4/IPv6 TCP/UDP, six outbounds, DNS leak detection, policy affinity and process
 recovery are exercised in disposable WSL namespaces. Native Ubuntu networking,
 physical interface changes and sudden power-loss qualification remain NOT CERTIFIED.
-Linux arm64 is build-only. Headless desktop system proxy is UNSUPPORTED.
+Linux arm64 is build-only. Desktop proxy preferences are outside Core.
 See [system integration](SYSTEM_INTEGRATION.md).
 
 ## Underlay socket and child verification

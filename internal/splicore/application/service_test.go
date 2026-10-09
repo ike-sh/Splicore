@@ -3,11 +3,11 @@ package application
 import (
 	"context"
 	"errors"
+	"github.com/ike-sh/Splicore/internal/splicore/registry/testfixture"
 	"path/filepath"
 	"testing"
 
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
-	"github.com/ike-sh/Splicore/internal/splicore/registry"
 	"github.com/ike-sh/Splicore/internal/splicore/storage/sqlite"
 	"github.com/ike-sh/Splicore/internal/splicore/version"
 )
@@ -19,7 +19,7 @@ func service(t *testing.T) *Service {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { s.Close() })
-	p, e, x, err := registry.Foundation()
+	p, e, x, err := testfixture.Foundation()
 	if err != nil {
 		t.Fatal(err)
 	}

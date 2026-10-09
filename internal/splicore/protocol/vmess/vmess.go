@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	streamcfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
 	"runtime"
 	"strings"
 
@@ -31,6 +32,7 @@ func invalid() error {
 func Unsupported(code string) error { return reasonError(identity.UnsupportedExport, code) }
 
 type Settings struct {
+	Stream          *streamcfg.Config   `json:"stream_transport,omitempty"`
 	Transport       string              `json:"transport"`
 	Security        string              `json:"security"`
 	PayloadSecurity string              `json:"payload_security"`
@@ -88,7 +90,7 @@ func noNull(b []byte) bool {
 func Decode(b []byte) (Settings, error) {
 	var s Settings
 	var err error
-	b, err = managedJSON(b, []string{"transport", "security", "payload_security", "alter_id", "tls", "alpn"})
+	b, err = managedJSON(b, []string{"transport", "security", "payload_security", "alter_id", "tls", "alpn", "stream_transport"})
 	if err != nil {
 		return s, err
 	}
@@ -106,6 +108,9 @@ func Decode(b []byte) (Settings, error) {
 	}
 	if s.AlterID != 0 {
 		return s, Unsupported("unsupported_legacy_vmess")
+	}
+	if s.Stream != nil && (s.Stream.ValidatePair("vmess", s.Security) != nil || s.Stream.ValidateServer() != nil || s.Stream.ValidateALPN(s.ALPN) != nil) {
+		return s, Unsupported("unsupported_transport")
 	}
 	if s.Transport != "tcp" {
 		return s, Unsupported("unsupported_transport")
@@ -218,13 +223,16 @@ func (m Module) BuildClientProfile(ctx context.Context, b ports.AuthorizedBindin
 	if s.Security == "tls" {
 		p.TLS = access.ClientTLS{Enabled: true, ServerName: s.TLS.ServerName, Trust: "explicit_ca", CACertificate: s.TLS.CACertificate, ALPN: s.ALPN}
 	}
+	if s.Stream != nil {
+		p.Transport = *s.Stream
+	}
 	return p, p.Validate()
 }
 func ValidateClientNode(n client.RemoteNode, c access.Credential) error {
-	if n.Protocol == Key() && n.Transport.Kind != "tcp" {
+	if n.Protocol == Key() && n.Transport.ValidatePair("vmess", n.Security.Kind) != nil {
 		return Unsupported("unsupported_transport")
 	}
-	if n.Validate() != nil || n.Protocol != Key() || n.Transport.Kind != "tcp" || (n.Security.Kind != "none" && n.Security.Kind != "tls") || c.OwnerNodeID == nil || *c.OwnerNodeID != n.ID || c.ID != n.CredentialID {
+	if n.Validate() != nil || n.Protocol != Key() || n.Transport.ValidatePair("vmess", n.Security.Kind) != nil || (n.Security.Kind != "none" && n.Security.Kind != "tls") || c.OwnerNodeID == nil || *c.OwnerNodeID != n.ID || c.ID != n.CredentialID {
 		return invalid()
 	}
 	if _, err := DecodeClientOptions(n.Options.Data); err != nil {

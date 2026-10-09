@@ -8,6 +8,9 @@
 - Lifecycle: Regenerate after dependency graph changes.
 
 Root LICENSE and NOTICE.md remain authoritative for Splicore derivative provenance.
+Phase 21 adds independent Gorilla WebSocket v1.5.3 (BSD-2-Clause) and uses the
+already selected grpc-go v1.80.0 (Apache-2.0) directly. Their complete notices are
+listed below. No Xray, sing-box or Mihomo implementation source is imported.
 This inventory records locally materialized selected modules, including test/tool
 dependencies. Full graph-only non-linked nodes are listed in external evidence;
 they are not represented as linked product code. No publication is performed.
@@ -26,6 +29,7 @@ verified against the three binary metadata inventories.
 | github.com/go-logr/logr | v1.4.3 | [LICENSE](licenses/third-party/github.com/go-logr/logr/v1.4.3/LICENSE) |
 | github.com/go-logr/stdr | v1.2.2 | [LICENSE](licenses/third-party/github.com/go-logr/stdr/v1.2.2/LICENSE) |
 | github.com/gofrs/uuid/v5 | v5.5.1 | [LICENSE](licenses/third-party/github.com/gofrs/uuid/v5/v5.5.1/LICENSE) |
+| github.com/gorilla/websocket | v1.5.3 | [LICENSE](licenses/third-party/github.com/gorilla/websocket/v1.5.3/LICENSE) |
 | github.com/golang/protobuf | v1.5.4 | [AUTHORS](licenses/third-party/github.com/golang/protobuf/v1.5.4/AUTHORS), [LICENSE](licenses/third-party/github.com/golang/protobuf/v1.5.4/LICENSE) |
 | github.com/google/btree | v1.1.3 | [LICENSE](licenses/third-party/github.com/google/btree/v1.1.3/LICENSE) |
 | github.com/google/go-cmp | v0.7.0 | [LICENSE](licenses/third-party/github.com/google/go-cmp/v0.7.0/LICENSE) |
@@ -105,6 +109,7 @@ Exact source/notice hashes: external round2-license-attempt2/inventory.json.
 SagerNet full graph nodes: 0. No local replace directive, vendored substitute,
 cache-source modification or external-core production subprocess was added.
 
-The original WinDivert64.sys embedded resource and common/windivert/assets/LICENSE.txt
-remain separately preserved. Historical sing-box GPL attribution remains even
+Orphan WinDivert binaries and their adjacent license were removed from the active
+tree in Phase 21 Deep Core Purge; their exact bytes remain in precleanup evidence.
+No retained source embeds or derives from those driver assets. Historical sing-box GPL attribution remains even
 though its active Go dependencies and inherited dead runtime were removed.

@@ -23,7 +23,7 @@ func vmessIssue(index int, err error, unsupportedCode string) Issue {
 	return Issue{index, "Invalid", "invalid_vmess"}
 }
 
-func externalVMess(format string, b []byte) (Candidate, error) {
+func externalVMessBase(format string, b []byte) (Candidate, error) {
 	var c Candidate
 	var n struct {
 		Type       string          `json:"type"`

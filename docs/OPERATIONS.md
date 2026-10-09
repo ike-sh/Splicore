@@ -116,7 +116,7 @@ database rather than deleting user intent. Phase 13 host integration scope and p
 
 Host journal recovery precedes desired client restoration. ExecStopPost restores only recorded resources under the service owner. A corrupt/conflicting journal is degraded; stop client then use `network repair` for reconcile. Do not delete journal or reset host networking. Doctor/bundles use redacted summaries. Windows auto-route rejects; native Linux and Windows qualification are pending. See [system integration](SYSTEM_INTEGRATION.md).
 
-Windows typed WinINET restoration preserves external changes; unexpected owned
+Core recovery preserves external changes; unexpected owned
 listener exit restores the prior snapshot or reports debt. Wintun failed child
 cleanup retains its parent adapter. Original Windows activation guards remain
 pending real Windows platform qualification. See [recovery](RECOVERY.md).

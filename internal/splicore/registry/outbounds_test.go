@@ -1,7 +1,9 @@
-package registry
+package registry_test
 
 import (
 	"github.com/ike-sh/Splicore/internal/splicore/engine/native"
+	. "github.com/ike-sh/Splicore/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/registry/testfixture"
 	"testing"
 )
 
@@ -24,7 +26,7 @@ func TestClientOutboundRegistryExactPairsAndRoles(t *testing.T) {
 	if _, err = NewOutbounds(nil); err == nil {
 		t.Fatal("nil accepted")
 	}
-	p, _, _, _ := Phase2()
+	p, _, _, _ := testfixture.Phase2()
 	for _, key := range p.Keys() {
 		m, _ := p.Get(key)
 		roles := m.Metadata().Roles

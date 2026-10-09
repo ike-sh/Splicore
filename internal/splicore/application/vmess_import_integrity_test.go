@@ -46,8 +46,8 @@ func fix1Batch(format string, order []int) string {
 			n[alter] = 64
 			uri["aid"] = 64
 		case 2:
-			n["network"] = "ws"
-			uri["net"] = "ws"
+			n["network"] = "xhttp"
+			uri["net"] = "xhttp"
 		case 3:
 			n[security] = "aes-128-cfb"
 			uri["scy"] = "aes-128-cfb"
@@ -72,7 +72,7 @@ func fix1Batch(format string, order []int) string {
 			case 1:
 				c.Node.Options.Data = []byte(`{"alter_id":64}`)
 			case 2:
-				c.Node.Transport.Kind = "ws"
+				c.Node.Transport.Kind = "xhttp"
 			case 3:
 				c.Node.Options.Data = []byte(`{"security":"aes-128-cfb"}`)
 			case 4:

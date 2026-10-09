@@ -2,14 +2,13 @@ package hostnetwork
 
 import "github.com/ike-sh/Splicore/internal/splicore/nativetun"
 
-// Passive capability observations contain no host routes, addresses or proxy values.
+// Passive capability observations contain no host routes, addresses or private values.
 type Capabilities struct {
 	TUN            string `json:"tun"`
 	Stack          string `json:"stack"`
 	AutoRoute      string `json:"auto_route"`
 	Driver         string `json:"driver"`
 	Privilege      string `json:"privilege"`
-	SystemProxy    string `json:"system_proxy"`
 	LoopProtection string `json:"loop_protection"`
 }
 

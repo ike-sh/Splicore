@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/ike-sh/Splicore/internal/splicore/registry/testfixture"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,7 +20,6 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/policy"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
-	"github.com/ike-sh/Splicore/internal/splicore/registry"
 	"github.com/ike-sh/Splicore/internal/splicore/secretvault"
 )
 
@@ -80,7 +80,7 @@ func actor(t *testing.T) identity.Actor {
 
 func options(t *testing.T) Options {
 	t.Helper()
-	p, _, _, err := registry.Foundation()
+	p, _, _, err := testfixture.Foundation()
 	if err != nil {
 		t.Fatal(err)
 	}

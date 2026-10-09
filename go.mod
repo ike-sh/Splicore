@@ -4,6 +4,7 @@ go 1.26.3
 
 require (
 	github.com/gofrs/uuid/v5 v5.5.1
+	github.com/gorilla/websocket v1.5.3
 	github.com/metacubex/utls v1.8.7
 	github.com/miekg/dns v1.1.72
 	golang.org/x/crypto v0.54.0
@@ -19,10 +20,10 @@ require (
 	github.com/vishvananda/netns v0.0.5 // indirect
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect
 	golang.org/x/mod v0.38.0 // indirect
-	golang.org/x/net v0.57.0 // indirect
+	golang.org/x/net v0.57.0
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
-	google.golang.org/grpc v1.80.0 // indirect
+	google.golang.org/grpc v1.80.0
 )
 
 require (

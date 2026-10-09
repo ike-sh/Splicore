@@ -188,11 +188,6 @@ func (p *Platform) Authorize(g Generation) error {
 		s.Key = *cloneRecord(&s.Key)
 		s.Before = cloneRecord(s.Before)
 		s.After = cloneRecord(s.After)
-		states := s.Intermediates
-		s.Intermediates = nil
-		for _, r := range states {
-			s.Intermediates = append(s.Intermediates, cloneRecord(r))
-		}
 		p.authorizations[s.Key.key()] = s
 	}
 	return nil

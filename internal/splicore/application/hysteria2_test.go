@@ -12,6 +12,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	hm "github.com/ike-sh/Splicore/internal/splicore/protocol/hysteria2"
 	"github.com/ike-sh/Splicore/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/registry/testfixture"
 	"github.com/ike-sh/Splicore/internal/splicore/secretvault"
 	"github.com/ike-sh/Splicore/internal/splicore/storage/sqlite"
 	"github.com/ike-sh/Splicore/internal/splicore/testkit"
@@ -27,7 +28,7 @@ import (
 )
 
 func setupHysteria(t *testing.T, path string, wrap func(ports.MultiBindingRepository) ports.Repository) (*application.Service, *sqlite.Store) {
-	return setupProtocols(t, path, wrap, registry.Phase3)
+	return setupProtocols(t, path, wrap, testfixture.Phase3)
 }
 func setupProtocols(t *testing.T, path string, wrap func(ports.MultiBindingRepository) ports.Repository, compose func() (*registry.Protocols, *registry.Engines, *registry.Exporters, error), factories ...*underlay.Factory) (*application.Service, *sqlite.Store) {
 	t.Helper()
@@ -318,7 +319,7 @@ func TestHysteria2StartupFaults(t *testing.T) {
 		t.Run(stage, func(t *testing.T) {
 			s, store := setupHysteria(t, filepath.Join(t.TempDir(), "state", "state.db"), nil)
 			defer stop(t, s, store)
-			p, _, x, _ := registry.Phase3()
+			p, _, x, _ := testfixture.Phase3()
 			h := &faultHandle{stage: stage}
 			eng, _ := registry.NewEngines(faultEngine{stage: stage, handle: h})
 			svc, e := application.New(store, p, eng, x, version.Current())

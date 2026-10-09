@@ -35,11 +35,11 @@ func TestTrojanPublicTrustExportImport(t *testing.T) {
 			t.Fatal("roundtrip semantic loss")
 		}
 	}
-	v, e := nodeimport.Parse("uri", []byte("trojan://SyntheticImportTrojanPassword@127.0.0.1:443?type=ws"))
+	v, e := nodeimport.Parse("uri", []byte("trojan://SyntheticImportTrojanPassword@127.0.0.1:443?type=xhttp"))
 	if e != nil || len(v.Issues) != 1 || v.Issues[0].Kind != "Unsupported" {
 		t.Fatal("unsupported classification lost")
 	}
-	for _, field := range []string{`"fingerprint":"pin"`, `"client-fingerprint":"chrome"`, `"network":"ws"`, `"transport":"ws"`, `"skip-cert-verify":true`, `"method":"aes-128-gcm"`, `"udp":null`} {
+	for _, field := range []string{`"fingerprint":"pin"`, `"client-fingerprint":"chrome"`, `"network":"xhttp"`, `"transport":"ws"`, `"skip-cert-verify":true`, `"method":"aes-128-gcm"`, `"udp":null`} {
 		b := []byte(`{"proxies":[{"name":"synthetic","type":"trojan","server":"127.0.0.1","port":443,"password":"SyntheticImportTrojanPassword",` + field + `}]}`)
 		v, e := nodeimport.Parse("mihomo", b)
 		if e == nil && len(v.Issues) == 0 {

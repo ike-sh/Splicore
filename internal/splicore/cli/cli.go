@@ -30,7 +30,7 @@ func Run(ctx context.Context, args []string, out, errOut io.Writer, deps Depende
 	if len(args) > 0 && (args[0] == "provider" || args[0] == "ruleset-provider" || args[0] == "node" && len(args) > 1 && (args[1] == "import" || args[1] == "import-uri" || args[1] == "export" || args[1] == "batch" || args[1] == "apply")) {
 		return managementCLI(ctx, args, out, errOut, deps)
 	}
-	if len(args) > 0 && (args[0] == "tun" || args[0] == "system-proxy" || args[0] == "network" && len(args) > 1 && args[1] == "repair") {
+	if len(args) > 0 && (args[0] == "tun" || args[0] == "network" && len(args) > 1 && args[1] == "repair") {
 		return clientCLI(ctx, args, out, errOut, deps)
 	}
 	if len(args) > 0 && (args[0] == "network" || args[0] == "policy" || args[0] == "dns" || args[0] == "rule-set" || args[0] == "route-rule" || args[0] == "route" && len(args) > 1 && (args[1] == "explain" || args[1] == "status")) {

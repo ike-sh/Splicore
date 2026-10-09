@@ -1,64 +1,61 @@
-# Runtime and process lifecycle
+# Core Runtime Lifecycle
 
 - Documentation status: Canonical
 - Audience: Runtime and engine developers
-- Last reviewed: 2026-10-01
-- Owner: Core / Engine maintainers
-- Responsibility: Startup, admission, shutdown, recovery and future child ownership.
-- Lifecycle: Update with relevant design/code changes under the documentation policy.
+- Last reviewed: 2026-10-09
+- Owner: Core maintainers
+- Responsibility: Core startup, admission, shutdown and owned resource recovery.
+- Lifecycle: Update with runtime ownership or transaction changes.
 
-## Current Phase 2 implementation
+## Composition and startup
 
-Snell has Start/Health/Activate/Close, closed pending admission, raw socket tracking, idempotent shutdown and SQLite-only restart. Health is listener readiness. See [composition ADR](../adr/0013-snell-runtime-composition.md). Broader reconcile/hot reload/child contracts below remain proposed.
+One `splicore` process runs server and client Core roles. Native is the sole
+runtime engine; Mieru is an embedded official SDK. Production never launches
+Xray, sing-box or Mihomo. Historical external-engine proposals remain in ADRs
+and reports, outside the current contract.
 
-HY2 implements the same handle contract using an owned UDP socket and the exact
-pinned QUIC service/TLS constructors. Its immutable user map uses Binding IDs.
-Close clears admission, cancels sessions, permits QUIC close writes for 100 ms,
-then releases service/socket/Box. Listener reuse and forced-client shutdown are
-tested. Binding changes reconstruct only that Inbound, interrupt other users and
-reset stats; HotUserUpdate/HotReload are false. See [ADR 0014](../adr/0014-hysteria2-runtime-composition.md).
+Startup validates bootstrap and persisted intent, acquires process ownership,
+opens SQLite, checks frozen schema history and recovers Core journals before
+activating traffic. Registries select exact owned protocol implementations.
+Prepared generations keep admission closed until application transactions
+commit and publish them. Listener health does not imply platform qualification.
 
-Target Linux deployment: one systemd unit `splicore.service`, one native process,
-many logical Inbounds and internal listeners. Systemd restarts the main process;
-Splicore reconciles committed state and supervises optional children.
+The application preserves committed state if candidate construction, binding or
+activation fails. Binding/account identities and authentication maps belong to
+their generations. Protocol capabilities determine supported mutation behavior;
+runtime cleanup does not add hot reload or user updates.
 
-Startup: load bootstrap → establish process identity/ownership lock → open/check DB
-and schema → migration if explicitly permitted → recover pending journal → compile
-committed domain generation → construct native registries/Box → staged start →
-protocol/identity/policy health → activate admissions → serve local control API.
-Diagnostics can report startup/recovery state while the data plane is unavailable.
+## Client generations
 
-Native adapters remain inside one process even when a single-user protocol expands
-into per-binding instances/listeners. Port allocation/conflicts and display endpoints
-must be included in the plan; no per-protocol systemd units. A separate external
-engine failure can degrade its own bindings while native bindings continue.
+Client route/DNS/policy snapshots own adapter leases. Existing streams and UDP
+associations retain their original generation; normal replacement retires it
+after the last reference releases. Explicit stop/restart cancels sessions and
+joins pending dials, relays and socket cleanup. Shared stream transports own
+their workers and connection lifetime within these same boundaries.
 
-## Child supervision (future)
+See [client runtime](CLIENT_RUNTIME.md) and [shared transport](SHARED_TRANSPORT.md).
 
-Pin executable digest/version and config schema; render protected per-generation
-config, validate, launch without shell under limited identity, drain logs with
-bounded buffers/redaction, monitor exit/readiness/auth health and enforce a restart
-budget. Persist generation and child ownership metadata. A PID alone is insufficient:
-verify incarnation/start time/executable/cgroup before cleanup; never kill an unrelated
-reused PID. Clear privileged environment and use private management endpoints.
-Main-process death must terminate children using process groups/parent-death signals
-and systemd KillMode=cgroup, with platform equivalents for Windows.
+## TUN and recovery
 
-Restart after child crash reconstructs the committed child generation, registers a
-new stats epoch, and blocks unqualified policy enforcement rather than forgetting
-quota. Config rollback uses last committed child snapshot. Cross-native/child
-operations are a compensated multi-engine plan, not a distributed ACID transaction.
+Native TUN owns its device, interfaces, routes, sessions and resolver integration.
+Packet readers stop before network restoration. Core journals enforce scope,
+generation and exact-state ownership. Recovery preserves external mutations and
+retains parent resources until child recovery debt is resolved.
 
-## Shutdown/reload
+Historical restored desktop records may remain as opaque journal data. Unfinished
+legacy debt produces a typed unsupported diagnostic before store or OS writes.
+Current plans cannot create desktop resource records. Frozen desktop desired
+state is inert and has no current reader/writer or activation path.
 
-Stop accepting new mutations, finish or journal current operation, block new data
-admission, drain sessions with deadlines, settle/flush usage, stop/reap children,
-close native inbounds/managers, close DB and logs. Abrupt death must be recoverable
-without a final shutdown hook. Files/signals cannot bypass application transactions.
-Bootstrap changes may require restart; domain updates use validate/plan/apply.
+See [recovery](../RECOVERY.md) and [Core scope](CORE_SCOPE.md).
 
-Default Phase 1 user/listener changes are classified restart/rebuild. Fine-grained
-hot updates are enabled only after protocol-specific concurrency, revocation,
-same-port replacement and compensation tests. SIGHUP in upstream is not evidence
-of transactional reload. Rollback means restoring configuration availability;
-closed sessions remain closed and clients reconnect.
+## Shutdown and service deployment
+
+Close admission, cancel/join sessions and workers, release native adapters and
+restore only Core-owned network state before releasing storage/ownership.
+Interrupted transactions and abrupt process death recover from durable Core
+journals rather than relying on a final shutdown hook.
+
+Core installers and `splicore.service` deploy this single native process.
+Platform-specific socket, route, interface and service primitives are Core;
+desktop preference management is outside this product.

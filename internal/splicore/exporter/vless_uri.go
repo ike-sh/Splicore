@@ -6,6 +6,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
+	streamcfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
 	module "github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
 	"net"
 	"net/url"
@@ -14,6 +15,7 @@ import (
 )
 
 type VLESSURI struct {
+	Transport  streamcfg.Config
 	Endpoint   access.Endpoint
 	UUID       secret.Value
 	Security   module.Security
@@ -30,6 +32,9 @@ func renderVLESSURI(p clientprofile.Profile, c access.UUIDPayload, o module.Clie
 		return nil, unsupported()
 	}
 	q := url.Values{"encryption": {"none"}, "type": {"tcp"}, "security": {string(o.Security)}, "packetEncoding": {"xudp"}}
+	if p.Transport.PutQuery(q) != nil {
+		return nil, unsupported()
+	}
 	if o.Security == module.Reality {
 		q.Set("sni", p.TLS.ServerName)
 		q.Set("pbk", p.TLS.RealityPublicKey)
@@ -67,16 +72,21 @@ func ParseVLESSURI(s string) (VLESSURI, error) {
 	if err != nil {
 		return out, unsupported()
 	}
-	allowed := map[string]bool{"encryption": true, "type": true, "security": true, "packetEncoding": true, "flow": true, "sni": true, "pbk": true, "sid": true, "fp": true}
+	allowed := map[string]bool{"encryption": true, "type": true, "security": true, "packetEncoding": true, "flow": true, "sni": true, "pbk": true, "sid": true, "fp": true, "path": true, "host": true, "serviceName": true}
 	for k, v := range q {
 		if !allowed[k] || len(v) != 1 {
 			return out, unsupported()
 		}
 	}
-	if q.Get("encryption") != "none" || q.Get("type") != "tcp" || q.Get("packetEncoding") != "xudp" {
+	if q.Get("encryption") != "none" || q.Get("type") == "" || q.Get("packetEncoding") != "xudp" {
 		return out, unsupported()
 	}
 	out.Security = module.Security(q.Get("security"))
+	transport, e := streamcfg.Query(q)
+	if e != nil || transport.ValidatePair("vless", string(out.Security)) != nil {
+		return out, unsupported()
+	}
+	out.Transport = transport
 	out.Flow = module.NoFlow
 	if f := q.Get("flow"); f != "" {
 		out.Flow = module.Flow(f)

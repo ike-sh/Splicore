@@ -62,10 +62,9 @@ type clientSummary struct {
 	Providers   []providerSummary `json:"providers"`
 	Underlay    underlay.Status   `json:"underlay"`
 	HostNetwork struct {
-		Recovery    string `json:"recovery"`
-		Interfaces  int    `json:"owned_interfaces"`
-		Routes      int    `json:"owned_routes"`
-		SystemProxy bool   `json:"system_proxy_owned"`
+		Recovery   string `json:"recovery"`
+		Interfaces int    `json:"owned_interfaces"`
+		Routes     int    `json:"owned_routes"`
 	} `json:"host_network"`
 	Health        string                  `json:"health"`
 	Enabled       bool                    `json:"enabled"`
@@ -93,7 +92,6 @@ func clientProjection(ctx context.Context, q SupportSource) clientSummary {
 	result.HostNetwork.Recovery = enum(s.Host.Recovery, "clean", "degraded", "unconfigured")
 	result.HostNetwork.Interfaces = s.Host.OwnedInterfaces
 	result.HostNetwork.Routes = s.Host.OwnedRoutes
-	result.HostNetwork.SystemProxy = s.Host.SystemProxy
 	result.Enabled = s.State.Enabled
 	for _, p := range s.State.Management.Providers {
 		age := int64(0)
@@ -182,7 +180,7 @@ func ClientDoctorChecks(s *clientruntime.Status) []application.Check {
 		underlayStatus = "fail"
 	}
 	checks = append(checks, application.Check{Name: "underlay_protection", Status: underlayStatus, Detail: underlayHealth}, application.Check{Name: "underlay_strategy", Status: "info", Detail: enum(u.Strategy, "socket-mark-and-journaled-daemon-uid", "interface-and-endpoint-leases", "activation-unqualified")}, application.Check{Name: "underlay_generations", Status: "info", Detail: strconv.Itoa(len(u.Generations)) + " active"}, application.Check{Name: "underlay_infrastructure", Status: "info", Detail: strconv.Itoa(u.Endpoints) + " infrastructure addresses; arbitrary target history is not retained"}, application.Check{Name: "underlay_unprotected", Status: underlayStatus, Detail: strconv.Itoa(u.Unprotected) + " required runtimes"}, application.Check{Name: "underlay_dependency_loop", Status: "info", Detail: "canonical dependency validation required before runtime preparation"})
-	checks = append(checks, application.Check{Name: "tun_capability", Status: "info", Detail: enum(c.TUN, "experimental", "experimental-not-certified", "unsupported", "build-unavailable")}, application.Check{Name: "tun_stack", Status: "info", Detail: enum(c.Stack, "gvisor", "not-included")}, application.Check{Name: "tun_privileges", Status: "info", Detail: enum(c.Privilege, "CAP_NET_ADMIN-required", "elevation-required", "elevated", "unsupported")}, application.Check{Name: "tun_auto_route", Status: "info", Detail: enum(c.AutoRoute, "implemented", "unsupported")}, application.Check{Name: "loop_exclusions", Status: "info", Detail: enum(c.LoopProtection, "dedicated-daemon-uid-main-table", "auto-route-fail-closed", "unsupported")}, application.Check{Name: "host_routes", Status: "info", Detail: strconv.Itoa(s.Host.OwnedRoutes) + " owned"}, application.Check{Name: "system_proxy_owned", Status: "info", Detail: strconv.FormatBool(s.Host.SystemProxy)})
+	checks = append(checks, application.Check{Name: "tun_capability", Status: "info", Detail: enum(c.TUN, "experimental", "experimental-not-certified", "unsupported", "build-unavailable")}, application.Check{Name: "tun_stack", Status: "info", Detail: enum(c.Stack, "gvisor", "not-included")}, application.Check{Name: "tun_privileges", Status: "info", Detail: enum(c.Privilege, "CAP_NET_ADMIN-required", "elevation-required", "elevated", "unsupported")}, application.Check{Name: "tun_auto_route", Status: "info", Detail: enum(c.AutoRoute, "implemented", "unsupported")}, application.Check{Name: "loop_exclusions", Status: "info", Detail: enum(c.LoopProtection, "dedicated-daemon-uid-main-table", "auto-route-fail-closed", "unsupported")}, application.Check{Name: "host_routes", Status: "info", Detail: strconv.Itoa(s.Host.OwnedRoutes) + " owned"})
 	driver := enum(c.Driver, "linux-tun", "missing-or-inaccessible", "missing", "unavailable", "available-version-unknown", "unsupported")
 	if driver == "unknown" {
 		driver = "available-version-reported"

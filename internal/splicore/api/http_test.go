@@ -3,6 +3,7 @@ package api_test
 import (
 	"context"
 	"encoding/json"
+	"github.com/ike-sh/Splicore/internal/splicore/registry/testfixture"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -12,7 +13,6 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/api"
 	"github.com/ike-sh/Splicore/internal/splicore/application"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
-	"github.com/ike-sh/Splicore/internal/splicore/registry"
 	"github.com/ike-sh/Splicore/internal/splicore/storage/sqlite"
 	"github.com/ike-sh/Splicore/internal/splicore/version"
 )
@@ -24,7 +24,7 @@ func handler(t *testing.T) http.Handler {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { store.Close() })
-	p, e, x, _ := registry.Foundation()
+	p, e, x, _ := testfixture.Foundation()
 	s, err := application.New(store, p, e, x, version.Current())
 	if err != nil {
 		t.Fatal(err)

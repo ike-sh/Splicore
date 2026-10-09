@@ -7,10 +7,12 @@ import (
 	"github.com/gofrs/uuid/v5"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	streamcfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/engine/relay"
 	"github.com/ike-sh/Splicore/internal/splicore/engine/traffic"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	module "github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
+	shared "github.com/ike-sh/Splicore/internal/splicore/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"github.com/ike-sh/Splicore/protocol/vless/backend"
 	"github.com/ike-sh/Splicore/protocol/vless/wire"
@@ -57,6 +59,9 @@ func (c VLESSCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (por
 	}
 	ctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	h := &vlessHandle{ctx: ctx, cancel: cancel, endpoint: in.Inbound.Listeners[0].Endpoint, protected: dialer, total: &traffic.Counter{}, users: map[string]*traffic.Counter{}, uuids: map[[16]byte]string{}, connections: map[net.Conn]bool{}, done: make(chan struct{})}
+	if s.Stream != nil {
+		h.transport = *s.Stream
+	}
 	for i, b := range in.Bindings {
 		id := string(b.ID)
 		h.users[id] = &traffic.Counter{}
@@ -76,6 +81,7 @@ func (c VLESSCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (por
 			return nil, identity.Err(identity.Invalid, "invalid VLESS TLS snapshot")
 		}
 		tc := &tls.Config{Certificates: []tls.Certificate{pair}, MinVersion: tls.VersionTLS13}
+		h.transportTLS = tc
 		h.handshake = func(ctx context.Context, c net.Conn) (net.Conn, error) {
 			tlsConn := tls.Server(c, tc)
 			if err := tlsConn.HandshakeContext(ctx); err != nil {
@@ -107,6 +113,8 @@ func (c VLESSCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (por
 }
 
 type vlessHandle struct {
+	transport         streamcfg.Config
+	transportTLS      *tls.Config
 	lifecycle, mu     sync.Mutex
 	ctx               context.Context
 	cancel            context.CancelFunc
@@ -148,6 +156,14 @@ func (h *vlessHandle) Start(ctx context.Context) error {
 			return identity.Err(identity.PortConflict, "TCP listener port is already in use")
 		}
 		return identity.Err(identity.Unavailable, "VLESS listener start failed")
+	}
+	if h.transport.Type() != "tcp" {
+		wrapped, e := shared.WrapListener(l, h.transport, h.transportTLS)
+		if e != nil {
+			l.Close()
+			return e
+		}
+		l = wrapped
 	}
 	h.listener = l
 	h.running.Store(true)
@@ -235,7 +251,7 @@ func (h *vlessHandle) serve(raw net.Conn) {
 	defer func() { h.mu.Lock(); delete(h.connections, raw); h.mu.Unlock() }()
 	_ = raw.SetDeadline(time.Now().Add(5 * time.Second))
 	var c net.Conn = raw
-	if h.handshake != nil {
+	if h.handshake != nil && h.transport.Type() == "tcp" {
 		var err error
 		c, err = h.handshake(h.ctx, raw)
 		if err != nil {

@@ -146,8 +146,18 @@
   ],
   [
     "internal/splicore/engine/native/snell_outbound.go",
+    "DialContext",
+    "raw, e := d.dial(ctx)"
+  ],
+  [
+    "internal/splicore/engine/native/snell_outbound.go",
     "ListenPacket",
     "ips, e := d.resolver.LookupNetIP(ctx, \"ip\", dst.Host)"
+  ],
+  [
+    "internal/splicore/engine/native/snell_outbound.go",
+    "ListenPacket",
+    "raw, e := d.dial(ctx)"
   ],
   [
     "internal/splicore/engine/native/snell_outbound.go",
@@ -172,7 +182,7 @@
   [
     "internal/splicore/engine/native/trojan_outbound.go",
     "open",
-    "raw, err := d.protected.DialContext(ctx, \"tcp\", net.JoinHostPort(d.node.Endpoint.Host, portString(d.node.Endpoint.Port)))"
+    "raw, err := shared.Dial(ctx, d.protected.DialContext, net.JoinHostPort(d.node.Endpoint.Host, portString(d.node.Endpoint.Port)), d.node.Transport, d.tls)"
   ],
   [
     "internal/splicore/engine/native/tuic.go",
@@ -212,7 +222,7 @@
   [
     "internal/splicore/engine/native/vless_outbound.go",
     "open",
-    "c, err := d.protected.DialContext(ctx, \"tcp\", net.JoinHostPort(d.node.Endpoint.Host, portString(d.node.Endpoint.Port)))"
+    "c, err := shared.Dial(ctx, d.protected.DialContext, net.JoinHostPort(d.node.Endpoint.Host, portString(d.node.Endpoint.Port)), d.node.Transport, d.tls)"
   ],
   [
     "internal/splicore/engine/native/vmess.go",
@@ -232,7 +242,12 @@
   [
     "internal/splicore/engine/native/vmess_outbound.go",
     "open",
-    "c, err := d.protected.DialContext(ctx, \"tcp\", net.JoinHostPort(d.node.Endpoint.Host, portString(d.node.Endpoint.Port)))"
+    "c, err := shared.Dial(ctx, d.protected.DialContext, net.JoinHostPort(d.node.Endpoint.Host, portString(d.node.Endpoint.Port)), d.node.Transport, d.tls)"
+  ],
+  [
+    "internal/splicore/engine/relay/packet.go",
+    "target",
+    "c, err := p.dial(ctx, dst)"
   ],
   [
     "internal/splicore/networkruntime/dns.go",
@@ -248,6 +263,11 @@
     "internal/splicore/networkruntime/dns.go",
     "dialPurpose",
     "pc, err = p.ListenPacket(ctx, target)"
+  ],
+  [
+    "internal/splicore/networkruntime/dns.go",
+    "exchangeDNS",
+    "conn, err := e.dial(ctx, action, network, endpoint)"
   ],
   [
     "internal/splicore/networkruntime/underlay.go",
@@ -273,6 +293,36 @@
     "internal/splicore/remotesource/fetch.go",
     "Fetch",
     "return n.Dial(ctx, access.Endpoint{Host: ips[0].Unmap().String(), Port: uint16(number)})"
+  ],
+  [
+    "internal/splicore/streamtransport/grpc.go",
+    "dialGRPC",
+    "cc, e := grpc.NewClient(\"passthrough:///\"+address, opts...)"
+  ],
+  [
+    "internal/splicore/streamtransport/grpc.go",
+    "dialGRPC",
+    "opts := []grpc.DialOption{grpc.WithTransportCredentials(creds), grpc.WithMaxHeaderListSize(cfg.MaxHeaders), grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) { return dial(ctx, \"tcp\", address) }), grpc.WithDefaultCallOptions(grpc.ForceCodec(hunkCodec{}), grpc.MaxCallRecvMsgSize(MaxMessage+16), grpc.MaxCallSendMsgSize(MaxMessage+16))}"
+  ],
+  [
+    "internal/splicore/streamtransport/transport.go",
+    "Dial",
+    "raw, e := dial(ctx, \"tcp\", address)"
+  ],
+  [
+    "internal/splicore/streamtransport/transport.go",
+    "Dial",
+    "raw, e := dial(ctx, network, address)"
+  ],
+  [
+    "internal/splicore/streamtransport/transport.go",
+    "Dial",
+    "raw, e := dial(ctx, network, address)"
+  ],
+  [
+    "internal/splicore/streamtransport/transport.go",
+    "Dial",
+    "ws, resp, e := wd.DialContext(ctx, u, h)"
   ],
   [
     "internal/splicore/transport/client.go",
@@ -381,8 +431,18 @@
   ],
   [
     "protocol/mieru/backend/mieru_outbound.go",
+    "DialContext",
+    "return o.dial(ctx, \"tcp\", e)"
+  ],
+  [
+    "protocol/mieru/backend/mieru_outbound.go",
     "ListenPacket",
     "c, err := d.protected.ListenPacket(joined, network, laddr, raddr)"
+  ],
+  [
+    "protocol/mieru/backend/mieru_outbound.go",
+    "ListenPacket",
+    "c, err := o.dial(ctx, \"udp\", e)"
   ],
   [
     "protocol/mieru/backend/mieru_outbound.go",

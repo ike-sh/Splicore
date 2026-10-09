@@ -116,5 +116,8 @@ func (m Module) BuildClientProfile(_ context.Context, b ports.AuthorizedBinding)
 	if s.Security == Reality {
 		p.TLS = clientprofile.TLS{Enabled: true, ServerName: s.Reality.ServerName, Trust: "reality", RealityPublicKey: string(s.Reality.PublicKey), RealityShortID: string(s.Reality.ShortIDs[0])}
 	}
+	if s.Stream != nil {
+		p.Transport = *s.Stream
+	}
 	return p, p.Validate()
 }

@@ -391,7 +391,7 @@ func (s *Service) diffNodes(ctx context.Context, p *managementPlan, parsed nodei
 		if n.Protocol == vmm.Key() && candidate.Credential.Kind == access.UUID && (access.UUIDPayload{UUID: secret.New(candidate.Credential.Value)}).Validate() != nil {
 			e = vmm.InvalidCredential()
 		}
-		if e == nil && n.Protocol == vmm.Key() && n.Transport.Kind != "tcp" {
+		if e == nil && n.Protocol == vmm.Key() && n.Transport.ValidatePair("vmess", n.Security.Kind) != nil {
 			e = vmm.Unsupported("unsupported_transport")
 		}
 		if e == nil {

@@ -12,6 +12,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	tm "github.com/ike-sh/Splicore/internal/splicore/protocol/tuic"
 	"github.com/ike-sh/Splicore/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/registry/testfixture"
 	"github.com/ike-sh/Splicore/internal/splicore/storage/sqlite"
 	"github.com/ike-sh/Splicore/internal/splicore/testkit"
 	"github.com/ike-sh/Splicore/internal/splicore/tlsconfig"
@@ -26,7 +27,7 @@ import (
 )
 
 func setupTUIC(t *testing.T, path string, wrap func(ports.MultiBindingRepository) ports.Repository) (*application.Service, *sqlite.Store) {
-	return setupProtocols(t, path, wrap, registry.Phase4)
+	return setupProtocols(t, path, wrap, testfixture.Phase4)
 }
 func tuDoc(t *testing.T, port uint16, tls tlsconfig.Settings) json.RawMessage {
 	t.Helper()
@@ -246,7 +247,7 @@ func TestTUICStartupFaults(t *testing.T) {
 		t.Run(stage, func(t *testing.T) {
 			s, store := setupTUIC(t, filepath.Join(t.TempDir(), "state", "state.db"), nil)
 			defer stop(t, s, store)
-			p, _, x, _ := registry.Phase4()
+			p, _, x, _ := testfixture.Phase4()
 			h := &faultHandle{stage: stage}
 			eng, _ := registry.NewEngines(faultEngine{stage: stage, handle: h})
 			svc, e := application.New(store, p, eng, x, version.Current())

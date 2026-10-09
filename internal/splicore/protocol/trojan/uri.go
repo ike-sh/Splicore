@@ -2,6 +2,7 @@ package trojan
 
 import (
 	"fmt"
+	streamcfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
 	"net"
 	"net/url"
 	"strconv"
@@ -15,10 +16,11 @@ import (
 )
 
 type URI struct {
-	Endpoint access.Endpoint
-	Password secret.Value
-	TLS      access.ClientTLS
-	Name     string
+	Transport streamcfg.Config
+	Endpoint  access.Endpoint
+	Password  secret.Value
+	TLS       access.ClientTLS
+	Name      string
 }
 
 func (URI) Format(s fmt.State, _ rune) { _, _ = s.Write([]byte("TrojanURI{[REDACTED]}")) }
@@ -66,12 +68,12 @@ func ParseURI(raw string) (URI, error) {
 			return v, invalid()
 		}
 		switch k {
-		case "sni", "peer", "alpn", "security", "type", "allowInsecure", "insecure":
+		case "sni", "peer", "alpn", "security", "type", "path", "host", "serviceName", "allowInsecure", "insecure":
 		default:
 			return v, identity.Err(identity.UnsupportedExport, "unsupported Trojan URI parameter")
 		}
 	}
-	if q.Get("security") != "" && q.Get("security") != "tls" || q.Get("type") != "" && q.Get("type") != "tcp" || q.Get("insecure") != "" && q.Get("insecure") != "0" || q.Get("allowInsecure") != "" && q.Get("allowInsecure") != "0" {
+	if q.Get("security") != "" && q.Get("security") != "tls" || q.Get("insecure") != "" && q.Get("insecure") != "0" || q.Get("allowInsecure") != "" && q.Get("allowInsecure") != "0" {
 		return v, identity.Err(identity.UnsupportedExport, "unsupported Trojan URI security or transport")
 	}
 	if q.Get("sni") != "" && q.Get("peer") != "" {
@@ -101,6 +103,11 @@ func ParseURI(raw string) (URI, error) {
 	if !identity.Label(v.Name, 128) {
 		return URI{}, invalid()
 	}
+	transport, e := streamcfg.Query(q)
+	if e != nil || transport.ValidatePair("trojan", "tls") != nil {
+		return URI{}, identity.Err(identity.UnsupportedExport, "unsupported Trojan transport")
+	}
+	v.Transport = transport
 	v.Password = secret.New(pass)
 	return v, nil
 }
@@ -109,6 +116,9 @@ func EncodeURI(v URI) (string, error) {
 		return "", identity.Err(identity.UnsupportedExport, "Trojan URI cannot represent configuration")
 	}
 	q := url.Values{"sni": {v.TLS.ServerName}}
+	if v.Transport.ValidatePair("trojan", "tls") != nil || v.Transport.PutQuery(q) != nil {
+		return "", identity.Err(identity.UnsupportedExport, "unsupported Trojan transport")
+	}
 	for _, token := range v.TLS.ALPN {
 		if strings.Contains(token, ",") {
 			return "", identity.Err(identity.UnsupportedExport, "Trojan URI cannot represent ALPN")

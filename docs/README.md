@@ -231,7 +231,7 @@ That freeze preserves the Phase 12 boundary. Phase 13 progress is tracked below.
 - [Phase 13 freeze](reports/PHASE_13_FREEZE_REPORT.md): authorized Experimental checkpoint, unchanged functional source and clean Phase 14 branch preparation.
 - [Recovery](RECOVERY.md) and [testing](TESTING.md): safe operational and qualification boundaries.
 
-Phase 13 is locally FROZEN. Real Windows TUN/auto-route/WinINET and native Ubuntu
+Phase 13 is locally FROZEN. Real Windows TUN/auto-route and native Ubuntu
 host-network qualification remain pending; Windows activation stays guarded.
 At the Phase 13 checkpoint, Phase 14 implementation had not started. Its later
 accepted implementation is recorded below.
@@ -261,3 +261,7 @@ Native is the sole runtime engine. Historical Phase 6/7 direction is superseded;
   [ownership](architecture/TUN_RUNTIME_OWNERSHIP.md): implemented lifecycle contracts.
 - [QF-003 resolution](reports/QF_003_PRIVATE_RUNTIME_LINKNAME_RESOLUTION_REPORT.md):
   inherited tooling public-API boundary and review evidence.
+
+## Current Phase 21 Core boundary
+
+[Core scope](architecture/CORE_SCOPE.md) is authoritative. Desktop proxy management is removed. Historical phase entries above retain their original checkpoint meaning. Deep Core Purge awaits targeted independent review before Freeze.

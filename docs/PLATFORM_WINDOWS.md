@@ -23,14 +23,8 @@ driver ring memory is copied before passing it to official gVisor. Native orphan
 recovery selects the exact GUID and Wintun service through SetupAPI, including
 nonpresent devices. It never removes adapters by name or requests a reboot.
 
-WinINET uses typed default LAN intent through PER_CONNECTION_OPTION with connection
-name nil: flags, server, bypass, PAC, autodiscovery, secondary PAC and reload interval.
-Windows 7+ flags are queried using FLAGS_UI and restored using FLAGS. Named RAS
-connections and read-only detection cache are outside scope. Sensitive snapshots
-reject. Durable intermediate states precede transitions; unknown external C is
-preserved. Notifications are SETTINGS_CHANGED then REFRESH. Legacy registry records
-are diagnostic read-only; the registry write branch has been removed. See the
-[Microsoft option contract](https://learn.microsoft.com/en-us/windows/win32/api/wininet/ns-wininet-internet_per_conn_optionw).
+Desktop Internet Settings management is outside Core. Frozen schema remains
+inert; see [Core scope](architecture/CORE_SCOPE.md).
 
 WindowsBypassPlan projects canonical node/DNS/health/control dependencies,
 checks cycles before resolution, normalizes mapped IPv4 and merges endpoint reasons.
@@ -38,15 +32,15 @@ Reconciliation installs/verifies new protection before removing unused owned rou
 Identical pre-existing routes are borrowed, never deleted or counted as owned.
 External edits/journal failures remain degraded; completed history stays bounded.
 
-**Windows activation remains blocked before mutation.** The original TUN/proxy
-capability guards and auto-route rejection remain. These implemented and tested
+**Windows activation remains blocked before mutation.** The original TUN
+capability guard and auto-route rejection remain. These implemented and tested
 components now share the production underlay factory with DIRECT, DNS/bootstrap,
 health, Native server/client and Mieru socket owners. Stateful backend spies observe
 actual adapter sockets. Fresh bootstrap, retained generation
 leases and reused TUN reconciliation are implemented. Real activation remains
 unqualified: the default Windows provider rejects required mode before mutation.
 
-Real Windows TUN, auto-route and WinINET runtime are **NOT CERTIFIED**; Windows full
+Real Windows TUN and auto-route runtime are **NOT CERTIFIED**; Windows full
 race is **NOT EXECUTED**. Portable models run under WSL default race/checkptr. Native
 Windows uses ordinary fixtures, compilation and symbol/ABI checks, without invoking
 network mutations. Upstream source edits remain zero. See
@@ -66,4 +60,4 @@ Dynamic endpoint updates retain old/shared refs and preserve borrowed or externa
 changed routes. Unsupported native platform capabilities remain typed unsafe_underlay.
 System resolver bypass is unknown and rejects; explicit managed DNS remains usable.
 These are implementation proofs. They do not permit activation on this developer
-host or certify Wintun/auto-route/WinINET. See [system integration](SYSTEM_INTEGRATION.md).
+host or certify Wintun/auto-route. See [system integration](SYSTEM_INTEGRATION.md).

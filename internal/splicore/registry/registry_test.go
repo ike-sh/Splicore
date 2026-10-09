@@ -1,8 +1,10 @@
-package registry
+package registry_test
 
 import (
 	"context"
 	"errors"
+	. "github.com/ike-sh/Splicore/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/registry/testfixture"
 	"reflect"
 	"sync"
 	"testing"
@@ -19,7 +21,7 @@ func hasCode(err error, code identity.Code) bool {
 }
 
 func TestRegistries(t *testing.T) {
-	p, e, x, err := Foundation()
+	p, e, x, err := testfixture.Foundation()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +42,7 @@ func TestRegistries(t *testing.T) {
 	if _, err = p.Get(access.ProtocolKey{Protocol: "unknown"}); !hasCode(err, identity.NotFound) {
 		t.Fatal("unknown not typed")
 	}
-	bad := ProtocolPlaceholder{Info: entry.Metadata()}
+	bad := testfixture.ProtocolPlaceholder{Info: entry.Metadata()}
 	bad.Info.ABI = 2
 	if _, err = NewProtocols(bad); !hasCode(err, identity.Invalid) {
 		t.Fatal("unknown ABI accepted")

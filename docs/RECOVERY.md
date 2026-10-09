@@ -22,10 +22,9 @@ interrupts and joins I/O before releasing handles. Parent deletion waits for fai
 child restoration. Orphan deletion requires exact GUID and Wintun service; display
 name is insufficient. Restart requirements are reported without rebooting the host.
 
-WinINET A→B→A applies only while current state is owned. External B→C is preserved,
-including during partial apply/restore. Unexpected listener exit restores A immediately;
-a conflict leaves C and reports degraded. Notifications follow restoration. Named
-RAS connections are outside LAN scope.
+Restored desktop records are opaque private history only. Unfinished legacy debt
+returns a typed unsupported diagnostic without journal or OS mutation. New Core
+plans cannot create desktop records. See [Core scope](architecture/CORE_SCOPE.md).
 
 Windows activation remains blocked pending real platform qualification.
 These are tested ownership components, not real Windows certification. See

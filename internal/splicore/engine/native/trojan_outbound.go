@@ -3,6 +3,7 @@ package native
 import (
 	"context"
 	"crypto/tls"
+	shared "github.com/ike-sh/Splicore/internal/splicore/streamtransport"
 	"net"
 	"sync"
 	"time"
@@ -31,6 +32,7 @@ func (f TrojanOutboundFactory) Build(ctx context.Context, n client.RemoteNode, c
 	if err := f.Validate(n, c); err != nil {
 		return nil, err
 	}
+	n.Transport = n.Transport.Clone()
 	d, err := underlay.DialerFrom(ctx, underlay.PurposeFrom(ctx, underlay.ProxyUnderlay))
 	if err != nil {
 		return nil, err
@@ -57,7 +59,7 @@ func (d *trojanDialer) open(ctx context.Context, dst access.Endpoint, command by
 	if dst.Validate() != nil {
 		return nil, identity.Err(identity.Invalid, "invalid Trojan destination")
 	}
-	raw, err := d.protected.DialContext(ctx, "tcp", net.JoinHostPort(d.node.Endpoint.Host, portString(d.node.Endpoint.Port)))
+	raw, err := shared.Dial(ctx, d.protected.DialContext, net.JoinHostPort(d.node.Endpoint.Host, portString(d.node.Endpoint.Port)), d.node.Transport, d.tls)
 	if err != nil {
 		return nil, err
 	}
@@ -79,11 +81,7 @@ func (d *trojanDialer) open(ctx context.Context, dst access.Endpoint, command by
 		deadline = t
 	}
 	_ = raw.SetDeadline(deadline)
-	t := tls.Client(raw, d.tls.Clone())
-	if err = t.HandshakeContext(ctx); err != nil {
-		return nil, err
-	}
-	c := &backend.Stream{Conn: t, Raw: raw}
+	c := &backend.Stream{Conn: raw, Raw: raw}
 	if err = backend.Client(c, d.key, command, dst); err != nil {
 		return nil, err
 	}

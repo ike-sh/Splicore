@@ -8,21 +8,23 @@
 - Lifecycle: Update when specification boundaries or navigation change.
 
 Begin with the [overview](../ARCHITECTURE.md) and [current context](../DEVELOPMENT_CONTEXT.md).
-Canonical documents distinguish implemented Foundation from **proposed runtime design**, not qualified
-Splicore functionality. [ADRs](../adr/README.md) own rationale and decision status;
+Canonical documents state current Core contracts and distinguish implementation
+from platform qualification. [ADRs](../adr/README.md) own rationale and decision status;
 [policy](../DOCUMENTATION_POLICY.md) governs updates.
 
 ## Maintained specifications
 
 | Topic | Owning document | Maintainer role / responsibility |
 | --- | --- | --- |
+| Authoritative Core scope | [Core scope](CORE_SCOPE.md) | Current production/config/API/CLI boundary. |
 | Package and product boundary | [Fork boundary](FORK_BOUNDARY.md) | Core: adapter insertion, namespace and command transition. |
 | Domain | [Domain model](DOMAIN_MODEL.md) | Core: entities, ownership and authorization relationships. |
 | Accounting and policy | [Policy / Usage](POLICY_USAGE.md) | Core: payload units, ceilings, resets and uncertainty. |
 | State | [Config authority](CONFIG_STATE_AUTHORITY.md) | Core: bootstrap/import/committed projection boundaries. |
 | Protocol | [Protocol SDK](PROTOCOL_SDK.md) | Protocol: ports, registry and effective capabilities. |
-| Execution | [Engine model](ENGINE_MODEL.md) | Engine: translation, native and future compatibility adapters. |
-| Runtime | [Lifecycle](RUNTIME_LIFECYCLE.md) | Core / Engine: startup, shutdown, recovery and owned children. |
+| Execution | [Engine model](ENGINE_MODEL.md) | Engine: owned native runtimes and embedded SDK boundaries. |
+| Runtime | [Lifecycle](RUNTIME_LIFECYCLE.md) | Core / Engine: startup, shutdown and owned resource recovery. |
+| Stream transport | [Shared transport](SHARED_TRANSPORT.md) | Core: raw/WS/HTTPUpgrade/gRPC composition and ownership. |
 | Storage operations | [Storage model](STORAGE_MODEL.md) | Storage: driver gates, WAL, migration and backup mechanics. |
 | Logical data structure | [ERD](DATABASE_ERD.md) | Storage / Core: relationships, ownership and constraints. |
 | Mutations | [Transaction model](TRANSACTION_MODEL.md) | Core: journal, generations, compensation, concurrency and audit. |
@@ -88,8 +90,8 @@ Native is the sole runtime engine. Historical Phase 6/7 direction is superseded;
 
 ## Phase 17 independent core migration
 
-- [Independent core dependencies](INDEPENDENT_CORE_DEPENDENCIES.md): target
-  ownership and dependency policy; implementation is NOT READY FOR REVIEW.
+- [Independent core dependencies](INDEPENDENT_CORE_DEPENDENCIES.md): current
+  ownership and dependency policy; accepted Phase 17 history is preserved in its reports.
 
 ## Phase 18 native standard Trojan
 

@@ -1,15 +1,16 @@
-package registry
+package registry_test
 
 import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	hm "github.com/ike-sh/Splicore/internal/splicore/protocol/hysteria2"
 	sm "github.com/ike-sh/Splicore/internal/splicore/protocol/snell"
+	"github.com/ike-sh/Splicore/internal/splicore/registry/testfixture"
 	"testing"
 )
 
 func TestPhase3RegistrationPreservesSnellAndDeferredModules(t *testing.T) {
-	p, e, x, err := Phase3()
+	p, e, x, err := testfixture.Phase3()
 	if err != nil {
 		t.Fatal(err)
 	}

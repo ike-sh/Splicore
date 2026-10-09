@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	streamcfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
 
 	"github.com/ike-sh/Splicore/internal/splicore/clientprofile"
 	"github.com/ike-sh/Splicore/internal/splicore/credential"
@@ -20,8 +21,9 @@ import (
 
 type Module struct{}
 type Settings struct {
-	TLS  tlsconfig.Settings `json:"tls"`
-	ALPN []string           `json:"alpn,omitempty"`
+	Stream *streamcfg.Config  `json:"stream_transport,omitempty"`
+	TLS    tlsconfig.Settings `json:"tls"`
+	ALPN   []string           `json:"alpn,omitempty"`
 }
 
 func (Settings) Format(s fmt.State, _ rune) { _, _ = s.Write([]byte("TrojanSettings{[REDACTED]}")) }
@@ -33,7 +35,7 @@ func invalid() error {
 }
 func Decode(b []byte) (Settings, error) {
 	var s Settings
-	if len(b) > 16384 || jsonstrict.Decode(b, &s) != nil || tlsconfig.Validate(s.TLS) != nil {
+	if len(b) > 16384 || streamcfg.ValidateMember(b) != nil || jsonstrict.Decode(b, &s) != nil || tlsconfig.Validate(s.TLS) != nil || s.Stream != nil && (s.Stream.ValidatePair("trojan", "tls") != nil || s.Stream.ValidateServer() != nil || s.Stream.ValidateALPN(s.ALPN) != nil) {
 		return s, invalid()
 	}
 	t := access.ClientTLS{Enabled: true, ServerName: s.TLS.ServerName, ALPN: s.ALPN, Trust: "explicit_ca", CACertificate: s.TLS.CACertificate}
@@ -101,10 +103,13 @@ func (m Module) BuildClientProfile(ctx context.Context, b ports.AuthorizedBindin
 	s, _ := Decode(b.Inbound.Settings.Data)
 	options, _ := json.Marshal(ClientOptions{UDP: true})
 	p := clientprofile.Profile{ID: b.Binding.ID, Schema: 1, Protocol: Key(), Endpoint: b.Inbound.DisplayEndpoints[0].Endpoint, Credentials: b.Credential.Payload, TLS: access.ClientTLS{Enabled: true, ServerName: s.TLS.ServerName, ALPN: s.ALPN, Trust: "explicit_ca", CACertificate: s.TLS.CACertificate}, Transport: clientprofile.Transport{Kind: "tcp"}, UDPPayload: true, Options: access.Settings{Schema: 1, Data: options}, Metadata: identity.Metadata{}}
+	if s.Stream != nil {
+		p.Transport = *s.Stream
+	}
 	return p, p.Validate()
 }
 func ValidateClientNode(n client.RemoteNode, c access.Credential) error {
-	if n.Validate() != nil || n.Protocol != Key() || n.Transport.Kind != "tcp" || n.Security.Kind != "tls" || c.OwnerNodeID == nil || *c.OwnerNodeID != n.ID || c.ID != n.CredentialID {
+	if n.Validate() != nil || n.Protocol != Key() || n.Transport.ValidatePair("trojan", n.Security.Kind) != nil || n.Security.Kind != "tls" || c.OwnerNodeID == nil || *c.OwnerNodeID != n.ID || c.ID != n.CredentialID {
 		return invalid()
 	}
 	if _, err := access.ParseHost(n.Security.TLS.ServerName); err != nil {

@@ -85,11 +85,3 @@ func (p *Platform) Plan(ctx context.Context, t client.TUNSettings, endpoints []n
 	}
 	return plan, nil
 }
-func ProxyPlan(endpoint string) []Record {
-	values := map[string]ProxyValue{"ProxyEnable": {Present: true, Type: 4, Number: 1}, "ProxyServer": {Present: true, Type: 1, Text: endpoint}, "ProxyOverride": {Present: true, Type: 1, Text: "<local>"}, "AutoConfigURL": {Present: false}, "AutoDetect": {Present: true, Type: 4, Number: 0}}
-	out := []Record{}
-	for _, key := range []string{"ProxyServer", "ProxyOverride", "AutoConfigURL", "AutoDetect", "ProxyEnable"} {
-		out = append(out, Record{Kind: "proxy", Proxy: &ProxyState{Values: map[string]ProxyValue{key: values[key]}}})
-	}
-	return out
-}

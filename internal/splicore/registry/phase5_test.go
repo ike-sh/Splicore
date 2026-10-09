@@ -7,13 +7,13 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	v "github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
-	"github.com/ike-sh/Splicore/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/registry/testfixture"
 	"testing"
 	"time"
 )
 
 func TestVLESSProtocolIsIndependentOfEngine(t *testing.T) {
-	p, e, _, err := registry.Phase5()
+	p, e, _, err := testfixture.Phase5()
 	if err != nil {
 		t.Fatal(err)
 	}

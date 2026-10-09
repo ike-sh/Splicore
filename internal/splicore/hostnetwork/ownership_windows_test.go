@@ -10,8 +10,7 @@ import (
 
 func TestIncompleteWindowsOwnershipRejectsBeforeMutation(t *testing.T) {
 	p := NewPlatform()
-	records := ProxyPlan("127.0.0.1:1080")
-	records = append(records, Record{Kind: "interface", Interface: "blocked13", Addresses: []string{"198.18.0.1/30"}, MTU: 1500})
+	records := []Record{{Kind: "interface", Interface: "blocked13", Addresses: []string{"198.18.0.1/30"}, MTU: 1500}}
 	for _, r := range records {
 		var typed *identity.Error
 		if err := p.Write(context.Background(), r, &r); !errors.As(err, &typed) || typed.Code != identity.NotImplemented {

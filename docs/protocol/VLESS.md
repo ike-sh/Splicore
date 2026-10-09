@@ -114,9 +114,9 @@ owns deferral and re-enable criteria: reviewed fixed release or approved patch, 
 default checkptr, race, original reproducer 10x, both clients, regressions and secret
 gates must all pass. No automatic re-enable after an upstream release.
 
-Source references: [baseline inbound](../../protocol/vless/inbound.go),
-[baseline outbound](../../protocol/vless/outbound.go),
-[REALITY server](../../common/tls/reality_server.go),
+Current source references: [native inbound](../../internal/splicore/engine/native/vless.go),
+[native outbound](../../internal/splicore/engine/native/vless_outbound.go),
+[TLS/REALITY material](../../internal/splicore/tlsconfig/material.go),
 [pinned Mihomo VLESS](https://github.com/MetaCubeX/mihomo/blob/v1.19.30/adapter/outbound/vless.go),
 [pinned dependency Vision](https://github.com/SagerNet/sing-vmess/blob/v0.2.8/vless/vision.go).
 

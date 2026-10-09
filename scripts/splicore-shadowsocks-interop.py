@@ -1,6 +1,6 @@
 """Real SS peers in a loopback-only Linux network namespace.
 
-Usage: python3 scripts/splicore-shadowsocks-interop.py external-evidence
+Usage: python3 scripts/splicore-shadowsocks-interop.py external-evidence peer-directory
 Pinned reference binaries are reused read-only. Synthetic configs are temporary,
 outside the source tree. Readiness observation never retries test traffic.
 """
@@ -41,7 +41,7 @@ def main():
     evidence.mkdir(parents=True, exist_ok=True)
     root = evidence.parent
     exe = root / "artifacts/splicore-accepted-race"
-    refs = pathlib.Path("/mnt/d/splicore-validation/splicore-phase2-20261001/clients")
+    refs = pathlib.Path(sys.argv[2]).resolve()
     records = {r["client"]:r for r in json.loads((refs / "clients.json").read_text())}
     for name in ("sing-box", "mihomo"):
         assert hashlib.sha256((refs / name).read_bytes()).hexdigest() == records[name]["binary_sha256"]
@@ -53,7 +53,7 @@ def main():
     threads = []
     for server in (tcp, udp):
         thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start(); threads.append(thread)
-    private_base = pathlib.Path("/root/splicore-phase16-private")
+    private_base = pathlib.Path(tempfile.gettempdir()) / "splicore-ss-private"
     private_base.mkdir(mode=0o700, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="ss-private-", dir=private_base) as directory:
         work = pathlib.Path(directory)

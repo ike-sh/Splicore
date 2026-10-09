@@ -195,7 +195,7 @@ options describe only auth and SOCKS UDP; transport is TCP and security is none.
 - Digest, NTLM and Negotiate authentication: deferred.
 - MITM, TLS interception and caching: out of scope.
 - HTTPS upstream proxy: deferred in this phase.
-- System Proxy / PAC: Phase 21; no Phase 20 implementation changes.
+- Desktop System Proxy / PAC ownership: outside Core; see [Core scope](CORE_SCOPE.md).
 - WebSocket / gRPC / XHTTP: not Phase 20.
 
 ## Standards and evidence

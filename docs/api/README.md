@@ -101,9 +101,9 @@ client counters are documented in the machine schema. Server RuntimeStats is unc
 Local SOCKS UDP status is `supported`; session kind is `tcp` or `udp_association`.
 See [control semantics](API_V1_DESIGN.md#phase-11-client-observations).
 
-## Phase 13 host integration
+## Core network and TUN control
 
-LocalInbound now supports socks5/http/mixed/tun. Client status adds host_network and host_capabilities. Protected GET/PUT /client/host-integration and GET /client/host-network expose intent/status; POST /client/host-network/repair uses existing revision/plan semantics and requires stopped listeners. No raw OS commands are accepted. See [system integration](../SYSTEM_INTEGRATION.md).
+LocalInbound supports socks5/http/mixed/tun. Client status includes host_network and host_capabilities. Protected GET /client/host-network exposes Core recovery status; POST /client/host-network/repair uses existing revision/plan semantics and requires stopped listeners. TUN intent lives in local-inbounds. The former desktop host-integration endpoint is removed. No raw OS commands are accepted. See [system integration](../SYSTEM_INTEGRATION.md).
 
 ## Current architecture correction
 

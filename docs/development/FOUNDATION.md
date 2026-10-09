@@ -1,11 +1,11 @@
 # Foundation development workflow
 
-- Documentation status: Canonical
+- Documentation status: Historical
 - Audience: Contributors and Foundation reviewers
 - Last reviewed: 2026-10-01
 - Owner: Core maintainers
-- Responsibility: Current build/test commands, bootstrap and runnable Foundation scope.
-- Lifecycle: Update with Foundation process interfaces and gates.
+- Responsibility: Preserved Foundation checkpoint contracts and commands.
+- Lifecycle: Historical Foundation snapshot; current commands follow Core scope.
 
 ## Current Phase 2 implementation
 
@@ -84,3 +84,7 @@ Phase 1 is frozen locally under the explicit freeze instruction: one Foundation
 commit, fast-forward of main and preparation of the Phase 2 branch. The current
 Phase 2 request now authorizes Snell implementation. No staging, commit, push,
 origin creation, tag or release is authorized for Phase 2.
+
+## Current Core correction
+
+The commands and module identity above describe the historical Foundation checkpoint. Current production uses github.com/ike-sh/Splicore and cmd/splicore. Foundation/Phase 2–5 compositions are retained only in registry/testfixture for canonical historical regression tests. See [Core scope](../architecture/CORE_SCOPE.md).

@@ -10,6 +10,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/engine/clientio"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	module "github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
+	shared "github.com/ike-sh/Splicore/internal/splicore/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"github.com/ike-sh/Splicore/protocol/vless/backend"
 	"net"
@@ -28,6 +29,7 @@ func (f VLESSOutboundFactory) Build(ctx context.Context, n client.RemoteNode, c 
 	if err := f.Validate(n, c); err != nil {
 		return nil, err
 	}
+	n.Transport = n.Transport.Clone()
 	d, err := underlay.DialerFrom(ctx, underlay.PurposeFrom(ctx, underlay.ProxyUnderlay))
 	if err != nil {
 		return nil, err
@@ -52,7 +54,7 @@ type vlessDialer struct {
 }
 
 func (d *vlessDialer) open(ctx context.Context, dst access.Endpoint, packet bool) (net.Conn, error) {
-	c, err := d.protected.DialContext(ctx, "tcp", net.JoinHostPort(d.node.Endpoint.Host, portString(d.node.Endpoint.Port)))
+	c, err := shared.Dial(ctx, d.protected.DialContext, net.JoinHostPort(d.node.Endpoint.Host, portString(d.node.Endpoint.Port)), d.node.Transport, d.tls)
 	if err != nil {
 		return nil, err
 	}
@@ -70,13 +72,7 @@ func (d *vlessDialer) open(ctx context.Context, dst access.Endpoint, packet bool
 		deadline = t
 	}
 	_ = raw.SetDeadline(deadline)
-	if d.tls != nil {
-		tc := tls.Client(raw, d.tls.Clone())
-		if err := tc.HandshakeContext(ctx); err != nil {
-			return nil, err
-		}
-		c = tc
-	}
+
 	if d.node.Security.Kind == "reality" {
 		c, err = backend.RealityClient(ctx, raw, d.node.Security.TLS)
 		if err != nil {

@@ -52,13 +52,11 @@ policy is blocked until enforcement coverage is demonstrated.
 
 ## Upstream commands and scope
 
-Root CI `.github/workflows/test.yml` runs Go ~1.25/~1.26 on Windows/macOS/Linux,
-uses DEFAULT_BUILD_TAGS_OTHERS + release/LDFLAGS; Unix executes tests as root.
-The root `./...` excludes separate `test/go.mod`. Makefile `test` additionally
-runs root untagged tests, then `go mod tidy` and tests in `test`; many tests need
-Docker/reference images/public networking. Do not call root CI coverage the full
-Docker interoperability suite. If running that suite later, tidy/build in an
-isolated copy to preserve upstream baseline files.
+Current Core CI tests `./...` with with_gvisor,with_quic,with_utls on Windows,
+macOS and Linux. Production composes only `cmd/splicore`; historical phase registry
+compositions are test fixtures. Real kernel labs require explicit isolated test tags.
+The former upstream separate test module, desktop build tags and release flag files
+are absent. See [Core scope](../architecture/CORE_SCOPE.md).
 
 Lint workflow uses golangci-lint latest across OS/arch; Phase 0 pins the observed
 tool v2.14.0 for reproducibility and checks host Windows configuration. Go vet is
@@ -180,11 +178,11 @@ upgrade/rollback/reinstall and verifies SQLite graph/selector restoration.
 
 Run default race/checkptr on owned packages and affected shared packages. TUN kernel tests require explicit owned disposable net/mount namespaces and a different application UID; never mutate the development host. Check IPv4/IPv6 separately, six outbounds, 4096-byte UDP fragmentation, 16 concurrent flows, 4 MiB TCP, DNS sink arrivals, exact restore, 10 lifecycle cycles, policy affinity and SIGTERM/SIGKILL recovery. Fuzz only parsers/config/journal, never real OS mutations. See [source audit](../development/PHASE_13_TUN_AUDIT.md).
 
-Windows Wintun/WinINET/bypass stateful matrices run 10x, including mutation-before-error,
+Windows Wintun/Core bypass stateful matrices run 10x, including mutation-before-error,
 failed compensation, external C, crash journals, parent/child debt, borrowed routes,
 fresh domain results, shared refs and final acknowledgment failure. Pure code runs
 under WSL default race/checkptr; native Windows resolves symbols/ABI and compiles,
-without real mutation. Fuzz typed WinINET/journal/desired-set/normalization only.
+without real mutation. Fuzz Core/legacy journal and desired-set/normalization parsers only.
 Actual native client/server, DIRECT, DNS/bootstrap/health and Mieru runtimes now
 exercise the protected factory with a stateful fake Windows backend. Dynamic DNS,
 retained/shared references and reused TUN reconciliation run 10x under default

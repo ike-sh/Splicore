@@ -27,21 +27,9 @@ body:
       description: 请提供该 sing-box 安装类型
       options:
         - sing-box 原始命令行程序
-        - sing-box for iOS 图形客户端程序
-        - sing-box for macOS 图形客户端程序
-        - sing-box for Apple tvOS 图形客户端程序
-        - sing-box for Android 图形客户端程序
-        - sing-box for Windows 图形客户端程序
-        - sing-box for Linux 图形客户端程序
-        - 宣传使用 sing-box 的第三方图形客户端程序 (Windows)
-        - 宣传使用 sing-box 的第三方图形客户端程序 (Android)
         - 其他
     validations:
       required: true
-  - type: input
-    attributes:
-      description: 图形客户端版本
-      label: 如果您使用图形客户端程序，请提供该程序版本。
   - type: textarea
     attributes:
       label: 版本
@@ -62,10 +50,6 @@ body:
   - type: textarea
     attributes:
       label: 日志
-      description: |-
-        此外，如果您遭遇图形界面应用程序崩溃，请附加提供崩溃日志。
-        对于 Apple 平台图形客户端程序，请检查 `Settings - View Service Log` 以导出崩溃日志。
-        对于 Android 图形客户端程序，请检查 `/sdcard/Android/data/io.nekohasekai.sfa/files/stderr.log` 文件以导出崩溃日志。
       render: shell
   - type: checkboxes
     id: supporter

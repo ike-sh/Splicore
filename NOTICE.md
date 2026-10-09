@@ -32,9 +32,9 @@ GPL terms. Independent protocol adapters retain source-reference attribution in
 the implementation evidence; reference peers are test processes only.
 
 Current third-party module versions and preserved license texts are listed in
-[third-party notices](THIRD_PARTY_NOTICES.md). The original embedded
-`common/windivert/assets/WinDivert64.sys` and its license remain required Windows
-build resources. At that development checkpoint, no Phase 17 publication, freeze or release
+[third-party notices](THIRD_PARTY_NOTICES.md). The former WinDivert assets have no current package or embedding consumer and
+were removed during Phase 21 Deep Core Purge. They were not required Core Windows
+build resources. Historical archive and attribution remain preserved. At that development checkpoint, no Phase 17 publication, freeze or release
 had occurred.
 
 

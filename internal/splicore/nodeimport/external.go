@@ -195,6 +195,12 @@ func parseExternal(format string, body []byte) (Result, error) {
 			}
 			continue
 		}
+		raw, transport, transportErr := extractStream(format, b)
+		if transportErr != nil {
+			out.Issues = append(out.Issues, Issue{i + 1, "Unsupported", "unsupported_transport"})
+			continue
+		}
+		b = raw
 		var n externalNode
 		if jsonstrict.DecodeLimit(b, &n, provider.MaxLine) != nil {
 			out.Issues = append(out.Issues, Issue{i + 1, "Unsupported", "unknown_client_field"})
@@ -212,6 +218,13 @@ func parseExternal(format string, body []byte) (Result, error) {
 		if e != nil {
 			out.Issues = append(out.Issues, Issue{i + 1, "Unsupported", "unsupported_client_capability"})
 			continue
+		}
+		if n.Type == "vless" || n.Type == "trojan" {
+			if transport.ValidatePair(c.Node.Protocol.Protocol, c.Node.Security.Kind) != nil {
+				out.Issues = append(out.Issues, Issue{i + 1, "Unsupported", "unsupported_transport"})
+				continue
+			}
+			c.Node.Transport = transport
 		}
 		out.Candidates = append(out.Candidates, c)
 	}

@@ -8,12 +8,13 @@
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
 Design maturity: Experimental implementations and audited official Mieru dependency; no copied third-party source.
-Primary local evidence: root `LICENSE`, `.fpm_systemd`, `go.mod`,
-copyright headers in `common/ktls`, `transport/v2raygrpc/credentials`, and `constant/goos`.
+Current local evidence: root `LICENSE`, `NOTICE.md`, `THIRD_PARTY_NOTICES.md`,
+`go.mod`, retained source copyright headers and `licenses/third-party`.
 The baseline upstream README and unchanged local LICENSE identify GPL version 3
 or later and additional derivative naming/association wording. The root README
-now introduces Splicore and links the preserved LICENSE/NOTICE. Packaging still
-identifies upstream GPL-3.0-or-later and SagerNet. Preserve license text and file
+now introduces Splicore and links the preserved LICENSE/NOTICE. Current packaging
+uses Splicore Core identity; obsolete upstream packaging assets were removed.
+Preserve GPL-3.0-or-later attribution, license text and file
 headers exactly; do not replace original copyright with Splicore copyright.
 
 | Boundary | Observed license / future obligation |

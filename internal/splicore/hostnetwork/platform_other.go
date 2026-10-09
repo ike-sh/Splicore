@@ -12,7 +12,7 @@ import (
 type Platform struct{}
 
 func platformCapabilities() Capabilities {
-	return Capabilities{TUN: "unsupported", AutoRoute: "unsupported", Driver: "unsupported", Privilege: "unsupported", SystemProxy: "unsupported", LoopProtection: "unsupported"}
+	return Capabilities{TUN: "unsupported", AutoRoute: "unsupported", Driver: "unsupported", Privilege: "unsupported", LoopProtection: "unsupported"}
 }
 
 func NewPlatform() *Platform                    { return &Platform{} }

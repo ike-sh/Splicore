@@ -10,7 +10,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
-	"github.com/ike-sh/Splicore/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/registry/testfixture"
 	"github.com/ike-sh/Splicore/internal/splicore/secretvault"
 	"github.com/ike-sh/Splicore/internal/splicore/storage/sqlite"
 	"github.com/ike-sh/Splicore/internal/splicore/transport"
@@ -26,7 +26,7 @@ import (
 
 func setupSnell(t *testing.T, path string, repoWrap func(ports.RuntimeRepository) ports.Repository) (*application.Service, *sqlite.Store) {
 	t.Helper()
-	p, e, x, err := registry.Phase2()
+	p, e, x, err := testfixture.Phase2()
 	if err != nil {
 		t.Fatal(err)
 	}

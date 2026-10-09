@@ -8,6 +8,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/engine/native"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	"github.com/ike-sh/Splicore/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/registry/testfixture"
 	"github.com/ike-sh/Splicore/internal/splicore/version"
 	"io"
 	"net"
@@ -56,7 +57,7 @@ func TestRuntimeCreationStartHealthRollback(t *testing.T) {
 		t.Run(stage, func(t *testing.T) {
 			s, store := setupSnell(t, filepath.Join(t.TempDir(), "state", "state.db"), nil)
 			defer stop(t, s, store)
-			p, _, x, _ := registry.Phase2()
+			p, _, x, _ := testfixture.Phase2()
 			h := &faultHandle{stage: stage}
 			eng, _ := registry.NewEngines(faultEngine{stage: stage, handle: h})
 			fault, e := application.New(store, p, eng, x, version.Current())

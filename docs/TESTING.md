@@ -9,11 +9,11 @@
 
 Run default race/checkptr on owned and affected shared packages. Portable Windows
 models exercise Manager/Lease with stateful backends, per-stage faults, external
-edits, restart journals and double cleanup. Run Wintun, WinINET and bypass matrices
+edits, restart journals and double cleanup. Run Wintun and Core bypass matrices
 ten times. Native Windows runs ordinary fixture tests, compile and symbol/ABI
 resolution only; full race NOT EXECUTED. Do not invoke real Windows mutations.
 
-Fuzz WinINET serialization, journal parsing, desired sets and endpoint/mapped
+Fuzz Core/legacy journal parsing, desired sets and endpoint/mapped
 normalization. Fuzz never calls a real backend. Linux kernel lifecycle/route/DNS/
 policy gates use owned disposable namespaces. Upgrade/rollback/uninstall/purge use
 an owned nested service lab. Preserve prior evidence externally.

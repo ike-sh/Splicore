@@ -48,7 +48,7 @@ host journal debt correctly.
 
 Local evidence includes Linux default race/checkptr and disposable WSL kernel/service
 tests. Native Ubuntu auto-route/real Windows system-network qualification remain
-uncertified; Windows race is not executed, Linux arm64 build-only. Wintun/WinINET
+uncertified; Windows race is not executed, Linux arm64 build-only. Wintun
 fixtures are contract evidence, not real host certification.
 
 Historical reports remain unchanged and are superseded for current Xray support by

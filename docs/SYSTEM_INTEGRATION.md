@@ -15,10 +15,11 @@ without changing platform qualification or Windows activation guards.
 
 ## Transaction and recovery
 
-SQLite schema 7 owns desired LocalInbound/HostIntegration configuration. The separate
+SQLite schema 8 owns desired LocalInbound configuration. Frozen migration 0007
+and client_host_profiles are deprecated inert history; TUN stays in local_inbounds. The separate
 private `StateDirectory/host-network/journal.json` owns operational before/after
 records only. Persist all snapshots and intents, create interface/addresses, start
-the official gVisor stack, apply capture/proxy steps, read back and acknowledge each
+the official gVisor stack, apply capture route steps, read back and acknowledge each
 write, then commit/publish. Rollback stops packet readers before releasing the device
 and compensates in reverse order. Stop failures after the SQLite commit return an
 error and degraded health with the committed transaction, rather than pretending
@@ -41,13 +42,13 @@ full roaming and arbitrary VPN coexistence are not certified.
 [Linux](PLATFORM_LINUX.md) has owned dual-stack auto-route and TCP/UDP53 interception.
 WSL disposable namespaces provide kernel evidence, never native host certification.
 [Windows](PLATFORM_WINDOWS.md) has separate owned Wintun adapter/session operations,
-typed LAN WinINET API snapshots and transactional bypass reconciliation. Stateful
+transactional Core bypass reconciliation. Stateful
 fixtures cover partial creation, exact restoration and external mutation. Runtime
 underlay sockets consume the unified protection contract, exercised through actual
 adapters and the fake Windows journal/backend. The original activation guards and
 auto-route rejection remain before mutation. Fixture PASS does not qualify an actual
 Windows host transaction or application traffic. Development-host mutation tests
-are prohibited; real Windows TUN/auto-route/WinINET remain NOT CERTIFIED.
+are prohibited; real Windows TUN/auto-route remain NOT CERTIFIED.
 
 Host DNS configuration is never changed. Intercept only traffic crossing TUN on
 UDP/TCP53, using the shared managed DNS engine. DoH, FakeIP and full roaming are
@@ -61,7 +62,7 @@ is passive. Support bundles expose counts, enums and redacted TUN metadata.
 See [local inbound](architecture/LOCAL_INBOUND_MODEL.md), [client runtime](architecture/CLIENT_RUNTIME.md),
 [ownership ADR](adr/0027-tun-host-network-ownership.md),
 [journal ADR](adr/0028-network-mutation-journal.md),
-[proxy ADR](adr/0029-system-proxy-restoration.md),
+[Core scope](architecture/CORE_SCOPE.md),
 [Windows ownership ADR](adr/0030-windows-host-network-ownership.md),
 [recovery](RECOVERY.md), [testing](TESTING.md),
 [source audit](development/PHASE_13_TUN_AUDIT.md).

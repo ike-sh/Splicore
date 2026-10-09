@@ -3,6 +3,7 @@ package clientprofile
 
 import (
 	"fmt"
+	streamcfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
 
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
@@ -10,11 +11,7 @@ import (
 )
 
 type TLS = access.ClientTLS
-type Transport struct {
-	Kind string `json:"kind"`
-	Path string `json:"path,omitempty"`
-	Host string `json:"host,omitempty"`
-}
+type Transport = streamcfg.Config
 type Profile struct {
 	ID          identity.ID        `json:"id"`
 	Schema      int                `json:"schema_version"`
@@ -36,7 +33,7 @@ func (p Profile) Validate() error {
 	if err := p.ID.Validate(); err != nil {
 		return err
 	}
-	if p.Schema != 1 || p.Credentials == nil {
+	if p.Schema != 1 || p.Credentials == nil || p.Transport.Validate() != nil || p.Transport.ValidateALPN(p.TLS.ALPN) != nil {
 		return identity.Err(identity.Invalid, "invalid client profile")
 	}
 	if err := access.ValidatePayload(p.Credentials); err != nil {

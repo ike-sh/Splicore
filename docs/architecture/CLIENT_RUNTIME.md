@@ -13,15 +13,15 @@ One daemon runs server and client roles with shared SQLite, Application, encrypt
 credentials, journal, registries, API and CLI. Loopback SOCKS5 supports TCP CONNECT
 and UDP ASSOCIATE. Ordered routing, policy groups and managed DNS are Experimental. TUN/HTTP/mixed reuse
 this runtime; platform limits are explicit. Phase 14 imports/providers are implemented.
-The [Phase 13 freeze](../reports/PHASE_13_FREEZE_REPORT.md) records the local checkpoint;
-Phase 14 remains unfrozen. Real Windows activation stays guarded.
+The [Phase 13 freeze](../reports/PHASE_13_FREEZE_REPORT.md) records a historical checkpoint.
+Current Phase 21 cleanup awaits review. Real Windows activation stays guarded.
 
 ```mermaid
 flowchart LR
     SOCKS[Local SOCKS5 TCP and UDP] --> Snapshot[Committed route snapshot]
     Snapshot --> Direct[DIRECT]
     Snapshot --> Registry[Protocol and Engine registry]
-    Registry --> Native[Snell / HY2 / TUIC / VLESS / Mieru native]
+    Registry --> Native[Owned native protocol adapters]
     Native --> Remote[Remote server]
     Remote --> Target[Target]
     Direct --> Target
@@ -44,15 +44,15 @@ DIRECT, 32 listeners and 4096 accepted sessions. ClientProfile is an export
 projection; exporter strings never become runtime input. ClientTLS is shared
 public material only, with no field for server private keys.
 
-The immutable registry maps exact protocol/engine pairs to five native adapters:
-Snell/native, HY2/native, TUIC v5/native, VLESS/native and Mieru/native.
+The immutable registry maps exact protocol/engine pairs to current native adapters,
+including SS/SS2022, Snell, HY2, TUIC, VLESS, Mieru, Trojan, VMess, SOCKS5 and HTTP.
 Protocol-owned options/credentials are reused. Unsupported pairs reject without
 fallback. VLESS flow-none supports plain/TLS/REALITY. Vision rejects under ADR 0017;
 FinalMask/Sudoku are out of scope for Splicore. Unsupported imports never downgrade.
 
 ## Embedded ownership
 
-Each inherited native adapter owns a private Box/context. Mieru uses official
+Each native adapter owns private Splicore runtime state. Mieru uses official
 v3.38.0 Client APIs and a private profile/mux, with no external mita. Its socket
 owner tracks logical/raw sockets, cancels pending dials and joins injected operations
 before Stop. The SDK sets a process-wide quiet formatter and shares cipher/metrics

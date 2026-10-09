@@ -28,7 +28,7 @@ type Platform struct {
 
 func NewPlatform() *Platform { return &Platform{devices: map[string]nativetun.Device{}} }
 func platformCapabilities() Capabilities {
-	c := Capabilities{TUN: "experimental", AutoRoute: "implemented", Driver: "linux-tun", Privilege: "CAP_NET_ADMIN-required", SystemProxy: "unsupported", LoopProtection: "dedicated-daemon-uid-main-table"}
+	c := Capabilities{TUN: "experimental", AutoRoute: "implemented", Driver: "linux-tun", Privilege: "CAP_NET_ADMIN-required", LoopProtection: "dedicated-daemon-uid-main-table"}
 	if _, err := os.Stat("/dev/net/tun"); err != nil {
 		c.Driver = "missing-or-inaccessible"
 	}
@@ -188,8 +188,6 @@ func (p *Platform) Read(ctx context.Context, key Record) (*Record, error) {
 			out.UID = &uid
 		}
 		return &out, nil
-	case "proxy":
-		return nil, identity.Err(identity.NotImplemented, "Linux desktop system proxy is unsupported by this adapter")
 	default:
 		return nil, os.ErrInvalid
 	}

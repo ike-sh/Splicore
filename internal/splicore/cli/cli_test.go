@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/ike-sh/Splicore/internal/splicore/registry/testfixture"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -16,7 +17,6 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/application"
 	"github.com/ike-sh/Splicore/internal/splicore/cli"
 	"github.com/ike-sh/Splicore/internal/splicore/config"
-	"github.com/ike-sh/Splicore/internal/splicore/registry"
 	"github.com/ike-sh/Splicore/internal/splicore/storage/sqlite"
 	"github.com/ike-sh/Splicore/internal/splicore/transport"
 	"github.com/ike-sh/Splicore/internal/splicore/version"
@@ -29,7 +29,7 @@ func TestCLIAndAPIShareSystem(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer store.Close()
-	p, e, x, _ := registry.Foundation()
+	p, e, x, _ := testfixture.Foundation()
 	service, _ := application.New(store, p, e, x, version.Current())
 	server := httptest.NewServer(api.Handler(service))
 	defer server.Close()

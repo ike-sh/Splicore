@@ -5,26 +5,21 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/engine/native"
 	"github.com/ike-sh/Splicore/internal/splicore/exporter"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/hysteria2"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/mieru"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/proxy"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/shadowsocks"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/snell"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/trojan"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/tuic"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/vmess"
 )
 
 func NativeCore() (*Protocols, *Engines, *Exporters, error) {
-	p, _, exports, e := Phase5()
-	if e != nil {
-		return nil, nil, nil, e
-	}
-	protocols := []ports.Protocol{}
-	for _, key := range p.Keys() {
-		entry, _ := p.Get(key)
-		protocols = append(protocols, entry)
-	}
+	protocols := []ports.Protocol{snell.Module{Version: 5}, snell.Module{Version: 6}, hysteria2.Module{}, tuic.Module{}, vless.Module{Security: vless.Plain}, vless.Module{Security: vless.TLS}, vless.Module{Security: vless.Reality}}
 	protocols = append(protocols, mieru.Module{}, shadowsocks.Module{Edition: "2017"}, shadowsocks.Module{Edition: "2022"}, trojan.Module{}, vmess.Module{})
-	p, e = NewProtocols(protocols...)
+	p, e := NewProtocols(protocols...)
 	if e != nil {
 		return nil, nil, nil, e
 	}
@@ -37,19 +32,24 @@ func NativeCore() (*Protocols, *Engines, *Exporters, error) {
 		return nil, nil, nil, e
 	}
 	entries := []ports.Exporter{}
-	for _, format := range exports.Keys() {
-		entry, _ := exports.Get(format)
-		if format == ports.Mihomo {
-			old := entry.(exporter.Dispatcher)
-			mapping := map[access.ProtocolKey]ports.Exporter{}
-			for k, v := range old.Protocols {
-				mapping[k] = v
-			}
-			mapping[mieru.Key()] = exporter.Mieru{Target: format}
-			entry = exporter.Dispatcher{Target: format, Protocols: mapping}
+	for _, format := range []ports.Format{ports.Mihomo, ports.SingBox, ports.Surge, ports.URI} {
+		mapping := map[access.ProtocolKey]ports.Exporter{}
+		if format != ports.URI {
+			mapping[snell.Key(5)] = exporter.Snell{Target: format}
+			mapping[snell.Key(6)] = exporter.Snell{Target: format}
+			mapping[hysteria2.Key()] = exporter.Hysteria2{Target: format}
+			mapping[tuic.Key()] = exporter.TUIC{Target: format}
 		}
-		entries = append(entries, entry)
+		for _, security := range []vless.Security{vless.Plain, vless.TLS, vless.Reality} {
+			mapping[vless.Key(security)] = exporter.VLESS{Target: format}
+		}
+		if format == ports.Mihomo {
+			mapping[mieru.Key()] = exporter.Mieru{Target: format}
+		}
+		entries = append(entries, exporter.Dispatcher{Target: format, Protocols: mapping})
 	}
+	// Frozen format identity retains its existing typed unsupported contract.
+	entries = append(entries, exporter.UnsupportedFormat{Target: ports.JSON})
 	for n, entry := range entries {
 		d, ok := entry.(exporter.Dispatcher)
 		if !ok || d.Target != ports.URI && d.Target != ports.Mihomo && d.Target != ports.SingBox {
@@ -71,6 +71,6 @@ func NativeCore() (*Protocols, *Engines, *Exporters, error) {
 	}
 	entries = append(entries, exporter.Dispatcher{Target: ports.Mieru, Protocols: map[access.ProtocolKey]ports.Exporter{mieru.Key(): exporter.Mieru{Target: ports.Mieru}}})
 	entries = append(entries, exporter.Dispatcher{Target: ports.Xray, Protocols: map[access.ProtocolKey]ports.Exporter{vless.Key(vless.Plain): exporter.VLESS{Target: ports.Xray}}})
-	exports, e = NewExporters(entries...)
+	exports, e := NewExporters(entries...)
 	return p, engines, exports, e
 }

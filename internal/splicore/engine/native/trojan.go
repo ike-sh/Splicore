@@ -3,6 +3,8 @@ package native
 import (
 	"context"
 	"crypto/tls"
+	streamcfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
+	shared "github.com/ike-sh/Splicore/internal/splicore/streamtransport"
 	"net"
 	"slices"
 	"sync"
@@ -47,6 +49,9 @@ func (c TrojanCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (po
 	}
 	ctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	h := &trojanHandle{ctx: ctx, cancel: cancel, endpoint: in.Inbound.Listeners[0].Endpoint, protected: d, tls: &tls.Config{Certificates: []tls.Certificate{pair}, MinVersion: tls.VersionTLS12, NextProtos: slices.Clone(s.ALPN)}, connections: map[net.Conn]bool{}, users: map[string]*traffic.Counter{}, total: &traffic.Counter{}, done: make(chan struct{})}
+	if s.Stream != nil {
+		h.transport = *s.Stream
+	}
 	for i, b := range in.Bindings {
 		id := string(b.ID)
 		h.users[id] = &traffic.Counter{}
@@ -56,6 +61,8 @@ func (c TrojanCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (po
 }
 
 type trojanHandle struct {
+	transport         streamcfg.Config
+	transportTLS      *tls.Config
 	lifecycle, mu     sync.Mutex
 	ctx               context.Context
 	cancel            context.CancelFunc
@@ -88,6 +95,14 @@ func (h *trojanHandle) Start(ctx context.Context) error {
 			return identity.Err(identity.PortConflict, "TCP listener port is already in use")
 		}
 		return identity.Err(identity.Unavailable, "Trojan listener start failed")
+	}
+	if h.transport.Type() != "tcp" {
+		wrapped, e := shared.WrapListener(l, h.transport, h.tls)
+		if e != nil {
+			l.Close()
+			return e
+		}
+		l = wrapped
 	}
 	h.listener = l
 	h.started = true
@@ -178,9 +193,13 @@ func (h *trojanHandle) serve(raw net.Conn) {
 	defer raw.Close()
 	defer func() { h.mu.Lock(); delete(h.connections, raw); h.mu.Unlock() }()
 	_ = raw.SetDeadline(time.Now().Add(5 * time.Second))
-	c := tls.Server(raw, h.tls)
-	if c.HandshakeContext(h.ctx) != nil {
-		return
+	var c net.Conn = raw
+	if h.transport.Type() == "tcp" {
+		t := tls.Server(raw, h.tls)
+		if t.HandshakeContext(h.ctx) != nil {
+			return
+		}
+		c = t
 	}
 	defer c.Close()
 	r, err := wire.ReadRequest(c)

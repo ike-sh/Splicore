@@ -17,7 +17,7 @@ func (e Trojan) Format() ports.Format { return e.Target }
 func (e Trojan) Export(_ context.Context, p clientprofile.Profile, t ports.ExportTarget) ([]byte, error) {
 	key, ok := p.Credentials.(access.PasswordPayload)
 	o, err := module.DecodeClientOptions(p.Options.Data)
-	if p.Validate() != nil || p.Protocol != module.Key() || !ok || credential.ValidatePassword(key.Password) != nil || err != nil || p.UDPPayload != o.UDP || p.Transport.Kind != "tcp" || p.Transport.Path != "" || p.Transport.Host != "" || p.TLS.Validate("tls") != nil || t.Format != e.Target {
+	if p.Validate() != nil || p.Protocol != module.Key() || !ok || credential.ValidatePassword(key.Password) != nil || err != nil || p.UDPPayload != o.UDP || p.Transport.ValidatePair("trojan", "tls") != nil || p.TLS.Validate("tls") != nil || t.Format != e.Target {
 		return nil, unsupported()
 	}
 	name := p.Metadata["display_name"]
@@ -28,7 +28,7 @@ func (e Trojan) Export(_ context.Context, p clientprofile.Profile, t ports.Expor
 		if !o.UDP || t.ClientVersion != "" {
 			return nil, unsupported()
 		}
-		u, err := module.EncodeURI(module.URI{Endpoint: p.Endpoint, Password: key.Password, TLS: p.TLS, Name: name})
+		u, err := module.EncodeURI(module.URI{Endpoint: p.Endpoint, Password: key.Password, TLS: p.TLS, Name: name, Transport: p.Transport})
 		return []byte(u), err
 	}
 	password := key.Password.Reveal()
@@ -45,6 +45,9 @@ func (e Trojan) Export(_ context.Context, p clientprofile.Profile, t ports.Expor
 		if !o.UDP {
 			node["network"] = "tcp"
 		}
+		if err := streamProjection(p, e.Target, node); err != nil {
+			return nil, err
+		}
 		return json.Marshal(node)
 	case ports.Mihomo:
 		if t.ClientVersion != "1.19.30" {
@@ -57,6 +60,9 @@ func (e Trojan) Export(_ context.Context, p clientprofile.Profile, t ports.Expor
 				return nil, unsupported()
 			}
 			node["fingerprint"] = pin
+		}
+		if err := streamProjection(p, e.Target, node); err != nil {
+			return nil, err
 		}
 		return json.Marshal(map[string]any{"proxies": []any{node}})
 	default:

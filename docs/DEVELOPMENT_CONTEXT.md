@@ -2,10 +2,10 @@
 
 Documentation status: Current architecture correction
 Audience: Maintainers and operators
-Last reviewed: 2026-10-04
+Last reviewed: 2026-10-09
 Owner: Splicore maintainer
 Responsibility: Independent native Server + Client Core boundary
-Lifecycle: Experimental; Phase 14 local freeze
+Lifecycle: Experimental; Phase 21 cleanup awaiting targeted review
 
 ## Current maintainer decision
 
@@ -17,28 +17,23 @@ VLESS plain/TLS/REALITY flow-none remains Experimental; Vision is Deferred/Unsup
 
 ## Source and Git boundary
 
-Workspace: `D:\code\Splicore`. Branch: `codex/phase-14-client-management-providers`.
-Phase 13 base/main: `b0de8c16e1c810cb851c400b5d03987924d5eff8`, sole parent
-`d09f5f10797aa63798419fa77ffd676257f1b609`. The maintainer authorized one forward
-Phase 14 freeze commit with exactly this Phase 13 base as its sole parent.
-The [freeze report](reports/PHASE_14_FREEZE_REPORT.md) records the accepted scope
-and gates; its identity is the commit containing that report. Main stays at
-Phase 13. No push, tag, release, history rewrite or Phase 15 work is authorized.
-Historical Phase 0–13 reports and existing migrations remain unchanged.
+Branch: `codex/phase-21-shared-transport`. Frozen Phase20 HEAD is
+`1ef9458a2c06aa974e721db2fe4f271bb9068ef6`. Current Phase21 shared transport passed
+targeted Re-Review; Deep Core Purge must receive targeted independent review before
+Freeze. Work remains unstaged, Index empty. No commit, push, tag, release or Phase22
+is included. Historical reports and migrations remain preserved.
 
-Frozen phases progressed through foundation, Snell, HY2, TUIC, native VLESS,
-historical Xray/FinalMask, embedded Mieru, distribution, client runtime, outbound
-expansion, routing/DNS/policy and TUN/system integration. Their reports describe
-past acceptance, not current product support. Phase 14 imports/providers and the
-architecture correction are accepted in the local Experimental freeze.
+[Core scope](architecture/CORE_SCOPE.md) defines the current product boundary.
+TUN and Core-owned network recovery remain active. Desktop desired state and OS
+Internet Settings mutation are removed; frozen 0007 storage is inert.
 
 ## Retained contracts
 
-- Native server/client: Snell, HY2, TUIC, VLESS and Mieru; DIRECT/REJECT builtins.
-- Local SOCKS TCP/UDP, HTTP, TUN and independent server/client lifecycle.
+- Native server/client: SS/SS2022, Snell, HY2, TUIC, VLESS, Mieru, Trojan, VMess, SOCKS5 and HTTP; DIRECT/REJECT builtins.
+- Local SOCKS5 TCP/UDP, HTTP, Mixed, TUN and independent server/client lifecycle.
 - Selector, URL-Test, Fallback, Load-Balance, RouteRule, DNS and RuleSet.
 - Protected native egress, dynamic endpoint DNS, old generations/shared refs,
-  reused TUN, Wintun/WinINET and durable host journal ownership.
+  reused TUN, Wintun and durable host journal ownership.
 - Provider imports/RuleSet sources, persistent random UUID identity, encryption,
   bounded revision/single-use previews, atomic Prepare/SQLite/Activate, serialized
   refresh, four-worker scheduler, offline recovery and reference-safe deletion.

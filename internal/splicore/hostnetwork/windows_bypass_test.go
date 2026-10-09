@@ -58,7 +58,7 @@ func TestWindowsCanonicalProfileDependencyProjection(t *testing.T) {
 	id := func(n string) identity.ID { return identity.ID("00000000-0000-4000-8000-00000000000" + n) }
 	state := client.Empty()
 	nid, oid, resolver := id("1"), id("2"), id("3")
-	state.Nodes = []client.RemoteNode{{ID: nid, Endpoint: access.Endpoint{Host: "node.fixture.test", Port: 443}}}
+	state.Nodes = []client.RemoteNode{{ID: nid, Endpoint: access.Endpoint{Host: "node.fixture.test", Port: 443}, Transport: client.Transport{Kind: "tcp"}}}
 	state.Outbounds = append(state.Outbounds, client.Outbound{ID: oid, NodeID: &nid, Engine: "native"})
 	if _, e := WindowsProfileDependencies(state, nil); e == nil {
 		t.Fatal("unknown system bootstrap accepted")

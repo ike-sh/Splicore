@@ -12,6 +12,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	v "github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
 	"github.com/ike-sh/Splicore/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/registry/testfixture"
 	"github.com/ike-sh/Splicore/internal/splicore/testkit"
 	"github.com/ike-sh/Splicore/internal/splicore/transport"
 	"github.com/ike-sh/Splicore/internal/splicore/version"
@@ -78,7 +79,7 @@ func TestVLESSRealityPrivateKeyBlockingGateAndRecovery(t *testing.T) {
 	}
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "state", "state.db")
-	s, store := setupProtocols(t, path, nil, registry.Phase5)
+	s, store := setupProtocols(t, path, nil, testfixture.Phase5)
 	defer func() { stop(t, s, store) }()
 	key, pub, err := v.GenerateServerKey()
 	if err != nil {
@@ -159,7 +160,7 @@ func TestVLESSRealityPrivateKeyBlockingGateAndRecovery(t *testing.T) {
 	if strings.Contains(string(data), key.Material.Reveal()) || strings.Contains(string(data), aliceUUID) {
 		t.Fatal("secret at rest plaintext")
 	}
-	s, store = setupProtocols(t, path, nil, registry.Phase5)
+	s, store = setupProtocols(t, path, nil, testfixture.Phase5)
 	recovered, err := s.Inbound(ctx, a.InboundID)
 	if err != nil || recovered.Health != "healthy" || recovered.Inbound.Engine != "native" {
 		t.Fatal("recovery", err)
@@ -182,7 +183,7 @@ func TestVLESSRealityPrivateKeyBlockingGateAndRecovery(t *testing.T) {
 }
 func TestVLESSCreationValidationRollbackAndSurface(t *testing.T) {
 	ctx := context.Background()
-	s, store := setupProtocols(t, filepath.Join(t.TempDir(), "state", "state.db"), nil, registry.Phase5)
+	s, store := setupProtocols(t, filepath.Join(t.TempDir(), "state", "state.db"), nil, testfixture.Phase5)
 	defer stop(t, s, store)
 	plain := v.Settings{Security: v.Plain, Flow: v.NoFlow, Transport: "tcp", PacketEncoding: "xudp"}
 	d := vlessDoc(t, freePort(t), plain, "")
@@ -250,9 +251,9 @@ func TestVLESSCreationValidationRollbackAndSurface(t *testing.T) {
 func TestVLESSRuntimeFaultRollback(t *testing.T) {
 	for _, stage := range []string{"compile", "start", "health"} {
 		t.Run(stage, func(t *testing.T) {
-			s, store := setupProtocols(t, filepath.Join(t.TempDir(), "state", "state.db"), nil, registry.Phase5)
+			s, store := setupProtocols(t, filepath.Join(t.TempDir(), "state", "state.db"), nil, testfixture.Phase5)
 			defer stop(t, s, store)
-			p, _, x, _ := registry.Phase5()
+			p, _, x, _ := testfixture.Phase5()
 			h := &faultHandle{stage: stage}
 			eng, _ := registry.NewEngines(faultEngine{stage: stage, handle: h})
 			svc, err := application.New(store, p, eng, x, version.Current())

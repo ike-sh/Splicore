@@ -9,6 +9,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/engine/clientio"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	module "github.com/ike-sh/Splicore/internal/splicore/protocol/vmess"
+	shared "github.com/ike-sh/Splicore/internal/splicore/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"github.com/ike-sh/Splicore/protocol/vmess/backend"
 	"github.com/ike-sh/Splicore/protocol/vmess/wire"
@@ -28,6 +29,7 @@ func (f VMessOutboundFactory) Build(ctx context.Context, n client.RemoteNode, c 
 	if err := f.Validate(n, c); err != nil {
 		return nil, err
 	}
+	n.Transport = n.Transport.Clone()
 	d, err := underlay.DialerFrom(ctx, underlay.PurposeFrom(ctx, underlay.ProxyUnderlay))
 	if err != nil {
 		return nil, err
@@ -69,7 +71,7 @@ func (d *vmessDialer) open(ctx context.Context, dst access.Endpoint, packet bool
 	if err != nil {
 		return nil, err
 	}
-	c, err := d.protected.DialContext(ctx, "tcp", net.JoinHostPort(d.node.Endpoint.Host, portString(d.node.Endpoint.Port)))
+	c, err := shared.Dial(ctx, d.protected.DialContext, net.JoinHostPort(d.node.Endpoint.Host, portString(d.node.Endpoint.Port)), d.node.Transport, d.tls)
 	if err != nil {
 		return nil, err
 	}
@@ -92,13 +94,7 @@ func (d *vmessDialer) open(ctx context.Context, dst access.Endpoint, packet bool
 		deadline = t
 	}
 	_ = raw.SetDeadline(deadline)
-	if d.tls != nil {
-		tc := tls.Client(raw, d.tls.Clone())
-		if err := tc.HandshakeContext(ctx); err != nil {
-			return nil, err
-		}
-		c = tc
-	}
+
 	// Published sockets are owned by clientio, independently of the dial context.
 	stream, err := backend.Client(context.WithoutCancel(ctx), c, d.key, r, time.Now())
 	if err != nil {

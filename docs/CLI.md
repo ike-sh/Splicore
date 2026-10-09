@@ -79,7 +79,7 @@ while explain reads supplied metadata only. No new service/binary or protocol co
 
 ## Phase 13 host integration
 
-`tun status|validate|plan|apply` uses local-inbound intent; `system-proxy status|validate|plan|apply` uses host-integration intent. Files for these aliases use the normal ClientMutation envelope. `network repair` uses Application plan/apply and only recorded owned resources after client stop. `service recover-network` is the stopped-service local recovery helper. Doctor is passive and lists stack/driver/privileges/owned routes/DNS mode/journal/exclusions. See [system integration](SYSTEM_INTEGRATION.md).
+`tun status|validate|plan|apply` uses local-inbound intent. Files for these aliases use the normal ClientMutation envelope. `network repair` uses Application plan/apply and only recorded owned resources after client stop. `service recover-network` is the stopped-service local recovery helper. Doctor is passive and lists stack/driver/privileges/owned routes/DNS mode/journal/exclusions. See [system integration](SYSTEM_INTEGRATION.md).
 
 ## Phase 14 imports, exports and providers
 

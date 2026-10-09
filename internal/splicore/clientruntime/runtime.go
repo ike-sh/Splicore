@@ -9,7 +9,6 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
-	"github.com/ike-sh/Splicore/internal/splicore/hostnetwork"
 	"github.com/ike-sh/Splicore/internal/splicore/networkruntime"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	httpproxy "github.com/ike-sh/Splicore/internal/splicore/protocol/http"
@@ -136,7 +135,6 @@ type Prepared struct {
 	mu              sync.Mutex // candidate consumption only; never session payload I/O
 	base            *snapshot
 	activated       bool
-	proxy           *hostnetwork.Lease
 	m               *Manager
 	s               *snapshot
 	listeners       map[identity.ID]*localListener
@@ -460,10 +458,6 @@ func (p *Prepared) Activate() error {
 	m.routeMu.Lock()
 	old := m.current.Swap(p.s)
 	m.routeMu.Unlock()
-	if m.host != nil && p.proxy != nil {
-		m.host.proxy = p.proxy
-		m.host.proxyListener = p.listeners[p.s.state.Host.SystemProxy.LocalInbound]
-	}
 	for _, l := range p.newListeners {
 		if l.tun != nil {
 			l.tun.activate()
@@ -493,24 +487,6 @@ func (p *Prepared) Activate() error {
 	var hostErr error
 	cleanup, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if m.host != nil {
-		m.mu.Lock()
-		proxy := m.host.proxy
-		m.mu.Unlock()
-		if (!p.s.state.Enabled || !p.s.state.Host.SystemProxy.Enabled) && proxy != nil {
-			hostErr = proxy.Restore(cleanup)
-			m.mu.Lock()
-			if hostErr == nil {
-				if m.host.proxy == proxy {
-					m.host.proxy = nil
-					m.host.proxyListener = nil
-				}
-			} else {
-				m.host.lastError = "host_restore_failed"
-			}
-			m.mu.Unlock()
-		}
-	}
 	for _, l := range removed {
 		hostErr = errors.Join(hostErr, m.closeListener(cleanup, l))
 	}
@@ -543,7 +519,6 @@ func (m *Manager) accept(l *localListener) {
 		c, err := l.socket.Accept()
 		if err != nil {
 			l.ready.Store(false)
-			m.listenerFailed(l)
 			return
 		}
 		m.mu.Lock()
@@ -803,15 +778,8 @@ func (m *Manager) Close(ctx context.Context) error {
 	for owner := range m.networkOwners {
 		owners = append(owners, owner)
 	}
-	var proxy *hostnetwork.Lease
-	if m.host != nil {
-		proxy = m.host.proxy
-	}
 	m.mu.Unlock()
 	var hostErr error
-	if proxy != nil {
-		hostErr = proxy.Restore(ctx)
-	}
 	for _, l := range listeners {
 		hostErr = errors.Join(hostErr, m.closeListener(ctx, l))
 	}

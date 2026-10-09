@@ -73,19 +73,16 @@ restriction. Phase 3 and Phase 4 freeze requests supersede their respective
 implementation-only staging/commit restrictions. Phase 4 allows one reviewed
 commit, main fast-forward and a reserved Phase 5 branch, then requires stopping.
 
-For Windows, the normal build's PowerShell translation is:
+Current Windows Core builds use:
 
 ```powershell
 $env:GOTOOLCHAIN = 'local'
 $env:CGO_ENABLED = '0'
-$buildTags = (Get-Content release/DEFAULT_BUILD_TAGS_OTHERS -Raw).Trim()
-$buildFlags = (Get-Content release/LDFLAGS -Raw).Trim() + ' -X github.com/sagernet/sing-box/constant.Version=1.14.1 -s -w -buildid='
-go build -trimpath -tags $buildTags -ldflags $buildFlags -o "$env:TEMP/splicore-upstream-review.exe" ./cmd/sing-box
+go build -trimpath -tags with_gvisor,with_quic,with_utls -o "$env:TEMP/splicore.exe" ./cmd/splicore
 ```
 
-This pins the verified baseline instead of invoking Makefile's mutable version
-helper. It preserves build behavior and writes the upstream executable outside
-the repository; it is not a Splicore install or release command.
+Historical phase instructions above are checkpoint evidence. Current product scope
+is defined by [Core scope](../architecture/CORE_SCOPE.md).
 
 Python and the validator can run in a disposable container with a read-only
 source mount. Tools, binaries and fresh raw outputs belong outside the repository;

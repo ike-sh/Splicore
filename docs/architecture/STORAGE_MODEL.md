@@ -150,13 +150,10 @@ preserves the database for operator recovery; server/control stay available.
 
 ## Phase 13 host integration
 
-Migration 0007 adds generic singleton host integration desired JSON. TUN settings live in existing local inbound JSON; no transient interface index or protocol column is added. Host recovery journal is private operational state, separate from SQLite authority. Migrations 0001–0006 are unchanged. See [system integration](../SYSTEM_INTEGRATION.md).
-
-Operational journal schema 2 adds typed LAN WinINET snapshots/intermediates and
-Windows adapter/route generation identities. Schema 1 remains readable but cannot
-contain the new Windows shapes. WinINET previous-state fingerprints and generation
-timestamps stay private; sensitive PAC state rejects. Failed acknowledgments/cleanup
-retain recovery debt. This is independent of SQLite migration numbering.
+Migration 0007 is historical/deprecated/inert. Current Core never reads or writes
+client_host_profiles. TUN settings remain in local_inbounds. Frozen migration hashes
+are unchanged. Restored old journal steps are preserved as opaque data; incomplete
+legacy debt rejects without mutation. See [Core scope](CORE_SCOPE.md).
 
 ## Phase 14 schema 8 and remote authority
 

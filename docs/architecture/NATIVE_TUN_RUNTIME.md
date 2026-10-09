@@ -170,7 +170,7 @@ Real tests run only in owned disposable Linux network namespaces. Their veth
 underlay has explicit IPv6 global and link-local identities; suppressing address
 generation without link-local addresses breaks later neighbor probes. WSL evidence
 does not qualify a native Ubuntu deployment. Windows uses build, unit and safe
-fake-driver integration only. Windows routes/WinINET remain unmutated.
+fake-driver integration only. Windows routes remain unmutated.
 
 ## Dependency Boundaries
 

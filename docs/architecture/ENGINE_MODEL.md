@@ -23,7 +23,7 @@ protocol, engine and exporter registries. Engine metadata retains independent
 roles, ABI and protocol placement. EffectiveCapabilities intersects protocol and
 engine support. EngineStatus reports compiled identity/availability only.
 
-Native adapters own private Box/context or official embedded Mieru API instances.
+Native adapters own private Splicore runtime state or official embedded Mieru API instances.
 Prepare validates and builds a candidate, Start checks admission/health, SQLite
 commits, and Activate publishes it. Failure compensates the candidate and retains
 the previous generation. A server generation owns bindings/stats and its underlay

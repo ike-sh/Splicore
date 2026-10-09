@@ -1,59 +1,47 @@
 # Splicore
 
-Documentation status: Current architecture correction
+Documentation status: Current
 Audience: Maintainers and operators
-Last reviewed: 2026-10-04
+Last reviewed: 2026-10-09
 Owner: Splicore maintainer
-Responsibility: Independent native Server + Client Core boundary
-Lifecycle: Experimental; Qualification Fix / Native TUN local freeze
+Responsibility: Independent proxy Core identity and entry points
+Lifecycle: Experimental; Phase 21 cleanup awaiting independent review
 
-Splicore is an independent **Server + Client Core**, derived from sing-box v1.14.1.
-It is experimental, locally qualified, and distributed as one `splicore` binary.
+Splicore is an independent **proxy core** usable as Server Core and Client Core,
+derived in part from sing-box v1.14.1. It runs as one `splicore` binary.
 
-| Protocol | Server | Client |
-| --- | --- | --- |
-| Snell v5/v6 | Experimental | Experimental |
-| Hysteria2 | Experimental | Experimental |
-| TUIC v5 | Experimental | Experimental |
-| VLESS plain/TLS/REALITY, flow-none | Experimental | Experimental |
-| Mieru | Experimental, embedded v3.38.0 | Experimental, embedded v3.38.0 |
+Protocols include SS/SS2022, Snell, Hysteria2, TUIC, VLESS, Mieru, Trojan and VMess;
+SOCKS5/HTTP proxy nodes and SOCKS5/HTTP/Mixed/TUN traffic entry use shared routing,
+DNS, policy and protected networking. Shared stream transports include Raw,
+WebSocket, HTTPUpgrade, gRPC, TLS and supported REALITY integration.
+SQLite, encrypted credentials, API/CLI transactions, providers and Core service
+deployment belong to its control plane. The authoritative boundary is
+[Core scope](docs/architecture/CORE_SCOPE.md).
 
-Client ingress includes SOCKS TCP/UDP, HTTP and TUN. Shared control includes
-SQLite, encrypted credentials, API/CLI transactions, routing, DNS, policy groups,
-imports and proxy/RuleSet providers. The [Phase 14 local freeze](docs/reports/PHASE_14_FREEZE_REPORT.md)
-records the accepted implementation, architecture correction and qualification limits.
-
-Vision is Deferred/Unsupported. FinalMask and Sudoku are **out of scope for
-Splicore**. Xray is absent from its runtime and distribution. Future
-NoBrand-OneClick can deploy an independent Xray service for specialized modes;
-Splicore neither installs nor manages it. [Architecture decision](docs/adr/0035-xray-runtime-removed-from-core.md).
+Vision is deferred/unsupported. FinalMask/Sudoku are outside Splicore runtime scope.
+No external core child process is required. Splicore has no desktop client, GUI,
+tray, system proxy controller or PAC ownership.
 
 ## Build
 
 ```sh
 go build -tags with_quic,with_utls,with_gvisor ./cmd/splicore
+go test ./...
 go test -race -tags with_quic,with_utls,with_gvisor ./internal/splicore/...
 ```
 
-No external runtime is required. See [installation](docs/INSTALLATION.md),
-[operations](docs/OPERATIONS.md), [architecture](docs/ARCHITECTURE.md),
-[capabilities](docs/architecture/CAPABILITY_MATRIX.md), and [documentation](docs/README.md).
+See [installation](docs/INSTALLATION.md), [operations](docs/OPERATIONS.md),
+[architecture](docs/ARCHITECTURE.md), [capabilities](docs/architecture/CAPABILITY_MATRIX.md)
+and [documentation](docs/README.md).
 
-Linux race/checkptr and owned disposable WSL namespace/service tests are local
-evidence. Native Ubuntu auto-route and real Windows host networking remain
-uncertified; Windows race is not executed, and Linux arm64 is build-only.
-Historical frozen reports remain preserved. The
-[correction report](docs/reports/ARCHITECTURE_CORRECTION_XRAY_BOUNDARY_REPORT.md)
-records the current superseding architecture and exact regression results.
-
-The [Qualification Fix / Native TUN freeze](docs/reports/QUALIFICATION_FIX_NATIVE_TUN_FREEZE_REPORT.md)
-records the new locally frozen candidate containing QF-001/QF-002/QF-003.
-Platform Qualification must be resumed against that new commit; it has not
-been resumed or passed by this freeze.
+Historical platform qualification remains PARTIALLY PASSED. Phase 21 is NOT
+PLATFORM QUALIFIED; native Ubuntu auto-route and real Windows host networking
+remain uncertified, Windows race is not executed, Linux arm64 is BUILD ONLY.
+Historical frozen reports remain preserved. Deep Core Purge requires targeted
+independent review before any Freeze.
 
 ## License
 
-See [LICENSE](LICENSE), [NOTICE](NOTICE.md), and
-[license boundaries](docs/architecture/LICENSE_BOUNDARIES.md). Inherited runtime
-source provenance is preserved. The inherited libbox OOM profiler uses public
-Go profiling APIs after QF-003; external dependency source remains unchanged.
+See [LICENSE](LICENSE), [NOTICE](NOTICE.md), [third-party notices](THIRD_PARTY_NOTICES.md)
+and [license boundaries](docs/architecture/LICENSE_BOUNDARIES.md).
+Inherited source copyright and derivative provenance remain preserved.

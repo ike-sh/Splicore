@@ -12,6 +12,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
+	streamcfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/jsonstrict"
 	"github.com/ike-sh/Splicore/internal/splicore/tlsconfig"
 	"strings"
@@ -71,6 +72,7 @@ type RealitySettings struct {
 	Target     access.Endpoint `json:"target"`
 }
 type Settings struct {
+	Stream         *streamcfg.Config   `json:"stream_transport,omitempty"`
 	Security       Security            `json:"security"`
 	Flow           Flow                `json:"flow"`
 	Transport      string              `json:"transport"`
@@ -141,6 +143,9 @@ func validateSettings(s Settings, publicRequired bool) error {
 	if err := ValidateFlow(s.Flow); err != nil {
 		return err
 	}
+	if s.Stream != nil && (s.Stream.ValidatePair("vless", string(s.Security)) != nil || s.Stream.ValidateServer() != nil) {
+		return invalid()
+	}
 	if s.Transport != "tcp" || s.PacketEncoding != "xudp" {
 		return invalid()
 	}
@@ -183,7 +188,7 @@ func validateSettings(s Settings, publicRequired bool) error {
 }
 func decode(b []byte, publicRequired bool) (Settings, error) {
 	var s Settings
-	if len(b) > 16384 || jsonstrict.Decode(b, &s) != nil {
+	if len(b) > 16384 || streamcfg.ValidateMember(b) != nil || jsonstrict.Decode(b, &s) != nil {
 		return Settings{}, invalid()
 	}
 	var fields map[string]json.RawMessage

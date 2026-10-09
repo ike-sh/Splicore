@@ -39,8 +39,6 @@ func clientRoute(w http.ResponseWriter, r *http.Request, q application.Queries) 
 			allowed = "GET"
 		case "route":
 			allowed = "GET, PUT"
-		case "host-integration":
-			allowed = "GET, PUT"
 		case "host-network":
 			allowed = "GET"
 		case "validate", "plan", "apply":
@@ -92,8 +90,6 @@ func clientRoute(w http.ResponseWriter, r *http.Request, q application.Queries) 
 				result = status
 			case "route":
 				result = status.State.Route
-			case "host-integration":
-				result = status.State.Host
 			case "host-network":
 				result = status.Host
 			default:
@@ -218,9 +214,6 @@ func clientRoute(w http.ResponseWriter, r *http.Request, q application.Queries) 
 		m.Resource = resource
 		m.Action = "rotate"
 		m.ID = identity.ID(parts[1])
-	} else if parts[0] == "client" && len(parts) == 2 && parts[1] == "host-integration" && r.Method == http.MethodPut {
-		m.Resource = "host-integration"
-		m.Action = "update"
 	} else if parts[0] == "client" && len(parts) == 3 && parts[1] == "host-network" && parts[2] == "repair" && r.Method == http.MethodPost {
 		m.Resource = "host-network"
 		m.Action = "repair"

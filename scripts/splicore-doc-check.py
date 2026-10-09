@@ -150,7 +150,7 @@ def main():
         "/api/v1/policy-groups/status":["get"],"/api/v1/policy-groups/{id}/select":["post"],
         "/api/v1/dns/profile":["get","put"],"/api/v1/dns/lookup":["post"],
         "/api/v1/dns/cache/status":["get"],"/api/v1/dns/cache/flush":["post"]}.items() for method in methods]
-    client_operations += [("get","/api/v1/client/host-integration"),("put","/api/v1/client/host-integration"),("get","/api/v1/client/host-network"),("post","/api/v1/client/host-network/repair")]
+    client_operations += [("get","/api/v1/client/host-network"),("post","/api/v1/client/host-network/repair")]
     client_operations += [(method,"/api/v1/"+collection+suffix)
         for collection in ["providers","rule-set-providers"]
         for suffix,methods in [("",["get","post"]),("/{id}",["get","put","delete"]),("/{id}/refresh",["post"]),("/{id}/refresh-preview",["post"])]
@@ -179,8 +179,7 @@ def main():
         if (args.responses / "client-runtime-response.json").exists():
             pairs.extend(client_pairs)
             if "HostNetworkStatus" in spec["components"]["schemas"]:
-                pairs.extend([("host-integration-response.json", "HostIntegration"),
-                              ("host-network-response.json", "HostNetworkStatus")])
+                pairs.append(("host-network-response.json", "HostNetworkStatus"))
         if (args.responses / "tun-local-response.json").exists():
             pairs.extend([("tun-local-response.json", "LocalInbound"),
                           ("tun-runtime-response.json", "ClientRuntimeStatus"),

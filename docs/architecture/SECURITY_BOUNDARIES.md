@@ -158,7 +158,8 @@ remain redacted; graph intent contains no credential payload fields.
 Host mutations require the existing protected Application plan/apply/revision boundary. Private journal owner/ACL, size/shape validation and an exclusive lock precede writes. Corruption fails degraded; external changes are retained. HTTP stays loopback, headers bounded and proxy credentials stripped. Support bundles expose owned counts/enums and redacted metadata, never full host network/proxy data. See [system integration](../SYSTEM_INTEGRATION.md).
 
 Windows schema-2 records bind adapter GUID/route identity to generation/owner.
-WinINET LAN snapshots/intermediates remain private and reject sensitive PAC values.
+Restored legacy desktop records remain opaque private history; no active OS
+mutation or new desktop record is supported.
 Exact-state comparisons preserve external C; failed child cleanup retains Wintun
 parent debt. No registry setter, guessed adapter-name deletion or reboot is used.
 Original activation guards remain pending real Windows platform qualification;

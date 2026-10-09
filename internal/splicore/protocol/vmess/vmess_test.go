@@ -112,7 +112,7 @@ func TestVMessURIBoundsUnsupportedAndNoLossyCA(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, bad := range []string{
-		strings.Replace(valid, `"aid":"0"`, `"aid":"64"`, 1), strings.Replace(valid, `"net":"tcp"`, `"net":"ws"`, 1), strings.Replace(valid, `"scy":"auto"`, `"scy":"zero"`, 1), strings.Replace(valid, `"port":"443"`, `"port":"65536"`, 1), strings.Replace(valid, `"port":"443"`, `"port":null`, 1), strings.Replace(valid, `"tls":""`, `"tls":"","fp":"chrome"`, 1), strings.Replace(valid, `"ps":"synthetic"`, `"ps":"bad\nname"`, 1), strings.Replace(valid, `"scy":"auto"`, `"scy":"auto","scy":"none"`, 1), strings.Replace(valid, `"scy":"auto"`, `"scy":"auto","SCY":"none"`, 1), strings.Replace(valid, syntheticUUID, "invalid", 1), strings.Replace(valid, `"net":"tcp"`, `"net":"tcp","path":"/"`, 1),
+		strings.Replace(valid, `"aid":"0"`, `"aid":"64"`, 1), strings.Replace(valid, `"net":"tcp"`, `"net":"xhttp"`, 1), strings.Replace(valid, `"scy":"auto"`, `"scy":"zero"`, 1), strings.Replace(valid, `"port":"443"`, `"port":"65536"`, 1), strings.Replace(valid, `"port":"443"`, `"port":null`, 1), strings.Replace(valid, `"tls":""`, `"tls":"","fp":"chrome"`, 1), strings.Replace(valid, `"ps":"synthetic"`, `"ps":"bad\nname"`, 1), strings.Replace(valid, `"scy":"auto"`, `"scy":"auto","scy":"none"`, 1), strings.Replace(valid, `"scy":"auto"`, `"scy":"auto","SCY":"none"`, 1), strings.Replace(valid, syntheticUUID, "invalid", 1), strings.Replace(valid, `"net":"tcp"`, `"net":"tcp","path":"/"`, 1),
 	} {
 		if _, err := module.ParseURI(link(bad)); err == nil {
 			t.Fatal("unsupported/malformed URI accepted")

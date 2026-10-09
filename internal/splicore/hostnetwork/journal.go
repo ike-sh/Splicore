@@ -2,12 +2,12 @@
 package hostnetwork
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/netip"
-	"net/url"
 	"reflect"
 	"runtime"
 	"strings"
@@ -38,19 +38,8 @@ type Record struct {
 	UID          *uint32                 `json:"uid,omitempty"`
 	Mark         uint32                  `json:"mark,omitempty"`
 	Invert       bool                    `json:"invert,omitempty"`
-	Proxy        *ProxyState             `json:"proxy,omitempty"`
-	WinINET      *WinINETSnapshot        `json:"wininet,omitempty"`
 	Adapter      *WindowsAdapterIdentity `json:"adapter,omitempty"`
 	WindowsRoute *WindowsRouteState      `json:"windows_route,omitempty"`
-}
-type ProxyValue struct {
-	Present bool   `json:"present"`
-	Type    uint32 `json:"type"`
-	Number  uint32 `json:"number,omitempty"`
-	Text    string `json:"text,omitempty"`
-}
-type ProxyState struct {
-	Values map[string]ProxyValue `json:"values"`
 }
 
 func (r Record) Validate() error {
@@ -85,10 +74,6 @@ func (r Record) Validate() error {
 		shape.UID = nil
 		shape.Mark = 0
 		shape.Invert = false
-	case "proxy":
-		shape.Proxy = nil
-	case "wininet":
-		shape.WinINET = nil
 	case "session":
 		shape.Interface = ""
 		shape.Adapter = nil
@@ -109,7 +94,7 @@ func (r Record) Validate() error {
 	}
 	switch r.Kind {
 	case "interface":
-		if r.Interface == "" || r.MTU < 1280 || r.MTU > 9000 || len(r.Addresses) < 1 || len(r.Addresses) > 2 || r.Proxy != nil {
+		if r.Interface == "" || r.MTU < 1280 || r.MTU > 9000 || len(r.Addresses) < 1 || len(r.Addresses) > 2 {
 			return bad()
 		}
 		for _, p := range r.Addresses {
@@ -118,7 +103,7 @@ func (r Record) Validate() error {
 			}
 		}
 	case "address":
-		if r.Interface == "" || r.Proxy != nil {
+		if r.Interface == "" {
 			return bad()
 		}
 		if _, err := netip.ParsePrefix(r.Prefix); err != nil {
@@ -126,7 +111,7 @@ func (r Record) Validate() error {
 		}
 	case "route":
 		p, err := netip.ParsePrefix(r.Prefix)
-		if err != nil || p.Masked().String() != r.Prefix || r.Protocol != 198 || r.Proxy != nil {
+		if err != nil || p.Masked().String() != r.Prefix || r.Protocol != 198 {
 			return bad()
 		}
 		if !r.Throw && r.Interface == "" {
@@ -139,32 +124,7 @@ func (r Record) Validate() error {
 			}
 		}
 	case "rule":
-		if r.Priority < 1 || r.Table < 1 || r.Family != 4 && r.Family != 6 || r.Proxy != nil {
-			return bad()
-		}
-	case "proxy":
-		if r.Interface != "" || r.Proxy == nil || len(r.Proxy.Values) != 1 {
-			return bad()
-		}
-		for key, v := range r.Proxy.Values {
-			if key != "ProxyEnable" && key != "ProxyServer" && key != "ProxyOverride" && key != "AutoConfigURL" && key != "AutoDetect" {
-				return bad()
-			}
-			if v.Type != 0 && v.Type != 1 && v.Type != 4 || len(v.Text) > 4096 || strings.ContainsAny(v.Text, "@\r\n\x00") {
-				return bad()
-			}
-			if !v.Present && (v.Type != 0 || v.Number != 0 || v.Text != "") || v.Present && v.Type == 0 || v.Type == 1 && v.Number != 0 || v.Type == 4 && v.Text != "" {
-				return bad()
-			}
-			if key == "AutoConfigURL" && v.Text != "" {
-				u, e := url.Parse(v.Text)
-				if e != nil || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
-					return bad()
-				}
-			}
-		}
-	case "wininet":
-		if r.WinINET == nil || r.WinINET.Validate() != nil {
+		if r.Priority < 1 || r.Table < 1 || r.Family != 4 && r.Family != 6 {
 			return bad()
 		}
 	case "session":
@@ -193,11 +153,6 @@ func (r Record) key() string {
 	case "windows-route":
 		return "windows-route:" + r.WindowsRoute.Destination
 	default:
-		if r.Kind == "proxy" {
-			for key := range r.Proxy.Values {
-				return "proxy:" + key
-			}
-		}
 		return r.Kind
 	}
 }
@@ -217,12 +172,11 @@ type JournalStore interface {
 	Close() error
 }
 type Step struct {
-	Key               Record    `json:"key"`
-	Before            *Record   `json:"before,omitempty"`
-	After             *Record   `json:"after,omitempty"`
-	State             string    `json:"state"`
-	Intermediates     []*Record `json:"intermediates,omitempty"`
-	BeforeFingerprint string    `json:"before_fingerprint,omitempty"`
+	Key    Record          `json:"key"`
+	Before *Record         `json:"before,omitempty"`
+	After  *Record         `json:"after,omitempty"`
+	State  string          `json:"state"`
+	legacy json.RawMessage // decoded restored history only; never a new Core resource
 }
 type Generation struct {
 	ID        identity.ID `json:"id"`
@@ -240,7 +194,20 @@ type Journal struct {
 
 func DecodeJournal(b []byte) (*Journal, error) {
 	var j Journal
-	if jsonstrict.DecodeLimit(b, &j, MaxJournalBytes) != nil || (j.Schema != 1 && j.Schema != 2) || j.Platform != "linux" && j.Platform != "windows" || !identity.Label(j.Scope, 512) || len(j.Generations) > 32 {
+	var raw json.RawMessage
+	if jsonstrict.DecodeLimit(b, &raw, MaxJournalBytes) != nil {
+		return nil, identity.Err(identity.Corrupt, "network recovery journal is invalid")
+	}
+	d := json.NewDecoder(bytes.NewReader(raw))
+	d.DisallowUnknownFields()
+	if err := d.Decode(&j); err != nil {
+		var typed *identity.Error
+		if errors.As(err, &typed) && typed.Code == identity.NotImplemented {
+			return nil, err
+		}
+		return nil, identity.Err(identity.Corrupt, "network recovery journal is invalid")
+	}
+	if (j.Schema != 1 && j.Schema != 2) || j.Platform != "linux" && j.Platform != "windows" || !identity.Label(j.Scope, 512) || len(j.Generations) > 32 {
 		return nil, identity.Err(identity.Corrupt, "network recovery journal is invalid")
 	}
 	seen := map[identity.ID]bool{}
@@ -251,6 +218,9 @@ func DecodeJournal(b []byte) (*Journal, error) {
 		seen[g.ID] = true
 		keys := map[string]bool{}
 		for _, s := range g.Steps {
+			if s.legacy != nil {
+				continue // inert, restored history validated by Step.UnmarshalJSON
+			}
 			if j.Schema == 1 && (s.Key.Kind == "session" || s.Key.Adapter != nil || s.Key.Kind == "windows-route") {
 				return nil, identity.Err(identity.Corrupt, "new ownership record in old journal")
 			}
@@ -263,17 +233,6 @@ func DecodeJournal(b []byte) (*Journal, error) {
 			}
 			if s.Key.WindowsRoute != nil && (s.Key.WindowsRoute.Generation != g.ID || s.Key.WindowsRoute.Owner != g.Owner) {
 				return nil, identity.Err(identity.Corrupt, "Windows route journal generation mismatch")
-			}
-			if len(s.Intermediates) > 64 || (len(s.Intermediates) > 0 && s.Key.Kind != "wininet") || (j.Schema == 1 && (s.Key.Kind == "wininet" || len(s.Intermediates) > 0 || s.BeforeFingerprint != "")) {
-				return nil, identity.Err(identity.Corrupt, "invalid recovery transitions")
-			}
-			if s.Key.Kind == "wininet" && (s.Before == nil || s.Before.WinINET == nil || s.BeforeFingerprint != s.Before.WinINET.Fingerprint()) {
-				return nil, identity.Err(identity.Corrupt, "invalid WinINET recovery fingerprint")
-			}
-			for _, r := range s.Intermediates {
-				if r == nil || r.Validate() != nil || r.key() != s.Key.key() {
-					return nil, identity.Err(identity.Corrupt, "invalid recovery transition")
-				}
 			}
 			for _, r := range []*Record{s.Before, s.After} {
 				if r != nil && (r.Validate() != nil || r.key() != s.Key.key()) {
@@ -300,7 +259,6 @@ type Status struct {
 	ActiveGenerations int    `json:"active_generations"`
 	OwnedRoutes       int    `json:"owned_routes"`
 	OwnedInterfaces   int    `json:"owned_interfaces"`
-	SystemProxy       bool   `json:"system_proxy_owned"`
 	LastError         string `json:"last_error,omitempty"`
 }
 type Manager struct {
@@ -357,7 +315,7 @@ func (m *Manager) persist() error {
 }
 
 // Prepare persists every prior state before the first host write. Ready starts the
-// data plane after interface/address setup and before capture routes or proxy.
+// data plane after interface/address setup and before capture routes.
 func (m *Manager) Prepare(ctx context.Context, desired []Record, ready func() error, stopBeforeRestore ...func()) (lease *Lease, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -397,28 +355,13 @@ func (m *Manager) Prepare(ctx context.Context, desired []Record, ready func() er
 		if e != nil {
 			return nil, identity.Err(identity.Unavailable, "host network snapshot failed")
 		}
-		if before != nil && r.Kind != "proxy" && r.Kind != "wininet" && !(r.Kind == "windows-route" && sameWindowsRoute(before, &r)) {
+		if before != nil && !(r.Kind == "windows-route" && sameWindowsRoute(before, &r)) {
 			return nil, identity.Err(identity.Conflict, "host network resource collision")
 		}
 		if before != nil && before.Validate() != nil {
-			return nil, identity.Err(identity.Invalid, "previous system proxy contains unsupported or sensitive state")
+			return nil, identity.Err(identity.Invalid, "invalid previous Core network state")
 		}
 		step := Step{Key: r, Before: cloneRecord(before), After: cloneRecord(&r), State: "pending"}
-		if r.Kind == "wininet" {
-			if before == nil || before.WinINET == nil {
-				return nil, identity.Err(identity.Unavailable, "WinINET snapshot missing")
-			}
-			b, ok := m.backend.(TransitionBackend)
-			if !ok {
-				return nil, identity.Err(identity.NotImplemented, "WinINET transition ownership unavailable")
-			}
-			step.Intermediates, e = b.Transitions(r, before, &r)
-			if e != nil {
-				return nil, e
-			}
-			step.BeforeFingerprint = before.WinINET.Fingerprint()
-			m.journal.Schema = 2
-		}
 		g.Steps = append(g.Steps, step)
 		if r.Adapter != nil || r.Kind == "session" || r.Kind == "windows-route" {
 			m.journal.Schema = 2
@@ -527,26 +470,6 @@ func (m *Manager) restore(ctx context.Context, index int, recovery bool) error {
 			continue
 		}
 		if equal(current, s.Before) {
-			if b, ok := m.backend.(TransitionBackend); ok && s.Key.Kind == "wininet" {
-				if m.journal.Scope != m.backend.Scope() || m.journal.Platform != runtime.GOOS {
-					all = errors.Join(all, identity.Err(identity.Conflict, "foreign WinINET recovery scope"))
-					continue
-				}
-				if e = m.persist(); e != nil {
-					all = errors.Join(all, e)
-					break
-				}
-				if b, ok := m.backend.(ownershipBackend); ok {
-					if e = b.Authorize(*g); e != nil {
-						all = errors.Join(all, e)
-						break
-					}
-				}
-				if e = b.FinalizeRestore(ctx, s.Key); e != nil {
-					all = errors.Join(all, e)
-					continue
-				}
-			}
 			s.State = "restored"
 			continue
 		}
@@ -554,29 +477,6 @@ func (m *Manager) restore(ctx context.Context, index int, recovery bool) error {
 			s.State = "conflict"
 			all = errors.Join(all, identity.Err(identity.Conflict, "external network mutation preserved"))
 			continue
-		}
-		if b, ok := m.backend.(TransitionBackend); ok && s.Key.Kind == "wininet" {
-			transitions, err := b.Transitions(s.Key, current, s.Before)
-			if err != nil {
-				all = errors.Join(all, err)
-				continue
-			}
-			for _, r := range transitions {
-				found := false
-				for _, v := range s.Intermediates {
-					if equal(r, v) {
-						found = true
-						break
-					}
-				}
-				if !found {
-					s.Intermediates = append(s.Intermediates, r)
-				}
-			}
-			if len(s.Intermediates) > 64 {
-				all = errors.Join(all, identity.Err(identity.Unavailable, "recovery transition capacity exceeded"))
-				continue
-			}
 		}
 		// Persist restore intent before its write; a crash can compare both states.
 		if e = m.persist(); e != nil {
@@ -672,8 +572,6 @@ func (m *Manager) Status() Status {
 				}
 			case "interface":
 				s.OwnedInterfaces++
-			case "proxy", "wininet":
-				s.SystemProxy = true
 			}
 		}
 	}
@@ -699,13 +597,4 @@ func (m *Manager) Close() error {
 		err = errors.Join(err, e)
 	}
 	return err
-}
-
-func (m *Manager) SystemProxyPlan(endpoint string) ([]Record, error) {
-	if b, ok := m.backend.(interface {
-		SystemProxyPlan(string) ([]Record, error)
-	}); ok {
-		return b.SystemProxyPlan(endpoint)
-	}
-	return ProxyPlan(endpoint), nil
 }

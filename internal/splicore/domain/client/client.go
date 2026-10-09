@@ -7,14 +7,13 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/provider"
+	streamcfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
 	"net/netip"
 )
 
 const Direct identity.ID = "direct"
 
-type Transport struct {
-	Kind string `json:"kind"`
-}
+type Transport = streamcfg.Config
 type Security struct {
 	Kind string           `json:"kind"`
 	TLS  access.ClientTLS `json:"tls"`
@@ -71,7 +70,7 @@ func (n RemoteNode) Validate() error {
 	if err := n.Endpoint.Validate(); err != nil {
 		return err
 	}
-	if (n.Transport.Kind != "tcp" && n.Transport.Kind != "quic" && n.Transport.Kind != "udp") || n.Security.TLS.Validate(n.Security.Kind) != nil || n.Options.Schema != 1 || len(n.Options.Data) > 16384 || !json.Valid(n.Options.Data) {
+	if n.Transport.Kind == "" || n.Transport.Validate() != nil || n.Transport.ValidateALPN(n.Security.TLS.ALPN) != nil || n.Security.TLS.Validate(n.Security.Kind) != nil || n.Options.Schema != 1 || len(n.Options.Data) > 16384 || !json.Valid(n.Options.Data) {
 		return invalid()
 	}
 	var object map[string]json.RawMessage
@@ -180,7 +179,6 @@ type Route struct {
 }
 type ProfileState struct {
 	Management    provider.State       `json:"management"`
-	Host          HostIntegration      `json:"host_integration"`
 	Revision      identity.Revision    `json:"revision"`
 	Enabled       bool                 `json:"enabled"`
 	Nodes         []RemoteNode         `json:"nodes"`
@@ -269,9 +267,6 @@ func (s ProfileState) Validate() error {
 		} else {
 			listeners[i.Listen] = true
 		}
-	}
-	if err := s.Host.Validate(s.LocalInbounds); err != nil {
-		return err
 	}
 	if e := s.Network.Validate(out, ids); e != nil {
 		return e

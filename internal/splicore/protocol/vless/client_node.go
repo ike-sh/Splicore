@@ -15,7 +15,7 @@ func ValidateClientNode(n client.RemoteNode, c access.Credential) error {
 	if err != nil {
 		return err
 	}
-	if n.Protocol != Key(o.Security) || n.Transport.Kind != "tcp" || n.Security.Kind != string(o.Security) || c.OwnerNodeID == nil || *c.OwnerNodeID != n.ID || c.ID != n.CredentialID {
+	if n.Protocol != Key(o.Security) || n.Transport.ValidatePair("vless", n.Security.Kind) != nil || n.Security.Kind != string(o.Security) || c.OwnerNodeID == nil || *c.OwnerNodeID != n.ID || c.ID != n.CredentialID {
 		return invalid()
 	}
 	if o.Security == Reality {

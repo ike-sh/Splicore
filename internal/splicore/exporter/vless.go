@@ -16,7 +16,7 @@ func (e VLESS) Format() ports.Format { return e.Target }
 func vlessProfile(p clientprofile.Profile) (access.UUIDPayload, module.ClientOptions, error) {
 	credential, ok := p.Credentials.(access.UUIDPayload)
 	o, err := module.DecodeClientOptions(p.Options.Data)
-	if !ok || p.Validate() != nil || module.ValidateUUID(credential.UUID) != nil || err != nil || p.Protocol != module.Key(o.Security) || !p.UDPPayload || p.Transport.Kind != "tcp" || p.Transport.Path != "" || p.Transport.Host != "" || len(p.TLS.ALPN) != 0 {
+	if !ok || p.Validate() != nil || module.ValidateUUID(credential.UUID) != nil || err != nil || p.Protocol != module.Key(o.Security) || !p.UDPPayload || p.Transport.ValidatePair("vless", string(o.Security)) != nil || len(p.TLS.ALPN) != 0 {
 		return credential, o, unsupported()
 	}
 	switch o.Security {
@@ -61,6 +61,9 @@ func (e VLESS) Export(_ context.Context, p clientprofile.Profile, t ports.Export
 		stream := map[string]any{"network": "raw", "security": "none"}
 		node := map[string]any{"tag": name, "protocol": "vless", "settings": map[string]any{"vnext": []any{
 			map[string]any{"address": p.Endpoint.Host, "port": p.Endpoint.Port, "users": []any{map[string]any{"id": credential.UUID.Reveal(), "encryption": "none"}}}}}, "streamSettings": stream}
+		if err := streamProjection(p, e.Target, node); err != nil {
+			return nil, err
+		}
 		return json.Marshal(node)
 	case ports.Mihomo:
 		if t.ClientVersion != "1.19.30" {
@@ -79,6 +82,9 @@ func (e VLESS) Export(_ context.Context, p clientprofile.Profile, t ports.Export
 			node["client-fingerprint"] = "chrome"
 			node["reality-opts"] = map[string]any{"public-key": p.TLS.RealityPublicKey, "short-id": p.TLS.RealityShortID}
 		}
+		if err := streamProjection(p, e.Target, node); err != nil {
+			return nil, err
+		}
 		return json.Marshal(map[string]any{"proxies": []any{node}})
 	case ports.SingBox:
 		if t.ClientVersion != "1.14.1" {
@@ -95,6 +101,9 @@ func (e VLESS) Export(_ context.Context, p clientprofile.Profile, t ports.Export
 				tls["reality"] = map[string]any{"enabled": true, "public_key": p.TLS.RealityPublicKey, "short_id": p.TLS.RealityShortID}
 			}
 			node["tls"] = tls
+		}
+		if err := streamProjection(p, e.Target, node); err != nil {
+			return nil, err
 		}
 		return json.Marshal(node)
 	case ports.URI:

@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Protocol and adapter developers
-- Last reviewed: 2026-10-03
+- Last reviewed: 2026-10-09
 - Owner: Protocol maintainers
 - Responsibility: Proposed protocol ports, compiled registry and effective capabilities.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
@@ -18,12 +18,11 @@ build tags/platform and requested settings; absence means unsupported, not unkno
 [Ports](../../internal/splicore/ports/ports.go) own ABI 1 interfaces;
 [runtime ports](../../internal/splicore/ports/runtime.go) add transient explicit
 credentials, Start/Health/Activate/Close/Stats and durable journal phases.
-[Phase 2 composition](../../internal/splicore/registry/phase2.go) explicitly
-registers Snell v5/v6. [Phase 3 composition](../../internal/splicore/registry/phase3.go)
-adds Hysteria2, one shared native compiler map and protocol-dispatched exporters.
-[Phase 4 composition](../../internal/splicore/registry/phase4.go) directly assembles
-TUIC and previous modules. [Phase5 composition](../../internal/splicore/registry/phase5.go)
-adds VLESS plain/TLS/REALITY. NativeCore adds embedded Mieru; native is the sole engine.
+[NativeCore](../../internal/splicore/registry/native_core.go) directly composes
+current owned protocols, native engine and protocol-dispatched exporters.
+Native is the sole engine. Historical Phase 2–5 compositions live in
+[testfixture](../../internal/splicore/registry/testfixture/phase2.go) for canonical
+regressions and are excluded from every production binary closure.
 
 The Phase 3 freeze records bounded command/composition/display-allowlist growth as
 [non-blocking technical debt](../ARCHITECTURE.md).
@@ -39,6 +38,9 @@ is deferred. See [Snell support](../protocol/SNELL.md) for effective capabilitie
 [Hysteria2 module](../../internal/splicore/protocol/hysteria2/hysteria2.go) owns
 bounded password/TLS validation, native multi-user identity and independent
 ClientProfile SNI/endpoint projection. It has no SQL/HTTP/NoBrand dependency.
+
+The following table records the early Snell/HY2/TUIC contract. Current coverage is
+owned by the [capability matrix](CAPABILITY_MATRIX.md) and protocol specifications.
 
 | Managed profile | TCP | UDP payload / transport | MultiUserNative | NativeStats / PerUserStats | HotUserUpdate | Users mutation | Policy enforcement |
 |---|---|---|---|---|---|---|---|
@@ -73,10 +75,11 @@ the runtime handle/engine executes them. Avoid a Protocol interface that owns
 processes or imports HTTP/SQLite. Secret access is explicit and scoped, never
 Account fields; client export uses permitted secret material while API reads stay redacted.
 
-Native compiler uses existing `adapter/inbound.Register[option.XOptions]` constructors
-and an own registry passed via `box.Context`. Protocol/domain registry is richer
-than upstream's factory registry; neither replaces the other. Compile one generation
-into options and Binding-ID names plus an immutable auth identity mapping.
+The [native compiler](../../internal/splicore/engine/native/engine.go) uses owned
+protocol runtimes and independent substrates. It compiles one generation into
+Binding identities and immutable authentication mappings. No inherited Box or
+external Core process belongs to the current production graph; Mieru uses its
+official embedded SDK. See [dependency ownership](INDEPENDENT_CORE_DEPENDENCIES.md).
 
 ## Capability shape
 

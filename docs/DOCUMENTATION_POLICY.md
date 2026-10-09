@@ -100,3 +100,10 @@ and docs links whenever navigation changes.
 
 See the [development workflow](development/README.md) for current boundaries
 and validation instructions.
+
+## Phase 21 Core scope normalization
+
+[Core scope](architecture/CORE_SCOPE.md) is authoritative. Inherited sing-box
+manuals/translations outside the owned Splicore documentation catalog are historical
+reference documents, not current Splicore product contracts. They are excluded from
+the current navigation. Frozen reports and ADR rationale remain byte-preserved.

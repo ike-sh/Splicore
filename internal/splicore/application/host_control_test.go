@@ -22,8 +22,8 @@ import (
 )
 
 // Desired-state/control testing deliberately never creates an OS device or
-// touches the development host's routes, DNS, registry proxy or drivers.
-func TestHostIntegrationProtectedControlAndStoppedDesiredTUN(t *testing.T) {
+// touches the development host's routes, DNS, or drivers.
+func TestCoreNetworkProtectedControlAndStoppedDesiredTUN(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()
 	s, store := setupSnell(t, filepath.Join(root, "state", "state.db"), nil)
@@ -61,9 +61,9 @@ func TestHostIntegrationProtectedControlAndStoppedDesiredTUN(t *testing.T) {
 		return wire
 	}
 	call("GET", "/api/v1/client/host-network", nil, false, 200)
-	call("GET", "/api/v1/client/host-integration", nil, false, 200)
-	call("PUT", "/api/v1/client/host-integration", map[string]any{"host_integration": client.HostIntegration{}}, false, 400)
-	call("PUT", "/api/v1/client/host-integration", map[string]any{"host_integration": client.HostIntegration{}}, true, 200)
+	call("GET", "/api/v1/client/host-integration", nil, false, 404)
+	call("PUT", "/api/v1/client/host-integration", map[string]any{"host_integration": map[string]any{}}, true, 404)
+	call("POST", "/api/v1/client/validate", map[string]any{"host_integration": map[string]any{}}, false, 400)
 	call("POST", "/api/v1/client/host-network/repair", map[string]any{"raw_command": "reset-network"}, true, 400)
 	call("POST", "/api/v1/client/host-network/repair", map[string]any{}, true, 200)
 	inbound := client.LocalInbound{Name: "stopped desired TUN", Kind: "tun", TUN: &client.TUNSettings{Interface: "splicore0", Addresses: []string{"198.18.0.1/30"}, MTU: 1500, Stack: "gvisor"}}
@@ -74,7 +74,7 @@ func TestHostIntegrationProtectedControlAndStoppedDesiredTUN(t *testing.T) {
 	}
 	ctl := transport.TestClient(server.Client(), server.URL)
 	defer ctl.Close()
-	for _, command := range [][]string{{"tun", "status"}, {"system-proxy", "status"}, {"doctor"}, {"network", "repair"}} {
+	for _, command := range [][]string{{"tun", "status"}, {"doctor"}, {"network", "repair"}} {
 		var out, stderr bytes.Buffer
 		if cli.Run(ctx, command, &out, &stderr, cli.Dependencies{Queries: ctl, Build: version.Current()}) != 0 {
 			t.Fatal(command, stderr.String())

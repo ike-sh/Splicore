@@ -72,7 +72,7 @@ func TestTrojanURIRoundTripSecurity(t *testing.T) {
 	if err != nil || parsed.Endpoint != v.Endpoint || parsed.Password.Reveal() != v.Password.Reveal() || !reflect.DeepEqual(parsed.TLS, v.TLS) || parsed.Name != v.Name {
 		t.Fatal("URI semantic loss")
 	}
-	for _, suffix := range []string{"?type=ws", "?security=none", "?insecure=1", "?allowInsecure=1", "?mux=1", "?sni=x&sni=y", "?sni=a&peer=b", "?alpn=", "?sni=bad%0Aname"} {
+	for _, suffix := range []string{"?type=xhttp", "?security=none", "?insecure=1", "?allowInsecure=1", "?mux=1", "?sni=x&sni=y", "?sni=a&peer=b", "?alpn=", "?sni=bad%0Aname"} {
 		if _, err := module.ParseURI("trojan://SyntheticPassword@127.0.0.1:443" + suffix); err == nil {
 			t.Fatal("unsupported URI accepted", suffix)
 		}

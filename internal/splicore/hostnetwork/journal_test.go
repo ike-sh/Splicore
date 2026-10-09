@@ -105,15 +105,11 @@ func TestMutationFailuresPreservePreviousState(t *testing.T) {
 		})
 	}
 }
-func proxyField(value string) Record {
-	return Record{Kind: "proxy", Proxy: &ProxyState{Values: map[string]ProxyValue{"ProxyServer": {Present: true, Type: 1, Text: value}}}}
-}
 func TestHardCrashRecoveryAndExternalMutationPreserved(t *testing.T) {
 	for _, external := range []bool{false, true} {
 		t.Run(map[bool]string{false: "hard-crash", true: "user-change"}[external], func(t *testing.T) {
-			before := proxyField("127.0.0.1:1111")
-			after := proxyField("127.0.0.1:2222")
-			b := &fixtureBackend{state: map[string]*Record{before.key(): &before}}
+			after := route("198.18.0.0/16")
+			b := &fixtureBackend{state: map[string]*Record{}}
 			s := &memoryStore{}
 			m, err := New(b, s)
 			if err != nil {
@@ -123,7 +119,8 @@ func TestHardCrashRecoveryAndExternalMutationPreserved(t *testing.T) {
 				t.Fatal(err)
 			}
 			if external {
-				changed := proxyField("127.0.0.1:3333")
+				changed := after
+				changed.Metric = 33
 				b.state[changed.key()] = &changed
 			}
 			// Leave the active journal and host state, as an abrupt process death does.
@@ -134,11 +131,11 @@ func TestHardCrashRecoveryAndExternalMutationPreserved(t *testing.T) {
 			}
 			err = next.Recover(context.Background())
 			if external {
-				if err == nil || b.state[before.key()].Proxy.Values["ProxyServer"].Text != "127.0.0.1:3333" || next.Status().Recovery != "degraded" {
+				if err == nil || b.state[after.key()].Metric != 33 || next.Status().Recovery != "degraded" {
 					t.Fatal("external state overwritten", err)
 				}
-			} else if err != nil || !equal(b.state[before.key()], &before) || next.Status().ActiveGenerations != 0 {
-				t.Fatal("previous proxy not restored", err)
+			} else if err != nil || b.state[after.key()] != nil || next.Status().ActiveGenerations != 0 {
+				t.Fatal("owned route not restored", err)
 			}
 		})
 	}
@@ -252,56 +249,6 @@ func FuzzNetworkJournal(f *testing.F) {
 			}
 			if _, e = DecodeJournal(out); e != nil {
 				t.Fatal("journal round trip", e)
-			}
-		}
-	})
-}
-
-func TestProxyStateSecurityAndAllFieldRestoration(t *testing.T) {
-	for range 10 {
-		b := &fixtureBackend{state: map[string]*Record{}}
-		before := map[string]*Record{}
-		for key, value := range map[string]ProxyValue{"ProxyEnable": {Present: true, Type: 4, Number: 0}, "ProxyServer": {Present: true, Type: 1, Text: "http=127.0.0.1:1111;https=127.0.0.1:2222"}, "ProxyOverride": {Present: true, Type: 1, Text: "<local>;owned.test"}, "AutoConfigURL": {Present: true, Type: 1, Text: "https://pac.owned.test/proxy.pac"}, "AutoDetect": {Present: false}} {
-			r := Record{Kind: "proxy", Proxy: &ProxyState{Values: map[string]ProxyValue{key: value}}}
-			b.state[r.key()] = &r
-			before[r.key()] = cloneRecord(&r)
-		}
-		manager, err := New(b, &memoryStore{})
-		if err != nil {
-			t.Fatal(err)
-		}
-		lease, err := manager.Prepare(context.Background(), ProxyPlan("127.0.0.1:3333"), nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err = lease.Restore(context.Background()); err != nil {
-			t.Fatal(err)
-		}
-		for key, record := range before {
-			if !equal(b.state[key], record) {
-				t.Fatal("proxy state/type/absence not preserved", key)
-			}
-		}
-	}
-	for _, value := range []string{"http://user:secret@owned.test", "https://pac.owned.test/p?token=secret", "https://pac.owned.test/p#secret", "bad\x00value"} {
-		r := Record{Kind: "proxy", Proxy: &ProxyState{Values: map[string]ProxyValue{"AutoConfigURL": {Present: true, Type: 1, Text: value}}}}
-		if r.Validate() == nil {
-			t.Fatal("sensitive proxy snapshot accepted")
-		}
-	}
-}
-
-func FuzzSystemProxyRecord(f *testing.F) {
-	f.Add([]byte(`{"kind":"proxy","proxy":{"values":{"ProxyEnable":{"present":true,"type":4,"number":1}}}}`))
-	f.Fuzz(func(t *testing.T, b []byte) {
-		var record Record
-		if json.Unmarshal(b, &record) == nil && record.Validate() == nil {
-			if record.Kind == "proxy" {
-				for _, v := range record.Proxy.Values {
-					if !v.Present && (v.Type != 0 || v.Number != 0 || v.Text != "") {
-						t.Fatal("absence aliases data")
-					}
-				}
 			}
 		}
 	})

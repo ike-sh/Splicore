@@ -71,7 +71,7 @@ own numeric endpoint snapshots, socket controls and resolvers. Production egress
 inventory covers DIRECT, bootstrap/upstream DNS, health, all five native clients,
 native server targets and provider HTTP. Unknown callsites fail the audit.
 
-TUN, dynamic DNS, old generations/shared refs/reused TUN, Wintun, WinINET and
+TUN, dynamic DNS, old generations/shared refs/reused TUN, Wintun and
 journal ownership remain. No external-child underlay hooks remain: they had no
 other current user. Real Windows host mutation and native Ubuntu auto-route
 qualification remain limited to the existing local evidence. See

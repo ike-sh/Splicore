@@ -17,12 +17,6 @@
         "github-actions"
       ],
       "groupName": "github-actions"
-    },
-    {
-      "matchManagers": [
-        "dockerfile"
-      ],
-      "groupName": "Dockerfile"
     }
   ]
 }

@@ -29,25 +29,24 @@ type CredentialInput struct {
 func (c CredentialInput) Format(s fmt.State, _ rune) { _, _ = s.Write([]byte(secret.Redacted)) }
 
 type ClientMutation struct {
-	Binding      *access.Binding         `json:"binding,omitempty"`
-	Host         *client.HostIntegration `json:"host_integration,omitempty"`
-	Network      *P.Config               `json:"network,omitempty"`
-	RouteRule    *P.RouteRule            `json:"route_rule,omitempty"`
-	RuleSet      *P.RuleSet              `json:"rule_set,omitempty"`
-	PolicyGroup  *P.PolicyGroup          `json:"policy_group,omitempty"`
-	DNSServer    *P.DNSServer            `json:"dns_server,omitempty"`
-	DNSRule      *P.DNSRule              `json:"dns_rule,omitempty"`
-	DNSProfile   *P.DNSProfile           `json:"dns_profile,omitempty"`
-	RouteProfile *P.RouteProfile         `json:"route_profile,omitempty"`
-	Selected     *P.Action               `json:"selected,omitempty"`
-	Resource     string                  `json:"resource"`
-	Action       string                  `json:"action"`
-	ID           identity.ID             `json:"id,omitempty"`
-	Node         *client.RemoteNode      `json:"node,omitempty"`
-	Outbound     *client.Outbound        `json:"outbound,omitempty"`
-	LocalInbound *client.LocalInbound    `json:"local_inbound,omitempty"`
-	Route        *client.Route           `json:"route,omitempty"`
-	Credential   *CredentialInput        `json:"credential,omitempty"`
+	Binding      *access.Binding      `json:"binding,omitempty"`
+	Network      *P.Config            `json:"network,omitempty"`
+	RouteRule    *P.RouteRule         `json:"route_rule,omitempty"`
+	RuleSet      *P.RuleSet           `json:"rule_set,omitempty"`
+	PolicyGroup  *P.PolicyGroup       `json:"policy_group,omitempty"`
+	DNSServer    *P.DNSServer         `json:"dns_server,omitempty"`
+	DNSRule      *P.DNSRule           `json:"dns_rule,omitempty"`
+	DNSProfile   *P.DNSProfile        `json:"dns_profile,omitempty"`
+	RouteProfile *P.RouteProfile      `json:"route_profile,omitempty"`
+	Selected     *P.Action            `json:"selected,omitempty"`
+	Resource     string               `json:"resource"`
+	Action       string               `json:"action"`
+	ID           identity.ID          `json:"id,omitempty"`
+	Node         *client.RemoteNode   `json:"node,omitempty"`
+	Outbound     *client.Outbound     `json:"outbound,omitempty"`
+	LocalInbound *client.LocalInbound `json:"local_inbound,omitempty"`
+	Route        *client.Route        `json:"route,omitempty"`
+	Credential   *CredentialInput     `json:"credential,omitempty"`
 }
 
 func (m ClientMutation) Format(s fmt.State, _ rune) {
@@ -212,7 +211,7 @@ func (s *Service) clientCandidate(ctx context.Context, b json.RawMessage) (clien
 	}
 	// Exact shapes keep secrets and protocol options out of unrelated mutation paths.
 	count := 0
-	for _, present := range []bool{m.Binding != nil, m.Host != nil, m.Node != nil, m.Outbound != nil, m.LocalInbound != nil, m.Route != nil, m.Network != nil, m.RouteRule != nil, m.RuleSet != nil, m.PolicyGroup != nil, m.DNSServer != nil, m.DNSRule != nil, m.DNSProfile != nil, m.RouteProfile != nil, m.Selected != nil} {
+	for _, present := range []bool{m.Binding != nil, m.Node != nil, m.Outbound != nil, m.LocalInbound != nil, m.Route != nil, m.Network != nil, m.RouteRule != nil, m.RuleSet != nil, m.PolicyGroup != nil, m.DNSServer != nil, m.DNSRule != nil, m.DNSProfile != nil, m.RouteProfile != nil, m.Selected != nil} {
 		if present {
 			count++
 		}
@@ -438,11 +437,6 @@ func (s *Service) clientCandidate(ctx context.Context, b json.RawMessage) (clien
 			return invalid()
 		}
 		out.state.Route = *m.Route
-	case "host-integration":
-		if m.Action != "update" || m.Host == nil || count != 1 || id != "" {
-			return invalid()
-		}
-		out.state.Host = *m.Host
 	case "host-network":
 		if m.Action != "repair" || count != 0 || id != "" {
 			return invalid()

@@ -5,6 +5,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/provider"
 	"github.com/ike-sh/Splicore/internal/splicore/engine/native"
 	"github.com/ike-sh/Splicore/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/registry/testfixture"
 	"github.com/ike-sh/Splicore/internal/splicore/secretvault"
 	"github.com/ike-sh/Splicore/internal/splicore/storage/sqlite"
 	"github.com/ike-sh/Splicore/internal/splicore/version"
@@ -25,7 +26,7 @@ func TestPhase14SchedulerBoundedCancellationAndClock(t *testing.T) {
 		t.Fatal(e)
 	}
 	defer store.Close()
-	p, r, x, e := registry.Foundation()
+	p, r, x, e := testfixture.Foundation()
 	if e != nil {
 		t.Fatal(e)
 	}

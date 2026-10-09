@@ -7,6 +7,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
+	streamcfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/jsonstrict"
 	"strconv"
 	"strings"
@@ -15,11 +16,12 @@ import (
 )
 
 type URI struct {
-	Endpoint access.Endpoint
-	UUID     secret.Value
-	Security string
-	TLS      access.ClientTLS
-	Name     string
+	Transport streamcfg.Config
+	Endpoint  access.Endpoint
+	UUID      secret.Value
+	Security  string
+	TLS       access.ClientTLS
+	Name      string
 }
 
 func (URI) Format(s fmt.State, _ rune) { _, _ = s.Write([]byte("VMessURI{[REDACTED]}")) }
@@ -107,7 +109,15 @@ func ParseURI(raw string) (URI, error) {
 	if aid != "" && aid != "0" {
 		return v, Unsupported("unsupported_legacy_vmess")
 	}
-	if w.Net != "" && w.Net != "tcp" || w.Type != "" && w.Type != "none" || w.Host != "" || w.Path != "" || w.FP != "" {
+	transport := streamcfg.Config{Kind: w.Net, Path: w.Path, Host: w.Host}
+	if transport.Kind == "" {
+		transport.Kind = "tcp"
+	}
+	if transport.Kind == "grpc" {
+		transport.ServiceName = w.Path
+		transport.Path = ""
+	}
+	if transport.Validate() != nil || w.Type != "" && w.Type != "none" && !(transport.Kind == "grpc" && w.Type == "gun") || w.FP != "" {
 		return v, Unsupported("unsupported_transport")
 	}
 	port, e := scalar(w.Port, true)
@@ -118,7 +128,7 @@ func ParseURI(raw string) (URI, error) {
 	if e != nil || n == 0 {
 		return v, invalid()
 	}
-	v = URI{Endpoint: access.Endpoint{Host: w.Add, Port: uint16(n)}, UUID: secret.New(w.ID), Security: w.SCY, Name: w.PS}
+	v = URI{Endpoint: access.Endpoint{Host: w.Add, Port: uint16(n)}, UUID: secret.New(w.ID), Security: w.SCY, Name: w.PS, Transport: transport}
 	if v.Security == "" {
 		v.Security = "auto"
 	}
@@ -159,6 +169,13 @@ func ParseURI(raw string) (URI, error) {
 	default:
 		return URI{}, Unsupported("unsupported_transport")
 	}
+	kind := "none"
+	if v.TLS.Enabled {
+		kind = "tls"
+	}
+	if v.Transport.ValidatePair("vmess", kind) != nil {
+		return URI{}, Unsupported("unsupported_transport")
+	}
 	return v, nil
 }
 func EncodeURI(v URI) (string, error) {
@@ -169,6 +186,21 @@ func EncodeURI(v URI) (string, error) {
 		return "", err
 	}
 	w := map[string]any{"v": "2", "ps": v.Name, "add": v.Endpoint.Host, "port": strconv.Itoa(int(v.Endpoint.Port)), "id": v.UUID.Reveal(), "aid": "0", "scy": v.Security, "net": "tcp", "type": "none", "host": "", "path": "", "tls": ""}
+	if v.Transport.Validate() != nil || len(v.Transport.Headers) > 0 {
+		return "", Unsupported("unsupported_transport")
+	}
+	w["net"] = v.Transport.Type()
+	w["host"] = v.Transport.Host
+	if v.Transport.Type() == "ws" || v.Transport.Type() == "httpupgrade" {
+		w["path"] = v.Transport.HTTPPath()
+	}
+	if v.Transport.Type() == "grpc" {
+		if v.Transport.Host != "" {
+			return "", Unsupported("unsupported_transport")
+		}
+		w["path"] = v.Transport.Service()
+		w["type"] = "gun"
+	}
 	if v.TLS.Enabled {
 		if v.TLS.Validate("tls") != nil || v.TLS.Trust != "system" || v.TLS.CACertificate != "" {
 			return "", Unsupported("VMess URI cannot represent trust")

@@ -4669,100 +4669,6 @@
         }
       }
     },
-    "/api/v1/client/host-integration": {
-      "get": {
-        "operationId": "clientHostIntegrationGet",
-        "x-implementation-status": "phase13",
-        "description": "Experimental protected local client control; no query parameters.",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HostIntegration"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/Problem"
-          },
-          "404": {
-            "$ref": "#/components/responses/Problem"
-          },
-          "405": {
-            "$ref": "#/components/responses/Problem"
-          },
-          "409": {
-            "$ref": "#/components/responses/Problem"
-          },
-          "422": {
-            "$ref": "#/components/responses/Problem"
-          },
-          "501": {
-            "$ref": "#/components/responses/Problem"
-          },
-          "503": {
-            "$ref": "#/components/responses/Problem"
-          }
-        }
-      },
-      "put": {
-        "operationId": "clientHostIntegrationUpdate",
-        "x-implementation-status": "phase13",
-        "description": "Experimental protected local client control; no query parameters. If-Match is the shared global committed revision; conflicts return 409.",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/IfMatch"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ClientResult"
-                }
-              }
-            }
-          },
-          "400": {
-            "$ref": "#/components/responses/Problem"
-          },
-          "404": {
-            "$ref": "#/components/responses/Problem"
-          },
-          "405": {
-            "$ref": "#/components/responses/Problem"
-          },
-          "409": {
-            "$ref": "#/components/responses/Problem"
-          },
-          "422": {
-            "$ref": "#/components/responses/Problem"
-          },
-          "501": {
-            "$ref": "#/components/responses/Problem"
-          },
-          "503": {
-            "$ref": "#/components/responses/Problem"
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/HostIntegrationBody"
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/client/host-network": {
       "get": {
         "operationId": "clientHostNetworkStatusGet",
@@ -10018,9 +9924,6 @@
           "network": {
             "$ref": "#/components/schemas/NetworkConfig"
           },
-          "host_integration": {
-            "$ref": "#/components/schemas/HostIntegration"
-          },
           "management": {
             "$ref": "#/components/schemas/ProviderState"
           }
@@ -10033,7 +9936,6 @@
           "local_inbounds",
           "route",
           "network",
-          "host_integration",
           "management"
         ]
       },
@@ -10364,7 +10266,6 @@
               "dns-rule",
               "dns-profile",
               "route-profile",
-              "host-integration",
               "host-network",
               "local-binding"
             ]
@@ -10428,9 +10329,6 @@
           },
           "selected": {
             "$ref": "#/components/schemas/RouteAction"
-          },
-          "host_integration": {
-            "$ref": "#/components/schemas/HostIntegration"
           },
           "binding": {
             "$ref": "#/components/schemas/LocalBindingInput"
@@ -12258,36 +12156,6 @@
           "dns_hijack"
         ]
       },
-      "SystemProxySettings": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "enabled": {
-            "type": "boolean"
-          },
-          "local_inbound": {
-            "$ref": "#/components/schemas/ID"
-          },
-          "backend": {
-            "const": "wininet"
-          }
-        },
-        "required": [
-          "enabled"
-        ]
-      },
-      "HostIntegration": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "system_proxy": {
-            "$ref": "#/components/schemas/SystemProxySettings"
-          }
-        },
-        "required": [
-          "system_proxy"
-        ]
-      },
       "HostNetworkStatus": {
         "type": "object",
         "additionalProperties": false,
@@ -12312,9 +12180,6 @@
           "owned_interfaces": {
             "type": "integer"
           },
-          "system_proxy_owned": {
-            "type": "boolean"
-          },
           "last_error": {
             "type": "string"
           }
@@ -12324,8 +12189,7 @@
           "recovery",
           "active_generations",
           "owned_routes",
-          "owned_interfaces",
-          "system_proxy_owned"
+          "owned_interfaces"
         ]
       },
       "HostCapabilities": {
@@ -12347,9 +12211,6 @@
           "privilege": {
             "type": "string"
           },
-          "system_proxy": {
-            "type": "string"
-          },
           "loop_protection": {
             "type": "string"
           }
@@ -12360,20 +12221,7 @@
           "auto_route",
           "driver",
           "privilege",
-          "system_proxy",
           "loop_protection"
-        ]
-      },
-      "HostIntegrationBody": {
-        "type": "object",
-        "additionalProperties": false,
-        "properties": {
-          "host_integration": {
-            "$ref": "#/components/schemas/HostIntegration"
-          }
-        },
-        "required": [
-          "host_integration"
         ]
       },
       "UnderlayStatus": {
