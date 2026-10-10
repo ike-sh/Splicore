@@ -13,6 +13,7 @@
 /venv/
 CLAUDE.md
 AGENTS.md
+!/AGENTS.md
 /.claude/
 
 # Local generated outputs; canonical fixtures and JSON configuration stay visible.

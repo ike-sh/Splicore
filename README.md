@@ -1,47 +1,49 @@
 # Splicore
 
-Documentation status: Current
-Audience: Maintainers and operators
-Last reviewed: 2026-10-09
-Owner: Splicore maintainer
-Responsibility: Independent proxy Core identity and entry points
-Lifecycle: Experimental; Phase 21 cleanup awaiting independent review
+Splicore is an independent proxy Core for Server Core and Client Core use.
+It combines proxy protocols, local traffic entry, routing, DNS, policy, TUN
+and a persistent control plane in a single Core implementation.
 
-Splicore is an independent **proxy core** usable as Server Core and Client Core,
-derived in part from sing-box v1.14.1. It runs as one `splicore` binary.
+## Capabilities
 
-Protocols include SS/SS2022, Snell, Hysteria2, TUIC, VLESS, Mieru, Trojan and VMess;
-SOCKS5/HTTP proxy nodes and SOCKS5/HTTP/Mixed/TUN traffic entry use shared routing,
-DNS, policy and protected networking. Shared stream transports include Raw,
-WebSocket, HTTPUpgrade, gRPC, TLS and supported REALITY integration.
-SQLite, encrypted credentials, API/CLI transactions, providers and Core service
-deployment belong to its control plane. The authoritative boundary is
-[Core scope](docs/architecture/CORE_SCOPE.md).
+Supported protocols include Shadowsocks/SS2022, Snell, Hysteria2, TUIC, VLESS,
+Mieru, Trojan and VMess, with local SOCKS5, HTTP, Mixed and TUN traffic entry.
+Shared stream transports include raw TCP, WebSocket, HTTPUpgrade and gRPC.
 
-Vision is deferred/unsupported. FinalMask/Sudoku are outside Splicore runtime scope.
-No external core child process is required. Splicore has no desktop client, GUI,
-tray, system proxy controller or PAC ownership.
+See the [capability matrix](docs/architecture/CAPABILITY_MATRIX.md) and
+[Core scope](docs/architecture/CORE_SCOPE.md) for capability details and boundaries.
 
 ## Build
 
+Go 1.26.3 or newer is required.
+
 ```sh
-go build -tags with_quic,with_utls,with_gvisor ./cmd/splicore
-go test ./...
-go test -race -tags with_quic,with_utls,with_gvisor ./internal/splicore/...
+go build -trimpath -tags with_quic,with_utls,with_gvisor ./cmd/splicore
 ```
 
-See [installation](docs/INSTALLATION.md), [operations](docs/OPERATIONS.md),
-[architecture](docs/ARCHITECTURE.md), [capabilities](docs/architecture/CAPABILITY_MATRIX.md)
-and [documentation](docs/README.md).
+## Documentation
 
-Historical platform qualification remains PARTIALLY PASSED. Phase 21 is NOT
-PLATFORM QUALIFIED; native Ubuntu auto-route and real Windows host networking
-remain uncertified, Windows race is not executed, Linux arm64 is BUILD ONLY.
-Historical frozen reports remain preserved. Deep Core Purge requires targeted
-independent review before any Freeze.
+- [Installation and bootstrap configuration](docs/INSTALLATION.md)
+- [CLI](docs/CLI.md)
+- [Operations](docs/OPERATIONS.md)
+- [Local API](docs/api/README.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Documentation index](docs/README.md)
+
+## Releases
+
+Official downloads and version-specific release notes are published through
+[GitHub Releases](https://github.com/ike-sh/Splicore/releases).
+Download the release archives and accompanying checksums to verify their integrity.
+
+## Scope
+
+Splicore focuses on proxy Core functionality and native Core networking.
+Client Core is a reusable proxy runtime; application UI and application shells
+are outside the Core repository.
 
 ## License
 
-See [LICENSE](LICENSE), [NOTICE](NOTICE.md), [third-party notices](THIRD_PARTY_NOTICES.md)
-and [license boundaries](docs/architecture/LICENSE_BOUNDARIES.md).
-Inherited source copyright and derivative provenance remain preserved.
+See [LICENSE](LICENSE), [NOTICE](NOTICE.md),
+[third-party notices](THIRD_PARTY_NOTICES.md) and
+[license boundaries](docs/architecture/LICENSE_BOUNDARIES.md).
