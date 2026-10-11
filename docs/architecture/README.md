@@ -48,14 +48,14 @@ from platform qualification. [ADRs](../adr/README.md) own rationale and decision
 
 ## Pinned historical research
 
-- [Upstream baseline ledger](UPSTREAM_BASELINE.md): Phase 0 source/toolchain/results snapshot.
+- [Upstream baseline ledger](UPSTREAM_BASELINE.md): Historical source/toolchain/results snapshot.
 - [Upstream architecture map](UPSTREAM_ARCHITECTURE_MAP.md): v1.14.1 source observations.
 - [Evidence](evidence/README.md): generated captures supporting those observations.
 
 Preserve these snapshots on a future baseline change. Update [current provenance](../UPSTREAM.md)
 and create new scoped baseline/source evidence; do not silently rewrite old test results.
 
-## Phase 8 current specifications
+## Managed protocol specifications
 
 [Managed capability matrix](CAPABILITY_MATRIX.md) and [Mieru native contract](../protocol/MIERU.md) refine the retained [roadmap](MIERU_INTEGRATION.md).
 
@@ -64,12 +64,12 @@ and create new scoped baseline/source evidence; do not silently rewrite old test
 - [Client Runtime](CLIENT_RUNTIME.md): canonical resources, native adapters, lifetime and recovery.
 - [Routing model](ROUTING_MODEL.md): default/selected snapshot and DNS semantics.
 
-## Phase 12 network intent
+## Network intent
 
 [Routing](ROUTING_MODEL.md), [DNS](DNS_MODEL.md), [policy](POLICY_MODEL.md) own
 independent canonical models and runtime semantics.
 
-## Phase 14 resource management specifications
+## Resource management specifications
 
 - [Node model](NODE_MODEL.md): immutable identity, provenance, stale/reference and batch semantics.
 - [Import model](IMPORT_MODEL.md): parsers, format boundaries, preview/apply and export.
@@ -78,32 +78,31 @@ independent canonical models and runtime semantics.
 
 ## Current architecture correction
 
-Native is the sole runtime engine. Historical Phase 6/7 direction is superseded; FinalMask/Sudoku are out of scope.
+Native is the sole runtime engine. Historical external-runtime direction remains
+superseded; native [Vision](../protocol/VLESS.md) and [TCP FinalMask](FINALMASK.md)
+preserve the independent Core boundary.
 
 - [Decision](../adr/0035-xray-runtime-removed-from-core.md)
 - [Correction report](../reports/ARCHITECTURE_CORRECTION_XRAY_BOUNDARY_REPORT.md)
 
-## Phase 16 protocol integration
+## Shadowsocks integration
 
 - [Native Shadowsocks runtime](SHADOWSOCKS_RUNTIME.md): standard AEAD 2017,
   SIP022/SIP023, credential ownership, routing and bounded TCP/UDP lifetime.
 
-## Phase 17 independent core migration
+## Independent core dependencies
 
 - [Independent core dependencies](INDEPENDENT_CORE_DEPENDENCIES.md): current
-  ownership and dependency policy; accepted Phase 17 history is preserved in its reports.
+  ownership and dependency policy.
 
-## Phase 18 native standard Trojan
+## Native standard Trojan
 
 - [Native Trojan runtime](TROJAN_RUNTIME.md): TLS, SHA-224 identity, TCP/UDP,
   generic managed-user transactions and bounded association ownership.
-  Implementation reviewed and locally frozen after exact-index EOL recovery.
-  Initial blocked attempt is preserved. See the
-  [Phase 18 Freeze report](../reports/PHASE18_NATIVE_TROJAN_FREEZE_REPORT.md).
-  Platform qualification remains unchanged.
+  Host platform limitations remain explicit.
 
-## Phase 19 native modern VMess
+## Native modern VMess
 
 - [Native VMess runtime](VMESS_RUNTIME.md): modern AEAD/alterId0, raw TCP/shared
   TLS, payload modes, compiler-owned replay and shared TCP/UDP lifecycle.
-  Implementation review and freeze are separate; platform qualification is unchanged.
+  Host platform limitations remain explicit.

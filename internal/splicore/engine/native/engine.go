@@ -36,8 +36,13 @@ func (e Engine) Metadata() ports.EngineMetadata {
 	slices.Sort(protocols)
 	return ports.EngineMetadata{Roles: ports.Roles{Inbound: true, Outbound: true}, ID: "native", Availability: ports.Compiled, RuntimeImplemented: true, ABI: 1, Protocols: protocols}
 }
-func (Engine) Capabilities() ports.Capabilities {
-	return ports.Capabilities{Transport: ports.TransportCapabilities{Kinds: []string{"tcp", "udp", "quic"}, TCP: true, UDPTransport: true, UDPPayload: true, IPv4: true, IPv6: true, DomainEndpoint: true}, Identity: ports.IdentityCapabilities{MultiUserNative: true, PerUserStats: true, AttributedPayload: ports.Native, NativeStats: ports.Native}, Security: ports.SecurityCapabilities{TLS: true, Reality: true, Flows: []string{"none"}}, Policy: ports.PolicyCapabilities{Quota: ports.Unsupported, SpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported}, Mutation: ports.MutationCapabilities{Users: ports.Restart, Listener: ports.MutationUnavailable}}
+func (e Engine) Capabilities() ports.Capabilities {
+	c := ports.Capabilities{Transport: ports.TransportCapabilities{Kinds: []string{"tcp", "udp", "quic"}, TCP: true, UDPTransport: true, UDPPayload: true, IPv4: true, IPv6: true, DomainEndpoint: true}, Identity: ports.IdentityCapabilities{MultiUserNative: true, PerUserStats: true, AttributedPayload: ports.Native, NativeStats: ports.Native}, Security: ports.SecurityCapabilities{TLS: true, Reality: true, Flows: []string{"none"}}, Policy: ports.PolicyCapabilities{Quota: ports.Unsupported, SpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported}, Mutation: ports.MutationCapabilities{Users: ports.Restart, Listener: ports.MutationUnavailable}}
+	if e.compilers["vless"] != nil {
+		c.Security.Vision = true
+		c.Security.Flows = append(c.Security.Flows, "xtls-rprx-vision")
+	}
+	return c
 }
 func (e Engine) compiler(in ports.RuntimeIntent) (Compiler, error) {
 	if in.Inbound.Engine != "native" {

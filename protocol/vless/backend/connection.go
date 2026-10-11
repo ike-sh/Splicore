@@ -68,13 +68,17 @@ func (c *Conn) CloseRead() error {
 	return nil
 }
 func Client(ctx context.Context, c net.Conn, uuid [16]byte, dst access.Endpoint, packet bool) (net.Conn, error) {
+	return ClientFlow(ctx, c, uuid, dst, packet, "")
+}
+
+func ClientFlow(ctx context.Context, c net.Conn, uuid [16]byte, dst access.Endpoint, packet bool, flow string) (net.Conn, error) {
 	command := wire.TCP
 	if packet {
 		command = wire.Mux
 	}
 	stop := context.AfterFunc(ctx, func() { _ = c.Close() })
 	defer stop()
-	if err := wire.WriteRequest(c, wire.Request{UUID: uuid, Command: command, Destination: dst}); err != nil {
+	if err := wire.WriteRequest(c, wire.Request{UUID: uuid, Command: command, Destination: dst, Flow: flow}); err != nil {
 		return nil, err
 	}
 	if ctx.Err() != nil {

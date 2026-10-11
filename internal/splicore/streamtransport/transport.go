@@ -17,6 +17,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	cfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
+	"github.com/ike-sh/Splicore/internal/splicore/finalmask"
 )
 
 const ChunkSize = 32 << 10
@@ -121,12 +122,18 @@ func Dial(ctx context.Context, dial DialFunc, address string, c cfg.Config, tc *
 			raw.Close()
 		}
 	}()
-	stop := context.AfterFunc(ctx, func() { raw.Close() })
-	defer stop()
 	dl := time.Now().Add(HandshakeTimeout)
 	if t, yes := ctx.Deadline(); yes && t.Before(dl) {
 		dl = t
 	}
+	raw.SetDeadline(dl)
+	masked, e := finalmask.Wrap(raw, c.FinalMask, false)
+	if e != nil {
+		return nil, e
+	}
+	raw = masked
+	stop := context.AfterFunc(ctx, func() { raw.Close() })
+	defer stop()
 	raw.SetDeadline(dl)
 	var stream net.Conn = raw
 	if tc != nil {

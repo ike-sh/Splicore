@@ -25,7 +25,7 @@ func TestRequestAndCanonicalAddress(t *testing.T) {
 			t.Fatal("request boundary", got, err)
 		}
 	}
-	addon := append([]byte{10, byte(len("xtls-rprx-vision"))}, "xtls-rprx-vision"...)
+	addon := append([]byte{10, byte(len("xtls-rprx-vision-udp443"))}, "xtls-rprx-vision-udp443"...)
 	b := append(make([]byte, 17), byte(len(addon)))
 	b = append(b, addon...)
 	if _, err := ReadRequest(bytes.NewReader(b)); !errors.Is(err, ErrFlow) {

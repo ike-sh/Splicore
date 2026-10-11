@@ -7,9 +7,8 @@
 - Responsibility: Independent dependency and ownership boundaries.
 - Lifecycle: Update with dependency and runtime changes.
 
-- Status: Phase 17 local development gates complete; READY FOR REVIEW
 - Module: `github.com/ike-sh/Splicore`
-- Minimum Go: 1.26.3; acceptance uses installed Go 1.26.6 and `GOTOOLCHAIN=local`
+- Minimum Go: 1.26.3
 - Decision: [ADR 0038](../adr/0038-remove-sager-net-core-dependency-graph.md), Proposed
 
 Splicore owns domain models, credentials, registries, application transactions,
@@ -51,7 +50,8 @@ to a connection and direction.
 SS retains aes-128-gcm, aes-256-gcm, chacha20-ietf-poly1305,
 2022-blake3-aes-128-gcm, 2022-blake3-aes-256-gcm and
 2022-blake3-chacha20-poly1305. Snell server v5/v6 and client v4/v6 remain.
-VLESS plain/TLS/REALITY remain; Vision remains deferred. DIRECT/REJECT and
+VLESS plain/TLS/REALITY and native Vision remain independent. TCP FinalMask
+uses independently implemented native dictionaries, encoders and composition. DIRECT/REJECT and
 owned local HTTP/SOCKS ingress remain.
 
 QUIC receives an already protected packet socket; server ingress is separately
@@ -78,11 +78,7 @@ handles production traffic.
 Root GPL terms and attribution remain. See [third-party notices](../../THIRD_PARTY_NOTICES.md)
 for exact module versions and preserved license texts.
 
-## Acceptance boundary
+## Platform limits
 
-See the [implementation report](../reports/PHASE17_SINGBOX_DECOUPLING_REPORT.md)
-for failures, corpora and final gates. Review/Freeze/publication are not performed.
-The frozen candidate b698b76032a9dfb9c4eadf3ed421f30c2ec6e24c remains historically
-PARTIALLY PASSED. Qualification is not rerun; this worktree is a development
-candidate. Native Ubuntu host networking, destructive Windows qualification
-and Linux arm64 runtime certification remain outside local acceptance.
+Host networking coverage remains partial. Real Windows activation stays guarded.
+Linux arm64 has build coverage only; runtime certification is not claimed.

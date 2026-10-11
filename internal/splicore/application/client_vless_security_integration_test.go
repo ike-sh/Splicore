@@ -253,8 +253,8 @@ func TestNativeVLESSSecurityAndSharedNode(t *testing.T) {
 						n.Options.Data = []byte(`{"security":"none","flow":"xtls-rprx-vision","packet_encoding":"xudp"}`)
 						d, _ := json.Marshal(application.ClientMutation{Resource: "node", Action: "update", ID: node, Node: &n})
 						var typed *identity.Error
-						if _, err = s.PlanClient(context.Background(), d); !errors.As(err, &typed) || typed.Code != identity.NotImplemented {
-							t.Fatal("Vision must reject", err)
+						if _, err = s.PlanClient(context.Background(), d); !errors.As(err, &typed) || typed.Code != identity.Invalid {
+							t.Fatal("Vision without security must reject", err)
 						}
 					}
 				}

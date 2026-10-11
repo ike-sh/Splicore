@@ -5,7 +5,7 @@ Audience: Maintainers and operators
 Last reviewed: 2026-10-04
 Owner: Splicore maintainer
 Responsibility: Independent native Server + Client Core boundary
-Lifecycle: Experimental; Phase 14 local freeze
+Lifecycle: Experimental native implementation; platform qualification remains separate
 
 All runtime protocols are Experimental, under EngineID native. Protocol != Engine
 is preserved; it does not authorize third-party runtime ownership.
@@ -29,10 +29,13 @@ global SDK metrics never enter attributed accounting.
 | SOCKS TCP/UDP, HTTP | Implemented local ingress |
 | TUN, routing/DNS/policy | Implemented; platform qualification limits below |
 | Selector / URL-Test / Fallback / Load-Balance | Implemented bounded profiles |
-| Import/proxy provider/RuleSet provider | Phase 14 implemented, unfrozen |
+| Import/proxy provider/RuleSet provider | Experimental native implementation |
 | Atomic previews, identity, encrypted sources, offline recovery | Retained |
-| Vision | Deferred / Unsupported; explicit rejection |
-| FinalMask / Sudoku | OUT OF SCOPE FOR SPLICORE; imports Unsupported |
+| VLESS Vision | Experimental native TCP flow; raw TLS 1.3 / REALITY only |
+| VLESS + TLS + Vision | Native inbound/outbound; real inner TLS direct transition tested |
+| VLESS + REALITY + Vision | Native inbound/outbound; `with_utls` required |
+| FinalMask TCP | Native reusable underlay; raw VLESS consumer |
+| header-custom / fragment / sudoku | Implemented; [fields and peer limits](FINALMASK.md) |
 | Xray engine/server/client/child/artifact | Absent |
 | External runtime required | No |
 

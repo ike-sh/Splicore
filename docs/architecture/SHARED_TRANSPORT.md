@@ -1,19 +1,19 @@
 # Core Shared Stream Transport
 
-- Documentation status: Experimental; Phase 21 Review Fix Round 1 awaiting re-review
-- Audience: Core maintainers and runtime reviewers
+- Documentation status: Experimental native implementation
+- Audience: Operators and Core developers
 - Last reviewed: 2026-10-08
 - Owner: Splicore Core maintainers
 - Responsibility: Reusable stream transport, composition, ownership and validation
-- Lifecycle: Review with changes to transport intent, admission or adapters
+- Lifecycle: Update with transport intent, admission or adapter changes
 
 ## Product and package boundary
 
 Splicore is a proxy core: protocol runtimes, transport, TLS, TUN, routing, DNS,
 policy, nodes/providers, API/CLI and necessary Core socket adapters belong here.
 Desktop system proxy settings, PAC ownership, tray/GUI and desktop startup UX
-belong to upper layer clients unless explicitly authorized. Frozen TUN OS adapters
-remain. The abandoned uncommitted platform direction is archived externally.
+belong to upper layer clients unless explicitly authorized. Existing TUN OS adapters
+remain within the supported host integration boundary.
 
 `internal/splicore/domain/streamtransport` owns bounded intent.
 `internal/splicore/streamtransport` supplies `Dial` and `WrapListener`, exposing
@@ -44,9 +44,10 @@ flowchart TD
 | Trojan standard | Existing TLS | TLS | TLS | TLS |
 | SS / SS2022 / Snell / HY2 / TUIC / Mieru | Existing runtime | Rejected | Rejected | Rejected |
 
-New REALITY combinations and Vision are rejected. Raw VLESS REALITY is unchanged.
-Frozen VLESS XUDP payload behavior remains; Phase 21 adds no Mux.Cool, TunMulti or
-XUDP extension. A client gRPC stream owns one HTTP/2 connection. Each server
+REALITY and Vision over HTTP transports reject. Raw VLESS supports native
+TLS/REALITY Vision and [TCP FinalMask underlays](FINALMASK.md).
+Existing VLESS XUDP payload behavior remains; Mux.Cool, TunMulti and
+XUDP extensions are unsupported. A client gRPC stream owns one HTTP/2 connection. Each server
 listener belongs to one protocol/transport; automatic port demux is not provided.
 
 ## Config and exact admission
@@ -118,22 +119,22 @@ bytes. No WebSocket frames follow. Both ends preserve buffered post-header bytes
 exactly once. Bodies, transfer encoding, wrong path/Host and malformed response
 headers/status fail closed. TCP/TLS half-close is forwarded where available.
 
-Review Fix Round 1 requires an HTTP/1.1 101 response with canonical upgrade
+The client requires an HTTP/1.1 101 response with canonical upgrade
 headers, no Transfer-Encoding and no nonzero Content-Length. An explicit valid
 Content-Length of zero remains accepted for compatibility with the previous
 contract. `net/http` remains the parser and rejects conflicting or malformed
 lengths. Its 1xx ContentLength normalization is insufficient: Splicore also checks
 the retained raw Content-Length header before switching to raw bytes. Buffered
-post-header payload is preserved exactly once. This corrects MINOR P21R-002;
-status is FIXED — PENDING RE-REVIEW. Server request framing checks are unchanged.
+post-header payload is preserved exactly once. Server request framing checks
+remain bounded.
 
-Phase 20 HTTP forward proxy/CONNECT remains separate. Its inbound handles one
-request per client connection with `Connection: close`. P20R-001 proxy credential
-trailer filtering remains unchanged.
+HTTP forward proxy/CONNECT remains separate. Its inbound handles one
+request per client connection with `Connection: close` and filters proxy
+credentials from trailers.
 
 ## gRPC and stream ownership
 
-### Connection identity (Review Fix Round 1)
+### Connection identity
 
 Dial Endpoint, TLS ServerName / SNI and gRPC Authority are independent semantic
 dimensions. The injected underlay receives the original endpoint. Shared TLS
@@ -146,12 +147,9 @@ TLS trust validation and ALPN remain owned by standard shared TLS credentials.
 When authority is absent, it defaults to explicit TLS ServerName, otherwise to
 the endpoint. At the lower-level Dial API, absent TLS ServerName uses grpc-go's
 authority-derived verification name (without a port). Managed TLS profiles still
-require an explicit ServerName; this fix does not broaden their validation.
+require an explicit ServerName.
 Thus absent lower-level SNI plus absent authority derives TLS identity from the
 endpoint hostname. Wrong certificate names and untrusted CAs remain failures.
-
-These rules correct P21R-001, classified MAJOR by the independent Review.
-Fix status: FIXED — PENDING RE-REVIEW; independent closure remains outstanding.
 
 grpc-go v1.80.0 owns actual HTTP/2, ALPN, gRPC envelopes, flow control, cancellation
 and status. Splicore independently encodes the researched Hunk contract: bytes
@@ -201,17 +199,17 @@ format projections remain errors, including historical version gates.
 
 VLESS Mihomo TLS booleans are explicit: false cannot erase TLS metadata; true
 cannot become plain; conflicting SNI aliases fail. Transport normalization follows
-duplicate/alias checks and preserves P19R-001/P19R-003 typed errors.
+duplicate/alias checks and preserves typed import errors.
 
 ## Deferred and qualification
 
 WebSocket early data, HTTPUpgrade fast-open, XHTTP/SplitHTTP, generic QUIC, HTTP3,
 mKCP/KCP, Mux.Cool, TunMulti, advanced gRPC paths, new XUDP and REALITY composition
 are deferred and rejected. Historical Snell/platform limitations remain.
-Historical platform qualification: PARTIALLY PASSED. Phase 21: NOT PLATFORM
-QUALIFIED. Linux arm64: BUILD ONLY.
+Host platform coverage is partial; stream interoperability does not certify
+host network integration. Linux arm64: BUILD ONLY.
 
-## References and evidence
+## References
 
 - [RFC 6455](https://www.rfc-editor.org/rfc/rfc6455)
 - [gRPC HTTP2 protocol](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md)
@@ -221,6 +219,4 @@ QUALIFIED. Linux arm64: BUILD ONLY.
 - [sing-box transport](https://sing-box.sagernet.org/configuration/shared/v2ray-transport/)
 - [Mihomo transport](https://wiki.metacubex.one/en/config/proxies/transport/)
 
-Research and raw checks live at
-`D:/splicore-validation/phase21-shared-transport-20261008/`. Implementation checks
-precede independent Review and Freeze; neither is executed in this phase.
+

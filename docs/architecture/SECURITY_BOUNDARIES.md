@@ -7,11 +7,11 @@
 - Responsibility: Secret handling, transport authorization, imports, files and executable trust.
 - Lifecycle: Update with relevant design/code changes under the documentation policy.
 
-Phase 1 implements typed redaction, injected AES-256-GCM credential encryption,
+Splicore implements typed redaction, injected AES-256-GCM credential encryption,
 Linux directory/socket ownership and peer identity, plus installation locks.
 The table includes future deployment requirements beyond this foundation.
 
-Phase 3 encrypts account-owned protocol passwords with the existing AEAD/AAD
+Splicore encrypts account-owned protocol passwords with the existing AEAD/AAD
 boundary. Supplied passwords reject whitespace/control characters; generated
 passwords use 32 random bytes. GET/doctor/journal/error output remains redacted;
 explicit Binding-scoped client export may reveal a password, never a TLS key.
@@ -86,19 +86,20 @@ Crash dumps/support bundles remain sensitive; no perfect Go heap zeroization cla
 
 Display endpoint, listener, SNI and target stay distinct typed values. Wrong REALITY
 auth can invoke camouflage fallback but must not route authenticated user payload.
-Vision's upstream race/checkptr defects require fail-closed rejection before
-commit, TLS material access, runtime construction or export. Capability Vision=false;
-no sanitizer suppression or upstream patch. [Decision](../adr/0017-defer-vision-dependency-safety.md).
+The historical dependency Vision safety defect remains recorded in
+[ADR 0017](../adr/0017-defer-vision-dependency-safety.md). Its native replacement
+uses owned record boundaries and synchronized state; unsupported flow/security
+pairs reject. [Decision](../adr/0042-native-vless-vision-and-finalmask.md).
 
 ## Independent core runtime boundary
 
 Splicore owns native runtime only. No external supervisor, process configuration,
 transport-mask shared-secret exporter or artifact lifecycle remains. Retired
 Xray/mask state rejects before migration/replacement; imports never discard
-features into ordinary VLESS. Real NoBrand is untouched. Historical Phase 6/7
-security reports remain unchanged and superseded by [ADR 0035](../adr/0035-xray-runtime-removed-from-core.md).
+features into ordinary VLESS. Real NoBrand is untouched. The external-runtime
+security direction is superseded by [ADR 0035](../adr/0035-xray-runtime-removed-from-core.md).
 
-## Phase 8 Mieru secrets and globals
+## Mieru secrets and globals
 
 Ordinary API, CLI, doctor and profile/runtime formatting redact username/password
 credential material; protected per-binding export explicitly returns it. Private
@@ -139,9 +140,10 @@ per association and a two-minute idle timeout; no unauthenticated LAN relay is e
 
 ClientTLS cannot represent certificate keys or a REALITY private key. Passive
 health is per native adapter lease so retired traffic cannot mark a replacement
-adapter healthy. FinalMask/Sudoku are out of scope; Vision remains unsupported.
+adapter healthy. Native masks preserve underlay lifetime; passive status redacts
+mask settings. Vision admits raw TLS/REALITY TCP only.
 
-## Phase 12 resolver and policy boundary
+## Resolver and policy boundary
 
 Operator-controlled HTTP/HTTPS probes disallow userinfo/redirects/non-HTTP schemes,
 have bounded timeout/body/workers and never attach proxy credentials to target headers.
@@ -153,7 +155,7 @@ Domain RuleSets cannot smuggle IP/source rules into DNS. UUID references/cycles 
 canonical size/depth bounds validate before activation. General API/status/support
 remain redacted; graph intent contains no credential payload fields.
 
-## Phase 13 host integration
+## Host integration
 
 Host mutations require the existing protected Application plan/apply/revision boundary. Private journal owner/ACL, size/shape validation and an exclusive lock precede writes. Corruption fails degraded; external changes are retained. HTTP stays loopback, headers bounded and proxy credentials stripped. Support bundles expose owned counts/enums and redacted metadata, never full host network/proxy data. See [system integration](../SYSTEM_INTEGRATION.md).
 
@@ -176,7 +178,7 @@ locks; payload reads/writes and scratch buffers remain per connection. Windows r
 activation remains guarded. No upstream, credentials, wire or external targets are
 modified by the underlay integration.
 
-## Phase 14 remote sources and secret input
+## Remote sources and secret input
 
 [Provider](PROVIDER_MODEL.md) defines verified HTTP(S), full-answer address validation,
 numeric dial pinning, redirect revalidation, auth stripping, explicit private-source
@@ -187,5 +189,6 @@ API/CLI read/preview/errors never return URI/source/credential content. Import f
 and explicit exports are protected operator inputs/results, not passive diagnostics.
 Support bundles project fixed provider enums/counts/ages, dropping names/URLs/metadata.
 Regular-file identity/size checks reject symlink/device/socket imports. Canonical and
-external unknown fields reject; REALITY server private fields, Vision and client masks
-cannot enter a runnable node. No public subscription listener or telemetry is added.
+external unknown fields reject; REALITY server private fields and retired runtime
+annotations cannot enter a runnable node. Native Vision and canonical TCP masks
+are validated before serving traffic. No public subscription listener or telemetry is added.

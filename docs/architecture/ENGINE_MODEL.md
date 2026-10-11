@@ -5,7 +5,7 @@ Audience: Maintainers and operators
 Last reviewed: 2026-10-04
 Owner: Splicore maintainer
 Responsibility: Independent native Server + Client Core boundary
-Lifecycle: Experimental; Phase 14 local freeze
+Lifecycle: Experimental
 
 `Protocol != Engine`: ProtocolKey identifies wire/version/profile intent. EngineID
 selects a compiled Splicore implementation. It is a domain abstraction and does
@@ -39,9 +39,9 @@ See [client ownership](CLIENT_RUNTIME.md) and [Mieru](MIERU_INTEGRATION.md).
 
 Native VLESS plain/TLS/REALITY flow-none remains Experimental. TCP/XUDP,
 IPv4/IPv6/domain, UUID and explicit trust retain their canonical contracts.
-REALITY requires `with_utls`. Vision rejects as Deferred/Unsupported.
+REALITY requires `with_utls`. Native Vision admits raw TLS/REALITY TCP only.
 
-FinalMask/Sudoku are out of scope. Splicore has no external runtime supervisor,
+Native TCP FinalMask/Sudoku are protocol-independent underlays. Splicore has no external runtime supervisor,
 Xray configuration renderer, artifact requirement, child socket protector or
 engine-specific status/health surface. Ordinary VLESS ClientProfile export to an
 external client's format is independent of engine ownership and may remain.
@@ -55,6 +55,6 @@ records with the previous experimental build, then upgrade; never relabel them
 native. A legacy bootstrap/receipt can be read only by the installer to remove
 retired metadata after successful preflight. Normal `serve` remains strict.
 
-[ADR 0035](../adr/0035-xray-runtime-removed-from-core.md) supersedes the Phase 6/7
+[ADR 0035](../adr/0035-xray-runtime-removed-from-core.md) supersedes the historical
 runtime direction. Historical ADRs/reports are preserved. Independent future
 Xray deployment belongs to [NoBrand orchestration](../integration/NOBRAND_MIGRATION.md).

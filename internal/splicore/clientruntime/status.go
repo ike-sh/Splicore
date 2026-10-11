@@ -51,6 +51,12 @@ type Status struct {
 
 func (m *Manager) Status(state client.ProfileState, capabilities []ports.OutboundCapability) Status {
 	out := Status{State: state.Clone(), Health: "stopped", LocalSOCKSTCP: true, LocalSOCKSUDP: "supported", OutboundAdapters: capabilities, LocalStats: []Observation{}, Outbounds: []OutboundHealth{}, Nodes: []Observation{}, Sessions: []SessionView{}}
+	for i := range out.State.Nodes {
+		if masks := out.State.Nodes[i].Transport.FinalMask; masks != nil {
+			redacted := masks.Redacted()
+			out.State.Nodes[i].Transport.FinalMask = &redacted
+		}
+	}
 	out.Network = m.NetworkStatus()
 	out.Accounts = []Observation{}
 	for _, kind := range []string{"socks5", "http", "mixed"} {

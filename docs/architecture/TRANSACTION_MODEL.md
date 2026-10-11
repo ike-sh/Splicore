@@ -13,7 +13,7 @@ Do not promise zero downtime or undo already transferred traffic.
 
 ## Implemented runtime transactions
 
-Phase 3 uses one shared create coordinator for Snell/HY2: pending journal → build
+Splicore uses one shared create coordinator for Snell/HY2: pending journal → build
 → start → listener health → SQL commit → activate. HY2 owns a UDP gate dropping
 reads before commit. Invalid credential/TLS, keypair/chain failure, UDP conflict,
 startup/health/commit faults publish no resources and close the candidate.
@@ -34,7 +34,7 @@ Display updates check resource/global revisions and do not touch sockets/routes.
 
 Restart reconstructs committed resources only from SQLite. Interrupted known runtime
 journals become failed; no candidate granted traffic before commit. Unknown pending
-Foundation operations remain fenced for review. Any failed committed restore cleans
+Foundation operations remain fenced for manual recovery. Any failed committed restore cleans
 previously restored handles and fails startup. Crash after commit before Activate
 recovers committed state at restart. Listener Health is readiness; actual auth and
 payload qualification is provided by independent interop tests.
@@ -125,8 +125,9 @@ Generic engine selection and module validation precede planning. Apply generates
 derives UUID/server key before pending, then builds resources, starts gated runtime,
 checks health, commits inbound-owned secrets with resources and opens admission.
 Invalid UUID/key/short ID/target, unsupported Vision flow and unavailable engine
-have no committed side effects. Vision is rejected during validation; if that gate
-is bypassed, runtime building rejects and the pending operation is compensated. Port
+have no committed side effects. Unsupported flow/transport combinations reject
+during validation; bypassed validation still fails runtime building and the pending
+operation is compensated. Supported native Vision follows the same transaction. Port
 conflict and injected compile/start/health failures compensate without resources.
 Recovery/reconcile carries committed server credentials, including encrypted REALITY
 key; imports and client exports are not recovery sources. Reconcile interrupts all

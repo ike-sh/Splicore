@@ -11,7 +11,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 )
 
-func TestVisionDeferredAllExportersAndURIImport(t *testing.T) {
+func TestVisionQualifiedURIAndUnsupportedExporterTargets(t *testing.T) {
 	p, _ := vlessProfile(t, "edge.synthetic.test")
 	uri, err := (exporter.VLESS{Target: ports.URI}).Export(context.Background(), p, ports.ExportTarget{Format: ports.URI})
 	if err != nil {
@@ -21,7 +21,8 @@ func TestVisionDeferredAllExportersAndURIImport(t *testing.T) {
 		t.Fatal("non-Vision URI emitted flow")
 	}
 	p.Options.Data = []byte(`{"security":"reality","flow":"xtls-rprx-vision","packet_encoding":"xudp"}`)
-	for _, target := range []ports.ExportTarget{{Format: ports.Mihomo, ClientVersion: "1.19.30"}, {Format: ports.SingBox, ClientVersion: "1.14.1"}, {Format: ports.URI}} {
+	p.UDPPayload = false
+	for _, target := range []ports.ExportTarget{{Format: ports.Mihomo, ClientVersion: "1.19.30"}, {Format: ports.SingBox, ClientVersion: "1.14.1"}} {
 		e := exporter.VLESS{Target: target.Format}
 		output, err := e.Export(context.Background(), p, target)
 		var typed *identity.Error
@@ -33,7 +34,11 @@ func TestVisionDeferredAllExportersAndURIImport(t *testing.T) {
 		}
 	}
 	input := strings.Replace(string(uri), "#", "&flow=xtls-rprx-vision#", 1)
-	if _, err := exporter.ParseVLESSURI(input); err == nil {
-		t.Fatal("Vision URI imported")
+	if parsed, err := exporter.ParseVLESSURI(input); err != nil || parsed.Flow != "xtls-rprx-vision" {
+		t.Fatal("Vision URI rejected", err)
+	}
+	output, err := (exporter.VLESS{Target: ports.URI}).Export(context.Background(), p, ports.ExportTarget{Format: ports.URI})
+	if err != nil || !strings.Contains(string(output), "flow=xtls-rprx-vision") {
+		t.Fatal("flow lost", err)
 	}
 }

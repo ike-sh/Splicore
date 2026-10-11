@@ -15,11 +15,11 @@ Committed authorized Binding + Inbound endpoint/security/settings
  → rendered config / URI / bundle
 ```
 
-Phase 2 implements Snell ClientProfile and Mihomo/sing-box/Surge exporters.
+Splicore implements Snell ClientProfile and Mihomo/sing-box/Surge exporters.
 Default profile JSON/formatting redacts PSK. Export is explicitly secret-returning.
 No server runtime struct/Engine ID enters the profile; no Snell URI is invented.
 
-Phase 3 adds password auth, explicit CA/SNI/h3 TLS and QUIC/UDP projection for
+Splicore supports password auth, explicit CA/SNI/h3 TLS and QUIC/UDP projection for
 [Hysteria2](../protocol/HYSTERIA2.md). Default formatting redacts password too.
 Mihomo 1.19.30 receives a `mihomo-config-fragment` containing proxies with a
 non-leaf CA SHA-256 fingerprint, SNI and skip-cert-verify=false. The runtime serves
@@ -88,16 +88,17 @@ its own specification, not a compatible replacement for an existing protocol.
 [TUIC](../protocol/TUIC.md) projects typed UUID/password, independent endpoint/SNI/CA,
 h3/QUIC/UDP and v5/cubic/native/no-0RTT options. Pinned Mihomo1.19.30 and sing-box1.14.1
 keep verification enabled and omit v4 token. Surge rejects; URI deferred. Engine
-structs/server keys never enter ClientProfile. [Actual results](../reports/PHASE_4_TUIC_VERTICAL_SLICE_REPORT.md).
+structs/server keys never enter ClientProfile.
 
-## VLESS / REALITY candidate
+## VLESS / REALITY
 
 VLESS ClientProfile projects display endpoint, typed secret UUID, canonical flow,
 TCP/XUDP, SNI and either explicit CA or REALITY public key/selected short ID. Server
 private key, target, actual listener and engine are absent. Mihomo 1.19.30 and
 sing-box 1.14.1 use their pinned VLESS fields; REALITY clients use chrome uTLS.
-Default-race flow-none traffic covers all REALITY endpoint types/users. Vision is
-DEFERRED / UNSUPPORTED: profiles, exporter descriptions/content and URI imports reject it.
+Default-race flow-none traffic covers all REALITY endpoint types/users. Native
+Vision supports raw TLS/REALITY TCP; bounded REALITY URI sharing preserves flow.
+Previously qualified JSON exporters reject new Vision profiles until qualified.
 Initial Vision functional passes and safety failures remain historical evidence. [Actual matrix](../testing/INTEROP_MATRIX.md).
 
 URI supports a bounded plain/REALITY dialect with strict UUID, brackets, query and
@@ -107,12 +108,13 @@ and requires the server private key to be absent. [VLESS](../protocol/VLESS.md).
 
 ## Out-of-scope specialized profiles
 
-FinalMask/Sudoku are outside Splicore runtime/export scope. Import preview marks
-them Unsupported. Ordinary plain VLESS external-client JSON export may remain;
+Native TCP FinalMask/Sudoku are reusable underlays. Canonical native intent is
+accepted; retired Xray annotations and unrepresentable external exports reject.
+Ordinary plain VLESS external-client JSON export remains;
 no engine ID enters ClientProfile and no runtime fallback strips features.
 Independent future deployment belongs to NoBrand. [ADR 0035](../adr/0035-xray-runtime-removed-from-core.md).
 
-## Phase 8 Mieru clients
+## Mieru clients
 
 Mieru 3.38.0 profile core (`mieru-client-config`) and Mihomo 1.19.30 proxies
 fragment (`mihomo-config-fragment`, MTU 1500 only) qualify TCP/UDP, both underlays,
@@ -121,17 +123,18 @@ binding_id; default JSON/formatting redact credentials. No server protobuf leaks
 sing-box 1.14.1 has no Mieru outbound; Surge/URI/Xray/unknown versions reject.
 [Contract](../protocol/MIERU.md), [matrix](../testing/INTEROP_MATRIX.md).
 
-## Phase 11 Splicore client runtime
+## Splicore client runtime
 
 Export qualification above and client-runtime acceptance are separate. The five native
 runtime adapter pairs are Snell/native, HY2/native, TUIC v5/native, VLESS flow-none/
 native and Mieru/native. All support local SOCKS TCP and UDP,
 IPv4/IPv6/domain payload targets within their tested feature scopes. VLESS REALITY
-uses public client fields only; Vision rejects. Mieru uses official v3.38.0 APIs,
-with no external mita client. FinalMask/Sudoku are out of scope.
+uses public client fields only. Native Vision and TCP masks extend raw VLESS
+composition; [limits](../protocol/VLESS.md). Mieru uses official v3.38.0 APIs,
+with no external mita client.
 
-Snell and Mieru UDP resolve a target locally per flow because their frozen response
+Snell and Mieru UDP resolve a target locally per flow because their response
 contracts accept IP addresses; canonical domains remain unchanged. HY2/TUIC/VLESS
 preserve remote UDP target resolution. TCP target domains resolve remotely for
-proxy adapters. These semantics add no DNS engine. Actual self/reference/platform
-qualification belongs to the [Phase 11 report](../reports/PHASE_11_CLIENT_OUTBOUND_EXPANSION_REPORT.md).
+proxy adapters. These semantics add no DNS engine. Client interoperability does
+not certify host platform integration.

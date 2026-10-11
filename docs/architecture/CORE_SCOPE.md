@@ -26,7 +26,9 @@ configuration, API, CLI or normal runtime writers for these features.
 Splicore Client Core is a reusable proxy runtime. Android/Apple/Desktop application
 shells are upper-layer products and are not part of this repository.
 External Xray, sing-box and Mihomo processes are interoperability test peers only.
-Vision remains unsupported; FinalMask/Sudoku are not Splicore runtime capabilities.
+Native VLESS Vision is a raw TLS/REALITY flow. Reusable TCP FinalMask wrappers
+(header-custom, fragment, sudoku) belong below transport security; see
+[configuration and limits](FINALMASK.md). Retired Xray runtime records remain inert.
 
 ## Rule
 
@@ -38,14 +40,14 @@ Windows TUN is Core. Windows System Proxy is not Core.
 Docker / Docker Compose / container-image publication are not part of the
 Splicore Core repository product surface. Docker may be used externally for
 development/testing only; local validation definitions belong outside this repository.
-Docker builds are not a Phase Freeze gate, Docker images are not Splicore release
+Docker images are not Splicore release
 artifacts, and Docker runtime is not a platform qualification target. Native Core
 binary builds are the repository distribution check unless product scope is
 explicitly changed in the future.
 
 ## Historical storage
 
-Frozen migrations 0001–0008 are byte-identical. Migration 0007 and its
+Existing migrations 0001–0008 are byte-identical. Migration 0007 and its
 client_host_profiles table are HISTORICAL / DEPRECATED / INERT. TUN configuration
 already lives in local_inbounds; no extraction migration is necessary. Core never
 reads or writes the old desired-state table. Physical backups retain it, while
@@ -58,6 +60,6 @@ interface and Wintun recovery keep scope/generation/conflict and shutdown guards
 
 ## Validation boundary
 
-Phase 21 cleanup requires targeted independent review before Freeze. Historical
-platform qualification remains PARTIALLY PASSED; Phase 21 is NOT PLATFORM QUALIFIED.
-Linux arm64 is BUILD ONLY. Frozen reports and ADR rationale remain historical truth.
+Host platform coverage is partial; local stream tests do not certify host
+network integration. Linux arm64 is BUILD ONLY. Real Windows activation remains
+guarded.

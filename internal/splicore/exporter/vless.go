@@ -16,7 +16,7 @@ func (e VLESS) Format() ports.Format { return e.Target }
 func vlessProfile(p clientprofile.Profile) (access.UUIDPayload, module.ClientOptions, error) {
 	credential, ok := p.Credentials.(access.UUIDPayload)
 	o, err := module.DecodeClientOptions(p.Options.Data)
-	if !ok || p.Validate() != nil || module.ValidateUUID(credential.UUID) != nil || err != nil || p.Protocol != module.Key(o.Security) || !p.UDPPayload || p.Transport.ValidatePair("vless", string(o.Security)) != nil || len(p.TLS.ALPN) != 0 {
+	if !ok || p.Validate() != nil || module.ValidateUUID(credential.UUID) != nil || err != nil || p.Protocol != module.Key(o.Security) || p.UDPPayload != (o.Flow != module.Vision) || p.Transport.ValidatePair("vless", string(o.Security)) != nil || len(p.TLS.ALPN) != 0 {
 		return credential, o, unsupported()
 	}
 	switch o.Security {
@@ -39,6 +39,9 @@ func vlessProfile(p clientprofile.Profile) (access.UUIDPayload, module.ClientOpt
 			return credential, o, unsupported()
 		}
 	}
+	if p.Transport.FinalMask != nil || o.Flow == module.Vision && p.Transport.Type() != "tcp" {
+		return credential, o, unsupported()
+	}
 	if o.Security != module.Plain {
 		kind, err := access.ParseHost(p.TLS.ServerName)
 		if err != nil || kind != access.DNS {
@@ -50,6 +53,9 @@ func vlessProfile(p clientprofile.Profile) (access.UUIDPayload, module.ClientOpt
 func (e VLESS) Export(_ context.Context, p clientprofile.Profile, t ports.ExportTarget) ([]byte, error) {
 	credential, o, err := vlessProfile(p)
 	if err != nil || t.Format != e.Target {
+		return nil, unsupported()
+	}
+	if o.Flow == module.Vision && e.Target != ports.URI {
 		return nil, unsupported()
 	}
 	name := "splicore-" + string(p.ID)
@@ -116,8 +122,8 @@ func (e VLESS) Export(_ context.Context, p clientprofile.Profile, t ports.Export
 	}
 }
 func (e VLESS) Describe(p clientprofile.Profile) (ports.ExportDescription, error) {
-	if _, _, err := vlessProfile(p); err != nil {
-		return ports.ExportDescription{}, err
+	if _, o, err := vlessProfile(p); err != nil || o.Flow == module.Vision && e.Target != ports.URI {
+		return ports.ExportDescription{}, unsupported()
 	}
 	shape := "sing-box-outbound"
 	switch e.Target {

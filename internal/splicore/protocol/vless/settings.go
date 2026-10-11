@@ -30,16 +30,13 @@ type Flow string
 
 const (
 	NoFlow Flow = "none"
-	// Vision remains a recognized input so unsupported requests fail explicitly.
+	// Vision is a VLESS flow over raw TLS1.3 or REALITY.
 	Vision Flow = "xtls-rprx-vision"
 )
 
 // ValidateFlow bounds the supported surface independently of TLS/security.
 func ValidateFlow(f Flow) error {
-	if f == Vision {
-		return identity.Err(identity.NotImplemented, "requested VLESS flow is unsupported")
-	}
-	if f != NoFlow {
+	if f != NoFlow && f != Vision {
 		return invalid()
 	}
 	return nil
@@ -146,6 +143,9 @@ func validateSettings(s Settings, publicRequired bool) error {
 	if s.Stream != nil && (s.Stream.ValidatePair("vless", string(s.Security)) != nil || s.Stream.ValidateServer() != nil) {
 		return invalid()
 	}
+	if s.Flow == Vision && (s.Security == Plain || s.Stream != nil && s.Stream.Type() != "tcp") {
+		return invalid()
+	}
 	if s.Transport != "tcp" || s.PacketEncoding != "xudp" {
 		return invalid()
 	}
@@ -224,6 +224,9 @@ func DecodeClientOptions(b []byte) (ClientOptions, error) {
 	}
 	if err := ValidateFlow(o.Flow); err != nil {
 		return o, err
+	}
+	if o.Flow == Vision && o.Security == Plain {
+		return o, invalid()
 	}
 	if o.PacketEncoding != "xudp" || (o.Security != Plain && o.Security != TLS && o.Security != Reality) {
 		return o, invalid()

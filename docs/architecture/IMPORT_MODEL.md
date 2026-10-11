@@ -47,14 +47,15 @@ canonical export covers all five supported client protocols and round trips.
 | Snell | Unsupported URI: no formal audited sharing contract. Canonical, Mihomo and sing-box node fragments are available. |
 | hysteria2 / hy2 | [Official URI](https://v2.hysteria.network/docs/developers/URI-Scheme/): auth, host, optional port default 443, SNI, insecure=0; system trust. Obfs/pin/ECH/hopping/realm/insecure reject. |
 | tuic | [Mihomo v1.19.30 converter](https://github.com/MetaCubeX/mihomo/blob/v1.19.30/common/convert/converter.go) dialect, explicitly temporary/unofficial: UUID:password, mandatory port, SNI, h3, cubic, native UDP, disable_sni=0. Token/v4 and extensions reject. |
-| vless | Existing audited [project contract](../protocol/VLESS.md): TCP, UUID, flow none, XUDP, plain or REALITY public fields/chrome. Vision rejects; explicit CA TLS cannot be represented by this sharing subset. |
+| vless | Existing audited [project contract](../protocol/VLESS.md): TCP, UUID, flow none or raw REALITY Vision, existing XUDP for flow none, plain or REALITY public fields/chrome; explicit CA TLS cannot be represented by this sharing subset. |
 | mierus | [Official v3.38.0 URL parser](https://github.com/enfein/mieru/blob/v3.38.0/pkg/appctl/url.go): simple URL with user/password, profile, one port/protocol binding, approved multiplex level. |
 | mieru | Same official source: bounded base64 protobuf client config, unknown protobuf fields rejected recursively; only representable bounded profiles accepted. |
 
 Mieru uses official parsing followed by canonical validation; multi-server/range/binding,
 handshake mode, traffic pattern and unknown fields reject. No invented URI scheme.
-No parser introduces new wire capability. Vision and out-of-scope FinalMask/Sudoku, server
-private keys and unvalidated protocol extensions reject without fallback.
+No parser introduces wire capability. Native canonical `transport.final_mask`
+preserves validated TCP masks; retired Xray annotations, server private keys and
+unvalidated protocol extensions reject without fallback.
 
 ## External input and export
 

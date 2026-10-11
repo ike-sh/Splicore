@@ -5,11 +5,11 @@ Audience: Maintainers and operators
 Last reviewed: 2026-10-04
 Owner: Splicore maintainer
 Responsibility: Independent native Server + Client Core boundary
-Lifecycle: Experimental; Phase 14 local freeze
+Lifecycle: Experimental
 
 Splicore is an independent Server + Client Core with one shared control plane.
 The maintainer's boundary is authoritative; [ADR 0035](adr/0035-xray-runtime-removed-from-core.md)
-supersedes the historical Phase 6/7 Xray runtime direction.
+supersedes the historical external Xray runtime direction.
 
 ```mermaid
 flowchart TD
@@ -35,13 +35,13 @@ and transport adapters are replaceable boundaries.
 
 `Protocol != Engine` remains a useful abstraction. Current EngineID is native
 only; the principle does not imply ownership of another core. Native adapters
-reuse inherited runtime APIs and official embedded Mieru v3.38.0. Protocol wire,
-framing and cryptography stay upstream. See [SDK](architecture/PROTOCOL_SDK.md).
+reuse inherited runtime APIs and official embedded Mieru v3.38.0. Owned native protocol framing and independent cryptographic libraries preserve
+the dependency boundary. See [SDK](architecture/PROTOCOL_SDK.md).
 
 Server and Client both support Snell, Hysteria2, TUIC, native VLESS and Mieru as
 Experimental profiles. DIRECT/REJECT remain builtins. VLESS plain/TLS/REALITY
-flow-none stays supported; Vision is Deferred/Unsupported. FinalMask and Sudoku
-are out of scope. [Capability matrix](architecture/CAPABILITY_MATRIX.md).
+flow-none stays supported. Native Vision is a raw TLS/REALITY TCP flow; native
+FinalMask/Sudoku are reusable underlay wrappers. Unsupported combinations reject. [Capability matrix](architecture/CAPABILITY_MATRIX.md).
 
 ## Lifetime and transactions
 
@@ -56,7 +56,7 @@ requires an enabled account/binding and exposes only client credentials/public
 trust material. Credentials are encrypted with owner/schema AAD. Server-only
 REALITY private keys never cross the ClientProfile boundary.
 
-Phase 14 imports/providers retain persistent UUID identity, encrypted remote
+Imports/providers retain persistent UUID identity, encrypted remote
 source/auth/validators, bounded single-use previews, revision checks, serialized
 refresh and a four-worker fake-clock scheduler. Referenced disappeared nodes
 remain stale and usable; disable refuses new sessions. Proxy and RuleSet feeds
@@ -94,22 +94,14 @@ failure restores the old installation. Historical migrations remain immutable.
 ## Future orchestration
 
 NoBrand-OneClick will choose independent Splicore for native supported profiles
-or independent Xray for specialized VLESS FinalMask/Sudoku. NoBrand owns artifact
+or independent Xray for capabilities beyond the admitted native profiles. NoBrand owns artifact
 verification and lifecycle of each deployed core. Splicore does not know another
-service's state. This task updates only Splicore design docs; the real NoBrand
-repository remains untouched. [Boundary design](integration/NOBRAND_MIGRATION.md).
+service's state. [Boundary design](integration/NOBRAND_MIGRATION.md).
 
-## History and current work
+## Protocol extension contracts
 
 <a id="phase-3-extensibility-disposition"></a>
 <a id="phase-4-third-protocol-realization"></a>
 
-These anchors preserve links from the immutable Phase 3/4 evidence. Their
-historical protocol/engine dispositions are superseded by the current native
-architecture and capability matrix above.
-
-Phase 0–13 frozen history/reports remain unchanged. Phase 14 provider work and the
-architecture correction are accepted in the [local freeze](reports/PHASE_14_FREEZE_REPORT.md).
-The [correction report](reports/ARCHITECTURE_CORRECTION_XRAY_BOUNDARY_REPORT.md)
-records source/runtime audits, native regressions, package sizes and exact
-platform limits. [Development context](DEVELOPMENT_CONTEXT.md).
+The native module registry and shared protocol support own extension
+contracts. See [Protocol SDK](architecture/PROTOCOL_SDK.md).

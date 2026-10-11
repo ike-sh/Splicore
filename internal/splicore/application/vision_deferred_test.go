@@ -56,7 +56,7 @@ func (visionBypassCodec) MaterializeCreation(d ports.CreationDraft) (ports.Creat
 }
 func (visionBypassCodec) ValidateInbound(access.Inbound) error { return nil }
 
-func TestVisionRejectedAPIConfigImportCLIAndNoCommittedState(t *testing.T) {
+func TestVisionUnsupportedSecurityRejectedAPIConfigImportCLI(t *testing.T) {
 	ctx := context.Background()
 	s, store := setupProtocols(t, filepath.Join(t.TempDir(), "state", "state.db"), nil, testfixture.Phase5)
 	defer stop(t, s, store)
@@ -89,7 +89,7 @@ func TestVisionRejectedAPIConfigImportCLIAndNoCommittedState(t *testing.T) {
 			} {
 				t.Run(name, func(t *testing.T) {
 					var typed *identity.Error
-					if err := operation(); !errors.As(err, &typed) || typed.Code != identity.NotImplemented {
+					if err := operation(); !errors.As(err, &typed) || typed.Code != identity.Invalid {
 						t.Fatalf("unexpected rejection: %v", err)
 					}
 				})
@@ -100,7 +100,7 @@ func TestVisionRejectedAPIConfigImportCLIAndNoCommittedState(t *testing.T) {
 			}
 			for _, command := range []string{"validate", "plan"} {
 				var stdout, stderr bytes.Buffer
-				if cli.Run(ctx, []string{"inbound", command, "--protocol", "vless", "--file", path}, &stdout, &stderr, cli.Dependencies{Queries: client}) == 0 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "not_implemented") {
+				if cli.Run(ctx, []string{"inbound", command, "--protocol", "vless", "--file", path}, &stdout, &stderr, cli.Dependencies{Queries: client}) == 0 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "invalid") {
 					t.Fatalf("CLI %s did not reject Vision", command)
 				}
 			}
@@ -109,7 +109,7 @@ func TestVisionRejectedAPIConfigImportCLIAndNoCommittedState(t *testing.T) {
 				t.Fatal(err)
 			}
 			var stdout, stderr bytes.Buffer
-			if cli.Run(ctx, []string{"inbound", "apply", "--protocol", "vless", "--file", path, "--plan", planPath}, &stdout, &stderr, cli.Dependencies{Queries: client}) == 0 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "not_implemented") {
+			if cli.Run(ctx, []string{"inbound", "apply", "--protocol", "vless", "--file", path, "--plan", planPath}, &stdout, &stderr, cli.Dependencies{Queries: client}) == 0 || stdout.Len() != 0 || !strings.Contains(stderr.String(), "invalid") {
 				t.Fatal("CLI apply did not reject Vision")
 			}
 		})

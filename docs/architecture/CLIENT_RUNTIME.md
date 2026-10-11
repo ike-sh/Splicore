@@ -12,9 +12,8 @@
 One daemon runs server and client roles with shared SQLite, Application, encrypted
 credentials, journal, registries, API and CLI. Loopback SOCKS5 supports TCP CONNECT
 and UDP ASSOCIATE. Ordered routing, policy groups and managed DNS are Experimental. TUN/HTTP/mixed reuse
-this runtime; platform limits are explicit. Phase 14 imports/providers are implemented.
-The [Phase 13 freeze](../reports/PHASE_13_FREEZE_REPORT.md) records a historical checkpoint.
-Current Phase 21 cleanup awaits review. Real Windows activation stays guarded.
+this runtime; platform limits are explicit. Imports/providers are implemented.
+Real Windows activation stays guarded.
 
 ```mermaid
 flowchart LR
@@ -47,8 +46,9 @@ public material only, with no field for server private keys.
 The immutable registry maps exact protocol/engine pairs to current native adapters,
 including SS/SS2022, Snell, HY2, TUIC, VLESS, Mieru, Trojan, VMess, SOCKS5 and HTTP.
 Protocol-owned options/credentials are reused. Unsupported pairs reject without
-fallback. VLESS flow-none supports plain/TLS/REALITY. Vision rejects under ADR 0017;
-FinalMask/Sudoku are out of scope for Splicore. Unsupported imports never downgrade.
+fallback. VLESS flow-none supports plain/TLS/REALITY. Native Vision supports raw
+TLS/REALITY TCP; FinalMask wrappers compose below security. Unsupported imports
+never downgrade. [VLESS](../protocol/VLESS.md), [FinalMask](FINALMASK.md).
 
 ## Embedded ownership
 
@@ -89,12 +89,12 @@ copies before release. Control EOF, two-minute idle expiry, listener removal, ex
 cancels admission, closes sockets, joins workers and finally releases the generation.
 Flow creation/WaitGroup.Add finish before cleanup Wait. Pending dials are bounded.
 
-With managed DNS disabled, Phase 11 semantics remain:
+With managed DNS disabled, target resolution follows:
 
 | UDP domain target | Resolution |
 | --- | --- |
 | DIRECT | Standard local net.Dialer per flow. |
-| Snell/native | Local per flow; frozen response framing requires IPs. |
+| Snell/native | Local per flow; response framing requires IPs. |
 | Mieru/native | Local per flow; official response wrapper accepts IP headers. |
 | HY2/TUIC/VLESS native | Remote protocol resolution, retaining FQDNs. |
 
@@ -121,9 +121,9 @@ not a probe.
 
 See [storage](STORAGE_MODEL.md), [security](SECURITY_BOUNDARIES.md), [API](../api/README.md),
 [CLI](../CLI.md), [operations](../OPERATIONS.md), [ADR 0023](../adr/0023-client-udp-ownership.md)
-and the [acceptance report](../reports/PHASE_11_CLIENT_OUTBOUND_EXPANSION_REPORT.md).
+for recovery and operation contracts.
 
-## Phase 12 graph ownership
+## Graph ownership
 
 ProfileState.network stores canonical routes/sets/groups/DNS. Complete graph compilation
 precedes commit and atomic publication. Active schedulers stop/join on retirement;
@@ -137,7 +137,7 @@ Malformed committed network JSON/references report client_committed_state_invali
 degraded health without deleting intent or disabling server/control. Restore a verified
 backup before importing valid configuration through Application.
 
-## Phase 13 host integration
+## Host integration
 
 TUN borrows callbacks only until owned copies/references are retained, fixes counter
 maps before staged ingress starts, and joins flow/DNS workers before releasing their
@@ -159,7 +159,7 @@ Runtime Close rejects writes, interrupts borrowed device use, joins packet and
 flow workers and destroys the actual stack/NIC/link. Host ownership then restores
 the lease and releases the device. Reconciled generations reuse the retained TUN
 listener. See [native runtime](NATIVE_TUN_RUNTIME.md) and
-[resource ownership](TUN_RUNTIME_OWNERSHIP.md). Validation and review are pending.
+[resource ownership](TUN_RUNTIME_OWNERSHIP.md). Real Windows activation remains guarded.
 
 ## Underlay generations
 
@@ -173,7 +173,7 @@ leases without recreating the device. Failed bootstrap/provision preserves the o
 runtime. Failed adapter cleanup retains protection and surfaces shutdown debt.
 See [system integration](../SYSTEM_INTEGRATION.md).
 
-## Phase 14 resource and fetch ownership
+## Resource and fetch ownership
 
 Schema 8 restores provider-owned nodes/rules before existing runtime recovery and
 scheduler startup. Provider FetchNetwork retains one committed snapshot and temporary

@@ -1,5 +1,5 @@
 // Package wire owns bounded VLESS v0 and XUDP application frames. The contract
-// is specified by VLESS encoding and Mux.Cool metadata; Vision is unsupported.
+// is specified by VLESS encoding and Mux.Cool metadata; Vision flow addons are bounded and explicit.
 package wire
 
 import (
@@ -96,45 +96,53 @@ func ReadAddress(r io.Reader) (access.Endpoint, error) {
 	}
 	return dst, nil
 }
-func addons(r io.Reader) error {
+func readAddons(r io.Reader) (string, error) {
+	var result string
+	seen := false
 	var length [1]byte
 	if _, err := io.ReadFull(r, length[:]); err != nil {
-		return err
+		return "", err
 	}
 	b := make([]byte, int(length[0]))
 	if _, err := io.ReadFull(r, b); err != nil {
-		return err
+		return "", err
 	}
 	for len(b) > 0 {
 		field, typ, n := protowire.ConsumeTag(b)
 		if n < 0 {
-			return ErrFrame
+			return "", ErrFrame
 		}
 		b = b[n:]
 		if field == 1 {
 			if typ != protowire.BytesType {
-				return ErrFrame
+				return "", ErrFrame
 			}
 			flow, n := protowire.ConsumeBytes(b)
 			if n < 0 {
-				return ErrFrame
+				return "", ErrFrame
 			}
-			if len(flow) != 0 {
-				return ErrFlow
+			if seen {
+				return "", ErrFrame
+			}
+			seen = true
+			result = string(flow)
+			if result != "" && result != "xtls-rprx-vision" {
+				return "", ErrFlow
 			}
 			b = b[n:]
 		} else {
 			n := protowire.ConsumeFieldValue(field, typ, b)
 			if n < 0 {
-				return ErrFrame
+				return "", ErrFrame
 			}
 			b = b[n:]
 		}
 	}
-	return nil
+	return result, nil
 }
 
 type Request struct {
+	Flow        string
 	UUID        [16]byte
 	Command     byte
 	Destination access.Endpoint
@@ -150,9 +158,11 @@ func ReadRequest(r io.Reader) (Request, error) {
 		return q, ErrFrame
 	}
 	copy(q.UUID[:], h[1:])
-	if err := addons(r); err != nil {
+	flow, err := readAddons(r)
+	if err != nil {
 		return q, err
 	}
+	q.Flow = flow
 	var cmd [1]byte
 	if _, err := io.ReadFull(r, cmd[:]); err != nil {
 		return q, err
@@ -171,7 +181,17 @@ func ReadRequest(r io.Reader) (Request, error) {
 }
 func WriteRequest(w io.Writer, q Request) error {
 	b := append([]byte{0}, q.UUID[:]...)
-	b = append(b, 0, q.Command)
+	var addon []byte
+	if q.Flow != "" {
+		if q.Flow != "xtls-rprx-vision" {
+			return ErrFlow
+		}
+		addon = protowire.AppendTag(addon, 1, protowire.BytesType)
+		addon = protowire.AppendString(addon, q.Flow)
+	}
+	b = append(b, byte(len(addon)))
+	b = append(b, addon...)
+	b = append(b, q.Command)
 	switch q.Command {
 	case TCP, UDP:
 		a, err := Address(q.Destination)
@@ -193,7 +213,14 @@ func ReadResponse(r io.Reader) error {
 	if version[0] != 0 {
 		return ErrFrame
 	}
-	return addons(r)
+	flow, e := readAddons(r)
+	if e != nil {
+		return e
+	}
+	if flow != "" {
+		return ErrFlow
+	}
+	return nil
 }
 
 // Frame is a bounded XUDP/Mux.Cool message. Payload is newly allocated and
