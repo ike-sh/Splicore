@@ -17,6 +17,7 @@ is preserved; it does not authorize third-party runtime ownership.
 | TUIC v5 | Yes / Yes | Yes / Yes | IPv4/IPv6/domain | QUIC/TLS, UUID/password |
 | VLESS flow-none | Yes / XUDP | Yes / XUDP | IPv4/IPv6/domain | Plain/TLS/REALITY |
 | Mieru | Yes / Yes | Yes / Yes | IPv4/IPv6/domain | Official embedded TCP/UDP transport |
+| AnyTLS v2/v1 | Yes / UoT2 | Yes / UoT2 | IPv4/IPv6/domain | Mandatory shared TLS, password |
 
 Snell v5 canonical intent uses the inherited v4 compatibility adapter; v6 maps to
 v6. No wire is rewritten. REALITY requires `with_utls`. QUIC requires `with_quic`.
@@ -57,3 +58,8 @@ fixtures are contract evidence, not real host certification.
 Historical reports remain unchanged and are superseded for current Xray support by
 [ADR 0035](../adr/0035-xray-runtime-removed-from-core.md) and the
 [correction report](../reports/ARCHITECTURE_CORRECTION_XRAY_BOUNDARY_REPORT.md).
+
+AnyTLS supports bounded stream multiplexing, newest-idle session reuse, padding
+and dynamic scheme updates. Local anytls-go v0.0.13 and sing-box v1.14.2 TCP/UDP
+interoperability and v1 compatibility are validated. See [Native AnyTLS](ANYTLS.md)
+for peer payload limits, TLS, lifecycle and URI/export restrictions.

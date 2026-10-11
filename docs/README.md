@@ -61,6 +61,7 @@ Decision acceptance is separate from implementation and interoperability qualifi
 - [Snell support](protocol/SNELL.md): implemented profile and client contracts.
 - [Hysteria2 support](protocol/HYSTERIA2.md): multi-user, TLS, QUIC/UDP and restart limits.
 - [TUIC support](protocol/TUIC.md): v5 UUID/password and shared TLS/QUIC.
+- [Native AnyTLS](architecture/ANYTLS.md): TLS, protocol v2/v1, reusable sessions, padding and UoT2.
 
 - [Protocol and engine index](protocol/README.md): extension path and qualification gates.
 - [Protocol SDK](architecture/PROTOCOL_SDK.md): registry, proposed ports and effective capabilities.

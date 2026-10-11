@@ -1,61 +1,13 @@
----
-icon: material/new-box
----
+# AnyTLS inbound
 
-!!! question "Since sing-box 1.12.0"
+Splicore's native AnyTLS server requires shared TLS and managed password users.
+Use the `anytls` creation API, not a sing-box inbound document.
 
-### Structure
+The settings contain `tls`, optional `alpn`, `padding_scheme`, `version` (1 or 2),
+`max_sessions` (default/max 512), and `max_streams` (default/max 128).
+TLS uses absolute `certificate_file` and `private_key_file` paths, a DNS
+`server_name`, and one PEM `ca_certificate` for client profile trust.
+At most 16 unique users are supported. User changes restart the generation.
 
-```json
-{
-  "type": "anytls",
-  "tag": "anytls-in",
-
-  ... // Listen Fields
-
-  "users": [
-    {
-      "name": "sekai",
-      "password": "8JCsPssfgS8tiRwiMlhARg=="
-    }
-  ],
-  "padding_scheme": [],
-  "tls": {}
-}
-```
-
-### Listen Fields
-
-See [Listen Fields](/configuration/shared/listen/) for details.
-
-### Fields
-
-#### users
-
-==Required==
-
-AnyTLS users.
-
-#### padding_scheme
-
-AnyTLS padding scheme line array.
-
-Default padding scheme:
-
-```json
-[
-  "stop=8",
-  "0=30-30",
-  "1=100-400",
-  "2=400-500,c,500-1000,c,500-1000,c,500-1000,c,500-1000",
-  "3=9-9,500-1000",
-  "4=500-1000",
-  "5=500-1000",
-  "6=500-1000",
-  "7=500-1000"
-]
-```
-
-#### tls
-
-TLS configuration, see [TLS](/configuration/shared/tls/#inbound).
+See [Native AnyTLS](../../architecture/ANYTLS.md) for a complete creation example,
+padding, authentication, UoT2, limits and interoperability qualifications.

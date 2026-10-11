@@ -1,73 +1,13 @@
----
-icon: material/new-box
----
+# AnyTLS 出站
 
-!!! question "自 sing-box 1.12.0 起"
+使用规范远程节点：协议 `anytls / 2 / base`、TCP 传输、TLS 安全设置、远程端点
+以及独立归属的密码凭据。默认验证证书，也支持显式 CA。
 
-### 结构
+选项默认为 `udp: true`、`version: 2`、30 秒空闲检查和超时、
+`min_idle_session: 0`、`max_sessions: 128`、`multiplex_streams: 1`、
+空 `client_metadata`、`insecure: false`、`uot_mode: "non_connect"`。
+`multiplex_streams` 大于 1 时允许有界的活跃会话复用；默认选择最新空闲会话。
+UoT2 支持 connected 和 nonconnected 模式。
 
-```json
-{
-  "type": "anytls",
-  "tag": "anytls-out",
-
-  "server": "127.0.0.1",
-  "server_port": 1080,
-  "password": "8JCsPssfgS8tiRwiMlhARg==",
-  "idle_session_check_interval": "30s",
-  "idle_session_timeout": "30s",
-  "min_idle_session": 5,
-  "client_metadata": "",
-  "tls": {},
-
-  ... // 拨号字段
-}
-```
-
-### 字段
-
-#### server
-
-==必填==
-
-服务器地址。
-
-#### server_port
-
-==必填==
-
-服务器端口。
-
-#### password
-
-==必填==
-
-AnyTLS 密码。
-
-#### idle_session_check_interval
-
-检查空闲会话的时间间隔。默认值：30秒。
-
-#### idle_session_timeout
-
-在检查中，关闭闲置时间超过此值的会话。默认值：30秒。
-
-#### min_idle_session
-
-在检查中，至少前 `n` 个空闲会话保持打开状态。默认值：`n`=0
-
-#### client_metadata
-
-!!! question "自 sing-box 1.13.16 起"
-
-参阅 [AnyTLS 客户端元数据](/zh/manual/misc/anytls-client-metadata/)。
-
-#### tls
-
-==必填==
-
-TLS 配置, 参阅 [TLS](/zh/configuration/shared/tls/#出站)。
-
-### 拨号字段
-
-参阅 [拨号字段](/zh/configuration/shared/dial/)。
+完整选项限制、版本协商、TLS、URI 和互操作范围见
+[原生 AnyTLS](../../architecture/ANYTLS.md)。

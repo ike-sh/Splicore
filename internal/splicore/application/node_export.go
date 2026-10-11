@@ -9,6 +9,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/nodeimport"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/anytls"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/trojan"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/vmess"
@@ -135,12 +136,20 @@ func (s *Service) ExportNodes(ctx context.Context, r NodeExportRequest) (NodeExp
 			}
 			profile.Metadata["display_name"] = n.Name
 		}
-		if n.Protocol == trojan.Key() {
-			options, err := trojan.DecodeClientOptions(n.Options.Data)
-			if err != nil {
-				return NodeExport{}, err
+		if n.Protocol == trojan.Key() || n.Protocol == anytls.Key() {
+			if n.Protocol == anytls.Key() {
+				options, err := anytls.DecodeClientOptions(n.Options.Data)
+				if err != nil {
+					return NodeExport{}, err
+				}
+				profile.UDPPayload = options.UDP
+			} else {
+				options, err := trojan.DecodeClientOptions(n.Options.Data)
+				if err != nil {
+					return NodeExport{}, err
+				}
+				profile.UDPPayload = options.UDP
 			}
-			profile.UDPPayload = options.UDP
 			profile.Metadata = identity.Metadata{}
 			for k, v := range n.Metadata {
 				profile.Metadata[k] = v

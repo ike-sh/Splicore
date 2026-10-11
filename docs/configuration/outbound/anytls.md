@@ -1,73 +1,14 @@
----
-icon: material/new-box
----
+# AnyTLS outbound
 
-!!! question "Since sing-box 1.12.0"
+Use a canonical remote node with protocol `anytls / 2 / base`, TCP transport,
+TLS security, endpoint and a separately owned password credential. TLS
+verification is enabled by default; explicit CA trust is supported.
 
-### Structure
+Options default to `udp: true`, `version: 2`, 30-second idle check and timeout,
+`min_idle_session: 0`, `max_sessions: 128`, `multiplex_streams: 1`, empty
+`client_metadata`, `insecure: false` and `uot_mode: "non_connect"`.
+`multiplex_streams` above 1 permits bounded active session reuse. Default reuse
+selects the newest idle session. Both UoT2 connected and nonconnected modes work.
 
-```json
-{
-  "type": "anytls",
-  "tag": "anytls-out",
-
-  "server": "127.0.0.1",
-  "server_port": 1080,
-  "password": "8JCsPssfgS8tiRwiMlhARg==",
-  "idle_session_check_interval": "30s",
-  "idle_session_timeout": "30s",
-  "min_idle_session": 5,
-  "client_metadata": "",
-  "tls": {},
-
-  ... // Dial Fields
-}
-```
-
-### Fields
-
-#### server
-
-==Required==
-
-The server address.
-
-#### server_port
-
-==Required==
-
-The server port.
-
-#### password
-
-==Required==
-
-The AnyTLS password.
-
-#### idle_session_check_interval
-
-Interval checking for idle sessions. Default: 30s.
-
-#### idle_session_timeout
-
-In the check, close sessions that have been idle for longer than this. Default: 30s.
-
-#### min_idle_session
-
-In the check, at least the first `n` idle sessions are kept open. Default value: `n`=0
-
-#### client_metadata
-
-!!! question "Since sing-box 1.13.16"
-
-Check [AnyTLS client metadata](/manual/misc/anytls-client-metadata/).
-
-#### tls
-
-==Required==
-
-TLS configuration, see [TLS](/configuration/shared/tls/#outbound).
-
-### Dial Fields
-
-See [Dial Fields](/configuration/shared/dial/) for details.
+See [Native AnyTLS](../../architecture/ANYTLS.md) for exact option bounds,
+version negotiation, TLS, URI/export restrictions and peer limitations.
