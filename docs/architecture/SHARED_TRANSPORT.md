@@ -7,6 +7,7 @@ layer. Protocol authentication and TCP/UDP framing remain owned by the protocol.
 | --- | --- | --- |
 | VMess AEAD | Plain or TLS | Plain or TLS |
 | VLESS flow-none | Plain, TLS or supported REALITY | Plain or TLS |
+| VLESS Vision | TLS 1.3 or REALITY; TCP only | Rejected |
 | Trojan standard | TLS | TLS |
 | Other protocol families | Their existing transport | Rejected |
 
@@ -33,7 +34,9 @@ Physical dial endpoint, TLS SNI and HTTP Host/gRPC authority are distinct.
 HTTP wrappers use `http/1.1`; gRPC uses `h2`; incompatible ALPN is rejected.
 With no explicit authority, the gRPC authority defaults to explicit TLS name,
 then endpoint. Managed TLS profiles require an explicit server name.
-New REALITY/wrapper combinations and Vision are rejected.
+REALITY and Vision over HTTP wrappers are rejected. Raw VLESS admits
+[Vision](../protocol/VLESS.md) and [TCP FinalMask chains](FINALMASK.md). AnyTLS
+owns its TLS/session transport and rejects these HTTP wrappers and FinalMask.
 
 WebSocket accepts binary frames as a byte stream. HTTPUpgrade uses an HTTP/1.1
 101 upgrade and then raw bytes, retaining buffered payload exactly once.

@@ -3,7 +3,7 @@
 ## Users and operators
 
 - [Installation and source builds](INSTALLATION.md)
-- [Bootstrap configuration](CONFIGURATION.md)
+- [Bootstrap configuration and persistent state](CONFIGURATION.md)
 - [CLI and resource transactions](CLI.md)
 - [Linux operations and platform limits](OPERATIONS.md)
 - [Upgrades and backups](UPGRADE.md)
@@ -11,15 +11,23 @@
 - [Redacted support bundles](SUPPORT_BUNDLE.md)
 - [Native distribution contract](DISTRIBUTION.md)
 
+## Protocols and configuration
+
+- [VLESS, Vision, TLS and REALITY combinations](protocol/VLESS.md)
+- [TCP FinalMask: header-custom, fragment and Sudoku](architecture/FINALMASK.md)
+- [AnyTLS: TLS, v2/v1, multiplexing, padding and UoT2](architecture/ANYTLS.md)
+- [AnyTLS server configuration](configuration/inbound/anytls.md)
+- [AnyTLS client configuration](configuration/outbound/anytls.md)
+- [Shared raw, WebSocket, HTTPUpgrade and gRPC transports](architecture/SHARED_TRANSPORT.md)
+
 ## Integrators
 
-- [Architecture](ARCHITECTURE.md)
+- [Core architecture](ARCHITECTURE.md)
 - [Core scope](architecture/CORE_SCOPE.md)
 - [Protocol and feature capabilities](architecture/CAPABILITY_MATRIX.md)
-- [Shared stream transports](architecture/SHARED_TRANSPORT.md)
 - [Local control API](api/README.md)
 - [Licenses and attribution](architecture/LICENSE_BOUNDARIES.md)
 
-These pages describe Splicore's Core and public integration contracts.
-The inherited sing-box configuration format is not Splicore's control-plane
-configuration. Platform support remains experimental; Linux arm64 is build-only.
+Splicore bootstrap and resource documents use the Core's own schema. External
+client formats are export projections. Platform support is experimental;
+Linux arm64 is BUILD ONLY. See operations for host networking limits.

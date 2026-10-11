@@ -21,7 +21,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect source status' }
     $versionPackage = 'github.com/ike-sh/Splicore/internal/splicore/version'
     $linkFlags = "-X $versionPackage.ProductVersion=$ProductVersion -X $versionPackage.Commit=$commit -X $versionPackage.Dirty=$dirty -X $versionPackage.BuildTime=$BuildTime"
-    & go build -trimpath -ldflags $linkFlags -o $Output ./cmd/splicore
+    & go build -trimpath -tags with_quic,with_utls,with_gvisor -ldflags $linkFlags -o $Output ./cmd/splicore
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 } finally {
     Pop-Location

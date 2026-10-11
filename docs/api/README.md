@@ -12,10 +12,12 @@ curl --unix-socket /run/splicore/splicore.sock http://localhost/api/v1/capabilit
 
 `system` reports product/health, schemas, revision and runtime summaries. The
 capability endpoint reports supported protocol/engine profiles and accepts
-bounded pagination. Each `qualified_clients` item retains the declared client
-and version and includes the required `evidence` string. This string is empty
-when no public reference is supplied; an empty value does not remove the
-compatibility declaration or change protocol qualification.
+bounded pagination. Compatible client entries declare client versions; the optional public reference
+field may be empty. This does not change the declared compatibility profile.
+Protocol creation uses `POST /api/v1/creation/<protocol>/validate`, `/plan` and
+`/apply`. Validate/plan consume the creation document. Apply consumes an object
+containing `document`, `digest` and `revision` from its saved plan.
+
 
 Reads and errors are JSON; errors carry a typed code, safe
 message, request ID and, when relevant, the current revision. Responses disable

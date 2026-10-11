@@ -10,11 +10,13 @@ import (
 	streamcfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/engine/relay"
 	"github.com/ike-sh/Splicore/internal/splicore/engine/traffic"
+	"github.com/ike-sh/Splicore/internal/splicore/finalmask"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	module "github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
 	shared "github.com/ike-sh/Splicore/internal/splicore/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"github.com/ike-sh/Splicore/protocol/vless/backend"
+	"github.com/ike-sh/Splicore/protocol/vless/vision"
 	"github.com/ike-sh/Splicore/protocol/vless/wire"
 	"net"
 	"sync"
@@ -58,9 +60,9 @@ func (c VLESSCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (por
 		return nil, err
 	}
 	ctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
-	h := &vlessHandle{ctx: ctx, cancel: cancel, endpoint: in.Inbound.Listeners[0].Endpoint, protected: dialer, total: &traffic.Counter{}, users: map[string]*traffic.Counter{}, uuids: map[[16]byte]string{}, connections: map[net.Conn]bool{}, done: make(chan struct{})}
+	h := &vlessHandle{flow: s.Flow, ctx: ctx, cancel: cancel, endpoint: in.Inbound.Listeners[0].Endpoint, protected: dialer, total: &traffic.Counter{}, users: map[string]*traffic.Counter{}, uuids: map[[16]byte]string{}, connections: map[net.Conn]bool{}, done: make(chan struct{})}
 	if s.Stream != nil {
-		h.transport = *s.Stream
+		h.transport = s.Stream.Clone()
 	}
 	for i, b := range in.Bindings {
 		id := string(b.ID)
@@ -113,6 +115,7 @@ func (c VLESSCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (por
 }
 
 type vlessHandle struct {
+	flow              module.Flow
 	transport         streamcfg.Config
 	transportTLS      *tls.Config
 	lifecycle, mu     sync.Mutex
@@ -250,17 +253,42 @@ func (h *vlessHandle) serve(raw net.Conn) {
 	defer raw.Close()
 	defer func() { h.mu.Lock(); delete(h.connections, raw); h.mu.Unlock() }()
 	_ = raw.SetDeadline(time.Now().Add(5 * time.Second))
-	var c net.Conn = raw
+	c, e := finalmask.Wrap(raw, h.transport.FinalMask, true)
+	if e != nil {
+		return
+	}
+	masked := c
+	defer masked.Close()
+	_ = masked.SetDeadline(time.Now().Add(5 * time.Second))
+	stopMask := context.AfterFunc(h.ctx, func() { _ = masked.Close() })
+	defer stopMask()
+	var plain *vision.PlainConn
+	if h.flow == module.Vision {
+		c = vision.LimitRecords(c)
+	}
 	if h.handshake != nil && h.transport.Type() == "tcp" {
 		var err error
-		c, err = h.handshake(h.ctx, raw)
+		c, err = h.handshake(h.ctx, c)
 		if err != nil {
 			return
 		}
-		defer c.Close()
+		if h.flow != module.Vision {
+			defer c.Close()
+		}
+	}
+	if h.flow == module.Vision {
+		plain = vision.BufferRecords(c)
+		c = plain
 	}
 	request, err := wire.ReadRequest(c)
 	if err != nil {
+		return
+	}
+	expected := ""
+	if h.flow == module.Vision {
+		expected = vision.Flow
+	}
+	if request.Flow != expected || expected != "" && request.Command != wire.TCP {
 		return
 	}
 	id, ok := h.uuids[request.UUID]
@@ -269,7 +297,10 @@ func (h *vlessHandle) serve(raw net.Conn) {
 	}
 	user := h.users[id]
 	_ = c.SetDeadline(time.Time{})
-	stream := &backend.Conn{Conn: c, Server: true}
+	var stream net.Conn = &backend.Conn{Conn: c, Server: true}
+	if h.flow == module.Vision {
+		stream = vision.New(stream, plain, masked, request.UUID)
+	}
 	if request.Command == wire.TCP {
 		target, err := h.protected.DialContext(h.ctx, "tcp", net.JoinHostPort(request.Destination.Host, portString(request.Destination.Port)))
 		if err != nil {

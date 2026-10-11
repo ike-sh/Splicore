@@ -11,6 +11,7 @@ import (
 	"strings"
 	"unicode"
 
+	maskcfg "github.com/ike-sh/Splicore/internal/splicore/domain/finalmask"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/jsonstrict"
 	"golang.org/x/net/http/httpguts"
@@ -19,6 +20,7 @@ import (
 const MaxHeaders = 16 << 10
 
 type Config struct {
+	FinalMask   *maskcfg.Config   `json:"final_mask,omitempty"`
 	Kind        string            `json:"kind"`
 	Path        string            `json:"path,omitempty"`
 	Host        string            `json:"host,omitempty"`
@@ -34,7 +36,7 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 	if len(b) > 16384 || jsonstrict.Decode(b, &fields) != nil || fields == nil {
 		return bad()
 	}
-	allowed := map[string]bool{"kind": true, "path": true, "host": true, "headers": true, "service_name": true}
+	allowed := map[string]bool{"kind": true, "path": true, "host": true, "headers": true, "service_name": true, "final_mask": true}
 	for k, v := range fields {
 		if !allowed[k] || bytes.Equal(bytes.TrimSpace(v), []byte("null")) {
 			return bad()
@@ -61,7 +63,14 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 		return nil
 	}
 }
-func (c Config) Clone() Config { c.Headers = maps.Clone(c.Headers); return c }
+func (c Config) Clone() Config {
+	c.Headers = maps.Clone(c.Headers)
+	if c.FinalMask != nil {
+		m := c.FinalMask.Clone()
+		c.FinalMask = &m
+	}
+	return c
+}
 
 // ValidateMember prevents a null pointer or a folded JSON alias from selecting
 // raw TCP when the caller supplied an explicit server transport member.
@@ -120,6 +129,9 @@ func bad() error {
 	return identity.Err(identity.Invalid, "invalid or unsupported shared transport settings")
 }
 func (c Config) Validate() error {
+	if c.FinalMask != nil && (c.Type() != "tcp" || c.FinalMask.Validate() != nil) {
+		return bad()
+	}
 	switch c.Type() {
 	case "tcp", "udp", "quic":
 		if c.Path != "" || c.Host != "" || len(c.Headers) > 0 || c.ServiceName != "" {
@@ -183,6 +195,9 @@ func (c Config) Validate() error {
 func (c Config) ValidatePair(protocol, security string) error {
 	if e := c.Validate(); e != nil {
 		return e
+	}
+	if c.FinalMask != nil && protocol != "vless" {
+		return bad()
 	}
 	if c.Type() == "tcp" {
 		return nil

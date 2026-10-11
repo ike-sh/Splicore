@@ -10,6 +10,8 @@ identity does not imply ownership of another Core process.
 | Hysteria2 | TCP / UDP | QUIC/TLS and explicit trust |
 | TUIC v5 | TCP / UDP | QUIC/TLS and UUID/password |
 | VLESS flow-none | TCP / XUDP | Plain/TLS; supported raw REALITY |
+| VLESS Vision | TCP only | Raw TLS 1.3 or REALITY |
+| AnyTLS v2/v1 | TCP / UoT2 | Mandatory TLS/password; TCP session reuse |
 | Mieru | TCP / UDP | Embedded TCP/UDP library transport |
 | Trojan standard | TCP / UDP | TLS/password |
 | VMess AEAD | TCP / UDP | UUID; supported security profiles |
@@ -27,8 +29,13 @@ native TUN requires `with_gvisor`. The recommended distribution profile includes
 `with_quic`; current QUIC adapters are present in both default and tagged builds.
 See [transport details](SHARED_TRANSPORT.md).
 
-Vision and new REALITY/stream-wrapper combinations are unsupported.
-FinalMask/Sudoku are outside runtime scope. No external Core runtime is required.
+VLESS Vision requires raw TLS 1.3 or REALITY and rejects HTTP stream wrappers.
+VLESS raw TCP also admits a [FinalMask](FINALMASK.md) chain containing
+header-custom, fragment or Sudoku. The first configured mask is innermost.
+[Vision combinations](../protocol/VLESS.md) and [AnyTLS options](ANYTLS.md)
+describe exact protocol restrictions. AnyTLS supports v2, bounded v1
+compatibility, connected/nonconnected UoT2, multiplexing and dynamic padding.
+No external Core runtime is required.
 Mutation and quota/rate/session capabilities are protocol-specific; unsupported
 strict policy fails closed. For example, VLESS user changes restart the affected
 runtime generation. Read the live capability API rather than assuming uniform

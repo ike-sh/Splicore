@@ -9,7 +9,9 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/nodeimport"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/anytls"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/trojan"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/vmess"
 	"net"
 	"net/url"
@@ -119,7 +121,14 @@ func (s *Service) ExportNodes(ctx context.Context, r NodeExportRequest) (NodeExp
 			canonical.Nodes = append(canonical.Nodes, candidate)
 			continue
 		}
-		profile := clientprofile.Profile{ID: n.ID, Schema: 1, Protocol: n.Protocol, Endpoint: n.Endpoint, Credentials: cred.Payload, TLS: n.Security.TLS, Transport: clientprofile.Transport{Kind: n.Transport.Kind}, UDPPayload: true, Options: access.Settings{Schema: 1, Data: slices.Clone(n.Options.Data)}, Metadata: n.Metadata}
+		profile := clientprofile.Profile{ID: n.ID, Schema: 1, Protocol: n.Protocol, Endpoint: n.Endpoint, Credentials: cred.Payload, TLS: n.Security.TLS, Transport: n.Transport.Clone(), UDPPayload: true, Options: access.Settings{Schema: 1, Data: slices.Clone(n.Options.Data)}, Metadata: n.Metadata}
+		if n.Protocol.Protocol == "vless" {
+			options, e := vless.DecodeClientOptions(n.Options.Data)
+			if e != nil {
+				return NodeExport{}, e
+			}
+			profile.UDPPayload = options.Flow != vless.Vision
+		}
 		if n.Protocol.Protocol == "socks5" || n.Protocol.Protocol == "http" {
 			profile.Metadata = identity.Metadata{}
 			for k, v := range n.Metadata {
@@ -127,12 +136,20 @@ func (s *Service) ExportNodes(ctx context.Context, r NodeExportRequest) (NodeExp
 			}
 			profile.Metadata["display_name"] = n.Name
 		}
-		if n.Protocol == trojan.Key() {
-			options, err := trojan.DecodeClientOptions(n.Options.Data)
-			if err != nil {
-				return NodeExport{}, err
+		if n.Protocol == trojan.Key() || n.Protocol == anytls.Key() {
+			if n.Protocol == anytls.Key() {
+				options, err := anytls.DecodeClientOptions(n.Options.Data)
+				if err != nil {
+					return NodeExport{}, err
+				}
+				profile.UDPPayload = options.UDP
+			} else {
+				options, err := trojan.DecodeClientOptions(n.Options.Data)
+				if err != nil {
+					return NodeExport{}, err
+				}
+				profile.UDPPayload = options.UDP
 			}
-			profile.UDPPayload = options.UDP
 			profile.Metadata = identity.Metadata{}
 			for k, v := range n.Metadata {
 				profile.Metadata[k] = v

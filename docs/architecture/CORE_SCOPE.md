@@ -14,7 +14,11 @@ to Core, Windows desktop system proxy control does not. Container distribution
 is outside the public Core source surface.
 
 External Xray, sing-box and Mihomo runtime processes are not required or bundled.
-Vision is unsupported; FinalMask and Sudoku are not runtime capabilities.
+VLESS supports native Vision over raw TLS 1.3 or REALITY. Its optional TCP
+FinalMask chain supports header-custom, fragment and Sudoku. AnyTLS provides
+native client/server TLS sessions with TCP, UoT2, reuse, multiplexing and padding.
+See [capabilities](CAPABILITY_MATRIX.md), [VLESS](../protocol/VLESS.md),
+[FinalMask](FINALMASK.md) and [AnyTLS](ANYTLS.md).
 
 ## Persistent compatibility
 

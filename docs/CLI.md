@@ -48,3 +48,11 @@ not imply Windows production local control or service integration.
 See [API integration](api/README.md), [operations](OPERATIONS.md) and
 [configuration](CONFIGURATION.md). The retained application/domain types define
 the detailed JSON shapes for each resource.
+
+## Key provisioning
+
+For a new installation, run `splicore key init --file /var/lib/splicore/master.key`
+as the account that will run the Core. Parent directories must be private and
+owned by that account. The command refuses to overwrite an existing key. Set
+the bootstrap `key_file` to that path; startup loads it without creating a key.
+Preserve the original key with the database during backup or recovery.

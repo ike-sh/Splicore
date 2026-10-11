@@ -32,6 +32,9 @@ func renderVLESSURI(p clientprofile.Profile, c access.UUIDPayload, o module.Clie
 		return nil, unsupported()
 	}
 	q := url.Values{"encryption": {"none"}, "type": {"tcp"}, "security": {string(o.Security)}, "packetEncoding": {"xudp"}}
+	if o.Flow == module.Vision {
+		q.Set("flow", string(o.Flow))
+	}
 	if p.Transport.PutQuery(q) != nil {
 		return nil, unsupported()
 	}

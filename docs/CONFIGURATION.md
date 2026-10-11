@@ -11,8 +11,11 @@ api:
   unix_socket: /run/splicore/splicore.sock
 ```
 
-Paths must be absolute. `key_file` is optional; otherwise it is placed in the
-state directory. Unknown fields, duplicate keys, aliases and multiple YAML
+Paths must be absolute. For credential and encrypted provider storage, set
+`key_file` to a private key provisioned with `splicore key init --file <path>`
+as the Core account. The loader never creates a missing explicit key. Omitting
+`key_file` leaves the credential vault unconfigured; it does not select or
+create a default key. Unknown fields, duplicate keys, aliases and multiple YAML
 documents are rejected. Bootstrap input is limited to 1 MiB.
 
 ```sh
@@ -30,3 +33,12 @@ Resource changes use typed Splicore JSON with validation, planning and applicati
 through the [CLI](CLI.md) and [local API](api/README.md). Exported third-party client
 formats are projections for those clients, not Splicore bootstrap documents.
 Do not edit SQLite rows to bypass the application contract.
+
+## Proxy resources
+
+Create server listeners through protocol-specific managed documents, then plan
+and apply them with revision guards. Client nodes use separate protocol,
+transport, security, endpoint and credential fields. See [VLESS/Vision](protocol/VLESS.md),
+[FinalMask](architecture/FINALMASK.md), [AnyTLS server](configuration/inbound/anytls.md)
+and [AnyTLS client](configuration/outbound/anytls.md) for accepted settings.
+Protocol settings belong in typed resources, not in the bootstrap YAML.

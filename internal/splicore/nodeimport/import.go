@@ -18,6 +18,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/provider"
 	"github.com/ike-sh/Splicore/internal/splicore/exporter"
 	"github.com/ike-sh/Splicore/internal/splicore/jsonstrict"
+	atm "github.com/ike-sh/Splicore/internal/splicore/protocol/anytls"
 	hm "github.com/ike-sh/Splicore/internal/splicore/protocol/hysteria2"
 	ssm "github.com/ike-sh/Splicore/internal/splicore/protocol/shadowsocks"
 	trm "github.com/ike-sh/Splicore/internal/splicore/protocol/trojan"
@@ -200,6 +201,18 @@ func ParseURI(raw string) (Candidate, error) {
 		return c, invalid()
 	}
 	switch u.Scheme {
+	case "anytls":
+		v, err := atm.ParseURI(raw)
+		if err != nil {
+			var classified *identity.Error
+			if errors.As(err, &classified) && classified.Code == identity.UnsupportedExport {
+				return c, errUnsupported
+			}
+			return c, err
+		}
+		options, _ := json.Marshal(atm.ClientOptions{UDP: true, Insecure: v.Insecure})
+		c.Node = client.RemoteNode{Name: v.Name, Protocol: atm.Key(), Endpoint: v.Endpoint, Transport: client.Transport{Kind: "tcp"}, Security: client.Security{Kind: "tls", TLS: v.TLS}, Options: client.Options{Schema: 1, Data: options}}
+		c.Credential = Credential{Kind: access.Password, Value: v.Password.Reveal()}
 	case "trojan":
 		v, e := trm.ParseURI(raw)
 		if e != nil {

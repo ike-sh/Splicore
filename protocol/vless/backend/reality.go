@@ -134,37 +134,22 @@ func RealityClient(ctx context.Context, c net.Conn, settings access.ClientTLS) (
 	if err := u.BuildHandshakeState(); err != nil {
 		return nil, err
 	}
-	// This profile retains the established X25519 contract. All key generation
-	// and TLS message construction remain uTLS responsibilities.
-	for _, extension := range u.Extensions {
-		switch e := extension.(type) {
-		case *utls.SupportedCurvesExtension:
-			curves := e.Curves[:0]
-			for _, curve := range e.Curves {
-				if curve != utls.X25519MLKEM768 {
-					curves = append(curves, curve)
-				}
-			}
-			e.Curves = curves
-		case *utls.KeyShareExtension:
-			shares := e.KeyShares[:0]
-			for _, share := range e.KeyShares {
-				if share.Group != utls.X25519MLKEM768 {
-					shares = append(shares, share)
-				}
-			}
-			e.KeyShares = shares
-		}
-	}
-	if err := u.BuildHandshakeState(); err != nil {
-		return nil, err
-	}
+	// Keep the admitted library's current Chrome TLS1.3 key shares. The pinned
+	// REALITY peer requires the hybrid share before optional X25519; filtering it
+	// out makes authentication fail. This is TLS key exchange, not VLESSENC.
 	hello := u.HandshakeState.Hello
 	keys := u.HandshakeState.State13.KeyShareKeys
-	if keys == nil || keys.Ecdhe == nil || len(hello.Random) != 32 || len(hello.Raw) < 71 {
+	if keys == nil || len(hello.Random) != 32 || len(hello.Raw) < 71 {
 		return nil, errReality
 	}
-	shared, err := keys.Ecdhe.ECDH(public)
+	ecdhe := keys.Ecdhe
+	if ecdhe == nil {
+		ecdhe = keys.MlkemEcdhe
+	}
+	if ecdhe == nil {
+		return nil, errReality
+	}
+	shared, err := ecdhe.ECDH(public)
 	if err != nil {
 		return nil, errReality
 	}
