@@ -1,124 +1,35 @@
----
-icon: material/new-box
----
+# Snell 出站
 
-!!! question "自 sing-box 1.14.0 起"
-
-### 结构
+规范远程节点使用 `snell/4/base`、TCP transport、`security.kind=none`，以及
+由控制面分配身份和所有权的 PSK Credential。端点提供 server host 与 port。
+通过受保护的客户端 plan/apply 创建节点和 native proxy 出站。
 
 ```json
 {
-  "type": "snell",
-  "tag": "snell-out",
-
-  "server": "127.0.0.1",
-  "server_port": 1080,
-  "version": 4,
-  "psk": "password",
-  "userkey": "",
-  "reuse": false,
-  "network": "tcp",
-  "obfs_mode": "",
-  "obfs_host": "",
-
-  ... // 拨号字段
+  "schema_version": 1,
+  "data": {
+    "version": 4,
+    "reuse": true,
+    "udp": true,
+    "obfs_mode": "http",
+    "obfs_host": "cover.example",
+    "obfs_uri": "/resource?x=1"
+  }
 }
 ```
 
-### 版本 6 结构
+此示例是节点的 options。version 必填。reuse 默认 false，支持串行物理连接
+复用；UDP 默认启用，`udp=false` 禁用。可选 `udp_port` 为 1..65535，选择
+同一服务器的另一个 TCP UDP-association 端口，不创建额外监听器。
 
-```json
-{
-  "type": "snell",
-  "tag": "snell-out",
+obfs_mode 可省略、为 none 或 http。host、URI 只允许用于 HTTP；Splicore
+有意默认使用 localhost 和 /。host 必须为有效主机名或 IP，URI 必须为有界
+ASCII 路径及可选 query，不允许空格、控制字符和 fragment。未知、重复、null
+和不支持的字段组合被拒绝。UDP 域名在本地解析，托管包流保持固定目标。
+保留的经典 record 预算限制大 datagram，详见
+[Native Snell](../../protocol/SNELL.md)。
 
-  "server": "127.0.0.1",
-  "server_port": 1080,
-  "version": 6,
-  "psk": "password",
-  "userkey": "",
-  "reuse": false,
-  "network": "tcp",
-  "mode": "",
-
-  ... // 拨号字段
-}
-```
-
-### 字段
-
-#### server
-
-==必填==
-
-服务器地址。
-
-#### server_port
-
-==必填==
-
-服务器端口。
-
-#### version
-
-==必填==
-
-Snell 协议版本，`4` `6` 之一。
-
-版本 `4` 支持 HTTP 混淆（`obfs_mode` / `obfs_host`）；版本 `6` 以流量整形（`mode`）
-取而代之，并要求 `psk` 长度为 12 到 255 字节。
-
-!!! note
-
-    由于我们有意不支持 Snell v5 的 QUIC 代理模式，v5 的线路协议实际上与 v4 没有区别，
-    因此不提供独立的 v4 服务器和 v5 客户端。
-
-#### psk
-
-==必填==
-
-预共享密钥。
-
-#### userkey
-
-用户密钥，用于向多用户服务器进行认证。
-
-#### reuse
-
-启用连接复用（Snell v2 `CONNECT` 命令）。
-
-#### network
-
-启用的网络协议。
-
-`tcp` 或 `udp`。
-
-默认所有。
-
-#### obfs_mode
-
-==仅版本 4==
-
-HTTP 混淆模式，`none` `http` 之一。
-
-默认为 `none`。
-
-#### obfs_host
-
-==仅版本 4==
-
-`obfs_mode` 为 `http` 时发送的 HTTP `Host` 头。
-
-默认为 `bing.com`。
-
-#### mode
-
-==仅版本 6==
-
-流量整形模式，`default` `unshaped` `unsafe-raw` 之一。
-
-默认为 `default`。
-
-### 拨号字段
-
-参阅 [拨号字段](/zh/configuration/shared/dial/)。
+v5/v6 的 options 仍分别只有 version=5/6；v5 使用 v4 兼容客户端语义，
+v6 使用已有独立行为。未实现 v5 QUIC Proxy Mode、TLS obfs 和 userkey 多用户。
+规范 JSON 保留所有支持的字段；sing-box/Mihomo 导入导出支持 v4 reuse、UDP、
+HTTP host，但不支持自定义 URI 或另设 UDP 端口的导出。没有新增 Snell URI 格式。

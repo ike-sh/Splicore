@@ -1,96 +1,28 @@
----
-icon: material/new-box
----
+# Snell 入站
 
-!!! question "自 sing-box 1.14.0 起"
-
-### 结构
+通过受保护的创建 API/CLI 提交规范文档：
 
 ```json
 {
-  "type": "snell",
-  "tag": "snell-in",
-
-  ... // 监听字段
-
-  "version": 5,
-  "psk": "password",
-  "users": [
-    {
-      "name": "sekai",
-      "userkey": "user-password"
-    }
-  ],
-  "obfs_mode": ""
+  "schema": 1,
+  "account_name": "example",
+  "name": "snell-v4",
+  "listener": {"host": "0.0.0.0", "port": 24443},
+  "display_endpoint": {"host": "proxy.example", "port": 24443},
+  "settings": {"version": 4, "obfs_mode": "http"}
 }
 ```
 
-### 版本 6 结构
+必须显式选择版本 4、5 或 6。v4 的 `obfs_mode` 可省略、为 `none` 或
+`http`；入站不接受客户端专用的 host、URI、reuse、UDP-port 字段。
+v5/v6 的 settings 仍只能包含 version，v6 保留已有流量整形行为。
+未知字段、重复字段、null 和不支持的组合会被拒绝。
 
-```json
-{
-  "type": "snell",
-  "tag": "snell-in",
+省略 PSK 会生成密钥；提供 PSK 时须符合 12..255 字节的可移植 ASCII
+凭证规则。监听地址必须为 IP。每个入站只有一个账户、绑定和 PSK。
+支持 TCP、经 TCP 转发的 UDP、IPv4/IPv6/域名目的地，以及 v4 串行连接复用。
+HTTP obfs 只包装首次提交的头部，不提供 TLS 安全。
+未实现 TLS obfs、userkey 多用户扩展和 v5 QUIC Proxy Mode。
 
-  ... // 监听字段
-
-  "version": 6,
-  "psk": "password",
-  "users": [
-    {
-      "name": "sekai",
-      "userkey": "user-password"
-    }
-  ],
-  "mode": ""
-}
-```
-
-### 监听字段
-
-参阅 [监听字段](/zh/configuration/shared/listen/)。
-
-### 字段
-
-#### version
-
-==必填==
-
-Snell 协议版本，`5` `6` 之一。
-
-版本 `5` 支持 HTTP 混淆（`obfs_mode`）；版本 `6` 以流量整形（`mode`）取而代之，并要求
-`psk` 长度为 12 到 255 字节。
-
-!!! note
-
-    由于我们有意不支持 Snell v5 的 QUIC 代理模式，v5 的线路协议实际上与 v4 没有区别，
-    因此不提供独立的 v4 服务器和 v5 客户端。
-
-#### psk
-
-==必填==
-
-预共享密钥。
-
-#### users
-
-Snell 用户。
-
-设置后，服务器运行于多用户模式：每一项包含 `name`（可选，用于日志）和 `userkey`
-（用户密钥）。顶层的 `psk` 仍作为服务器密钥。
-
-#### obfs_mode
-
-==仅版本 5==
-
-HTTP 混淆模式，`none` `http` 之一。
-
-默认为 `none`。
-
-#### mode
-
-==仅版本 6==
-
-流量整形模式，`default` `unshaped` `unsafe-raw` 之一。
-
-默认为 `default`。
+完整限制及互通范围见 [Native Snell](../../protocol/SNELL.md)。真实硬件仍为
+NOT YET QUALIFIED；Linux arm64 仅构建验证。

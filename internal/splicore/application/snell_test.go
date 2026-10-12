@@ -302,7 +302,7 @@ func TestSnellInvalidAndPlanBinding(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	bad := strings.Replace(string(d), `"version":5`, `"version":4`, 1)
+	bad := strings.Replace(string(d), `"version":5`, `"version":3`, 1)
 	if s.ValidateSnell(context.Background(), []byte(bad)) == nil {
 		t.Fatal("invalid version")
 	}

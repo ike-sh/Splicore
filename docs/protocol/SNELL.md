@@ -1,130 +1,118 @@
-# Managed Snell support
+# Native Snell
 
-- Documentation status: Canonical
-- Audience: Protocol, runtime, client and integration developers
-- Last reviewed: 2026-10-01
-- Owner: Protocol maintainers
-- Responsibility: Implemented Snell profile, credentials, capabilities and client contracts.
-- Lifecycle: Update with implementation and independent client qualification evidence.
+Splicore owns the Snell wire, client, server and socket lifecycle. No external
+proxy core or Snell server executable is required. Versions are selected
+explicitly; a missing version is rejected. Runtime engine: `native`.
 
-## Scope and provenance
+## Supported profiles
 
-Status: **experimental**. Phase 2 reuses sing-box v1.14.1's unchanged Snell
-constructors and sing-snell `v0.0.0-20260829071736-20f2eaec77c3`.
-Server versions are 5 and 6; version 4 is a compatible client for server 5,
-not a separate server implementation. Managed v5 uses no obfs, v6 uses default
-encrypted/shaped mode. Settings are exactly `{"version":5}` or `{"version":6}`.
-Unknown/duplicate fields, obfs/mode/userkey/QUIC settings and v4 server requests
-are rejected. No framing, crypto, authentication or version semantics are changed.
+| Version | Client / server | TCP / UDP relay | Connection reuse | Obfuscation |
+| --- | --- | --- | --- | --- |
+| 4 | Supported / supported | Supported / supported | Explicit client option; serial requests | None or HTTP |
+| 5 | Supported in the qualified compatible scope | Supported / supported | Existing compatible request handling | None |
+| 6 | Supported / supported | Supported / supported | Existing request handling | Existing encrypted traffic shaping |
 
-Native upstream supports top-level PSK plus userkey multi-user authentication.
-Phase 2 deliberately uses one Account/Binding/PSK per Inbound, with one TCP
-listener and one DisplayEndpoint. `multi_user_native=false` describes this
-managed profile. Native userkey provisioning and shared multi-user listeners
-are deferred. At most 64 managed Inbounds are allowed per installation.
+The v5 client projection uses v4 TCP/UDP semantics. Official v5 servers accept
+v4 clients. **Snell v5 QUIC Proxy Mode is not implemented.** v6 shaping and PSK
+rules remain separate. v5/v6 canonical options remain exactly `{"version":5}`
+and `{"version":6}`; additional mode, obfs or reuse fields are rejected there.
+TLS obfs, ShadowTLS, Restls and JLS are outside this native profile.
 
-## Capability
+## Configuration
 
-| Capability | Managed profile |
-|---|---|
-| TCP listener/payload | supported |
-| UDP listener/underlay | unsupported |
-| UDP payload | supported, tunneled over TCP |
-| IPv4/IPv6/domain DisplayEndpoint | supported |
-| Listener | IP address only, fixed after creation |
-| Multi-user userkey | deferred; one Binding per Inbound |
-| Payload attribution | Inbound and its sole Binding/Account |
-| Counters | upload/download bytes, total/active routed TCP and UDP sessions |
-| Counter lifetime | process lifetime; decimal strings over API |
-| Quota, rate, max-session enforcement | unsupported |
-| QUIC Proxy Mode | unsupported by upstream server |
-| User/listener mutation, hot reload, credential rotation | deferred |
-| DisplayEndpoint mutation | SQL-only; no socket/route/egress changes |
-| URI / canonical JSON export | not implemented; no invented Snell URI |
+See [inbound](../configuration/inbound/snell.md) and
+[outbound](../configuration/outbound/snell.md) for canonical examples.
+v4 inbound settings accept `version` and optional `obfs_mode` (`none` or `http`).
+v4 outbound options additionally accept `reuse`, `udp`, `udp_port`, `obfs_host`
+and `obfs_uri`. Unknown fields, duplicate keys, null values, invalid types,
+invalid versions and unsupported combinations fail validation.
 
-UDP session count means authenticated routed packet connections, not number of
-datagrams or native user identities. Failed handshakes do not count as routed
-sessions. Counters exclude crypto/framing overhead and are not a billing ledger.
-Attribution is valid because this profile has exactly one Binding. Durable usage,
-quota enforcement, expiry/revocation during traffic and account aggregation across
-multiple Inbounds are future work. Live account updates are rejected pending runtime
-coordination; Account is never a protocol-secret container.
+HTTP obfs wraps the initial submission in each direction, then carries the
+ordinary authenticated Snell byte stream. It is camouflage, not HTTP proxying
+or TLS security. Client host defaults intentionally to `localhost`, URI to `/`.
+The host must be a valid IP or hostname; the URI must be a bounded ASCII
+origin-form path with optional query, without spaces, controls or fragment.
+Host and URI require HTTP mode. The server accepts compatible peer host/URI
+values; it does not enforce a cover-host routing rule.
 
-## Credential and secret boundary
+## TCP, UDP and reuse
 
-PSK uses the existing typed Credential/secret.Value abstraction. Omitted PSK
-generates 32 random bytes encoded as 43 base64url characters (256 bits entropy).
-Supplied PSKs require 12..255 ASCII bytes from `A-Z a-z 0-9 _ + / = -`.
-Explicit empty/null PSKs are rejected; only an omitted field requests generation.
-This portable profile is narrower than native v5's nonempty-key requirement;
-v6's native 12..255-byte constraint is preserved. Delimiters/control characters
-are rejected without reflecting supplied values.
+TCP and UDP destinations support IPv4, IPv6 and domains. UDP relay runs over
+TCP, with one record per datagram. Domain UDP flows in the managed outbound
+resolve locally because Snell replies encode IP endpoints. The server association
+and wire API can change destinations; the managed outbound retains its connected
+flow target. `udp=false` disables outbound UDP. An optional `udp_port` selects
+another TCP association port on the same server through the protected dialer;
+it does not create an additional inbound listener. Zero or out-of-range ports
+and a port combined with disabled UDP are rejected.
 
-SQLite stores only AES-256-GCM ciphertext, nonce and key identity with owner-bound
-associated data. Explicit Linux key-file provisioning uses exclusive creation,
-32 random bytes, 0600 file and private directory checks. Loading checks regular
-file, size, owner, permissions, symlinks and file identity. There is no missing-key
-regeneration or plaintext fallback. Back up the key separately with the database;
-losing it makes credentials unrecoverable. Windows remains a development build
-target without production key provisioning/control transport.
+The preserved classic record codec has a traffic-dependent per-record budget,
+initially approximately 1 KiB and growing to 16383 bytes including datagram
+address framing. The command/reply consumes the first budget. A 1200-byte payload
+is suitable for a fresh association; larger payloads may require prior traffic.
+Oversized datagrams fail without splitting or merging boundaries. This profile
+does not promise arbitrary 65535-byte UDP payloads.
 
-Metadata, System, doctor, fixed errors and transaction records never contain PSKs.
-Profile/credential/document formatting redacts secrets. Export is an explicit
-secret-returning POST/CLI operation authorized by protected local control access;
-it returns client content containing PSK. No ordinary GET reveals credentials.
-Export files and inputs must remain private. Go strings are not guaranteed erased
-from memory; runtime and authorized exports hold transient plaintext.
+For v4, `reuse=false` is the default and emits a non-reusable TCP request.
+`reuse=true` maintains at most 64 physical transports, with at most eight idle
+entries and a 30-second idle timeout. Each transport has one logical borrower;
+it is not simultaneous multiplexing. A completed request must reach both logical
+EOFs and join its read/write calls before reuse. Incomplete, failed or abandoned
+requests close their physical transport. Half-close preserves the peer response.
+Adapter shutdown closes active and idle sockets and cancels pending dials.
+An idle connection closed by a peer can fail a subsequent request; payloads are
+not automatically replayed. A later request creates a fresh transport.
 
-## Runtime and transaction
+## Accounts, credentials and statistics
 
-The native adapter compiles one private Box per Inbound with minimal registries,
-Snell/direct/local DNS only. An owned TCP listener forwards sockets into the stock
-Snell `NewConnection`; the stock listener is never started. Raw sockets have a
-five-second unauthenticated deadline, cleared at authenticated routing. Shutdown
-closes pending handshakes and established sessions, waits for owned handlers and
-releases the port. No upstream runtime source is modified.
+The managed profile has one Account/Binding/PSK per inbound, one TCP listener
+and one display endpoint. `multi_user_native=false`; userkey/multi-user extensions
+are not qualified. Listener endpoints require an IP address. Display endpoints
+may be IP or domain. The existing single-binding and transaction rules apply.
 
-Sequence: strict validation → revision/HMAC plan check → compile without sockets
-→ durable create journal → bind/start with closed admission → listener health
-→ short SQL resource/revision/journal commit → open admission. Failure closes
-the candidate and marks the journal failed. Listener health means accept-loop
-readiness, not a complete authentication probe; real interop tests separately
-qualify authentication and traffic. Pending resources cannot export/grant traffic.
+PSKs use typed Credentials and require 12..255 ASCII bytes from
+`A-Z a-z 0-9 _ + / = -`. Omission during creation generates 32 random bytes as
+43 base64url characters. Empty/null supplied keys are rejected. Encrypted SQLite
+storage, protected control access and redacted ordinary output are retained.
+Authorized exports contain the PSK and must be kept private.
 
-Restart reads only committed SQLite resources and decrypted Credentials. Interrupted
-create-only journals become failed; unknown Foundation pending journals stay fenced.
-Startup cleanup closes all previously restored handles if one fails. A crash after
-commit before admission is recovered from the committed generation. Generic update
-recovery, durable candidate payloads/idempotency and hot reconcile remain deferred.
-See [transaction model](../architecture/TRANSACTION_MODEL.md) and
-[composition ADR](../adr/0013-snell-runtime-composition.md).
+Counters measure authenticated application payload and routed sessions for the
+runtime generation, excluding framing and crypto overhead. They are not durable
+billing. Quota/rate/session enforcement and live user/listener mutation are
+unsupported. Snell does not add forward secrecy or dedicated replay protection.
 
-## Client contracts
+## Import, export and interoperability
 
-| Server | Target contract | Client wire | Qualification |
-|---|---|---|---|
-| v5 | Mihomo 1.19.30 | v4 | real TCP/UDP PASS |
-| v5 | sing-box 1.14.1 | v4 | real TCP/UDP PASS |
-| v6 | sing-box 1.14.1 | v6 | real TCP/UDP PASS |
-| v5/v6 | Surge Mac 6.7.0 / iOS 5.20.0 | v4/v6 | exporter contract only |
-| v6 | Mihomo 1.19.30 | N/A | UnsupportedExport |
+Canonical node JSON retains every supported v4 option. Existing sing-box JSON
+and Mihomo JSON/YAML import support explicit v4, reuse, UDP selection and HTTP
+mode/host. Their dialects do not expose Splicore's custom URI or alternate UDP
+port; exports to these targets reject those non-default features. No Snell URI
+scheme is invented. Surge declarations expose v4 reuse and HTTP host/URI and
+alternate UDP port where their delimiter grammar is representable; this is a
+configuration contract, not licensed Surge runtime qualification.
 
-ClientProfile carries explicit UDPPayload=true; unsupported attempts to disable it
-are rejected by this base-profile exporter. Each export envelope explicitly
-reports server/client wire versions and compatibility.
-v5→v4 is the documented TCP/UDP compatibility path; emitting Surge v5 would
-enable its unsupported automatic QUIC Proxy Mode. Unknown target versions or
-unexpressible features return `unsupported_export` (HTTP 422). Mihomo output is
-a JSON node mapping accepted as YAML; sing-box is outbound JSON; Surge is one
-comma-separated proxy declaration. Names are generated from canonical Binding IDs.
-IPv6 literals remain raw in the separate server/host field and port field;
-validated hosts and restricted PSKs prevent delimiter injection. Snell UDP is
-automatic in Surge; no `udp-relay` flag is fabricated.
+| Direction / reference | Qualified local scope |
+| --- | --- |
+| Splicore v4 client → official Snell 4.1.1 | TCP/UDP, reuse false/true, none/HTTP, IPv4/IPv6/domain |
+| Splicore v4 client → official Snell 5.0.1 | Same v4 profiles, backward compatibility |
+| sing-box 1.14.3 v4 client → Splicore v4 server | TCP/UDP, reuse false/true, none/HTTP |
+| Mihomo 1.19.32 v4 client → Splicore v4 server | TCP/UDP, reuse false/true, none/HTTP |
+| Surge mac-6.7.0 / ios-5.20.0 | Export contract only; runtime unavailable |
 
-Contract sources: [pinned Mihomo source](https://github.com/MetaCubeX/mihomo/blob/v1.19.30/adapter/outbound/snell.go),
-[pinned sing-box options](https://github.com/SagerNet/sing-box/blob/v1.14.1/option/snell.go),
-[Surge Snell manual](https://manual.nssurge.com/policies/snell.html).
-Surge's host/port grammar supplies the contract for raw IPv6 formatting; this
-is not a Surge parser/runtime test. Its exact licensed runtime remains unqualified.
-See the [full matrix](../testing/INTEROP_MATRIX.md) and
-[Phase 2 report](../reports/PHASE_2_SNELL_VERTICAL_SLICE_REPORT.md).
+Custom URI behavior is validated locally and against official servers; the two
+reference clients cannot configure a custom URI.
+Mihomo closes the upstream on an early SOCKS upload EOF, including against the
+official server; its qualification verifies the complete echo before application
+close. Native, official-server and sing-box paths also verify half-close responses.
+Previous v5 export targets
+Mihomo 1.19.30 and sing-box 1.14.1 and v6 sing-box 1.14.1 remain supported.
+Unknown export target versions are rejected. Qualification uses controlled
+Linux amd64 references. Linux arm64 is build only. **Real hardware remains
+NOT YET QUALIFIED.**
+
+Behavioral references: [Surge policy](https://manual.nssurge.com/policies/snell.html),
+[official server notes](https://kb.nssurge.com/surge-knowledge-base/release-notes/snell),
+[sing-box outbound documentation](https://sing-box.sagernet.org/configuration/outbound/snell/),
+[Mihomo documentation](https://wiki.metacubex.one/en/config/proxies/snell/).
+Reference programs serve only as interoperability oracles; their source is not
+adapted into production.

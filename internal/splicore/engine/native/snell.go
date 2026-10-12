@@ -45,7 +45,7 @@ func (f SnellCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (por
 		return nil, e
 	}
 	owned, cancel := context.WithCancel(context.WithoutCancel(ctx))
-	return &Handle{ctx: owned, cancel: cancel, protected: d, key: k, endpoint: in.Inbound.Listeners[0].Endpoint, total: &traffic.Counter{}, connections: map[net.Conn]bool{}, done: make(chan struct{})}, nil
+	return &Handle{ctx: owned, cancel: cancel, protected: d, key: k, obfsHTTP: s.ObfsMode == "http", endpoint: in.Inbound.Listeners[0].Endpoint, total: &traffic.Counter{}, connections: map[net.Conn]bool{}, done: make(chan struct{})}, nil
 }
 
 // Handle owns listening, accepted and target sockets through shutdown join.
@@ -56,6 +56,7 @@ type Handle struct {
 	cancel            context.CancelFunc
 	protected         *underlay.Dialer
 	key               *wire.Key
+	obfsHTTP          bool
 	endpoint          access.Endpoint
 	listener          net.Listener
 	connections       map[net.Conn]bool
@@ -173,7 +174,11 @@ func (h *Handle) serve(raw net.Conn) {
 	defer raw.Close()
 	defer h.remove(raw)
 	_ = raw.SetReadDeadline(time.Now().Add(5 * time.Second))
-	_ = wire.Serve(raw, h.key, func(tunnel *wire.Tunnel, dst access.Endpoint) error {
+	stream := raw
+	if h.obfsHTTP {
+		stream = wire.HTTPServer(raw)
+	}
+	_ = wire.Serve(stream, h.key, func(tunnel *wire.Tunnel, dst access.Endpoint) error {
 		_ = raw.SetReadDeadline(time.Time{})
 		if !h.admitted.Load() {
 			return net.ErrClosed

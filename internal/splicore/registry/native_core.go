@@ -18,7 +18,7 @@ import (
 )
 
 func NativeCore() (*Protocols, *Engines, *Exporters, error) {
-	protocols := []ports.Protocol{snell.Module{Version: 5}, snell.Module{Version: 6}, hysteria2.Module{}, tuic.Module{}, vless.Module{Security: vless.Plain}, vless.Module{Security: vless.TLS}, vless.Module{Security: vless.Reality}}
+	protocols := []ports.Protocol{snell.Module{Version: 4}, snell.Module{Version: 5}, snell.Module{Version: 6}, hysteria2.Module{}, tuic.Module{}, vless.Module{Security: vless.Plain}, vless.Module{Security: vless.TLS}, vless.Module{Security: vless.Reality}}
 	protocols = append(protocols, mieru.Module{}, shadowsocks.Module{Edition: "2017"}, shadowsocks.Module{Edition: "2022"}, trojan.Module{}, vmess.Module{}, anytls.Module{})
 	p, e := NewProtocols(protocols...)
 	if e != nil {
@@ -36,6 +36,7 @@ func NativeCore() (*Protocols, *Engines, *Exporters, error) {
 	for _, format := range []ports.Format{ports.Mihomo, ports.SingBox, ports.Surge, ports.URI} {
 		mapping := map[access.ProtocolKey]ports.Exporter{}
 		if format != ports.URI {
+			mapping[snell.Key(4)] = exporter.Snell{Target: format}
 			mapping[snell.Key(5)] = exporter.Snell{Target: format}
 			mapping[snell.Key(6)] = exporter.Snell{Target: format}
 			mapping[hysteria2.Key()] = exporter.Hysteria2{Target: format}

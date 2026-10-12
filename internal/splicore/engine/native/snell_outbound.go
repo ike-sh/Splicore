@@ -31,7 +31,7 @@ func (SnellOutboundFactory) Validate(n client.RemoteNode, c access.Credential) e
 	if n.Transport.Kind != "tcp" || n.Security.Kind != "none" {
 		return identity.Err(identity.Invalid, "unsupported Snell client settings")
 	}
-	s, e := module.Decode(n.Options.Data)
+	s, e := module.DecodeClient(n.Options.Data)
 	if e != nil {
 		return e
 	}
@@ -52,13 +52,21 @@ func (f SnellOutboundFactory) Build(ctx context.Context, n client.RemoteNode, c 
 	if e != nil {
 		return nil, e
 	}
-	s, _ := module.Decode(n.Options.Data)
+	s, _ := module.DecodeClient(n.Options.Data)
 	v, _ := module.ClientVersion(s.Version)
 	k, e := wire.NewKey(v, c.Payload.(access.PSKPayload).Key.Reveal())
 	if e != nil {
 		return nil, e
 	}
-	return &snellDialer{protected: d, resolver: resolver, endpoint: n.Endpoint, key: k, owner: clientio.New()}, nil
+	out := &snellDialer{protected: d, resolver: resolver, endpoint: n.Endpoint, key: k, options: s, owner: clientio.New()}
+	if s.Reuse {
+		out.pool = newSnellPool(out.dial, k)
+		if _, e := out.owner.Track(out.pool); e != nil {
+			_ = out.pool.Close()
+			return nil, e
+		}
+	}
+	return out, nil
 }
 
 type snellDialer struct {
@@ -66,14 +74,23 @@ type snellDialer struct {
 	endpoint            access.Endpoint
 	key                 *wire.Key
 	owner               *clientio.Owner
+	options             module.ClientOptions
+	pool                *snellPool
 }
 
 func (d *snellDialer) dial(ctx context.Context) (net.Conn, error) {
-	raw, e := d.protected.DialContext(ctx, "tcp", net.JoinHostPort(d.endpoint.Host, portString(d.endpoint.Port)))
+	return d.dialPort(ctx, d.endpoint.Port)
+}
+func (d *snellDialer) dialPort(ctx context.Context, port uint16) (net.Conn, error) {
+	raw, e := d.protected.DialContext(ctx, "tcp", net.JoinHostPort(d.endpoint.Host, portString(port)))
 	if e != nil {
 		return nil, e
 	}
-	return d.owner.Conn(raw)
+	owned, e := d.owner.Conn(raw)
+	if e == nil && d.options.ObfsMode == "http" {
+		owned = wire.HTTPClient(owned, d.options.HTTPHost(), d.options.HTTPURI())
+	}
+	return owned, e
 }
 func (d *snellDialer) DialContext(ctx context.Context, dst access.Endpoint) (net.Conn, error) {
 	ctx, done, e := d.owner.Begin(ctx)
@@ -81,11 +98,22 @@ func (d *snellDialer) DialContext(ctx context.Context, dst access.Endpoint) (net
 		return nil, e
 	}
 	defer done()
+	if e := dst.Validate(); e != nil {
+		return nil, e
+	}
+	if d.pool != nil {
+		return d.pool.acquire(ctx, dst)
+	}
 	raw, e := d.dial(ctx)
 	if e != nil {
 		return nil, e
 	}
-	c, e := wire.ClientTCP(raw, d.key, dst)
+	var c net.Conn
+	if d.options.Version == 4 {
+		c, e = wire.ClientTCPNoReuse(raw, d.key, dst)
+	} else {
+		c, e = wire.ClientTCP(raw, d.key, dst)
+	}
 	if e != nil {
 		_ = raw.Close()
 		return nil, e
@@ -98,6 +126,9 @@ func (d *snellDialer) ListenPacket(ctx context.Context, dst access.Endpoint) (ne
 		return nil, e
 	}
 	defer done()
+	if d.options.UDP != nil && !*d.options.UDP {
+		return nil, identity.Err(identity.Invalid, "Snell UDP disabled")
+	}
 	if e = dst.Validate(); e != nil {
 		return nil, e
 	}
@@ -113,7 +144,11 @@ func (d *snellDialer) ListenPacket(ctx context.Context, dst access.Endpoint) (ne
 		}
 		dst.Host = ips[0].String()
 	}
-	raw, e := d.dial(ctx)
+	port := d.endpoint.Port
+	if d.options.UDPPort != 0 {
+		port = d.options.UDPPort
+	}
+	raw, e := d.dialPort(ctx, port)
 	if e != nil {
 		return nil, e
 	}
@@ -129,6 +164,9 @@ func (d *snellDialer) ListenPacket(ctx context.Context, dst access.Endpoint) (ne
 	return &resolvedClientPacket{PacketConn: p, target: netaddr.UDP(dst)}, nil
 }
 func (d *snellDialer) Close() error { d.owner.Close(); return nil }
+func (d *snellDialer) SupportsNetwork(network string) bool {
+	return network == "tcp" || network == "udp" && (d.options.UDP == nil || *d.options.UDP)
+}
 
 type resolvedClientPacket struct {
 	net.PacketConn

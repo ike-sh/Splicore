@@ -9,12 +9,12 @@ import (
 )
 
 func TestSettingsAndPSK(t *testing.T) {
-	for _, v := range []string{`{"version":5}`, `{"version":6}`} {
+	for _, v := range []string{`{"version":4}`, `{"version":5}`, `{"version":6}`} {
 		if _, e := Decode([]byte(v)); e != nil {
 			t.Fatal(e)
 		}
 	}
-	for _, v := range []string{`{}`, `null`, `{"version":4}`, `{"version":5,"version":6}`, `{"version":6,"psk":"secret"}`, `{"version":6} {}`, `{"version":"6"}`, `{"version":6,"mode":"unsafe-raw"}`} {
+	for _, v := range []string{`{}`, `null`, `{"version":3}`, `{"version":5,"version":6}`, `{"version":6,"psk":"secret"}`, `{"version":6} {}`, `{"version":"6"}`, `{"version":6,"mode":"unsafe-raw"}`} {
 		if _, e := Decode([]byte(v)); e == nil {
 			t.Fatal("invalid settings accepted")
 		}
@@ -44,7 +44,7 @@ func FuzzSettings(f *testing.F) {
 	}
 	f.Fuzz(func(t *testing.T, b string) {
 		s, e := Decode([]byte(b))
-		if e == nil && s.Version != 5 && s.Version != 6 {
+		if e == nil && s.Version != 4 && s.Version != 5 && s.Version != 6 {
 			t.Fatal("unsupported parsed")
 		}
 	})

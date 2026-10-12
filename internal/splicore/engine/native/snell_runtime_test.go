@@ -20,11 +20,14 @@ import (
 	"github.com/ike-sh/Splicore/protocol/snell/wire"
 )
 
-func ownedSnell(t *testing.T, version int) (context.Context, ports.RuntimeIntent, ports.RuntimeHandle) {
+func ownedSnell(t *testing.T, version int, httpMode ...bool) (context.Context, ports.RuntimeIntent, ports.RuntimeHandle) {
 	t.Helper()
 	in := testfixture.MieruIntent(t, "tcp")
 	in.Inbound.Protocol = sm.Key(version)
 	in.Inbound.Settings.Data = []byte(fmt.Sprintf(`{"version":%d}`, version))
+	if len(httpMode) > 0 && httpMode[0] {
+		in.Inbound.Settings.Data = []byte(fmt.Sprintf(`{"version":%d,"obfs_mode":"http"}`, version))
+	}
 	in.Bindings = in.Bindings[:1]
 	in.Credentials = in.Credentials[:1]
 	in.Credentials[0].Kind = access.PSK
@@ -52,7 +55,7 @@ func ownedSnell(t *testing.T, version int) (context.Context, ports.RuntimeIntent
 // Command 1 is emitted by the independent Mihomo peer. The managed client uses
 // reusable command 5, so self-interop alone cannot protect this server path.
 func TestSnellCommandOnePayloadAndEOF(t *testing.T) {
-	for _, version := range []int{5, 6} {
+	for _, version := range []int{4, 5, 6} {
 		t.Run(fmt.Sprint(version), func(t *testing.T) {
 			_, in, h := ownedSnell(t, version)
 			target := testfixture.TCP(t)
@@ -106,7 +109,7 @@ func TestSnellCommandOnePayloadAndEOF(t *testing.T) {
 }
 
 func TestSnellManagedHalfCloseAndAdapterShutdown(t *testing.T) {
-	for _, version := range []int{5, 6} {
+	for _, version := range []int{4, 5, 6} {
 		t.Run(fmt.Sprint(version), func(t *testing.T) {
 			ctx, in, _ := ownedSnell(t, version)
 			target := testfixture.TCP(t)

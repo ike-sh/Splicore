@@ -90,7 +90,14 @@ func TestPublicCapabilitiesPublicMetadata(t *testing.T) {
 	}
 	capturePublicCapabilities(t, "service", page)
 	counts := map[string]int{}
+	snellVersions := map[string]bool{}
 	for _, item := range page.Items {
+		if item.Protocol == "snell" {
+			snellVersions[item.WireVersion] = true
+			if item.WireVersion == "4" && (len(item.QualifiedClients) != 2 || !item.Roles.Inbound || !item.Roles.Outbound || !item.Features.TCP || !item.Features.UDPPayload) {
+				t.Fatal("explicit v4 capability incomplete", item)
+			}
+		}
 		counts[item.Protocol] += len(item.QualifiedClients)
 		for _, client := range item.QualifiedClients {
 			if client.Client == "" || client.Evidence != "" {
@@ -98,7 +105,10 @@ func TestPublicCapabilitiesPublicMetadata(t *testing.T) {
 			}
 		}
 	}
-	for group, want := range map[string]int{"hysteria2": 2, "tuic": 2, "mieru": 2, "snell": 3, "trojan": 3, "vmess": 3} {
+	if len(snellVersions) != 3 || !snellVersions["4"] || !snellVersions["5"] || !snellVersions["6"] {
+		t.Fatal("Snell version capability missing", snellVersions)
+	}
+	for group, want := range map[string]int{"hysteria2": 2, "tuic": 2, "mieru": 2, "snell": 5, "trojan": 3, "vmess": 3} {
 		if counts[group] != want {
 			t.Errorf("%s: qualified client membership changed: got %d, want %d", group, counts[group], want)
 		}

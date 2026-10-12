@@ -2,7 +2,7 @@
 
 Documentation status: Current architecture correction
 Audience: Maintainers and operators
-Last reviewed: 2026-10-04
+Last reviewed: 2026-10-11
 Owner: Splicore maintainer
 Responsibility: Independent native Server + Client Core boundary
 Lifecycle: Experimental native implementation; platform qualification remains separate
@@ -12,15 +12,20 @@ is preserved; it does not authorize third-party runtime ownership.
 
 | Protocol | Server TCP/UDP payload | Client TCP/UDP payload | Endpoint | Security |
 | --- | --- | --- | --- | --- |
-| Snell v5/v6 | Yes / Yes | Yes / Yes | IPv4/IPv6/domain | PSK, inherited wire |
+| Snell v4 | Yes / Yes | Yes / Yes | IPv4/IPv6/domain | Native PSK; none/HTTP obfs; serial reuse |
+| Snell v5 | Yes / Yes | Yes / Yes | IPv4/IPv6/domain | Native PSK; qualified v4-compatible client scope |
+| Snell v6 | Yes / Yes | Yes / Yes | IPv4/IPv6/domain | Native PSK; existing shaping |
 | Hysteria2 | Yes / Yes | Yes / Yes | IPv4/IPv6/domain | QUIC/TLS, explicit trust |
 | TUIC v5 | Yes / Yes | Yes / Yes | IPv4/IPv6/domain | QUIC/TLS, UUID/password |
 | VLESS flow-none | Yes / XUDP | Yes / XUDP | IPv4/IPv6/domain | Plain/TLS/REALITY |
 | Mieru | Yes / Yes | Yes / Yes | IPv4/IPv6/domain | Official embedded TCP/UDP transport |
 | AnyTLS v2/v1 | Yes / UoT2 | Yes / UoT2 | IPv4/IPv6/domain | Mandatory shared TLS, password |
 
-Snell v5 canonical intent uses the inherited v4 compatibility adapter; v6 maps to
-v6. No wire is rewritten. REALITY requires `with_utls`. QUIC requires `with_quic`.
+Snell v4 has explicit native client/server configuration, TCP/UDP relay, reuse
+and HTTP host/URI options. v5 client projections use v4-compatible semantics;
+v5 QUIC Proxy Mode is not implemented. v6 retains its existing separate shaping.
+See [Native Snell](../protocol/SNELL.md) for qualification and datagram limits.
+REALITY requires `with_utls`. QUIC requires `with_quic`.
 All-five native client adapters support bounded canonical validation and stats;
 global SDK metrics never enter attributed accounting.
 
@@ -55,9 +60,8 @@ tests. Native Ubuntu auto-route/real Windows system-network qualification remain
 uncertified; Windows race is not executed, Linux arm64 build-only. Wintun
 fixtures are contract evidence, not real host certification.
 
-Historical reports remain unchanged and are superseded for current Xray support by
-[ADR 0035](../adr/0035-xray-runtime-removed-from-core.md) and the
-[correction report](../reports/ARCHITECTURE_CORRECTION_XRAY_BOUNDARY_REPORT.md).
+The current Xray boundary is described in
+[ADR 0035](../adr/0035-xray-runtime-removed-from-core.md).
 
 AnyTLS supports bounded stream multiplexing, newest-idle session reuse, padding
 and dynamic scheme updates. Local anytls-go v0.0.13 and sing-box v1.14.2 TCP/UDP

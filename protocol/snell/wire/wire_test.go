@@ -77,7 +77,7 @@ func TestRecordsOwnPayloadAndAuthenticatedBounds(t *testing.T) {
 }
 
 func TestReusableTransportPreservesHalfCloseResponse(t *testing.T) {
-	for _, version := range []int{5, 6} {
+	for _, version := range []int{4, 5, 6} {
 		t.Run(fmt.Sprint(version), func(t *testing.T) {
 			a, b := net.Pipe()
 			defer a.Close()

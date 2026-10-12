@@ -619,6 +619,13 @@ func TestPhase20HTTPMetadataLifecycleChurn(t *testing.T) {
 			baseline = end
 			continue
 		}
+		// Other tests can leave process-level descriptors finishing asynchronous
+		// cleanup. A decrease is not churn residue; retain the lower baseline so
+		// every subsequent increase still fails the existing exact-count check.
+		if end.FDs < baseline.FDs {
+			t.Logf("prior descriptor cleanup lowered FD baseline %d -> %d", baseline.FDs, end.FDs)
+			baseline.FDs = end.FDs
+		}
 		if end.FDs != baseline.FDs || end.Sessions != 0 || end.Goroutines > baseline.Goroutines+1 {
 			t.Fatalf("HTTP churn residue start=%+v end=%+v", baseline, end)
 		}

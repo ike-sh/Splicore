@@ -1,96 +1,29 @@
----
-icon: material/new-box
----
+# Snell inbound
 
-!!! question "Since sing-box 1.14.0"
-
-### Structure
+Use the protected creation API/CLI with a canonical document:
 
 ```json
 {
-  "type": "snell",
-  "tag": "snell-in",
-
-  ... // Listen Fields
-
-  "version": 5,
-  "psk": "password",
-  "users": [
-    {
-      "name": "sekai",
-      "userkey": "user-password"
-    }
-  ],
-  "obfs_mode": ""
+  "schema": 1,
+  "account_name": "example",
+  "name": "snell-v4",
+  "listener": {"host": "0.0.0.0", "port": 24443},
+  "display_endpoint": {"host": "proxy.example", "port": 24443},
+  "settings": {"version": 4, "obfs_mode": "http"}
 }
 ```
 
-### Version 6 Structure
+An omitted `psk` generates a secret. A supplied PSK must meet the portable
+12..255-byte ASCII credential contract. Keep supplied credentials private.
+The listener requires an IP address. One inbound has one account/binding/PSK.
 
-```json
-{
-  "type": "snell",
-  "tag": "snell-in",
+`version` is required: 4, 5 or 6. For v4, `obfs_mode` may be omitted, `none`,
+or `http`. Client-only host, URI, reuse and UDP-port options are rejected inbound.
+v5/v6 settings contain only `version`; v6 retains its existing shaping.
+Unknown fields, duplicate keys and null values are rejected.
 
-  ... // Listen Fields
-
-  "version": 6,
-  "psk": "password",
-  "users": [
-    {
-      "name": "sekai",
-      "userkey": "user-password"
-    }
-  ],
-  "mode": ""
-}
-```
-
-### Listen Fields
-
-See [Listen Fields](/configuration/shared/listen/) for details.
-
-### Fields
-
-#### version
-
-==Required==
-
-The Snell protocol version, one of `5` `6`.
-
-Version `5` supports HTTP obfuscation (`obfs_mode`); version `6` replaces it
-with traffic shaping (`mode`) and requires a `psk` of 12 to 255 bytes.
-
-!!! note
-
-    Since we intentionally do not support the QUIC proxy mode of Snell v5, the v5 wire protocol
-    is effectively identical to v4, so no separate v4 server or v5 client is provided.
-
-#### psk
-
-==Required==
-
-The pre-shared key.
-
-#### users
-
-Snell users.
-
-When set, the server runs in multi-user mode: each entry has a `name` (optional, used in
-logs) and a `userkey` (the user's key). The top-level `psk` remains the server key.
-
-#### obfs_mode
-
-==Version 5 only==
-
-HTTP obfuscation mode, one of `none` `http`.
-
-`none` is used by default.
-
-#### mode
-
-==Version 6 only==
-
-Traffic shaping mode, one of `default` `unshaped` `unsafe-raw`.
-
-`default` is used by default.
+The native server supports TCP and UDP relay over TCP, including IPv4/IPv6/domain
+destinations and serial reusable v4 requests. HTTP obfs is an initial header
+wrapper. TLS obfs, userkey multi-user extensions and v5 QUIC Proxy Mode are not
+implemented. See [Native Snell](../../protocol/SNELL.md) for wire limits,
+interoperability, statistics and qualification scope.

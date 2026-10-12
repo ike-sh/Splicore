@@ -1,125 +1,56 @@
----
-icon: material/new-box
----
+# Snell outbound
 
-!!! question "Since sing-box 1.14.0"
-
-### Structure
+A canonical remote node uses an owned PSK Credential, native proxy outbound,
+TCP transport and no transport security wrapper:
 
 ```json
 {
-  "type": "snell",
-  "tag": "snell-out",
-
-  "server": "127.0.0.1",
-  "server_port": 1080,
-  "version": 4,
-  "psk": "password",
-  "userkey": "",
-  "reuse": false,
-  "network": "tcp",
-  "obfs_mode": "",
-  "obfs_host": "",
-
-  ... // Dial Fields
+  "name": "snell-v4",
+  "protocol": {"protocol": "snell", "wire_version": "4", "feature_profile": "base"},
+  "endpoint": {"host": "proxy.example", "port": 24443},
+  "transport": {"kind": "tcp"},
+  "security": {"kind": "none"},
+  "options": {
+    "schema_version": 1,
+    "data": {
+      "version": 4,
+      "reuse": true,
+      "udp": true,
+      "obfs_mode": "http",
+      "obfs_host": "cover.example",
+      "obfs_uri": "/resource?x=1"
+    }
+  },
+  "metadata": {}
 }
 ```
 
-### Version 6 Structure
+Create the node with the protected client plan/apply command and a PSK credential;
+the control plane assigns identity and ownership. This is a node template, not
+a complete canonical import document. An import document wraps the node and
+test/private credential in `schema_version: 1` and `nodes`.
 
-```json
-{
-  "type": "snell",
-  "tag": "snell-out",
+| v4 option | Default / rule |
+| --- | --- |
+| `version` | Required, exactly 4 for this profile |
+| `reuse` | false; serial physical-connection reuse |
+| `udp` | true when omitted; false disables packet flows |
+| `udp_port` | Omitted uses endpoint port; otherwise 1..65535, UDP enabled |
+| `obfs_mode` | Omitted or `none`; `http` enables native HTTP wrapper |
+| `obfs_host` | HTTP only; intentionally defaults to `localhost` |
+| `obfs_uri` | HTTP only; defaults to `/`; bounded ASCII origin-form path/query |
 
-  "server": "127.0.0.1",
-  "server_port": 1080,
-  "version": 6,
-  "psk": "password",
-  "userkey": "",
-  "reuse": false,
-  "network": "tcp",
-  "mode": "",
+Host/header injection, invalid URI, unknown/duplicate/null fields, unsupported
+mode and invalid port fail early. UDP domains resolve locally; each managed
+packet flow remains connected to its destination. Alternate UDP port selects a
+TCP association endpoint, not a UDP underlay. The preserved classic record
+budget can reject large datagrams; see [Native Snell](../../protocol/SNELL.md).
 
-  ... // Dial Fields
-}
-```
+v5 options remain `{"version":5}` and use v4-compatible TCP/UDP client semantics.
+v6 options remain `{"version":6}` and use the separate existing v6 behavior.
+Neither accepts the v4 optional fields. v5 QUIC Proxy Mode, TLS obfs and userkey
+multi-user extensions are not implemented.
 
-### Fields
-
-#### server
-
-==Required==
-
-The server address.
-
-#### server_port
-
-==Required==
-
-The server port.
-
-#### version
-
-==Required==
-
-The Snell protocol version, one of `4` `6`.
-
-Version `4` supports HTTP obfuscation (`obfs_mode` / `obfs_host`); version `6`
-replaces it with traffic shaping (`mode`) and requires a `psk` of 12 to 255
-bytes.
-
-!!! note
-
-    Since we intentionally do not support the QUIC proxy mode of Snell v5, the v5 wire protocol
-    is effectively identical to v4, so no separate v4 server or v5 client is provided.
-
-#### psk
-
-==Required==
-
-The pre-shared key.
-
-#### userkey
-
-The user key, used to authenticate against a multi-user server.
-
-#### reuse
-
-Enable connection reuse (the Snell v2 `CONNECT` command).
-
-#### network
-
-Enabled network
-
-One of `tcp` `udp`.
-
-Both is enabled by default.
-
-#### obfs_mode
-
-==Version 4 only==
-
-HTTP obfuscation mode, one of `none` `http`.
-
-`none` is used by default.
-
-#### obfs_host
-
-==Version 4 only==
-
-The HTTP `Host` header sent when `obfs_mode` is `http`.
-
-`bing.com` is used by default.
-
-#### mode
-
-==Version 6 only==
-
-Traffic shaping mode, one of `default` `unshaped` `unsafe-raw`.
-
-`default` is used by default.
-
-### Dial Fields
-
-See [Dial Fields](/configuration/shared/dial/) for details.
+Existing sing-box/Mihomo dialects support v4 reuse, UDP selection and HTTP host.
+Custom URI/UDP-port export to those clients is rejected. Canonical JSON preserves
+all supported options; no Snell URI scheme is defined.
