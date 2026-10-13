@@ -72,7 +72,7 @@ func fix1Batch(format string, order []int) string {
 			case 1:
 				c.Node.Options.Data = []byte(`{"alter_id":64}`)
 			case 2:
-				c.Node.Transport.Kind = "xhttp"
+				c.Node.Transport.Kind = "unsupported"
 			case 3:
 				c.Node.Options.Data = []byte(`{"security":"aes-128-cfb"}`)
 			case 4:

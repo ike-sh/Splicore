@@ -70,7 +70,7 @@ func (n RemoteNode) Validate() error {
 	if err := n.Endpoint.Validate(); err != nil {
 		return err
 	}
-	if n.Transport.Kind == "" || n.Transport.Validate() != nil || n.Transport.ValidateALPN(n.Security.TLS.ALPN) != nil || n.Security.TLS.Validate(n.Security.Kind) != nil || n.Options.Schema != 1 || len(n.Options.Data) > 16384 || !json.Valid(n.Options.Data) {
+	if n.Transport.Kind == "" || n.Transport.ValidateClient() != nil || n.Transport.ValidateALPN(n.Security.TLS.ALPN) != nil || n.Security.TLS.Validate(n.Security.Kind) != nil || n.Options.Schema != 1 || len(n.Options.Data) > 16384 || !json.Valid(n.Options.Data) {
 		return invalid()
 	}
 	var object map[string]json.RawMessage

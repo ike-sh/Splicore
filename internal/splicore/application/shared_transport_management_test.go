@@ -162,7 +162,7 @@ func TestPhase21SharedProviderAndBackup(t *testing.T) {
 					t.Fatal("immutable ID changed")
 				}
 				before, _ := s.ClientStatus(ctx)
-				a.Node.Transport = cfg.Config{Kind: "xhttp"}
+				a.Node.Transport = cfg.Config{Kind: "unsupported"}
 				feed.set(feedDocument([]nodeimport.Candidate{a}), "", 0)
 				if _, e = s.RefreshProvider(ctx, p.ProviderID); e == nil {
 					t.Fatal("unsupported generation accepted")

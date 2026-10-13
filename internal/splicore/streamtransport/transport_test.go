@@ -295,7 +295,7 @@ func TestTransportLifecycleX25(t *testing.T) {
 	t.Logf("goroutines start=%d end=%d (no owned listeners/connections remain)", before, runtime.NumGoroutine())
 }
 func TestConfigSecurity(t *testing.T) {
-	for _, c := range []cfg.Config{{Kind: "xhttp"}, {Kind: "ws", Path: "/?ed=128"}, {Kind: "grpc", ServiceName: "/extended/path"}, {Kind: "ws", Headers: map[string]string{"Upgrade": "bad"}}, {Kind: "ws", Headers: map[string]string{"X-Test": "x\r\nInjected: 1"}}, {Kind: "tcp", Path: "/drop"}, {Kind: "grpc", Path: "/bad"}} {
+	for _, c := range []cfg.Config{{Kind: "unsupported"}, {Kind: "xhttp", XHTTP: &cfg.XHTTP{Mode: "unsupported"}}, {Kind: "ws", Path: "/?ed=128"}, {Kind: "grpc", ServiceName: "/extended/path"}, {Kind: "ws", Headers: map[string]string{"Upgrade": "bad"}}, {Kind: "ws", Headers: map[string]string{"X-Test": "x\r\nInjected: 1"}}, {Kind: "tcp", Path: "/drop"}, {Kind: "grpc", Path: "/bad"}} {
 		if c.Validate() == nil {
 			t.Fatalf("unsafe accepted: %s", c.Type())
 		}

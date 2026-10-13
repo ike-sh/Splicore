@@ -56,6 +56,9 @@ func Dial(ctx context.Context, dial DialFunc, address string, c cfg.Config, tc *
 	if c.Type() == "grpc" {
 		return dialGRPC(ctx, dial, address, c, tlsConfig(tc, "grpc"))
 	}
+	if c.Type() == "xhttp" {
+		return dialXHTTP(ctx, dial, address, c, tc)
+	}
 	if c.Type() == "ws" {
 		admissionCtx := ctx
 		var stopHandshake func() bool

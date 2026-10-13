@@ -8,7 +8,8 @@ and a persistent control plane in a single Core implementation.
 
 Supported protocols include Shadowsocks/SS2022, Snell, Hysteria2, TUIC, VLESS,
 Mieru, Trojan, VMess and AnyTLS, with local SOCKS5, HTTP, Mixed and TUN traffic entry.
-Shared stream transports include raw TCP, WebSocket, HTTPUpgrade and gRPC.
+Shared stream transports include raw TCP, WebSocket, HTTPUpgrade, gRPC and
+[XHTTP](docs/architecture/XHTTP.md).
 
 See the [capability matrix](docs/architecture/CAPABILITY_MATRIX.md) and
 [Core scope](docs/architecture/CORE_SCOPE.md) for capability details and boundaries.

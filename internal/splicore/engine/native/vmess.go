@@ -202,10 +202,11 @@ func (h *vmessHandle) serve(raw net.Conn) {
 	defer h.wg.Done()
 	defer raw.Close()
 	defer func() { h.mu.Lock(); delete(h.connections, raw); h.mu.Unlock() }()
-	_ = raw.SetDeadline(time.Now().Add(5 * time.Second))
-	var c net.Conn = raw
+	admission, finish := shared.BeginAdmission(raw, 5*time.Second)
+	defer admission.Close()
+	var c net.Conn = admission
 	if h.tls != nil && h.transport.Type() == "tcp" {
-		tc := tls.Server(raw, h.tls)
+		tc := tls.Server(admission, h.tls)
 		if tc.HandshakeContext(h.ctx) != nil {
 			return
 		}
@@ -214,6 +215,9 @@ func (h *vmessHandle) serve(raw net.Conn) {
 	}
 	r, id, err := wire.ReadRequestWithClock(c, h.keys, h.replay, h.now)
 	if err != nil || !h.admitted.Load() {
+		return
+	}
+	if finish() != nil {
 		return
 	}
 	_ = c.SetDeadline(time.Time{})

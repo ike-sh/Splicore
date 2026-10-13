@@ -44,6 +44,10 @@ global SDK metrics never enter attributed accounting.
 | header-custom / fragment / sudoku | Implemented; [fields and peer limits](FINALMASK.md) |
 | Xray engine/server/client/child/artifact | Absent |
 | External runtime required | No |
+| XHTTP | Native shared inbound/outbound for VLESS, VMess, Trojan; [configuration](XHTTP.md) |
+| XHTTP modes | packet-up, stream-up, stream-one, auto |
+| XHTTP HTTP/security | H1 packet-up/stream-up; H2 all modes; TLS; VLESS REALITY H2 |
+| XHTTP H3 | Not implemented; h3 configuration rejected; generic QUIC/Mux.Cool not implied |
 
 Native server binding counters are runtime-generation payload/session evidence,
 not durable billing. Quota/rate/session enforcement is limited by the actual

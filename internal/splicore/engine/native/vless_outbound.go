@@ -47,13 +47,18 @@ func (f VLESSOutboundFactory) Build(ctx context.Context, n client.RemoteNode, c 
 		}
 	}
 	options, _ := module.DecodeClientOptions(n.Options.Data)
+	transport, err := sharedClient(d.DialContext, n, tc)
+	if err != nil {
+		return nil, err
+	}
 	if options.Flow == module.Vision && tc != nil {
 		tc.MinVersion = tls.VersionTLS13
 	}
-	return &vlessDialer{flow: options.Flow, protected: d, node: n, uuid: [16]byte(u), tls: tc, owner: clientio.New()}, nil
+	return &vlessDialer{transport: transport, flow: options.Flow, protected: d, node: n, uuid: [16]byte(u), tls: tc, owner: clientio.New()}, nil
 }
 
 type vlessDialer struct {
+	transport *shared.Client
 	flow      module.Flow
 	protected *underlay.Dialer
 	node      client.RemoteNode
@@ -70,7 +75,13 @@ func (d *vlessDialer) open(ctx context.Context, dst access.Endpoint, packet bool
 		}
 		tc = nil
 	}
-	c, err := shared.Dial(ctx, d.protected.DialContext, net.JoinHostPort(d.node.Endpoint.Host, portString(d.node.Endpoint.Port)), d.node.Transport, tc)
+	var c net.Conn
+	var err error
+	if d.transport != nil {
+		c, err = d.transport.DialContext(ctx)
+	} else {
+		c, err = shared.Dial(ctx, d.protected.DialContext, net.JoinHostPort(d.node.Endpoint.Host, portString(d.node.Endpoint.Port)), d.node.Transport, tc)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -83,14 +94,16 @@ func (d *vlessDialer) open(ctx context.Context, dst access.Endpoint, packet bool
 	}()
 	stop := context.AfterFunc(ctx, func() { _ = raw.Close() })
 	defer stop()
-	deadline := time.Now().Add(5 * time.Second)
-	if t, ok := ctx.Deadline(); ok && t.Before(deadline) {
-		deadline = t
-	}
-	_ = raw.SetDeadline(deadline)
+	admission, finish := shared.BeginAdmission(raw, 5*time.Second)
+	c = admission
+	defer func() {
+		if !success {
+			admission.Close()
+		}
+	}()
 
 	if d.flow == module.Vision {
-		c = vision.LimitRecords(raw)
+		c = vision.LimitRecords(admission)
 		if d.tls != nil {
 			secure := tls.Client(c, d.tls)
 			if err = secure.HandshakeContext(ctx); err != nil {
@@ -99,7 +112,7 @@ func (d *vlessDialer) open(ctx context.Context, dst access.Endpoint, packet bool
 			c = secure
 		}
 	}
-	if d.node.Security.Kind == "reality" {
+	if d.node.Security.Kind == "reality" && d.transport == nil {
 		c, err = backend.RealityClient(ctx, c, d.node.Security.TLS)
 		if err != nil {
 			return nil, err
@@ -118,6 +131,9 @@ func (d *vlessDialer) open(ctx context.Context, dst access.Endpoint, packet bool
 	}
 	if d.flow == module.Vision {
 		c = vision.New(c, plain, raw, d.uuid)
+	}
+	if err = finish(); err != nil {
+		return nil, err
 	}
 	_ = c.SetDeadline(time.Time{})
 	success = true
@@ -147,4 +163,10 @@ func (d *vlessDialer) ListenPacket(ctx context.Context, dst access.Endpoint) (ne
 	}
 	return d.owner.Packet(backend.NewClientPacket(c, dst))
 }
-func (d *vlessDialer) Close() error { d.owner.Close(); return nil }
+func (d *vlessDialer) Close() error {
+	d.owner.Close()
+	if d.transport != nil {
+		d.transport.Close()
+	}
+	return nil
+}
