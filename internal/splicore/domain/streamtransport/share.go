@@ -13,7 +13,7 @@ func Query(q url.Values) (Config, error) {
 	if c.Kind == "" {
 		c.Kind = "tcp"
 	}
-	if c.Kind == "xhttp" {
+	if c.Kind == "xhttp" || c.Kind == "mkcp" {
 		return Config{}, bad()
 	}
 	if e := c.Validate(); e != nil {
@@ -28,7 +28,7 @@ func (c Config) PutQuery(q url.Values) error {
 	if len(c.Headers) > 0 {
 		return bad()
 	}
-	if c.Type() == "xhttp" {
+	if c.Type() == "xhttp" || c.Type() == "mkcp" {
 		return bad()
 	}
 	q.Set("type", c.Type())

@@ -188,6 +188,9 @@ func validateSettings(s Settings, publicRequired bool) error {
 }
 func decode(b []byte, publicRequired bool) (Settings, error) {
 	var s Settings
+	if err := streamcfg.ValidateMember(b); err != nil {
+		return s, err
+	}
 	if len(b) > 16384 || streamcfg.ValidateMember(b) != nil || jsonstrict.Decode(b, &s) != nil {
 		return Settings{}, invalid()
 	}

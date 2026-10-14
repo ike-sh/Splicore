@@ -19,6 +19,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/testfixture"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	ss "github.com/ike-sh/Splicore/internal/splicore/protocol/shadowsocks"
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
@@ -27,6 +28,11 @@ import (
 func shadowsocksIntent(t *testing.T, method string, multi bool) ports.RuntimeIntent {
 	t.Helper()
 	in := mieruIntent(t, "tcp")
+	return shadowsocksIntentFrom(t, method, multi, in)
+}
+
+func shadowsocksIntentFrom(t *testing.T, method string, multi bool, in ports.RuntimeIntent) ports.RuntimeIntent {
+	t.Helper()
 	m, _ := ss.Lookup(method)
 	data, _ := json.Marshal(ss.Settings{Method: method, MultiUser: multi, UDP: true})
 	in.Inbound.Name = "synthetic-shadowsocks"
@@ -76,7 +82,47 @@ func shadowsocksClient(t *testing.T, in ports.RuntimeIntent, index int) ports.Cl
 	if e != nil {
 		t.Fatal(e)
 	}
+	for _, listener := range in.Inbound.Listeners {
+		if listener.Transport == "udp" && listener.Endpoint != n.Endpoint {
+			n.Endpoint = listener.Endpoint
+			packet, e := (ShadowsocksOutboundFactory{}).Build(underlay.WithFactory(context.Background(), underlay.New()), n, c)
+			if e != nil {
+				d.Close()
+				t.Fatal(e)
+			}
+			return &shadowsocksFixtureClient{tcp: d, udp: packet}
+		}
+	}
 	return d
+}
+
+// Both paths use real native Shadowsocks clients and the same server runtime.
+// Its independently owned :0 sockets can have different actual addresses.
+type shadowsocksFixtureClient struct{ tcp, udp ports.ClientDialer }
+
+func (d *shadowsocksFixtureClient) DialContext(ctx context.Context, dst access.Endpoint) (net.Conn, error) {
+	return d.tcp.DialContext(ctx, dst)
+}
+func (d *shadowsocksFixtureClient) ListenPacket(ctx context.Context, dst access.Endpoint) (net.PacketConn, error) {
+	return d.udp.(ports.ClientPacketDialer).ListenPacket(ctx, dst)
+}
+func (d *shadowsocksFixtureClient) Close() error {
+	return errors.Join(d.tcp.Close(), d.udp.Close())
+}
+
+func startShadowsocksFixture(ctx context.Context, h *shadowsocksHandle, in *ports.RuntimeIntent) error {
+	h.endpoint = access.Endpoint{Host: "127.0.0.1"}
+	if e := h.Start(ctx); e != nil {
+		return e
+	}
+	for n := range in.Inbound.Listeners {
+		addr := h.listener.Addr()
+		if in.Inbound.Listeners[n].Transport == "udp" {
+			addr = h.packet.LocalAddr()
+		}
+		in.Inbound.Listeners[n].Endpoint = netaddrEndpoint(addr)
+	}
+	return nil
 }
 func shadowsocksUDPFixture(t *testing.T) access.Endpoint {
 	return shadowsocksUDPFixtureAt(t, "127.0.0.1")
@@ -160,7 +206,9 @@ func TestShadowsocksNativeTCPUDPMatrix(t *testing.T) {
 				name += "/multi"
 			}
 			t.Run(name, func(t *testing.T) {
-				in := shadowsocksIntent(t, m.Name, multi)
+				target := mieruTCPFixture(t)
+				tcp := netaddrEndpoint(target.Addr())
+				in := shadowsocksIntentFrom(t, m.Name, multi, testfixture.MieruIntentAt(t, "tcp", tcp))
 				compiler := NewShadowsocksCompiler()
 				ctx := underlay.WithFactory(context.Background(), underlay.New())
 				prepared, e := compiler.Compile(ctx, in)
@@ -175,12 +223,11 @@ func TestShadowsocksNativeTCPUDPMatrix(t *testing.T) {
 						t.Error(e)
 					}
 				}()
-				if e = h.Start(ctx); e != nil {
+				if e = startShadowsocksFixture(ctx, h, &in); e != nil {
 					t.Fatal(e)
 				}
 				h.Activate()
-				target := mieruTCPFixture(t)
-				tcp := access.Endpoint{Host: "127.0.0.1", Port: uint16(target.Addr().(*net.TCPAddr).Port)}
+				t.Logf("shadowsocks_matrix_bind tcp=%s udp=%s atomic_port0=true", h.listener.Addr(), h.packet.LocalAddr())
 				udp := shadowsocksUDPFixture(t)
 				for n := range in.Bindings {
 					d := shadowsocksClient(t, in, n)
@@ -203,11 +250,11 @@ func TestShadowsocksNativeTCPUDPMatrix(t *testing.T) {
 	}
 }
 func TestShadowsocksLifecycle25(t *testing.T) {
-	in := shadowsocksIntent(t, "2022-blake3-aes-128-gcm", true)
 	compiler := NewShadowsocksCompiler()
 	ctx := underlay.WithFactory(context.Background(), underlay.New())
 	target := mieruTCPFixture(t)
 	tcp := access.Endpoint{Host: "127.0.0.1", Port: uint16(target.Addr().(*net.TCPAddr).Port)}
+	in := shadowsocksIntentFrom(t, "2022-blake3-aes-128-gcm", true, testfixture.MieruIntentAt(t, "tcp", tcp))
 	udp := shadowsocksUDPFixture(t)
 	baseline := runtime.NumGoroutine()
 	peak := baseline
@@ -217,11 +264,15 @@ func TestShadowsocksLifecycle25(t *testing.T) {
 			t.Fatal(e)
 		}
 		h := prepared.(*shadowsocksHandle)
-		if e = h.Start(ctx); e != nil {
+		// Keep the canonical configuration for the next Compile; actual client
+		// endpoint addresses belong only to this cycle's runtime view.
+		cycleIntent := in
+		cycleIntent.Inbound.Listeners = append([]access.Listener(nil), in.Inbound.Listeners...)
+		if e = startShadowsocksFixture(ctx, h, &cycleIntent); e != nil {
 			t.Fatal(e)
 		}
 		h.Activate()
-		d := shadowsocksClient(t, in, cycle%2)
+		d := shadowsocksClient(t, cycleIntent, cycle%2)
 		if e = shadowsocksTraffic(d, tcp, udp); e != nil {
 			t.Fatal(e)
 		}
@@ -267,9 +318,19 @@ func TestShadowsocksTCPHalfClose(t *testing.T) {
 			if e != nil {
 				t.Fatal(e)
 			}
-			defer l.Close()
 			targetDone := make(chan error, 1)
+			targetJoined := make(chan struct{})
+			t.Cleanup(func() {
+				l.Close()
+				select {
+				case <-targetJoined:
+				case <-time.After(5 * time.Second):
+					t.Fatal("half-close target owner did not join")
+				}
+				t.Logf("half_close_target actual=%s closed=true worker_joined=true", l.Addr())
+			})
 			go func() {
+				defer close(targetJoined)
 				raw, e := l.Accept()
 				if e != nil {
 					targetDone <- e
@@ -283,7 +344,9 @@ func TestShadowsocksTCPHalfClose(t *testing.T) {
 				}
 				targetDone <- e
 			}()
-			in := shadowsocksIntent(t, method, false)
+			// Metadata uses an already-owned target endpoint. The real proxy
+			// binds :0 itself below; no numeric port is probed or handed off.
+			in := shadowsocksIntentFrom(t, method, false, testfixture.MieruIntentAt(t, "tcp", netaddrEndpoint(l.Addr())))
 			compiler := NewShadowsocksCompiler()
 			ctx := underlay.WithFactory(context.Background(), underlay.New())
 			prepared, e := compiler.Compile(ctx, in)
@@ -291,11 +354,25 @@ func TestShadowsocksTCPHalfClose(t *testing.T) {
 				t.Fatal(e)
 			}
 			h := prepared.(*shadowsocksHandle)
-			defer h.Close(context.Background())
-			if e = h.Start(ctx); e != nil {
+			defer func() {
+				if e := h.Close(context.Background()); e != nil {
+					t.Fatal(e)
+				}
+				h.mu.Lock()
+				connections, sessions := len(h.connections), len(h.sessions)
+				h.mu.Unlock()
+				if h.Stats().TCPActive != 0 || h.Stats().UDPActive != 0 || connections != 0 || sessions != 0 {
+					t.Fatal("half-close runtime retained sessions")
+				}
+				t.Logf("half_close_proxy closed=true owners_joined=true TCP=0 UDP=0")
+			}()
+			// Existing internal test startup pattern: production Start owns
+			// the actual OS-assigned sockets for the complete runtime lifetime.
+			if e = startShadowsocksFixture(ctx, h, &in); e != nil {
 				t.Fatal(e)
 			}
 			h.Activate()
+			t.Logf("half_close_bind tcp=%s udp=%s target=%s atomic_port0=true", h.listener.Addr(), h.packet.LocalAddr(), l.Addr())
 			d := shadowsocksClient(t, in, 0)
 			defer d.Close()
 			c, e := d.DialContext(ctx, access.Endpoint{Host: "127.0.0.1", Port: uint16(l.Addr().(*net.TCPAddr).Port)})
@@ -317,6 +394,8 @@ func TestShadowsocksTCPHalfClose(t *testing.T) {
 			if e = <-targetDone; e != nil {
 				t.Fatal(e)
 			}
+			<-targetJoined
+			t.Log("half_close_payload upload=synthetic-half-close download=after-EOF:synthetic-half-close CloseWrite=PASS EOF=PASS integrity=PASS")
 		})
 	}
 }
@@ -324,7 +403,8 @@ func TestShadowsocksTCPHalfClose(t *testing.T) {
 func TestShadowsocksUDPMultipleDestinationsOneAssociation(t *testing.T) {
 	for _, m := range ss.Methods() {
 		t.Run(m.Name, func(t *testing.T) {
-			in := shadowsocksIntent(t, m.Name, m.Identity)
+			a, b := shadowsocksUDPFixture(t), shadowsocksUDPFixture(t)
+			in := shadowsocksIntentFrom(t, m.Name, m.Identity, testfixture.MieruIntentAt(t, "tcp", a))
 			ctx := underlay.WithFactory(context.Background(), underlay.New())
 			prepared, e := NewShadowsocksCompiler().Compile(ctx, in)
 			if e != nil {
@@ -332,13 +412,12 @@ func TestShadowsocksUDPMultipleDestinationsOneAssociation(t *testing.T) {
 			}
 			h := prepared.(*shadowsocksHandle)
 			defer h.Close(context.Background())
-			if e = h.Start(ctx); e != nil {
+			if e = startShadowsocksFixture(ctx, h, &in); e != nil {
 				t.Fatal(e)
 			}
 			h.Activate()
 			d := shadowsocksClient(t, in, 0)
 			defer d.Close()
-			a, b := shadowsocksUDPFixture(t), shadowsocksUDPFixture(t)
 			ipv6 := shadowsocksUDPFixtureAt(t, "::1")
 			// One real dual-stack socket reserves both families atomically for
 			// localhost, which can resolve to either loopback address. Numeric

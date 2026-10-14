@@ -4,6 +4,7 @@ package streamtransport
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"net/http"
@@ -20,6 +21,7 @@ import (
 const MaxHeaders = 16 << 10
 
 type Config struct {
+	MKCP        *MKCP             `json:"mkcp,omitempty"`
 	XHTTP       *XHTTP            `json:"xhttp,omitempty"`
 	FinalMask   *maskcfg.Config   `json:"final_mask,omitempty"`
 	Kind        string            `json:"kind"`
@@ -37,7 +39,7 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 	if len(b) > 16384 || jsonstrict.Decode(b, &fields) != nil || fields == nil {
 		return bad()
 	}
-	allowed := map[string]bool{"kind": true, "path": true, "host": true, "headers": true, "service_name": true, "final_mask": true, "xhttp": true}
+	allowed := map[string]bool{"kind": true, "path": true, "host": true, "headers": true, "service_name": true, "final_mask": true, "xhttp": true, "mkcp": true}
 	for k, v := range fields {
 		if !allowed[k] || bytes.Equal(bytes.TrimSpace(v), []byte("null")) {
 			return bad()
@@ -47,7 +49,13 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 		return bad()
 	}
 	var p plain
-	if jsonstrict.Decode(b, &p) != nil || p.Kind == "" {
+	if err := jsonstrict.Decode(b, &p); err != nil {
+		if errors.Is(err, ErrLegacyMKCP) {
+			return err
+		}
+		return bad()
+	}
+	if p.Kind == "" {
 		return bad()
 	}
 	*c = Config(p)
@@ -55,7 +63,7 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 	// preserve its typed unsupported_transport issue. Compile validation still
 	// rejects it; it can never silently select raw TCP.
 	switch c.Kind {
-	case "tcp", "udp", "quic", "ws", "httpupgrade", "grpc", "xhttp":
+	case "tcp", "udp", "quic", "ws", "httpupgrade", "grpc", "xhttp", "mkcp":
 		return c.Validate()
 	default:
 		if len(c.Kind) > 64 {
@@ -65,6 +73,10 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 	}
 }
 func (c Config) Clone() Config {
+	if c.MKCP != nil {
+		m := *c.MKCP
+		c.MKCP = &m
+	}
 	if c.XHTTP != nil {
 		x := c.XHTTP.Clone()
 		c.XHTTP = &x
@@ -81,12 +93,30 @@ func (c Config) Clone() Config {
 // raw TCP when the caller supplied an explicit server transport member.
 func ValidateMember(b []byte) error {
 	var fields map[string]json.RawMessage
-	if jsonstrict.Decode(b, &fields) != nil {
+	if len(b) > 16384 || jsonstrict.Decode(b, &fields) != nil {
 		return bad()
 	}
 	for k, v := range fields {
 		if strings.EqualFold(k, "stream_transport") && (k != "stream_transport" || bytes.Equal(bytes.TrimSpace(v), []byte("null"))) {
 			return bad()
+		}
+		if k == "stream_transport" {
+			var transport map[string]json.RawMessage
+			if json.Unmarshal(v, &transport) == nil {
+				var kind string
+				_ = json.Unmarshal(transport["kind"], &kind)
+				if kind == "mkcp" {
+					var tuning map[string]json.RawMessage
+					if json.Unmarshal(transport["mkcp"], &tuning) == nil {
+						if _, ok := tuning["header"]; ok {
+							return ErrLegacyMKCP
+						}
+						if _, ok := tuning["seed"]; ok {
+							return ErrLegacyMKCP
+						}
+					}
+				}
+			}
 		}
 	}
 	return nil
@@ -103,7 +133,7 @@ func (c Config) ValidateALPN(alpn []string) error {
 		}
 		return nil
 	}
-	if c.Type() == "tcp" || c.Type() == "udp" || c.Type() == "quic" || len(alpn) == 0 {
+	if c.Type() == "tcp" || c.Type() == "mkcp" || c.Type() == "udp" || c.Type() == "quic" || len(alpn) == 0 {
 		return nil
 	}
 	want := "http/1.1"
@@ -157,6 +187,9 @@ func bad() error {
 	return identity.Err(identity.Invalid, "invalid or unsupported shared transport settings")
 }
 func (c Config) Validate() error {
+	if c.MKCP != nil && c.Type() != "mkcp" {
+		return bad()
+	}
 	if c.XHTTP != nil && c.Type() != "xhttp" {
 		return bad()
 	}
@@ -164,6 +197,11 @@ func (c Config) Validate() error {
 		return bad()
 	}
 	switch c.Type() {
+	case "mkcp":
+		if c.Path != "" || c.Host != "" || len(c.Headers) > 0 || c.ServiceName != "" || c.MKCPSettings().Validate() != nil {
+			return bad()
+		}
+		return nil
 	case "xhttp":
 		return c.validateXHTTP()
 	case "tcp", "udp", "quic":
@@ -235,7 +273,7 @@ func (c Config) ValidatePair(protocol, security string) error {
 	if c.Type() == "tcp" {
 		return nil
 	}
-	if c.Type() != "ws" && c.Type() != "httpupgrade" && c.Type() != "grpc" && c.Type() != "xhttp" {
+	if c.Type() != "ws" && c.Type() != "httpupgrade" && c.Type() != "grpc" && c.Type() != "xhttp" && c.Type() != "mkcp" {
 		return bad()
 	}
 	if protocol != "vmess" && protocol != "vless" && protocol != "trojan" {

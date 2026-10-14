@@ -40,6 +40,9 @@ func (Module) DecodeCreation(b json.RawMessage) (ports.CreationDraft, error) {
 		return d, err
 	}
 	d = ports.CreationDraft{Name: w.Name, Protocol: Key(), Transport: "tcp", Listener: w.Listener, Display: w.Display, TLSVerification: s.Security == "tls"}
+	if s.Stream != nil {
+		d.Transport = s.Stream.Carrier()
+	}
 	d.Settings, _ = json.Marshal(s)
 	names, ids := map[string]bool{}, map[string]bool{}
 	for _, u := range w.Users {

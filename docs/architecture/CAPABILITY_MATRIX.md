@@ -43,6 +43,11 @@ global SDK metrics never enter attributed accounting.
 | VLESS + REALITY + Vision | Native inbound/outbound; `with_utls` required |
 | FinalMask TCP | Native reusable underlay; raw VLESS consumer |
 | header-custom / fragment / sudoku | Implemented; [fields and peer limits](FINALMASK.md) |
+| Modern mKCP | Shared reliable ordered stream over UDP; native inbound/outbound; [configuration and limits](MKCP.md) |
+| VLESS / VMess / Trojan + mKCP | Supported with no flow / modern AEAD / verified TLS respectively |
+| Legacy mKCP header/seed | Rejected; not native modern settings |
+| FinalMask mkcp-legacy | Not implemented / deferred; not qualified |
+| Generic KCP / Hysteria transport | Not implemented or claimed |
 | Xray engine/server/client/child/artifact | Absent |
 | External runtime required | No |
 | XHTTP | Native shared inbound/outbound for VLESS, VMess, Trojan; [configuration](XHTTP.md) |

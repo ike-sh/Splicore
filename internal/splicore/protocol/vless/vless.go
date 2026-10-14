@@ -20,6 +20,10 @@ func (m Module) Metadata() ports.ProtocolMetadata {
 }
 func (m Module) Capabilities(c ports.CapabilityContext) ports.Capabilities {
 	available := (c.Engine == "" || c.Engine == "native") && m.Metadata().Availability == ports.Compiled
+	kinds := []string{"tcp", "ws", "httpupgrade", "grpc", "xhttp", "mkcp"}
+	if m.Security == Reality {
+		kinds = []string{"tcp", "xhttp"}
+	}
 	stats := available
 	flows := []string{string(NoFlow)}
 	if m.Security != Plain {
@@ -33,7 +37,7 @@ func (m Module) Capabilities(c ports.CapabilityContext) ports.Capabilities {
 	if available {
 		mutation = ports.Restart
 	}
-	return ports.Capabilities{Transport: ports.TransportCapabilities{Kinds: []string{"tcp"}, TCP: available, UDPPayload: available, IPv4: available, IPv6: available, DomainEndpoint: available}, Identity: ports.IdentityCapabilities{MultiUserNative: available, PerUserStats: stats, AttributedPayload: support, NativeStats: support, StatsUnits: "authenticated routed payload bytes and sessions; runtime generation"}, Security: ports.SecurityCapabilities{TLS: available && m.Security != Plain, Reality: available && m.Security == Reality, Vision: available && m.Security != Plain, Flows: flows}, Policy: ports.PolicyCapabilities{Quota: ports.Unsupported, SpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported}, Mutation: ports.MutationCapabilities{Users: mutation, Listener: ports.MutationUnavailable}, Clients: []ports.ClientCompatibility{}}
+	return ports.Capabilities{Transport: ports.TransportCapabilities{Kinds: kinds, TCP: available, UDPTransport: available && m.Security != Reality, UDPPayload: available, IPv4: available, IPv6: available, DomainEndpoint: available}, Identity: ports.IdentityCapabilities{MultiUserNative: available, PerUserStats: stats, AttributedPayload: support, NativeStats: support, StatsUnits: "authenticated routed payload bytes and sessions; runtime generation"}, Security: ports.SecurityCapabilities{TLS: available && m.Security != Plain, Reality: available && m.Security == Reality, Vision: available && m.Security != Plain, Flows: flows}, Policy: ports.PolicyCapabilities{Quota: ports.Unsupported, SpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported}, Mutation: ports.MutationCapabilities{Users: mutation, Listener: ports.MutationUnavailable}, Clients: []ports.ClientCompatibility{}}
 }
 func (m Module) ValidateInbound(i access.Inbound) error {
 	if err := i.Validate(); err != nil {
@@ -43,7 +47,11 @@ func (m Module) ValidateInbound(i access.Inbound) error {
 	if err != nil {
 		return err
 	}
-	if i.Protocol != Key(m.Security) || s.Security != m.Security || !i.Enabled || len(i.Listeners) != 1 || i.Listeners[0].Transport != "tcp" || len(i.DisplayEndpoints) != 1 {
+	carrier := "tcp"
+	if s.Stream != nil {
+		carrier = s.Stream.Carrier()
+	}
+	if i.Protocol != Key(m.Security) || s.Security != m.Security || !i.Enabled || len(i.Listeners) != 1 || i.Listeners[0].Transport != carrier || len(i.DisplayEndpoints) != 1 {
 		return invalid()
 	}
 	return nil

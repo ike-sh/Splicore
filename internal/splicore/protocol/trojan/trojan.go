@@ -35,6 +35,9 @@ func invalid() error {
 }
 func Decode(b []byte) (Settings, error) {
 	var s Settings
+	if err := streamcfg.ValidateMember(b); err != nil {
+		return s, err
+	}
 	if len(b) > 16384 || streamcfg.ValidateMember(b) != nil || jsonstrict.Decode(b, &s) != nil || tlsconfig.Validate(s.TLS) != nil || s.Stream != nil && (s.Stream.ValidatePair("trojan", "tls") != nil || s.Stream.ValidateServer() != nil || s.Stream.ValidateALPN(s.ALPN) != nil) {
 		return s, invalid()
 	}
@@ -62,14 +65,24 @@ func (Module) Metadata() ports.ProtocolMetadata {
 	return ports.ProtocolMetadata{Roles: ports.Roles{Inbound: true, Outbound: true}, Key: Key(), ABI: 1, CredentialKinds: []access.CredentialKind{access.Password}, Availability: ports.Compiled, Qualification: "experimental", Provenance: "Splicore-owned standard Trojan TLS/TCP/UDP; SHA-224 authentication; fallback deferred; no mux/extensions"}
 }
 func (Module) Capabilities(ports.CapabilityContext) ports.Capabilities {
-	return ports.Capabilities{Transport: ports.TransportCapabilities{TCP: true, UDPPayload: true, IPv4: true, IPv6: true, DomainEndpoint: true}, Identity: ports.IdentityCapabilities{MultiUserNative: true, PerUserStats: true, AttributedPayload: ports.Native, NativeStats: ports.Native, StatsUnits: "authenticated payload bytes; routed sessions; runtime generation"}, Security: ports.SecurityCapabilities{TLS: true}, Policy: ports.PolicyCapabilities{Quota: ports.Unsupported, SpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported}, Mutation: ports.MutationCapabilities{Users: ports.Restart, Listener: ports.MutationUnavailable}, Clients: []ports.ClientCompatibility{{Format: ports.SingBox, Client: "sing-box", Version: "1.14.1", Evidence: ""}, {Format: ports.Mihomo, Client: "mihomo", Version: "1.19.30", Evidence: ""}, {Format: ports.URI, Client: "uri", Evidence: ""}}}
+	return ports.Capabilities{Transport: ports.TransportCapabilities{Kinds: []string{"tcp", "ws", "httpupgrade", "grpc", "xhttp", "mkcp"}, TCP: true, UDPTransport: true, UDPPayload: true, IPv4: true, IPv6: true, DomainEndpoint: true}, Identity: ports.IdentityCapabilities{MultiUserNative: true, PerUserStats: true, AttributedPayload: ports.Native, NativeStats: ports.Native, StatsUnits: "authenticated payload bytes; routed sessions; runtime generation"}, Security: ports.SecurityCapabilities{TLS: true}, Policy: ports.PolicyCapabilities{Quota: ports.Unsupported, SpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported}, Mutation: ports.MutationCapabilities{Users: ports.Restart, Listener: ports.MutationUnavailable}, Clients: []ports.ClientCompatibility{{Format: ports.SingBox, Client: "sing-box", Version: "1.14.1", Evidence: ""}, {Format: ports.Mihomo, Client: "mihomo", Version: "1.19.30", Evidence: ""}, {Format: ports.URI, Client: "uri", Evidence: ""}}}
 }
 func (Module) ValidateInbound(i access.Inbound) error {
-	if i.Validate() != nil || i.Protocol != Key() || i.Engine != "native" || !i.Enabled || len(i.Listeners) != 1 || i.Listeners[0].Transport != "tcp" || len(i.DisplayEndpoints) != 1 {
+	if i.Validate() != nil || i.Protocol != Key() || i.Engine != "native" || !i.Enabled || len(i.Listeners) != 1 || len(i.DisplayEndpoints) != 1 {
 		return invalid()
 	}
-	_, err := Decode(i.Settings.Data)
-	return err
+	s, err := Decode(i.Settings.Data)
+	if err != nil {
+		return err
+	}
+	carrier := "tcp"
+	if s.Stream != nil {
+		carrier = s.Stream.Carrier()
+	}
+	if i.Listeners[0].Transport != carrier {
+		return invalid()
+	}
+	return nil
 }
 func (Module) ValidateCredential(c access.Credential) error {
 	p, ok := c.Payload.(access.PasswordPayload)

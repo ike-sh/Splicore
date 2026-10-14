@@ -36,6 +36,9 @@ func (Module) DecodeCreation(b json.RawMessage) (ports.CreationDraft, error) {
 	}
 	raw, _ := json.Marshal(s)
 	d = ports.CreationDraft{Name: w.Name, Protocol: Key(), Transport: "tcp", Listener: w.Listener, Display: w.Display, Settings: raw, TLSVerification: true}
+	if s.Stream != nil {
+		d.Transport = s.Stream.Carrier()
+	}
 	names, keys := map[string]bool{}, map[wire.Key]bool{}
 	for _, u := range w.Users {
 		pass, err := creation.RawField(u.Password)

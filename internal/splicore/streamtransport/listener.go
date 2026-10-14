@@ -52,6 +52,12 @@ func WrapListener(base net.Listener, c cfg.Config, tc *tls.Config) (net.Listener
 	if c.Type() == "tcp" {
 		return base, nil
 	}
+	if c.Type() == "mkcp" {
+		if tc != nil {
+			return tls.NewListener(base, tlsConfig(tc, "mkcp")), nil
+		}
+		return base, nil
+	}
 	if c.Type() == "xhttp" {
 		return xhttp.NewListener(base, c, tc, nil)
 	}

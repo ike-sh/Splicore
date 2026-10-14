@@ -62,6 +62,7 @@ Decision acceptance is separate from implementation and interoperability qualifi
 - [Hysteria2 support](protocol/HYSTERIA2.md): multi-user, TLS, QUIC/UDP and restart limits.
 - [TUIC support](protocol/TUIC.md): v5 UUID/password and shared TLS/QUIC.
 - [Native AnyTLS](architecture/ANYTLS.md): TLS, protocol v2/v1, reusable sessions, padding and UoT2.
+- [Modern mKCP](architecture/MKCP.md): shared reliable UDP stream transport, tuning, ownership and compatibility limits.
 - [Native NaiveProxy](architecture/NAIVE.md): HTTPS/H2 and QUIC/H3 CONNECT, Basic auth, TCP, padding and multiplexing.
 
 - [Protocol and engine index](protocol/README.md): extension path and qualification gates.

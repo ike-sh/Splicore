@@ -35,6 +35,10 @@ flowchart TD
     T --> D[Injected approved underlay / owned accepted socket]
 ```
 
+Modern [mKCP](MKCP.md) supplies the same stream abstraction with an owned UDP
+carrier for VLESS no flow, VMess and Trojan. RAW/HTTP transports retain their
+existing TCP carriers.
+
 ## Capability matrix
 
 | Protocol | Raw | WS | HTTPUpgrade | gRPC normal Tun |
@@ -44,7 +48,8 @@ flowchart TD
 | Trojan standard | Existing TLS | TLS | TLS | TLS |
 | SS / SS2022 / Snell / HY2 / TUIC / Mieru | Existing runtime | Rejected | Rejected | Rejected |
 
-REALITY and Vision over HTTP transports reject. Raw VLESS supports native
+REALITY and Vision over WS/HTTPUpgrade/gRPC/mKCP reject. VLESS XHTTP REALITY
+has its separate [qualified scope](XHTTP.md). Raw VLESS supports native
 TLS/REALITY Vision and [TCP FinalMask underlays](FINALMASK.md).
 Existing VLESS XUDP payload behavior remains; Mux.Cool, TunMulti and
 XUDP extensions are unsupported. A client gRPC stream owns one HTTP/2 connection. Each server
@@ -203,8 +208,8 @@ duplicate/alias checks and preserves typed import errors.
 
 ## Deferred and qualification
 
-WebSocket early data, HTTPUpgrade fast-open, XHTTP/SplitHTTP, generic QUIC, HTTP3,
-mKCP/KCP, Mux.Cool, TunMulti, advanced gRPC paths, new XUDP and REALITY composition
+WebSocket early data, HTTPUpgrade fast-open, generic QUIC, HTTP3,
+generic KCP, Mux.Cool, TunMulti, advanced gRPC paths and new XUDP
 are deferred and rejected. Historical Snell/platform limitations remain.
 Host platform coverage is partial; stream interoperability does not certify
 host network integration. Linux arm64: BUILD ONLY.

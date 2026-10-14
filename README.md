@@ -10,7 +10,7 @@ Supported protocols include Shadowsocks/SS2022, Snell, Hysteria2, TUIC, VLESS,
 Mieru, Trojan, VMess, AnyTLS and [NaiveProxy](docs/architecture/NAIVE.md), with local
 SOCKS5, HTTP, Mixed and TUN traffic entry.
 Shared stream transports include raw TCP, WebSocket, HTTPUpgrade, gRPC and
-[XHTTP](docs/architecture/XHTTP.md).
+[XHTTP](docs/architecture/XHTTP.md) and [modern mKCP](docs/architecture/MKCP.md).
 
 See the [capability matrix](docs/architecture/CAPABILITY_MATRIX.md) and
 [Core scope](docs/architecture/CORE_SCOPE.md) for capability details and boundaries.

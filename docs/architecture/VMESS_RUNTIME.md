@@ -1,9 +1,8 @@
 # Native modern VMess runtime
 
-Phase 19 implements `ProtocolID=vmess`, `EngineID=native` in the independent
-Splicore core. Implementation validation does not confer platform qualification.
-Historical qualification remains **PARTIALLY PASSED**; Phase 19 is **NOT PLATFORM
-QUALIFIED**; Linux arm64 is **BUILD ONLY**.
+Splicore implements `ProtocolID=vmess`, `EngineID=native` independently.
+Implementation validation does not confer platform qualification. Real hardware
+is **NOT YET QUALIFIED**; Linux arm64 is **BUILD ONLY**.
 
 ## Compatibility boundary
 
@@ -20,8 +19,9 @@ are rejected. Authenticated-length is optional in the selected peers and their
 current bidirectional context reuse conflicts with the no-nonce-reuse requirement.
 Splicore does not substitute a different wire construction.
 
-WS, gRPC, HTTPUpgrade, XHTTP, h2, mKCP, VMess QUIC, Mux, XUDP, packetaddr, uTLS,
-REALITY and camouflage are outside this phase. Xray interop selects standard UDP
+WS, gRPC, HTTPUpgrade, XHTTP and modern mKCP compose through the
+[shared transport layer](SHARED_TRANSPORT.md). VMess QUIC, Mux, XUDP, packetaddr,
+uTLS, REALITY and camouflage remain unsupported. Xray interop selects standard UDP
 with `XRAY_CONE_DISABLED=true`; its default cone/Mux conversion is outside this
 baseline. No external core, supervisor or production subprocess is present.
 

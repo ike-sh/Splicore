@@ -18,14 +18,6 @@ import (
 
 func MieruIntent(t *testing.T, transport string) ports.RuntimeIntent {
 	t.Helper()
-	id := func() identity.ID {
-		v, e := identity.NewID()
-		if e != nil {
-			t.Fatal(e)
-		}
-		return v
-	}
-	stamp := identity.NewStamp(time.Now())
 	l, e := net.Listen("tcp", "127.0.0.1:0")
 	if e != nil {
 		t.Fatal(e)
@@ -40,8 +32,23 @@ func MieruIntent(t *testing.T, transport string) ports.RuntimeIntent {
 		port = uint16(packet.LocalAddr().(*net.UDPAddr).Port)
 		_ = packet.Close()
 	}
+	return MieruIntentAt(t, transport, access.Endpoint{Host: "127.0.0.1", Port: port})
+}
+
+// MieruIntentAt constructs metadata for an endpoint already owned by the test.
+// It does not allocate, probe, close or reserve a network socket.
+func MieruIntentAt(t *testing.T, transport string, endpoint access.Endpoint) ports.RuntimeIntent {
+	t.Helper()
+	id := func() identity.ID {
+		v, e := identity.NewID()
+		if e != nil {
+			t.Fatal(e)
+		}
+		return v
+	}
+	stamp := identity.NewStamp(time.Now())
 	data, _ := json.Marshal(module.Settings{Transport: transport, MTU: 1500, Multiplex: "default"})
-	in := ports.RuntimeIntent{Inbound: access.Inbound{ID: id(), NodeID: id(), Name: "synthetic-mieru", Protocol: module.Key(), Engine: "native", Enabled: true, Listeners: []access.Listener{{ID: id(), Transport: transport, Endpoint: access.Endpoint{Host: "127.0.0.1", Port: port}}}, DisplayEndpoints: []access.DisplayEndpoint{{ID: id(), Endpoint: access.Endpoint{Host: "localhost", Port: port}}}, Settings: access.Settings{Schema: 1, Data: data}, Stamp: stamp}}
+	in := ports.RuntimeIntent{Inbound: access.Inbound{ID: id(), NodeID: id(), Name: "synthetic-mieru", Protocol: module.Key(), Engine: "native", Enabled: true, Listeners: []access.Listener{{ID: id(), Transport: transport, Endpoint: endpoint}}, DisplayEndpoints: []access.DisplayEndpoint{{ID: id(), Endpoint: access.Endpoint{Host: "localhost", Port: endpoint.Port}}}, Settings: access.Settings{Schema: 1, Data: data}, Stamp: stamp}}
 	for _, name := range []string{"Alice", "Bob"} {
 		account, cred, binding := id(), id(), id()
 		password, e := credential.GeneratePassword()

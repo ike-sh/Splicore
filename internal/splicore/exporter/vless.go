@@ -16,7 +16,7 @@ func (e VLESS) Format() ports.Format { return e.Target }
 func vlessProfile(p clientprofile.Profile) (access.UUIDPayload, module.ClientOptions, error) {
 	credential, ok := p.Credentials.(access.UUIDPayload)
 	o, err := module.DecodeClientOptions(p.Options.Data)
-	if !ok || p.Validate() != nil || module.ValidateUUID(credential.UUID) != nil || err != nil || p.Protocol != module.Key(o.Security) || p.UDPPayload != (o.Flow != module.Vision) || p.Transport.ValidatePair("vless", string(o.Security)) != nil || len(p.TLS.ALPN) != 0 && p.Transport.Type() != "xhttp" {
+	if !ok || p.Validate() != nil || module.ValidateUUID(credential.UUID) != nil || err != nil || p.Protocol != module.Key(o.Security) || p.UDPPayload != (o.Flow != module.Vision) || p.Transport.ValidatePair("vless", string(o.Security)) != nil || len(p.TLS.ALPN) != 0 && p.Transport.Type() != "xhttp" && p.Transport.Type() != "mkcp" {
 		return credential, o, unsupported()
 	}
 	switch o.Security {
@@ -61,7 +61,7 @@ func (e VLESS) Export(_ context.Context, p clientprofile.Profile, t ports.Export
 	name := "splicore-" + string(p.ID)
 	switch e.Target {
 	case ports.Xray:
-		if p.Transport.Type() == "xhttp" {
+		if p.Transport.Type() == "xhttp" || p.Transport.Type() == "mkcp" {
 			if t.ClientVersion != "26.10.10" || o.Flow != module.NoFlow {
 				return nil, unsupported()
 			}
@@ -69,7 +69,7 @@ func (e VLESS) Export(_ context.Context, p clientprofile.Profile, t ports.Export
 			return nil, unsupported()
 		}
 		stream := map[string]any{"network": "raw", "security": "none"}
-		if p.Transport.Type() == "xhttp" {
+		if p.Transport.Type() == "xhttp" || p.Transport.Type() == "mkcp" {
 			stream = xraySecurity(string(o.Security), p.TLS)
 		}
 		node := map[string]any{"tag": name, "protocol": "vless", "settings": map[string]any{"vnext": []any{
