@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/ike-sh/Splicore/internal/splicore/engine/netaddr"
 	"io"
 	"net"
 	"runtime"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -77,14 +79,17 @@ func shadowsocksClient(t *testing.T, in ports.RuntimeIntent, index int) ports.Cl
 	return d
 }
 func shadowsocksUDPFixture(t *testing.T) access.Endpoint {
-	return shadowsocksUDPFixtureAt(t, "127.0.0.1", 0)
+	return shadowsocksUDPFixtureAt(t, "127.0.0.1")
 }
-func shadowsocksUDPFixtureAt(t *testing.T, host string, port uint16) access.Endpoint {
+func shadowsocksUDPFixtureAt(t *testing.T, host string) access.Endpoint {
 	t.Helper()
-	p, e := net.ListenPacket("udp", net.JoinHostPort(host, fmt.Sprint(port)))
+	requested := net.JoinHostPort(host, "0")
+	p, e := net.ListenPacket("udp", requested)
 	if e != nil {
 		t.Fatal(e)
 	}
+	actual := p.LocalAddr().String()
+	t.Logf("udp_fixture test=%s requested=%s actual=%s created=%s", t.Name(), requested, actual, time.Now().UTC().Format(time.RFC3339Nano))
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -97,7 +102,11 @@ func shadowsocksUDPFixtureAt(t *testing.T, host string, port uint16) access.Endp
 			p.WriteTo(b[:n], a)
 		}
 	}()
-	t.Cleanup(func() { p.Close(); <-done })
+	t.Cleanup(func() {
+		p.Close()
+		<-done
+		t.Logf("udp_fixture test=%s actual=%s closed=%s reader_joined=1", t.Name(), actual, time.Now().UTC().Format(time.RFC3339Nano))
+	})
 	return access.Endpoint{Host: host, Port: uint16(p.LocalAddr().(*net.UDPAddr).Port)}
 }
 func shadowsocksTraffic(d ports.ClientDialer, tcp, udp access.Endpoint) error {
@@ -330,29 +339,84 @@ func TestShadowsocksUDPMultipleDestinationsOneAssociation(t *testing.T) {
 			d := shadowsocksClient(t, in, 0)
 			defer d.Close()
 			a, b := shadowsocksUDPFixture(t), shadowsocksUDPFixture(t)
-			shadowsocksUDPFixtureAt(t, "::1", b.Port)
+			ipv6 := shadowsocksUDPFixtureAt(t, "::1")
+			// One real dual-stack socket reserves both families atomically for
+			// localhost, which can resolve to either loopback address. Numeric
+			// IPv4 and IPv6 destinations each own independent ephemeral sockets.
+			domain := shadowsocksUDPFixtureAt(t, "::")
+			domain.Host = "localhost"
 			p, e := d.(ports.ClientPacketDialer).ListenPacket(ctx, a)
 			if e != nil {
 				t.Fatal(e)
 			}
 			defer p.Close()
 			p.SetDeadline(time.Now().Add(5 * time.Second))
-			domain := b
-			domain.Host = "localhost"
-			for _, dst := range []access.Endpoint{a, b, domain, a} {
+			for _, dst := range []access.Endpoint{a, b, ipv6, domain, a} {
 				payload := []byte("same-association " + dst.Host)
 				if _, e = p.WriteTo(payload, netaddr.UDP(access.Endpoint{Host: dst.Host, Port: dst.Port})); e != nil {
 					t.Fatal(e)
 				}
 				buffer := make([]byte, 4096)
-				n, _, e := p.ReadFrom(buffer)
+				n, reply, e := p.ReadFrom(buffer)
 				if e != nil || !bytes.Equal(buffer[:n], payload) {
 					t.Fatal("multiple destination integrity", e)
 				}
+				endpoint, e := netaddr.From(reply)
+				if e != nil || endpoint.Port != dst.Port || dst.Host != "localhost" && endpoint.Host != dst.Host || dst.Host == "localhost" && !net.ParseIP(endpoint.Host).IsLoopback() {
+					t.Fatal("destination address/family", dst, endpoint, e)
+				}
+				t.Logf("udp_destination target=%s reply=%s payload_integrity=PASS", netaddr.UDP(dst), reply)
 			}
-			if h.Stats().UDPSessions != 3 || h.BindingStats(in.Bindings[0].ID).UDPSessions != 3 {
+			if h.Stats().UDPSessions != 4 || h.BindingStats(in.Bindings[0].ID).UDPSessions != 4 {
 				t.Fatal("association/account attribution")
 			}
 		})
+	}
+}
+
+func TestShadowsocksUDPEphemeralFixtureWithOccupiedOtherFamily(t *testing.T) {
+	owner, err := net.ListenPacket("udp6", "[::1]:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer owner.Close()
+	port := owner.LocalAddr().(*net.UDPAddr).Port
+	ipv4, err := net.ListenPacket("udp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ipv4.Close()
+	// Keep independent IPv4 and IPv6 owners live. The new IPv6 fixture must
+	// allocate its own port; it cannot borrow either owner's numeric port.
+	duplicate, err := net.ListenPacket("udp", owner.LocalAddr().String())
+	if duplicate != nil {
+		duplicate.Close()
+	}
+	if !errors.Is(err, syscall.EADDRINUSE) {
+		t.Fatal("known IPv6 owner did not exclude duplicate bind", err)
+	}
+	fresh := shadowsocksUDPFixtureAt(t, "::1")
+	if int(fresh.Port) == port {
+		t.Fatal("fresh IPv6 fixture reused occupied IPv6 port")
+	}
+	t.Logf("udp_known_owner owner=%s ipv4=%s fresh=%s legacy_collision=EADDRINUSE", owner.LocalAddr(), ipv4.LocalAddr(), netaddr.UDP(fresh))
+	dual := shadowsocksUDPFixtureAt(t, "::")
+	for _, dst := range []access.Endpoint{fresh, {Host: "127.0.0.1", Port: dual.Port}, {Host: "::1", Port: dual.Port}} {
+		conn, err := net.Dial("udp", netaddr.UDP(dst).String())
+		if err != nil {
+			t.Fatal(err)
+		}
+		conn.SetDeadline(time.Now().Add(5 * time.Second))
+		payload := []byte("owned-UDP-" + dst.Host)
+		if _, err = conn.Write(payload); err != nil {
+			conn.Close()
+			t.Fatal(err)
+		}
+		got := make([]byte, len(payload))
+		n, err := conn.Read(got)
+		conn.Close()
+		if err != nil || !bytes.Equal(got[:n], payload) {
+			t.Fatal("ephemeral fixture payload/address family", dst, err)
+		}
 	}
 }

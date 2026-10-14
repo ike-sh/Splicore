@@ -7,7 +7,8 @@ and a persistent control plane in a single Core implementation.
 ## Capabilities
 
 Supported protocols include Shadowsocks/SS2022, Snell, Hysteria2, TUIC, VLESS,
-Mieru, Trojan, VMess and AnyTLS, with local SOCKS5, HTTP, Mixed and TUN traffic entry.
+Mieru, Trojan, VMess, AnyTLS and [NaiveProxy](docs/architecture/NAIVE.md), with local
+SOCKS5, HTTP, Mixed and TUN traffic entry.
 Shared stream transports include raw TCP, WebSocket, HTTPUpgrade, gRPC and
 [XHTTP](docs/architecture/XHTTP.md).
 

@@ -44,7 +44,8 @@ projection; exporter strings never become runtime input. ClientTLS is shared
 public material only, with no field for server private keys.
 
 The immutable registry maps exact protocol/engine pairs to current native adapters,
-including SS/SS2022, Snell, HY2, TUIC, VLESS, Mieru, Trojan, VMess, SOCKS5 and HTTP.
+including SS/SS2022, Snell, HY2, TUIC, VLESS, Mieru, Trojan, VMess, AnyTLS,
+NaiveProxy, SOCKS5 and HTTP.
 Protocol-owned options/credentials are reused. Unsupported pairs reject without
 fallback. VLESS flow-none supports plain/TLS/REALITY. Native Vision supports raw
 TLS/REALITY TCP; FinalMask wrappers compose below security. Unsupported imports

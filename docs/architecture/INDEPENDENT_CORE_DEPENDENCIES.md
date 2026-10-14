@@ -43,6 +43,7 @@ to a connection and direction.
 | Snell | protocol/snell/wire + native server/client | Standard crypto and x/crypto |
 | Hysteria2 | protocol/hysteria2/wire + backend | Official AperNet QUIC fork / HTTP3 |
 | TUIC | protocol/tuic/wire + backend | Independent quic-go |
+| NaiveProxy | protocol/naive/backend + managed native server/client | Standard TLS, x/net/http2 and existing quic-go/http3; no Chromium/Cronet |
 | VLESS | protocol/vless/wire + backend | Standard TLS / MetaCubeX uTLS REALITY API |
 | Mieru | protocol/mieru; SDK types confined to backend | Official enfein/mieru SDK; no wire rewrite |
 | TUN | Owned device, NIC, sessions, routes and joined workers | Official gVisor, x/sys, independent netlink/Wintun |

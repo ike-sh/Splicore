@@ -11,7 +11,7 @@ Splicore is an independent proxy core, usable as server and client Core.
 
 ## Core
 
-Protocols: SS, SS2022, Snell, HY2, TUIC, VLESS, Mieru, Trojan, VMess,
+Protocols: SS, SS2022, Snell, HY2, TUIC, VLESS, Mieru, Trojan, VMess, AnyTLS, NaiveProxy,
 SOCKS5, HTTP and Mixed ingress; DIRECT and REJECT routing actions.
 Shared transports: Raw, WebSocket, HTTPUpgrade, gRPC, TLS and the supported
 REALITY integration. Native TUN, routing, DNS, policy, configuration, runtime,
