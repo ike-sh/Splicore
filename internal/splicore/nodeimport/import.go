@@ -323,7 +323,7 @@ func ParseURI(raw string) (Candidate, error) {
 		if sni == "" {
 			sni = u.Hostname()
 		}
-		c.Node = client.RemoteNode{Name: u.Fragment, Protocol: hm.Key(), Endpoint: access.Endpoint{Host: u.Hostname(), Port: uint16(port)}, Transport: client.Transport{Kind: "quic"}, Security: client.Security{Kind: "tls", TLS: access.ClientTLS{Enabled: true, ServerName: sni, Trust: "system", ALPN: []string{"h3"}}}, Options: client.Options{Schema: 1, Data: json.RawMessage(`{}`)}}
+		c.Node = client.RemoteNode{Name: u.Fragment, Protocol: hm.Key(), Endpoint: access.Endpoint{Host: u.Hostname(), Port: uint16(port)}, Transport: client.Transport{Kind: "hysteria"}, Security: client.Security{Kind: "tls", TLS: access.ClientTLS{Enabled: true, ServerName: sni, Trust: "system", ALPN: []string{"h3"}}}, Options: client.Options{Schema: 1, Data: json.RawMessage(`{}`)}}
 		c.Credential = Credential{access.Password, password}
 	default:
 		return c, errUnsupported

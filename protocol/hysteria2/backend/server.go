@@ -1,13 +1,11 @@
-// Package backend owns Hysteria2 connection, stream and datagram lifetimes.
-// Domain and application layers receive only owned endpoints and net interfaces.
+// Package backend owns Hysteria2 proxy streams, UDP sessions and dispatch.
+// The specialized Hysteria transport owns QUIC/TLS/H3 admission and sockets.
 package backend
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/tls"
 	"net"
-	"net/http"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -16,246 +14,191 @@ import (
 	"github.com/apernet/quic-go/http3"
 	"github.com/apernet/quic-go/quicvarint"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
-	"github.com/ike-sh/Splicore/internal/splicore/engine/packetio"
+	cfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
+	ht "github.com/ike-sh/Splicore/internal/splicore/streamtransport/hysteria"
 	"github.com/ike-sh/Splicore/protocol/hysteria2/wire"
 )
 
 type ServerConfig struct {
 	TLS          *tls.Config
+	Transport    cfg.Hysteria
 	Authenticate func(string) (string, bool)
 	TCP          func(context.Context, string, *Stream, access.Endpoint) error
 	UDP          func(context.Context, string, net.PacketConn) error
 }
-type Server struct {
-	config          ServerConfig
-	packet          net.PacketConn
-	transport       *quic.Transport
-	listener        *quic.Listener
-	ctx             context.Context
-	cancel          context.CancelFunc
-	mu              sync.Mutex
-	closed, started bool
-	connections     map[*quic.Conn]bool
-	wg              sync.WaitGroup
-	once            sync.Once
-	done            chan struct{}
-}
+type Server struct{ transport *ht.Server }
 
 func NewServer(ctx context.Context, packet net.PacketConn, c ServerConfig) (*Server, error) {
-	var reset quic.StatelessResetKey
-	if _, err := rand.Read(reset[:]); err != nil {
-		return nil, err
+	if c.TCP == nil || c.UDP == nil {
+		if packet != nil {
+			_ = packet.Close()
+		}
+		return nil, ht.ErrConfig
 	}
-	transport := &quic.Transport{Conn: packet, StatelessResetKey: &reset}
-	tlsConfig := http3.ConfigureTLSConfig(c.TLS.Clone())
-	listener, err := transport.Listen(tlsConfig, quicConfig())
-	if err != nil {
-		_ = transport.Close()
-		return nil, err
+	// Legacy zero transport settings migrate to version 2 on this single path.
+	if c.Transport == (cfg.Hysteria{}) {
+		c.Transport.Version = 2
 	}
-	ctx, cancel := context.WithCancel(ctx)
-	return &Server{config: c, packet: packet, transport: transport, listener: listener, ctx: ctx, cancel: cancel, connections: map[*quic.Conn]bool{}, done: make(chan struct{})}, nil
+	s, e := ht.NewServer(ctx, packet, ht.ServerConfig{TLS: c.TLS, Settings: c.Transport, Authenticate: c.Authenticate, Application: func(conn *ht.Connection) ht.Hooks {
+		p := &peer{config: c, connection: conn, packets: map[uint32]*session{}}
+		return ht.Hooks{Dispatch: p.dispatch, Admitted: func() {
+			if conn.UDP {
+				conn.Go(p.receive)
+			}
+		}}
+	}})
+	if e != nil {
+		return nil, e
+	}
+	return &Server{transport: s}, nil
 }
-func quicConfig() *quic.Config {
-	return &quic.Config{EnableDatagrams: true, MaxDatagramFrameSize: 1200, AssumePeerMaxDatagramFrameSize: 1200, DisablePathManager: true, InitialStreamReceiveWindow: 8 << 20, MaxStreamReceiveWindow: 8 << 20, InitialConnectionReceiveWindow: 20 << 20, MaxConnectionReceiveWindow: 20 << 20, MaxIdleTimeout: 30 * time.Second, MaxIncomingStreams: 256}
-}
+func (s *Server) Start()                           { s.transport.Start() }
+func (s *Server) Addr() net.Addr                   { return s.transport.Addr() }
+func (s *Server) Close(ctx context.Context) error  { return s.transport.Close(ctx) }
+func (s *Server) Congestion() []ht.CongestionState { return s.transport.Congestion() }
 
-// Start orders the accept worker's Add before any Close can Wait.
-func (s *Server) Start() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed || s.started {
-		return
-	}
-	s.started = true
-	s.wg.Add(1)
-	go s.accept()
+type session struct {
+	packet *Packet
+	last   time.Time
 }
-func (s *Server) accept() {
-	defer s.wg.Done()
-	for {
-		c, err := s.listener.Accept(s.ctx)
-		if err != nil {
-			return
-		}
-		s.mu.Lock()
-		if s.closed || len(s.connections) >= 256 {
-			s.mu.Unlock()
-			_ = c.CloseWithError(0x107, "")
-			continue
-		}
-		s.connections[c] = true
-		s.wg.Add(1)
-		s.mu.Unlock()
-		go s.serve(c)
-	}
-}
-func (s *Server) Close(ctx context.Context) error {
-	s.once.Do(func() {
-		s.mu.Lock()
-		s.closed = true
-		all := make([]*quic.Conn, 0, len(s.connections))
-		for c := range s.connections {
-			all = append(all, c)
-		}
-		s.mu.Unlock()
-		s.cancel()
-		_ = s.listener.Close()
-		for _, c := range all {
-			_ = c.CloseWithError(0x100, "")
-		}
-		_ = s.transport.Close()
-		_ = s.packet.Close()
-		go func() { s.wg.Wait(); close(s.done) }()
-	})
-	select {
-	case <-s.done:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-}
-func (s *Server) serve(c *quic.Conn) {
-	defer s.wg.Done()
-	defer func() { s.mu.Lock(); delete(s.connections, c); s.mu.Unlock() }()
-	ctx, cancel := context.WithCancel(c.Context())
-	stop := context.AfterFunc(s.ctx, cancel)
-	defer stop()
-	p := &peer{server: s, connection: c, ctx: ctx, cancel: cancel, packets: map[uint32]*Packet{}}
-	p.writer = packetio.NewWriter(ctx, c.SendDatagram)
-	h3 := &http3.Server{Handler: p, StreamDispatcher: p.dispatch}
-	_ = h3.ServeQUICConn(c)
-	p.mu.Lock()
-	p.closed = true
-	p.mu.Unlock()
-	cancel()
-	_ = c.CloseWithError(0x100, "")
-	_ = h3.Close()
-	p.writer.Wait()
-	p.wg.Wait()
-}
-
-type authenticated struct{ id string }
 type peer struct {
-	server     *Server
-	connection *quic.Conn
-	ctx        context.Context
-	cancel     context.CancelFunc
-	authMu     sync.Mutex
-	auth       atomic.Pointer[authenticated]
+	config     ServerConfig
+	connection *ht.Connection
 	mu         sync.Mutex
-	closed     bool
-	wg         sync.WaitGroup
-	packets    map[uint32]*Packet
-	writer     *packetio.Writer
+	packets    map[uint32]*session
+	partial    atomic.Int64
 }
 
-func (p *peer) begin() bool {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if p.closed || p.ctx.Err() != nil {
-		return false
-	}
-	p.wg.Add(1)
-	return true
-}
-func (p *peer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost || r.Host != "hysteria" || r.URL.Path != "/auth" {
-		http.NotFound(w, r)
-		return
-	}
-	padding, err := wire.Padding(256, 2048)
-	if err != nil {
-		http.Error(w, "Authentication unavailable", http.StatusServiceUnavailable)
-		return
-	}
-	p.authMu.Lock()
-	defer p.authMu.Unlock()
-	user := p.auth.Load()
-	if user == nil {
-		id, ok := p.server.config.Authenticate(r.Header.Get("Hysteria-Auth"))
-		if !ok || !p.begin() {
-			http.NotFound(w, r)
-			return
-		}
-		user = &authenticated{id: id}
-		p.auth.Store(user)
-		go p.receive(user.id)
-	}
-	w.Header().Set("Hysteria-UDP", "true")
-	w.Header().Set("Hysteria-CC-RX", "auto")
-	w.Header().Set("Hysteria-Padding", padding)
-	w.WriteHeader(233)
-}
-func (p *peer) dispatch(ft http3.FrameType, stream *quic.Stream, err error) (bool, error) {
-	user := p.auth.Load()
-	if err != nil || user == nil || ft != wire.TCPRequest {
+func (p *peer) dispatch(ft http3.FrameType, stream *quic.Stream, e error) (bool, error) {
+	if e != nil || ft != wire.TCPRequest {
 		return false, nil
 	}
-	if !p.begin() {
-		stream.CancelRead(0)
-		stream.CancelWrite(0)
-		return true, nil
-	}
-	go func() {
-		defer p.wg.Done()
-		c := &Stream{Stream: stream, connection: p.connection}
+	if !p.connection.Go(func() {
+		c := &Stream{Stream: stream, connection: p.connection.QUIC}
 		defer func() { _ = c.CloseWrite(); _ = c.Close() }()
 		_ = stream.SetReadDeadline(time.Now().Add(5 * time.Second))
-		if _, err := quicvarint.Read(quicvarint.NewReader(stream)); err != nil {
+		frame, e := quicvarint.Read(quicvarint.NewReader(stream))
+		if e != nil || frame != wire.TCPRequest {
 			return
 		}
-		dst, err := wire.ReadRequest(stream)
-		if err != nil {
+		dst, e := wire.ReadRequest(stream)
+		if e != nil {
 			return
 		}
 		_ = stream.SetReadDeadline(time.Time{})
-		if err := p.server.config.TCP(p.ctx, user.id, c, dst); err != nil {
+		if e = p.config.TCP(p.connection.Context(), p.connection.Identity(), c, dst); e != nil {
 			_ = c.Reply(false)
 		}
-	}()
+	}) {
+		stream.CancelRead(0)
+		stream.CancelWrite(0)
+	}
 	return true, nil
 }
-func (p *peer) receive(id string) {
-	defer p.wg.Done()
+func (p *peer) expire(now time.Time) []uint32 {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	var expired []uint32
+	for id, s := range p.packets {
+		if s.packet.ctx.Err() != nil || !now.Before(s.last.Add(time.Duration(p.config.Transport.IdleSeconds())*time.Second)) {
+			_ = s.packet.Close()
+			delete(p.packets, id)
+			expired = append(expired, id)
+		}
+	}
+	return expired
+}
+func (p *peer) receive() {
+	ctx := p.connection.Context()
+	incoming := make(chan []byte, 16)
+	if !p.connection.Go(func() {
+		for {
+			b, e := p.connection.ReceiveDatagram(ctx)
+			if e != nil {
+				return
+			}
+			select {
+			case incoming <- b:
+			case <-ctx.Done():
+				return
+			default:
+			}
+		}
+	}) {
+		return
+	}
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
 	var fragments wire.Assembly
-	for {
-		b, err := p.connection.ReceiveDatagram(p.ctx)
-		if err != nil {
-			return
-		}
-		d, err := wire.DecodeDatagram(b)
-		if err != nil {
-			continue
-		}
-		d, complete := fragments.Add(d)
-		if !complete {
-			continue
-		}
+	defer func() {
 		p.mu.Lock()
-		packet := p.packets[d.Session]
-		if packet != nil && packet.ctx.Err() != nil {
-			delete(p.packets, d.Session)
-			packet = nil
-		}
-		if packet == nil && !p.closed && p.ctx.Err() == nil && len(p.packets) < 128 {
-			packet = newPacket(p.ctx, p.connection.LocalAddr(), d.Session, p.writer.Send)
-			p.packets[d.Session] = packet
-			p.wg.Add(1)
-			go func(packet *Packet) {
-				defer p.wg.Done()
-				defer packet.Close()
-				_ = p.server.config.UDP(packet.ctx, id, packet)
-				p.mu.Lock()
-				if p.packets[packet.session] == packet {
-					delete(p.packets, packet.session)
-				}
-				p.mu.Unlock()
-			}(packet)
+		for id, s := range p.packets {
+			_ = s.packet.Close()
+			delete(p.packets, id)
 		}
 		p.mu.Unlock()
-		if packet != nil {
-			packet.deliver(d)
+		fragments.Clear()
+		p.partial.Store(0)
+	}()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case now := <-ticker.C:
+			for _, id := range p.expire(now) {
+				fragments.ForgetSession(id)
+			}
+			fragments.Sweep(now)
+			p.partial.Store(int64(fragments.Pending()))
+		case b := <-incoming:
+			d, e := wire.DecodeDatagram(b)
+			if e != nil {
+				continue
+			}
+			d, complete := fragments.Add(d)
+			p.partial.Store(int64(fragments.Pending()))
+			if !complete {
+				continue
+			}
+			p.mu.Lock()
+			s := p.packets[d.Session]
+			if s != nil && s.packet.ctx.Err() != nil {
+				delete(p.packets, d.Session)
+				s = nil
+				fragments.ForgetSession(d.Session)
+			}
+			if s == nil && ctx.Err() == nil && len(p.packets) < 128 {
+				packet := newCarrierPacket(p.connection, d.Session)
+				s = &session{packet: packet, last: time.Now()}
+				p.packets[d.Session] = s
+				packet.touch = func() {
+					p.mu.Lock()
+					if current := p.packets[packet.session]; current != nil && current.packet == packet {
+						current.last = time.Now()
+					}
+					p.mu.Unlock()
+				}
+				if !p.connection.Go(func() {
+					defer packet.Close()
+					_ = p.config.UDP(packet.ctx, p.connection.Identity(), packet)
+					p.mu.Lock()
+					if current := p.packets[packet.session]; current != nil && current.packet == packet {
+						delete(p.packets, packet.session)
+					}
+					p.mu.Unlock()
+				}) {
+					delete(p.packets, d.Session)
+					_ = packet.Close()
+					s = nil
+				}
+			}
+			if s != nil {
+				s.last = time.Now()
+			}
+			p.mu.Unlock()
+			if s != nil {
+				s.packet.deliver(d)
+			}
 		}
 	}
 }

@@ -49,7 +49,7 @@ func TestHysteria2CapabilitiesProjectionOwnership(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if p.Endpoint.Host != "public.synthetic.test" || p.Endpoint.Port != 7443 || p.TLS.ServerName != "hy2.synthetic.test" || p.Transport.Kind != "quic" || !p.UDPPayload || p.TLS.Trust != "explicit_ca" {
+	if p.Endpoint.Host != "public.synthetic.test" || p.Endpoint.Port != 7443 || p.TLS.ServerName != "hy2.synthetic.test" || p.Transport.Kind != "hysteria" || !p.UDPPayload || p.TLS.Trust != "explicit_ca" {
 		t.Fatal("endpoint/SNI/transport conflated")
 	}
 	encoded, _ := json.Marshal(p)

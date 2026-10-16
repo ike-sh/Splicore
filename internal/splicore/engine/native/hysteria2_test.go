@@ -27,12 +27,7 @@ func nativeIntent(t *testing.T) ports.RuntimeIntent {
 		return v
 	}
 	data, _ := json.Marshal(hm.Settings{TLS: testkit.TLS(t)})
-	p, e := net.ListenPacket("udp", "127.0.0.1:0")
-	if e != nil {
-		t.Fatal(e)
-	}
-	port := uint16(p.LocalAddr().(*net.UDPAddr).Port)
-	p.Close()
+	port := uint16(1) // validation-only metadata; runtime binds its owned :0
 	return ports.RuntimeIntent{Inbound: access.Inbound{ID: id(), NodeID: id(), Name: "synthetic", Protocol: hm.Key(), Engine: "native", Enabled: true, Listeners: []access.Listener{{ID: id(), Transport: "udp", Endpoint: access.Endpoint{Host: "127.0.0.1", Port: port}}}, DisplayEndpoints: []access.DisplayEndpoint{{ID: id(), Endpoint: access.Endpoint{Host: "public.synthetic.test", Port: port}}}, Settings: access.Settings{Schema: 1, Data: data}, Stamp: identity.NewStamp(time.Now())}}
 }
 func TestHysteria2LifecycleMalformedQUICAndPortReuse(t *testing.T) {
@@ -52,18 +47,31 @@ func TestHysteria2LifecycleMalformedQUICAndPortReuse(t *testing.T) {
 					t.Fatal(e)
 				}
 				h := prepared.(ports.RuntimeHandle)
+				switch v := h.(type) {
+				case *hysteria2Handle:
+					v.endpoint.Port = 0
+				case *tuicHandle:
+					v.endpoint.Port = 0
+				}
 				if h.Health(context.Background()) == nil {
 					t.Fatal("unstarted health")
 				}
 				if e = h.Start(context.Background()); e != nil {
 					t.Fatal(e)
 				}
+				var address net.Addr
+				switch v := h.(type) {
+				case *hysteria2Handle:
+					address = v.server.Addr()
+				case *tuicHandle:
+					address = v.server.Addr()
+				}
 				if e = h.Health(context.Background()); e != nil {
 					t.Fatal(e)
 				}
 				// No users: malformed/unauthenticated datagrams cannot create routed sessions.
 				h.Activate()
-				c, e := net.Dial("udp", net.JoinHostPort("127.0.0.1", portString(in.Inbound.Listeners[0].Endpoint.Port)))
+				c, e := net.Dial("udp", address.String())
 				if e != nil {
 					t.Fatal(e)
 				}
@@ -80,7 +88,7 @@ func TestHysteria2LifecycleMalformedQUICAndPortReuse(t *testing.T) {
 				if h.Health(context.Background()) == nil || h.Stats().Sessions != 0 {
 					t.Fatal("closed runtime health/stats")
 				}
-				p, e := net.ListenPacket("udp", net.JoinHostPort("127.0.0.1", portString(in.Inbound.Listeners[0].Endpoint.Port)))
+				p, e := net.ListenPacket("udp", address.String())
 				if e != nil {
 					t.Fatal("socket leak", e)
 				}

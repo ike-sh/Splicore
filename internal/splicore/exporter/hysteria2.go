@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/ike-sh/Splicore/internal/splicore/clientprofile"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	cfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	module "github.com/ike-sh/Splicore/internal/splicore/protocol/hysteria2"
 )
@@ -13,9 +14,12 @@ type Hysteria2 struct{ Target ports.Format }
 
 func (e Hysteria2) Format() ports.Format { return e.Target }
 func (e Hysteria2) Export(_ context.Context, p clientprofile.Profile, t ports.ExportTarget) ([]byte, error) {
+	if p.Transport.HysteriaSettings() != (cfg.Hysteria{Version: 2}) {
+		return nil, unsupported()
+	}
 	key, ok := p.Credentials.(access.PasswordPayload)
 	var options map[string]json.RawMessage
-	if p.Validate() != nil || p.Protocol != module.Key() || !ok || module.ValidatePassword(key.Password) != nil || !p.UDPPayload || p.Transport.Kind != "quic" || p.Transport.Path != "" || p.Transport.Host != "" || !p.TLS.Enabled || p.TLS.Trust != "explicit_ca" || p.TLS.ServerName == "" || len(p.TLS.ALPN) != 1 || p.TLS.ALPN[0] != "h3" || p.TLS.RealityPublicKey != "" || p.TLS.RealityShortID != "" || json.Unmarshal(p.Options.Data, &options) != nil || options == nil || len(options) != 0 || t.Format != e.Target {
+	if p.Validate() != nil || p.Protocol != module.Key() || !ok || module.ValidatePassword(key.Password) != nil || !p.UDPPayload || (p.Transport.Kind != "quic" && p.Transport.Kind != "hysteria") || p.Transport.Path != "" || p.Transport.Host != "" || !p.TLS.Enabled || p.TLS.Trust != "explicit_ca" || p.TLS.ServerName == "" || len(p.TLS.ALPN) != 1 || p.TLS.ALPN[0] != "h3" || p.TLS.RealityPublicKey != "" || p.TLS.RealityShortID != "" || json.Unmarshal(p.Options.Data, &options) != nil || options == nil || len(options) != 0 || t.Format != e.Target {
 		return nil, unsupported()
 	}
 	if _, err := module.CAPool(p.TLS.CACertificate); err != nil {

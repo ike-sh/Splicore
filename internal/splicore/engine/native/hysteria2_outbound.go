@@ -27,7 +27,7 @@ func (Hysteria2OutboundFactory) Validate(n client.RemoteNode, c access.Credentia
 		return err
 	}
 	var empty struct{}
-	if n.Protocol != module.Key() || n.Transport.Kind != "quic" || n.Security.Kind != "tls" || jsonstrict.Decode(n.Options.Data, &empty) != nil {
+	if n.Protocol != module.Key() || n.Transport.Kind != "quic" && n.Transport.Kind != "hysteria" || n.Security.Kind != "tls" || jsonstrict.Decode(n.Options.Data, &empty) != nil || n.Transport.HysteriaSettings().Masquerade != nil || n.Transport.HysteriaSettings().DisableUDP {
 		return identity.Err(identity.Invalid, "unsupported Hysteria2 client settings")
 	}
 	return (module.Module{}).ValidateCredential(c)
@@ -45,12 +45,16 @@ func (f Hysteria2OutboundFactory) Build(ctx context.Context, n client.RemoteNode
 	if err != nil {
 		return nil, err
 	}
-	config := backend.ClientConfig{TLS: tlsConfig, Password: c.Payload.(access.PasswordPayload).Password.Reveal(), Socket: socket}
-	return &hysteria2Dialer{config: config, owner: clientio.New()}, nil
+	config := backend.ClientConfig{TLS: tlsConfig, Password: c.Payload.(access.PasswordPayload).Password.Reveal(), Socket: socket, Transport: n.Transport.HysteriaSettings()}
+	client, err := backend.NewClient(ctx, config)
+	if err != nil {
+		return nil, err
+	}
+	return &hysteria2Dialer{client: client, owner: clientio.New()}, nil
 }
 
 type hysteria2Dialer struct {
-	config backend.ClientConfig
+	client *backend.Client
 	owner  *clientio.Owner
 }
 
@@ -60,7 +64,7 @@ func (d *hysteria2Dialer) DialContext(ctx context.Context, dst access.Endpoint) 
 		return nil, err
 	}
 	defer done()
-	c, err := backend.OpenTCP(ctx, d.config, dst)
+	c, err := d.client.OpenTCP(ctx, dst)
 	if err != nil {
 		return nil, err
 	}
@@ -72,10 +76,10 @@ func (d *hysteria2Dialer) ListenPacket(ctx context.Context, dst access.Endpoint)
 		return nil, err
 	}
 	defer done()
-	p, err := backend.OpenPacket(ctx, d.config, dst)
+	p, err := d.client.OpenPacket(ctx, dst)
 	if err != nil {
 		return nil, err
 	}
 	return d.owner.Packet(p)
 }
-func (d *hysteria2Dialer) Close() error { d.owner.Close(); return nil }
+func (d *hysteria2Dialer) Close() error { d.owner.Close(); d.client.Close(); return nil }

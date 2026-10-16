@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -22,7 +23,7 @@ import (
 
 func ownedHysteria2(t *testing.T) (context.Context, ports.RuntimeIntent, ports.RuntimeHandle, []ports.ClientDialer) {
 	t.Helper()
-	in := testfixture.MieruIntent(t, "udp")
+	in := testfixture.MieruIntentAt(t, "udp", access.Endpoint{Host: "127.0.0.1", Port: 1})
 	settings := hm.Settings{TLS: testkit.TLS(t)}
 	in.Inbound.Protocol = hm.Key()
 	in.Inbound.Settings.Data, _ = json.Marshal(settings)
@@ -37,6 +38,7 @@ func ownedHysteria2(t *testing.T) (context.Context, ports.RuntimeIntent, ports.R
 		t.Fatal(err)
 	}
 	h := p.(ports.RuntimeHandle)
+	h.(*hysteria2Handle).endpoint.Port = 0
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -48,6 +50,7 @@ func ownedHysteria2(t *testing.T) (context.Context, ports.RuntimeIntent, ports.R
 		t.Fatal(err)
 	}
 	h.Activate()
+	in.Inbound.Listeners[0].Endpoint = netaddrEndpoint(h.(*hysteria2Handle).server.Addr())
 	var dialers []ports.ClientDialer
 	for _, cred := range in.Credentials {
 		nid, _ := identity.NewID()
@@ -63,6 +66,137 @@ func ownedHysteria2(t *testing.T) (context.Context, ports.RuntimeIntent, ports.R
 		t.Cleanup(func() { _ = d.Close() })
 	}
 	return ctx, in, h, dialers
+}
+
+func TestOwnedHysteria2ParallelAuthAttributionAndDomainTargets(t *testing.T) {
+	ctx, in, h, ds := ownedHysteria2(t)
+	l := testfixture.TCP(t)
+	dst := access.Endpoint{Host: "localhost", Port: uint16(l.Addr().(*net.TCPAddr).Port)}
+	u, e := net.ListenPacket("udp4", "127.0.0.1:0")
+	if e != nil {
+		t.Fatal(e)
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		b := make([]byte, 4096)
+		for {
+			n, a, e := u.ReadFrom(b)
+			if e != nil {
+				return
+			}
+			u.WriteTo(b[:n], a)
+		}
+	}()
+	defer func() { u.Close(); <-done }()
+	udst := access.Endpoint{Host: "localhost", Port: uint16(u.LocalAddr().(*net.UDPAddr).Port)}
+	ready := make(chan struct{}, len(ds)*10)
+	start := make(chan struct{})
+	udpFinished := make(chan struct{}, len(ds)*2)
+	udpDone := make(chan struct{})
+	var wg sync.WaitGroup
+	for user, d := range ds {
+		for flow := range 8 {
+			wg.Go(func() {
+				c, e := d.DialContext(ctx, dst)
+				if e != nil {
+					t.Error(e)
+					ready <- struct{}{}
+					return
+				}
+				defer c.Close()
+				c.SetDeadline(time.Now().Add(15 * time.Second))
+				ready <- struct{}{}
+				<-start
+				want := bytes.Repeat([]byte{byte(user), byte(flow), 0, 73}, 32768)
+				written := make(chan error, 1)
+				go func() {
+					_, e := c.Write(want)
+					if e == nil {
+						e = c.(interface{ CloseWrite() error }).CloseWrite()
+					}
+					written <- e
+				}()
+				got, e := io.ReadAll(c)
+				if e != nil || !bytes.Equal(got, want) {
+					t.Error("parallel user payload", user, flow, e)
+				}
+				if e = <-written; e != nil {
+					t.Error(e)
+				}
+				<-udpDone
+			})
+		}
+		for flow := range 2 {
+			wg.Go(func() {
+				defer func() { udpFinished <- struct{}{} }()
+				p, e := d.(ports.ClientPacketDialer).ListenPacket(ctx, udst)
+				if e != nil {
+					t.Error(e)
+					ready <- struct{}{}
+					return
+				}
+				defer p.Close()
+				p.SetDeadline(time.Now().Add(15 * time.Second))
+				ready <- struct{}{}
+				<-start
+				want := bytes.Repeat([]byte{byte(user), byte(flow), 71, 0}, 1024)
+				if _, e = p.WriteTo(want, nil); e != nil {
+					t.Error(e)
+					return
+				}
+				b := make([]byte, 4096)
+				n, _, e := p.ReadFrom(b)
+				if e != nil || !bytes.Equal(b[:n], want) {
+					t.Error("parallel user UDP", user, flow, e)
+				}
+			})
+		}
+	}
+	for range len(ds) * 10 {
+		select {
+		case <-ready:
+		case <-time.After(10 * time.Second):
+			t.Fatal("parallel admission stalled")
+		}
+	}
+	states := h.(*hysteria2Handle).server.Congestion()
+	if len(states) != len(ds) {
+		t.Fatal("cross-sharing or duplicate pool", states)
+	}
+	ids := map[string]bool{}
+	for _, s := range states {
+		ids[s.Identity] = true
+	}
+	for _, b := range in.Bindings {
+		if !ids[string(b.ID)] {
+			t.Fatal("credential bleed", states)
+		}
+	}
+	go func() {
+		for range len(ds) * 2 {
+			<-udpFinished
+		}
+		close(udpDone)
+	}()
+	close(start)
+	wg.Wait()
+	for _, d := range ds {
+		d.Close()
+	}
+	if e = h.Close(ctx); e != nil {
+		t.Fatal(e)
+	}
+	for _, b := range in.Bindings {
+		s := h.(ports.AttributedStats).BindingStats(b.ID)
+		want := int64(8*131072 + 2*4096)
+		if s.Upload != want || s.Download != want {
+			t.Fatal("exact parallel attribution", s, want)
+		}
+	}
+	if h.Stats().Active != 0 {
+		t.Fatal("parallel resource baseline")
+	}
 }
 func TestOwnedHysteria2HalfCloseAndIndependentCancellation(t *testing.T) {
 	ctx, in, h, dialers := ownedHysteria2(t)

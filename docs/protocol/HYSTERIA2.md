@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Protocol, runtime, client and integration developers
-- Last reviewed: 2026-10-06 (Phase 17 Review Fix Round 1)
+- Last reviewed: 2026-10-15 (Phase 28 Fix1 development)
 - Owner: Protocol maintainers
 - Responsibility: The current bounded managed Hysteria2 contract and its limitations.
 - Lifecycle: Update with managed HY2 options, credentials, capabilities or qualification changes.
@@ -14,12 +14,15 @@ Hysteria2 is experimental. Splicore owns the application
 [connection/stream/datagram backend](../../protocol/hysteria2/backend/server.go).
 QUIC and HTTP/3 use the independent pinned `github.com/apernet/quic-go`
 `v0.63.1-0.20261004180939-a10df75c260c`; TLS uses Go's TLS implementation.
-Splicore does not implement cryptographic primitives or congestion control.
+Splicore does not implement cryptographic primitives. Native congestion models
+use the existing independent QUIC library's controller interface.
 The [native inbound](../../internal/splicore/engine/native/hysteria2.go) owns
 the admitted UDP socket, immutable credential map, routing and counters.
-Each [outbound flow](../../protocol/hysteria2/backend/client.go) owns its socket,
-QUIC transport and HTTP/3 transport; its Close joins receiving work and releases
-those resources. The server tracks parent connections, child associations and
+Each outbound instance owns an instance-scoped
+[Hysteria transport](../architecture/HYSTERIA_TRANSPORT.md) manager. Compatible
+streams and UDP sessions reuse its authenticated connection; closing a child
+preserves siblings. Owner Close joins receiving work and releases its socket,
+QUIC and HTTP/3 resources. The server tracks parent connections, child associations and
 workers, cancels them on shutdown, and joins them before completing Close.
 
 [ADR 0014](../adr/0014-hysteria2-runtime-composition.md) and the
@@ -28,8 +31,9 @@ historical composition and evidence. The
 [Phase 17 report](../reports/PHASE17_SINGBOX_DECOUPLING_REPORT.md) records the
 current independent implementation and development validation.
 The native password map selects an authenticated user; no username is transmitted.
-Obfuscation, masquerade, bandwidth, advanced QUIC and realm options remain outside
-the managed schema and reject as unknown fields.
+The specialized transport owns QUIC tuning and HTTP/3 masquerade. Obfuscation
+and realm options remain unsupported. Explicit native transport settings support
+BBR, Brutal and force-brutal, with the limits documented in the transport contract.
 
 ## Capabilities
 
@@ -45,9 +49,10 @@ the managed schema and reject as unknown fields.
 | HotUserUpdate | false; stop/reconstruct the affected Inbound |
 | HotReload / listener mutation | Unavailable |
 | Quota / speed / max-session enforcement | Unsupported |
-| obfs / masquerade / hopping / realm | Unsupported |
+| obfs / hopping / realm | Unsupported |
+| Masquerade | Default 404, string, rooted file, HTTP/HTTPS proxy |
 | URI import | Bounded hy2/hysteria2 import; SNI and verified TLS only |
-| Congestion-control selector | Unavailable; backend default Reno mode |
+| Congestion-control selector | Native specialized transport: Reno default, BBR, Brutal, force-brutal |
 | Qualification | Experimental; never Stable |
 
 The shared Native Engine resolves protocol compilers from a map. Format exporters
@@ -85,14 +90,15 @@ Traffic policies require explicit `policy_mode: "metadata_only"`. Per-user
 quota/upload/download values persist in domain TrafficPolicy records referenced
 by Binding overrides. Views and plans say `policy_enforced: false`. Native
 HY2 bandwidth headers do not implement Account speed enforcement. This profile
-uses the pinned QUIC backend's default sender in Reno mode; no BBR sender is selected.
-The client advertises `Hysteria-CC-RX: 0`; the server responds `auto` and does not
-use client bandwidth hints to select a different congestion controller.
+retains Reno by default. Explicit specialized transport settings select native
+BBR or negotiated/forced Brutal; CC-RX wire rates are bytes per second. These
+transport rates are independent of Account policy metadata.
 Policy values never enter native options or exports. Payload may exceed
 the stored quota/rate values; that is not enforcement qualification.
 
-Managed inbound settings contain TLS only. Native outbound options must be an
-empty object. Neither API nor CLI exposes a HY2 `cubic` or `bbr` selector.
+Managed inbound settings contain TLS and optional specialized `stream_transport` settings. Existing TLS-only settings retain default transport behavior. Native outbound options must be an
+empty object. Controller selection belongs to `transport.hysteria.quic`, or
+inbound `settings.stream_transport.hysteria.quic`; `cubic` remains unsupported.
 HY2 URI CC parameters and external sing-box `congestion_control` / Mihomo
 `congestion-controller` fields reject as unsupported, including `cubic` and
 `bbr`. Import reports `unsupported_client_capability`; fields are not silently
@@ -100,15 +106,20 @@ discarded. This existing rejection contract is covered by regression tests.
 The pinned backend calls `congestion.NewCubicSender` with `reno=true` both at
 construction and path reset. Despite the type name, its congestion avoidance
 and loss response therefore use the Reno branches; this is not evidence of
-active CUBIC. Splicore does not replace this sender. TUIC's separate fixed
-`cubic` option does not configure HY2. No accepted HY2
-configuration is changed by this documentation correction.
+active CUBIC. Splicore retains this sender for the default Reno mode and replaces
+it for explicit supported custom modes. TUIC's separate fixed `cubic` option
+does not configure HY2. Legacy profiles retain their default behavior.
 
 HTTP authentication and TCP request/response padding uses `crypto/rand.Reader`.
 Length ranges remain [256, 2048), [64, 512), and [128, 1024), respectively;
 content remains the 62-character alphanumeric alphabet. Length sampling and
 content rejection sampling avoid modulo bias. Random-source errors propagate
 or reject authentication; there is no noncryptographic fallback.
+For HTTP authentication, each accepted 16-bit length sample maps uniformly to
+one of 1792 lengths (256 through 2047), and bytes 248 through 255 are rejected
+before selecting one of the 62 ASCII characters. Rejection budgets bound a
+pathological entropy source; exhausting a budget rejects authentication without
+emitting partial padding.
 
 ## Transaction and recovery
 

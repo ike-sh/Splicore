@@ -11,6 +11,7 @@ import (
 
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	cfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/engine/relay"
 	"github.com/ike-sh/Splicore/internal/splicore/engine/traffic"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
@@ -47,6 +48,7 @@ func (c Hysteria2Compiler) Compile(ctx context.Context, in ports.RuntimeIntent) 
 	}
 	ctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	h := &hysteria2Handle{ctx: ctx, cancel: cancel, endpoint: in.Inbound.Listeners[0].Endpoint, protected: dialer, total: &traffic.Counter{}, users: map[string]*traffic.Counter{}, passwords: map[[32]byte]string{}, tls: &tls.Config{Certificates: []tls.Certificate{pair}, MinVersion: tls.VersionTLS13, NextProtos: []string{"h3"}}}
+	h.transport = settings.Transport().HysteriaSettings()
 	for i, b := range in.Bindings {
 		id := string(b.ID)
 		h.users[id] = &traffic.Counter{}
@@ -63,6 +65,7 @@ type hysteria2Handle struct {
 	endpoint          access.Endpoint
 	protected         *underlay.Dialer
 	tls               *tls.Config
+	transport         cfg.Hysteria
 	server            *backend.Server
 	started, closed   bool
 	running, admitted atomic.Bool
@@ -87,7 +90,7 @@ func (h *hysteria2Handle) Start(ctx context.Context) error {
 		}
 		return identity.Err(identity.Unavailable, "Hysteria2 listener start failed")
 	}
-	h.server, err = backend.NewServer(h.ctx, &admissionPacket{PacketConn: packet, h: h}, backend.ServerConfig{TLS: h.tls, Authenticate: h.authenticate, TCP: h.tcp, UDP: h.udp})
+	h.server, err = backend.NewServer(h.ctx, &admissionPacket{PacketConn: packet, h: h}, backend.ServerConfig{TLS: h.tls, Transport: h.transport, Authenticate: h.authenticate, TCP: h.tcp, UDP: h.udp})
 	if err != nil {
 		_ = packet.Close()
 		return identity.Err(identity.Unavailable, "Hysteria2 construction failed")
@@ -170,5 +173,5 @@ func (h *hysteria2Handle) udp(ctx context.Context, id string, p net.PacketConn) 
 	defer counted.Close()
 	return relay.Packets(ctx, counted, func(ctx context.Context, dst access.Endpoint) (net.Conn, error) {
 		return h.protected.DialContext(ctx, "udp", net.JoinHostPort(dst.Host, portString(dst.Port)))
-	}, 5*time.Second)
+	}, time.Duration(h.transport.IdleSeconds())*time.Second)
 }

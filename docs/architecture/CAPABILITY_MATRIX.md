@@ -47,7 +47,9 @@ global SDK metrics never enter attributed accounting.
 | VLESS / VMess / Trojan + mKCP | Supported with no flow / modern AEAD / verified TLS respectively |
 | Legacy mKCP header/seed | Rejected; not native modern settings |
 | FinalMask mkcp-legacy | Not implemented / deferred; not qualified |
-| Generic KCP / Hysteria transport | Not implemented or claimed |
+| Hysteria transport | Experimental specialized native QUIC/TLS/H3 carrier for Hysteria2; [configuration and limits](HYSTERIA_TRANSPORT.md) |
+| Hysteria BBR / Brutal / force-brutal | Native controller integration implemented; experimental, see transport limits and qualification evidence |
+| Generic KCP / Generic QUIC transport | Not implemented or claimed |
 | Xray engine/server/client/child/artifact | Absent |
 | External runtime required | No |
 | XHTTP | Native shared inbound/outbound for VLESS, VMess, Trojan; [configuration](XHTTP.md) |

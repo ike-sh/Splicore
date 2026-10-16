@@ -382,7 +382,7 @@ func externalCandidate(format string, n externalNode) (Candidate, error) {
 			return c, unsupported()
 		}
 		c.Node.Protocol = hm.Key()
-		c.Node.Transport.Kind = "quic"
+		c.Node.Transport.Kind = "hysteria"
 		if len(tls.ALPN) == 0 {
 			tls.ALPN = []string{"h3"}
 		}

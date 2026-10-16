@@ -43,6 +43,9 @@ func tlsConfig(c *tls.Config, kind string) *tls.Config {
 	return c
 }
 func Dial(ctx context.Context, dial DialFunc, address string, c cfg.Config, tc *tls.Config) (net.Conn, error) {
+	if c.Type() == "hysteria" {
+		return nil, errors.New("Hysteria requires its specialized authenticated stream/datagram transport")
+	}
 	if dial == nil {
 		return nil, errors.New("shared transport requires an approved dialer")
 	}

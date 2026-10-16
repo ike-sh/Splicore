@@ -21,6 +21,7 @@ import (
 const MaxHeaders = 16 << 10
 
 type Config struct {
+	Hysteria    *Hysteria         `json:"hysteria,omitempty"`
 	MKCP        *MKCP             `json:"mkcp,omitempty"`
 	XHTTP       *XHTTP            `json:"xhttp,omitempty"`
 	FinalMask   *maskcfg.Config   `json:"final_mask,omitempty"`
@@ -39,7 +40,7 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 	if len(b) > 16384 || jsonstrict.Decode(b, &fields) != nil || fields == nil {
 		return bad()
 	}
-	allowed := map[string]bool{"kind": true, "path": true, "host": true, "headers": true, "service_name": true, "final_mask": true, "xhttp": true, "mkcp": true}
+	allowed := map[string]bool{"kind": true, "path": true, "host": true, "headers": true, "service_name": true, "final_mask": true, "xhttp": true, "mkcp": true, "hysteria": true}
 	for k, v := range fields {
 		if !allowed[k] || bytes.Equal(bytes.TrimSpace(v), []byte("null")) {
 			return bad()
@@ -63,7 +64,7 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 	// preserve its typed unsupported_transport issue. Compile validation still
 	// rejects it; it can never silently select raw TCP.
 	switch c.Kind {
-	case "tcp", "udp", "quic", "ws", "httpupgrade", "grpc", "xhttp", "mkcp":
+	case "tcp", "udp", "quic", "ws", "httpupgrade", "grpc", "xhttp", "mkcp", "hysteria":
 		return c.Validate()
 	default:
 		if len(c.Kind) > 64 {
@@ -73,6 +74,10 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 	}
 }
 func (c Config) Clone() Config {
+	if c.Hysteria != nil {
+		h := c.Hysteria.Clone()
+		c.Hysteria = &h
+	}
 	if c.MKCP != nil {
 		m := *c.MKCP
 		c.MKCP = &m
@@ -122,6 +127,12 @@ func ValidateMember(b []byte) error {
 	return nil
 }
 func (c Config) ValidateALPN(alpn []string) error {
+	if c.Type() == "hysteria" {
+		if len(alpn) == 0 || len(alpn) == 1 && alpn[0] == "h3" {
+			return nil
+		}
+		return bad()
+	}
 	if c.Type() == "xhttp" {
 		if len(alpn) == 0 {
 			return nil
@@ -187,6 +198,9 @@ func bad() error {
 	return identity.Err(identity.Invalid, "invalid or unsupported shared transport settings")
 }
 func (c Config) Validate() error {
+	if c.Hysteria != nil && c.Type() != "hysteria" {
+		return bad()
+	}
 	if c.MKCP != nil && c.Type() != "mkcp" {
 		return bad()
 	}
@@ -197,6 +211,11 @@ func (c Config) Validate() error {
 		return bad()
 	}
 	switch c.Type() {
+	case "hysteria":
+		if c.Path != "" || c.Host != "" || len(c.Headers) > 0 || c.ServiceName != "" {
+			return bad()
+		}
+		return c.HysteriaSettings().Validate()
 	case "mkcp":
 		if c.Path != "" || c.Host != "" || len(c.Headers) > 0 || c.ServiceName != "" || c.MKCPSettings().Validate() != nil {
 			return bad()
@@ -268,6 +287,12 @@ func (c Config) ValidatePair(protocol, security string) error {
 		return e
 	}
 	if c.FinalMask != nil && protocol != "vless" {
+		return bad()
+	}
+	if c.Type() == "hysteria" {
+		if protocol == "hysteria2" && security == "tls" {
+			return nil
+		}
 		return bad()
 	}
 	if c.Type() == "tcp" {

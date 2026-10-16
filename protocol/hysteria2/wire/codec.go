@@ -101,7 +101,8 @@ func skipPadding(r io.Reader) error {
 	return err
 }
 
-// ReadRequest starts after the HTTP/3 dispatcher has consumed frame type 0x401.
+// ReadRequest starts after the protocol dispatcher consumes frame type 0x401;
+// the HTTP/3 library has only peeked at that type.
 func ReadRequest(r io.Reader) (access.Endpoint, error) {
 	b, err := field(r, 2048, false)
 	if err != nil {
@@ -211,15 +212,23 @@ func EncodeDatagram(d Datagram) ([]byte, error) {
 // Fragments bounds wire messages before SendDatagram. Payload bytes remain
 // caller-owned until all synchronous sends return; encoded frames are fresh.
 func Fragments(session uint32, packet uint16, dst access.Endpoint, payload []byte) ([][]byte, error) {
+	return FragmentsAt(session, packet, dst, payload, 1197)
+}
+
+// FragmentsAt accounts for the exact peer/path datagram payload capacity.
+func FragmentsAt(session uint32, packet uint16, dst access.Endpoint, payload []byte, maxSize int) ([][]byte, error) {
 	if len(payload) == 0 || len(payload) > MaxUDP {
 		return nil, ErrFrame
 	}
 	// 1197 is the payload allowance in a 1200-byte QUIC DATAGRAM frame.
-	size := 1197 - 8 - int(quicvarint.Len(uint64(len(Address(dst))))) - len(Address(dst))
+	size := maxSize - 8 - int(quicvarint.Len(uint64(len(Address(dst))))) - len(Address(dst))
 	if size <= 0 {
 		return nil, ErrFrame
 	}
 	count := (len(payload) + size - 1) / size
+	if count > 255 {
+		return nil, ErrFrame
+	}
 	var frames [][]byte
 	for i := 0; i < count; i++ {
 		b, err := EncodeDatagram(Datagram{session, packet, byte(i), byte(count), dst, payload[i*size : min((i+1)*size, len(payload))]})
@@ -234,7 +243,30 @@ func Fragments(session uint32, packet uint16, dst access.Endpoint, payload []byt
 // Assembly belongs to one ReceiveDatagram goroutine. It never shares scratch
 // bytes with packet workers, retains at most 128 incomplete datagrams, and
 // bounds each reassembled payload by the established 4096-byte capability.
-type Assembly struct{ pending map[uint64]*parts }
+type Assembly struct {
+	pending map[uint64]*parts
+	Now     func() time.Time
+}
+
+func (a *Assembly) Clear() { clear(a.pending) }
+
+// Pending reports owned incomplete packets. The assembly remains single-owner.
+func (a *Assembly) Pending() int { return len(a.pending) }
+func (a *Assembly) ForgetSession(id uint32) {
+	for key := range a.pending {
+		if uint32(key>>16) == id {
+			delete(a.pending, key)
+		}
+	}
+}
+func (a *Assembly) Sweep(now time.Time) {
+	for key, p := range a.pending {
+		if !now.Before(p.expires) {
+			delete(a.pending, key)
+		}
+	}
+}
+
 type parts struct {
 	dst            access.Endpoint
 	count          byte
@@ -244,6 +276,11 @@ type parts struct {
 }
 
 func (a *Assembly) Add(d Datagram) (Datagram, bool) {
+	now := time.Now()
+	if a.Now != nil {
+		now = a.Now()
+	}
+	a.Sweep(now)
 	if d.Count == 0 || d.Index >= d.Count || len(d.Payload) == 0 || len(d.Payload) > MaxUDP || d.Destination.Validate() != nil {
 		return Datagram{}, false
 	}
@@ -256,15 +293,15 @@ func (a *Assembly) Add(d Datagram) (Datagram, bool) {
 	}
 	key := uint64(d.Session)<<16 | uint64(d.Packet)
 	p := a.pending[key]
-	if p != nil && time.Now().After(p.expires) {
+	if p != nil && !now.Before(p.expires) {
 		delete(a.pending, key)
 		p = nil
 	}
 	if p == nil {
 		if len(a.pending) >= 128 {
-			clear(a.pending)
+			return Datagram{}, false
 		}
-		p = &parts{dst: d.Destination, count: d.Count, payloads: make([][]byte, int(d.Count)), expires: time.Now().Add(5 * time.Second)}
+		p = &parts{dst: d.Destination, count: d.Count, payloads: make([][]byte, int(d.Count)), expires: now.Add(5 * time.Second)}
 		a.pending[key] = p
 	}
 	if p.dst != d.Destination || p.count != d.Count {

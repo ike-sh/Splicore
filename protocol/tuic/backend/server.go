@@ -73,6 +73,9 @@ func (s *Server) Start() {
 	s.wg.Add(1)
 	go s.accept()
 }
+
+// Addr reports the retained UDP listener, including an atomic ephemeral bind.
+func (s *Server) Addr() net.Addr { return s.packet.LocalAddr() }
 func (s *Server) accept() {
 	defer s.wg.Done()
 	for {

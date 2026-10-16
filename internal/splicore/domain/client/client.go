@@ -73,6 +73,9 @@ func (n RemoteNode) Validate() error {
 	if n.Transport.Kind == "" || n.Transport.ValidateClient() != nil || n.Transport.ValidateALPN(n.Security.TLS.ALPN) != nil || n.Security.TLS.Validate(n.Security.Kind) != nil || n.Options.Schema != 1 || len(n.Options.Data) > 16384 || !json.Valid(n.Options.Data) {
 		return invalid()
 	}
+	if n.Transport.Kind == "hysteria" && n.Transport.ValidatePair(n.Protocol.Protocol, n.Security.Kind) != nil {
+		return invalid()
+	}
 	var object map[string]json.RawMessage
 	if json.Unmarshal(n.Options.Data, &object) != nil || object == nil {
 		return invalid()

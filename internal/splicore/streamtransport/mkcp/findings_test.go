@@ -72,6 +72,14 @@ func TestDialNormalEOFRetainsAcceptedTail(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer c.Abort(net.ErrClosed)
+			// This peer fixture sends each segment once, without the production
+			// sender's ACK/retransmission loop. Reserve a finite receive queue for
+			// its 133-packet large-tail burst, including kernel skb overhead.
+			// The payload/concurrency/EOF and exact ACK assertions stay identical.
+			if e := c.owned.(*net.UDPConn).SetReadBuffer(1 << 20); e != nil {
+				t.Fatal(e)
+			}
+			t.Log("fixture private UDP receive buffer requested=1048576; owned socket retained")
 			want := payload(spec.size, 47)
 			const segmentSize = 1000
 			segments := (len(want) + segmentSize - 1) / segmentSize
