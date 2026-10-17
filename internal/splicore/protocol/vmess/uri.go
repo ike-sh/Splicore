@@ -117,7 +117,7 @@ func ParseURI(raw string) (URI, error) {
 		transport.ServiceName = w.Path
 		transport.Path = ""
 	}
-	if transport.Validate() != nil || w.Type != "" && w.Type != "none" && !(transport.Kind == "grpc" && w.Type == "gun") || w.FP != "" {
+	if transport.Type() == "xhttp" || transport.Type() == "mkcp" || transport.Validate() != nil || w.Type != "" && w.Type != "none" && !(transport.Kind == "grpc" && w.Type == "gun") || w.FP != "" {
 		return v, Unsupported("unsupported_transport")
 	}
 	port, e := scalar(w.Port, true)
@@ -186,7 +186,7 @@ func EncodeURI(v URI) (string, error) {
 		return "", err
 	}
 	w := map[string]any{"v": "2", "ps": v.Name, "add": v.Endpoint.Host, "port": strconv.Itoa(int(v.Endpoint.Port)), "id": v.UUID.Reveal(), "aid": "0", "scy": v.Security, "net": "tcp", "type": "none", "host": "", "path": "", "tls": ""}
-	if v.Transport.Validate() != nil || len(v.Transport.Headers) > 0 {
+	if v.Transport.Type() == "xhttp" || v.Transport.Type() == "mkcp" || v.Transport.Validate() != nil || len(v.Transport.Headers) > 0 {
 		return "", Unsupported("unsupported_transport")
 	}
 	w["net"] = v.Transport.Type()

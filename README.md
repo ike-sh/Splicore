@@ -7,11 +7,11 @@ and a persistent control plane in a single Core implementation.
 ## Capabilities
 
 Supported protocols include Shadowsocks/SS2022, Snell, Hysteria2, TUIC, VLESS,
-Mieru, Trojan, VMess and AnyTLS, with local SOCKS5, HTTP, Mixed and TUN traffic entry.
-Shared stream transports include raw TCP, WebSocket, HTTPUpgrade and gRPC.
-VLESS supports Vision over raw TLS 1.3 or REALITY and optional TCP FinalMask
-header-custom, fragment and Sudoku masks. AnyTLS provides mandatory TLS, TCP,
-UDP-over-TCP v2, session reuse, multiplexing and padding.
+Mieru, Trojan, VMess, AnyTLS and [NaiveProxy](docs/architecture/NAIVE.md), with local
+SOCKS5, HTTP, Mixed and TUN traffic entry.
+Shared stream transports include raw TCP, WebSocket, HTTPUpgrade, gRPC,
+[XHTTP](docs/architecture/XHTTP.md) and [modern mKCP](docs/architecture/MKCP.md).
+Hysteria2 uses the native [specialized Hysteria transport](docs/architecture/HYSTERIA_TRANSPORT.md).
 
 See the [capability matrix](docs/architecture/CAPABILITY_MATRIX.md) and
 [Core scope](docs/architecture/CORE_SCOPE.md) for capability details and boundaries.
@@ -27,10 +27,6 @@ go build -trimpath -tags with_quic,with_utls,with_gvisor ./cmd/splicore
 ## Documentation
 
 - [Installation and bootstrap configuration](docs/INSTALLATION.md)
-- [Configuration and state](docs/CONFIGURATION.md)
-- [VLESS and Vision](docs/protocol/VLESS.md)
-- [TCP FinalMask and Sudoku](docs/architecture/FINALMASK.md)
-- [AnyTLS](docs/architecture/ANYTLS.md)
 - [CLI](docs/CLI.md)
 - [Operations](docs/OPERATIONS.md)
 - [Local API](docs/api/README.md)

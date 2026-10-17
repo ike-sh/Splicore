@@ -43,10 +43,15 @@ func (f VMessOutboundFactory) Build(ctx context.Context, n client.RemoteNode, c 
 	}
 	opts, _ := module.DecodeClientOptions(n.Options.Data)
 	security, _ := module.Security(opts.Security)
-	return &vmessDialer{protected: d, node: n, key: module.CommandKey(c.Payload.(access.UUIDPayload)), security: security, udp: opts.UDP, tls: tc, owner: clientio.New()}, nil
+	transport, err := sharedClient(d.DialContext, n, tc)
+	if err != nil {
+		return nil, err
+	}
+	return &vmessDialer{transport: transport, protected: d, node: n, key: module.CommandKey(c.Payload.(access.UUIDPayload)), security: security, udp: opts.UDP, tls: tc, owner: clientio.New()}, nil
 }
 
 type vmessDialer struct {
+	transport *shared.Client
 	protected *underlay.Dialer
 	node      client.RemoteNode
 	key       wire.Key
@@ -71,7 +76,12 @@ func (d *vmessDialer) open(ctx context.Context, dst access.Endpoint, packet bool
 	if err != nil {
 		return nil, err
 	}
-	c, err := shared.Dial(ctx, d.protected.DialContext, net.JoinHostPort(d.node.Endpoint.Host, portString(d.node.Endpoint.Port)), d.node.Transport, d.tls)
+	var c net.Conn
+	if d.transport != nil {
+		c, err = d.transport.DialContext(ctx)
+	} else {
+		c, err = shared.Dial(ctx, d.protected.DialContext, net.JoinHostPort(d.node.Endpoint.Host, portString(d.node.Endpoint.Port)), d.node.Transport, d.tls)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -89,15 +99,20 @@ func (d *vmessDialer) open(ctx context.Context, dst access.Endpoint, packet bool
 			<-interrupted
 		}
 	}()
-	deadline := time.Now().Add(5 * time.Second)
-	if t, ok := ctx.Deadline(); ok && t.Before(deadline) {
-		deadline = t
-	}
-	_ = raw.SetDeadline(deadline)
+	admission, finish := shared.BeginAdmission(raw, 5*time.Second)
+	c = admission
+	defer func() {
+		if !success {
+			admission.Close()
+		}
+	}()
 
 	// Published sockets are owned by clientio, independently of the dial context.
 	stream, err := backend.Client(context.WithoutCancel(ctx), c, d.key, r, time.Now())
 	if err != nil {
+		return nil, err
+	}
+	if err = finish(); err != nil {
 		return nil, err
 	}
 	_ = stream.SetDeadline(time.Time{})
@@ -131,4 +146,10 @@ func (d *vmessDialer) ListenPacket(ctx context.Context, dst access.Endpoint) (ne
 	}
 	return d.owner.Packet(backend.NewPacket(context.Background(), c, dst))
 }
-func (d *vmessDialer) Close() error { d.owner.Close(); return nil }
+func (d *vmessDialer) Close() error {
+	d.owner.Close()
+	if d.transport != nil {
+		d.transport.Close()
+	}
+	return nil
+}

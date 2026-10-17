@@ -4,6 +4,7 @@ package streamtransport
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"net/http"
@@ -20,6 +21,9 @@ import (
 const MaxHeaders = 16 << 10
 
 type Config struct {
+	Hysteria    *Hysteria         `json:"hysteria,omitempty"`
+	MKCP        *MKCP             `json:"mkcp,omitempty"`
+	XHTTP       *XHTTP            `json:"xhttp,omitempty"`
 	FinalMask   *maskcfg.Config   `json:"final_mask,omitempty"`
 	Kind        string            `json:"kind"`
 	Path        string            `json:"path,omitempty"`
@@ -36,7 +40,7 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 	if len(b) > 16384 || jsonstrict.Decode(b, &fields) != nil || fields == nil {
 		return bad()
 	}
-	allowed := map[string]bool{"kind": true, "path": true, "host": true, "headers": true, "service_name": true, "final_mask": true}
+	allowed := map[string]bool{"kind": true, "path": true, "host": true, "headers": true, "service_name": true, "final_mask": true, "xhttp": true, "mkcp": true, "hysteria": true}
 	for k, v := range fields {
 		if !allowed[k] || bytes.Equal(bytes.TrimSpace(v), []byte("null")) {
 			return bad()
@@ -46,7 +50,13 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 		return bad()
 	}
 	var p plain
-	if jsonstrict.Decode(b, &p) != nil || p.Kind == "" {
+	if err := jsonstrict.Decode(b, &p); err != nil {
+		if errors.Is(err, ErrLegacyMKCP) {
+			return err
+		}
+		return bad()
+	}
+	if p.Kind == "" {
 		return bad()
 	}
 	*c = Config(p)
@@ -54,7 +64,7 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 	// preserve its typed unsupported_transport issue. Compile validation still
 	// rejects it; it can never silently select raw TCP.
 	switch c.Kind {
-	case "tcp", "udp", "quic", "ws", "httpupgrade", "grpc":
+	case "tcp", "udp", "quic", "ws", "httpupgrade", "grpc", "xhttp", "mkcp", "hysteria":
 		return c.Validate()
 	default:
 		if len(c.Kind) > 64 {
@@ -64,6 +74,18 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 	}
 }
 func (c Config) Clone() Config {
+	if c.Hysteria != nil {
+		h := c.Hysteria.Clone()
+		c.Hysteria = &h
+	}
+	if c.MKCP != nil {
+		m := *c.MKCP
+		c.MKCP = &m
+	}
+	if c.XHTTP != nil {
+		x := c.XHTTP.Clone()
+		c.XHTTP = &x
+	}
 	c.Headers = maps.Clone(c.Headers)
 	if c.FinalMask != nil {
 		m := c.FinalMask.Clone()
@@ -76,18 +98,53 @@ func (c Config) Clone() Config {
 // raw TCP when the caller supplied an explicit server transport member.
 func ValidateMember(b []byte) error {
 	var fields map[string]json.RawMessage
-	if jsonstrict.Decode(b, &fields) != nil {
+	if len(b) > 16384 || jsonstrict.Decode(b, &fields) != nil {
 		return bad()
 	}
 	for k, v := range fields {
 		if strings.EqualFold(k, "stream_transport") && (k != "stream_transport" || bytes.Equal(bytes.TrimSpace(v), []byte("null"))) {
 			return bad()
 		}
+		if k == "stream_transport" {
+			var transport map[string]json.RawMessage
+			if json.Unmarshal(v, &transport) == nil {
+				var kind string
+				_ = json.Unmarshal(transport["kind"], &kind)
+				if kind == "mkcp" {
+					var tuning map[string]json.RawMessage
+					if json.Unmarshal(transport["mkcp"], &tuning) == nil {
+						if _, ok := tuning["header"]; ok {
+							return ErrLegacyMKCP
+						}
+						if _, ok := tuning["seed"]; ok {
+							return ErrLegacyMKCP
+						}
+					}
+				}
+			}
+		}
 	}
 	return nil
 }
 func (c Config) ValidateALPN(alpn []string) error {
-	if c.Type() == "tcp" || c.Type() == "udp" || c.Type() == "quic" || len(alpn) == 0 {
+	if c.Type() == "hysteria" {
+		if len(alpn) == 0 || len(alpn) == 1 && alpn[0] == "h3" {
+			return nil
+		}
+		return bad()
+	}
+	if c.Type() == "xhttp" {
+		if len(alpn) == 0 {
+			return nil
+		}
+		for _, a := range alpn {
+			if a != "h2" && a != "http/1.1" {
+				return bad()
+			}
+		}
+		return nil
+	}
+	if c.Type() == "tcp" || c.Type() == "mkcp" || c.Type() == "udp" || c.Type() == "quic" || len(alpn) == 0 {
 		return nil
 	}
 	want := "http/1.1"
@@ -100,6 +157,18 @@ func (c Config) ValidateALPN(alpn []string) error {
 	return nil
 }
 func (c Config) ValidateServer() error {
+	if c.Type() == "xhttp" {
+		if c.Validate() != nil {
+			return bad()
+		}
+		if c.XHTTP != nil && (c.XHTTP.Download != nil || c.XHTTP.XMUX != nil || c.XHTTP.NoGRPC || c.XHTTP.Interval != (Range{}) || c.XHTTP.SessionTable != "" || c.XHTTP.SessionLength != (Range{}) || c.XHTTP.Chunk != (Range{})) {
+			return bad()
+		}
+		if x := c.XHTTP; x != nil && (x.Mode == "packet-up" && x.KeepAlive != (Range{}) || (x.Mode == "stream-up" || x.Mode == "stream-one") && (x.PacketBytes != (Range{}) || x.Buffered != 0) || x.Mode == "stream-one" && x.KeepAlive != (Range{})) {
+			return bad()
+		}
+		return nil
+	}
 	if c.Validate() != nil || len(c.Headers) != 0 {
 		return bad()
 	}
@@ -129,10 +198,31 @@ func bad() error {
 	return identity.Err(identity.Invalid, "invalid or unsupported shared transport settings")
 }
 func (c Config) Validate() error {
+	if c.Hysteria != nil && c.Type() != "hysteria" {
+		return bad()
+	}
+	if c.MKCP != nil && c.Type() != "mkcp" {
+		return bad()
+	}
+	if c.XHTTP != nil && c.Type() != "xhttp" {
+		return bad()
+	}
 	if c.FinalMask != nil && (c.Type() != "tcp" || c.FinalMask.Validate() != nil) {
 		return bad()
 	}
 	switch c.Type() {
+	case "hysteria":
+		if c.Path != "" || c.Host != "" || len(c.Headers) > 0 || c.ServiceName != "" {
+			return bad()
+		}
+		return c.HysteriaSettings().Validate()
+	case "mkcp":
+		if c.Path != "" || c.Host != "" || len(c.Headers) > 0 || c.ServiceName != "" || c.MKCPSettings().Validate() != nil {
+			return bad()
+		}
+		return nil
+	case "xhttp":
+		return c.validateXHTTP()
 	case "tcp", "udp", "quic":
 		if c.Path != "" || c.Host != "" || len(c.Headers) > 0 || c.ServiceName != "" {
 			return bad()
@@ -199,14 +289,23 @@ func (c Config) ValidatePair(protocol, security string) error {
 	if c.FinalMask != nil && protocol != "vless" {
 		return bad()
 	}
+	if c.Type() == "hysteria" {
+		if protocol == "hysteria2" && security == "tls" {
+			return nil
+		}
+		return bad()
+	}
 	if c.Type() == "tcp" {
 		return nil
 	}
-	if c.Type() != "ws" && c.Type() != "httpupgrade" && c.Type() != "grpc" {
+	if c.Type() != "ws" && c.Type() != "httpupgrade" && c.Type() != "grpc" && c.Type() != "xhttp" && c.Type() != "mkcp" {
 		return bad()
 	}
 	if protocol != "vmess" && protocol != "vless" && protocol != "trojan" {
 		return bad()
+	}
+	if c.Type() == "xhttp" && security == "reality" && protocol == "vless" {
+		return nil
 	}
 	if security != "none" && security != "tls" || protocol == "trojan" && security != "tls" {
 		return bad()

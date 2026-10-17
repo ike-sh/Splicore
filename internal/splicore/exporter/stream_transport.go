@@ -20,6 +20,33 @@ func streamProjection(p clientprofile.Profile, format ports.Format, n map[string
 	if c.Type() == "tcp" {
 		return nil
 	}
+	if c.Type() == "mkcp" {
+		if format != ports.Xray {
+			return unsupported()
+		}
+		s, ok := n["streamSettings"].(map[string]any)
+		if !ok {
+			return unsupported()
+		}
+		s["network"], s["kcpSettings"] = "kcp", c.MKCPSettings()
+		return nil
+	}
+	if c.Type() == "xhttp" {
+		if format != ports.Xray {
+			return unsupported()
+		}
+		s, ok := n["streamSettings"].(map[string]any)
+		if !ok {
+			return unsupported()
+		}
+		opts, e := xhttpProjection(c)
+		if e != nil {
+			return e
+		}
+		s["network"] = "xhttp"
+		s["xhttpSettings"] = opts
+		return nil
+	}
 	headers := map[string]string{}
 	for k, v := range c.Headers {
 		headers[k] = v

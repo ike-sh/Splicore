@@ -18,7 +18,11 @@
 - [AnyTLS: TLS, v2/v1, multiplexing, padding and UoT2](architecture/ANYTLS.md)
 - [AnyTLS server configuration](configuration/inbound/anytls.md)
 - [AnyTLS client configuration](configuration/outbound/anytls.md)
-- [Shared raw, WebSocket, HTTPUpgrade and gRPC transports](architecture/SHARED_TRANSPORT.md)
+- [Shared stream transports](architecture/SHARED_TRANSPORT.md)
+- [XHTTP H1/H2 transport](architecture/XHTTP.md) / [中文](architecture/XHTTP.zh.md)
+- [Modern mKCP transport](architecture/MKCP.md)
+- [Native NaiveProxy H2/H3 CONNECT](architecture/NAIVE.md)
+- [Specialized Hysteria transport for Hysteria2](architecture/HYSTERIA_TRANSPORT.md)
 
 ## Integrators
 

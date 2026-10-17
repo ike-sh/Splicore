@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	cfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
+	"github.com/ike-sh/Splicore/internal/splicore/streamtransport/xhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -50,6 +51,15 @@ func WrapListener(base net.Listener, c cfg.Config, tc *tls.Config) (net.Listener
 	}
 	if c.Type() == "tcp" {
 		return base, nil
+	}
+	if c.Type() == "mkcp" {
+		if tc != nil {
+			return tls.NewListener(base, tlsConfig(tc, "mkcp")), nil
+		}
+		return base, nil
+	}
+	if c.Type() == "xhttp" {
+		return xhttp.NewListener(base, c, tc, nil)
 	}
 	if c.Type() != "ws" && c.Type() != "httpupgrade" && c.Type() != "grpc" {
 		return nil, errors.New("unsupported stream listener")

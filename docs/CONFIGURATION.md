@@ -41,4 +41,7 @@ and apply them with revision guards. Client nodes use separate protocol,
 transport, security, endpoint and credential fields. See [VLESS/Vision](protocol/VLESS.md),
 [FinalMask](architecture/FINALMASK.md), [AnyTLS server](configuration/inbound/anytls.md)
 and [AnyTLS client](configuration/outbound/anytls.md) for accepted settings.
-Protocol settings belong in typed resources, not in the bootstrap YAML.
+See also [NaiveProxy](architecture/NAIVE.md), [mKCP](architecture/MKCP.md),
+[XHTTP](architecture/XHTTP.md) and [Hysteria transport](architecture/HYSTERIA_TRANSPORT.md)
+for their supported settings. Protocol settings belong in typed resources,
+not in the bootstrap YAML.

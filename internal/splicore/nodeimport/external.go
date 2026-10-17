@@ -141,6 +141,13 @@ type externalNode struct {
 		ShortID   string `json:"short-id"`
 	} `json:"reality-opts"`
 	Fingerprint string `json:"client-fingerprint"`
+	Reuse       *bool  `json:"reuse"`
+	ObfsMode    string `json:"obfs_mode"`
+	ObfsHost    string `json:"obfs_host"`
+	ObfsM       *struct {
+		Mode string `json:"mode"`
+		Host string `json:"host"`
+	} `json:"obfs-opts"`
 }
 
 func parseExternal(format string, body []byte) (Result, error) {
@@ -206,6 +213,20 @@ func parseExternal(format string, body []byte) (Result, error) {
 			out.Issues = append(out.Issues, Issue{i + 1, "Unsupported", "unknown_client_field"})
 			continue
 		}
+		if n.Type == "snell" {
+			var fields map[string]json.RawMessage
+			_ = json.Unmarshal(b, &fields)
+			bad := false
+			for _, raw := range fields {
+				if bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+					bad = true
+				}
+			}
+			if bad {
+				out.Issues = append(out.Issues, Issue{i + 1, "Unsupported", "ambiguous_snell_option"})
+				continue
+			}
+		}
 		if n.Type == "trojan" {
 			var fields map[string]json.RawMessage
 			_ = json.Unmarshal(b, &fields)
@@ -232,7 +253,10 @@ func parseExternal(format string, body []byte) (Result, error) {
 }
 func externalCandidate(format string, n externalNode) (Candidate, error) {
 	var c Candidate
-	if n.UDP != nil && !*n.UDP && n.Type != "ss" && n.Type != "shadowsocks" && n.Type != "trojan" {
+	if n.Type != "snell" && (n.Reuse != nil || n.ObfsMode != "" || n.ObfsHost != "" || n.ObfsM != nil) {
+		return c, unsupported()
+	}
+	if n.UDP != nil && !*n.UDP && n.Type != "ss" && n.Type != "shadowsocks" && n.Type != "trojan" && n.Type != "snell" {
 		return c, unsupported()
 	}
 	if n.Type != "snell" && n.Type != "tuic" && n.Version != 0 {
@@ -314,14 +338,51 @@ func externalCandidate(format string, n externalNode) (Candidate, error) {
 			return c, unsupported()
 		}
 		c.Node.Protocol = sm.Key(n.Version)
-		options = map[string]int{"version": n.Version}
+		if n.Version != 4 {
+			if n.Reuse != nil || n.ObfsMode != "" || n.ObfsHost != "" || n.ObfsM != nil || n.Network != "" || n.UDP != nil && !*n.UDP {
+				return c, unsupported()
+			}
+			options = map[string]int{"version": n.Version}
+		} else {
+			s := sm.ClientOptions{Version: 4, UDP: n.UDP}
+			if n.Reuse != nil {
+				s.Reuse = *n.Reuse
+			}
+			if format == "sing-box" {
+				if n.ObfsM != nil || n.UDP != nil || n.Network != "" && n.Network != "tcp" {
+					return c, unsupported()
+				}
+				if n.Network == "tcp" {
+					disabled := false
+					s.UDP = &disabled
+				}
+				s.ObfsMode = n.ObfsMode
+				s.ObfsHost = n.ObfsHost
+			} else {
+				if n.ObfsMode != "" || n.ObfsHost != "" || n.Network != "" {
+					return c, unsupported()
+				}
+				if n.ObfsM != nil {
+					if n.ObfsM.Mode != "http" && n.ObfsM.Mode != "none" {
+						return c, unsupported()
+					}
+					s.ObfsMode = n.ObfsM.Mode
+					s.ObfsHost = n.ObfsM.Host
+				}
+			}
+			raw, _ := json.Marshal(s)
+			if _, e := sm.DecodeClient(raw); e != nil {
+				return c, unsupported()
+			}
+			options = s
+		}
 		c.Credential = Credential{access.PSK, n.PSK}
 	case "hysteria2":
 		if n.PSK != "" || n.UUID != "" || n.Username != "" || n.Version != 0 {
 			return c, unsupported()
 		}
 		c.Node.Protocol = hm.Key()
-		c.Node.Transport.Kind = "quic"
+		c.Node.Transport.Kind = "hysteria"
 		if len(tls.ALPN) == 0 {
 			tls.ALPN = []string{"h3"}
 		}
@@ -406,7 +467,7 @@ func externalCandidate(format string, n externalNode) (Candidate, error) {
 		return c, unsupported()
 	}
 	// Protocol-specific options on another protocol must never be discarded.
-	if n.Type != "ss" && n.Type != "shadowsocks" && (n.Method != "" || n.Cipher != "" || n.Network != "" && n.Type != "trojan") {
+	if n.Type != "ss" && n.Type != "shadowsocks" && (n.Method != "" || n.Cipher != "" || n.Network != "" && n.Type != "trojan" && n.Type != "snell") {
 		return c, unsupported()
 	}
 	if n.Type != "tuic" && (n.Congestion != "" || n.CongestionM != "" || n.Relay != "" || n.RelayM != "" || n.Heartbeat != "" || n.HeartbeatM != 0) || n.Type != "mieru" && (n.Transport != "" || n.MTU != 0 || n.Multiplexing != "") || n.Type != "vless" && (n.Flow != "" || n.PacketEncoding != "" || n.RealityM != nil || n.Fingerprint != "" || n.TLS != nil && (n.TLS.Reality != nil || n.TLS.UTLS != nil)) {

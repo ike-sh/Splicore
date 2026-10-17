@@ -89,10 +89,10 @@ func (h *trojanHandle) Start(ctx context.Context) error {
 	if h.started {
 		return nil
 	}
-	l, err := (&net.ListenConfig{}).Listen(ctx, "tcp", net.JoinHostPort(h.endpoint.Host, portString(h.endpoint.Port)))
+	l, err := shared.ListenCarrier(ctx, net.JoinHostPort(h.endpoint.Host, portString(h.endpoint.Port)), h.transport)
 	if err != nil {
 		if addressInUse(err) {
-			return identity.Err(identity.PortConflict, "TCP listener port is already in use")
+			return identity.Err(identity.PortConflict, h.transport.Carrier()+" listener port is already in use")
 		}
 		return identity.Err(identity.Unavailable, "Trojan listener start failed")
 	}
@@ -192,10 +192,11 @@ func (h *trojanHandle) serve(raw net.Conn) {
 	defer h.wg.Done()
 	defer raw.Close()
 	defer func() { h.mu.Lock(); delete(h.connections, raw); h.mu.Unlock() }()
-	_ = raw.SetDeadline(time.Now().Add(5 * time.Second))
-	var c net.Conn = raw
+	admission, finish := shared.BeginAdmission(raw, 5*time.Second)
+	defer admission.Close()
+	var c net.Conn = admission
 	if h.transport.Type() == "tcp" {
-		t := tls.Server(raw, h.tls)
+		t := tls.Server(admission, h.tls)
 		if t.HandshakeContext(h.ctx) != nil {
 			return
 		}
@@ -209,6 +210,9 @@ func (h *trojanHandle) serve(raw net.Conn) {
 	id, valid := wire.Match(r.Key, h.keys)
 	clear(r.Key[:])
 	if !valid || !h.admitted.Load() {
+		return
+	}
+	if finish() != nil {
 		return
 	}
 	_ = c.SetDeadline(time.Time{})

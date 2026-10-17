@@ -16,7 +16,7 @@ func (e VLESS) Format() ports.Format { return e.Target }
 func vlessProfile(p clientprofile.Profile) (access.UUIDPayload, module.ClientOptions, error) {
 	credential, ok := p.Credentials.(access.UUIDPayload)
 	o, err := module.DecodeClientOptions(p.Options.Data)
-	if !ok || p.Validate() != nil || module.ValidateUUID(credential.UUID) != nil || err != nil || p.Protocol != module.Key(o.Security) || p.UDPPayload != (o.Flow != module.Vision) || p.Transport.ValidatePair("vless", string(o.Security)) != nil || len(p.TLS.ALPN) != 0 {
+	if !ok || p.Validate() != nil || module.ValidateUUID(credential.UUID) != nil || err != nil || p.Protocol != module.Key(o.Security) || p.UDPPayload != (o.Flow != module.Vision) || p.Transport.ValidatePair("vless", string(o.Security)) != nil || len(p.TLS.ALPN) != 0 && p.Transport.Type() != "xhttp" && p.Transport.Type() != "mkcp" {
 		return credential, o, unsupported()
 	}
 	switch o.Security {
@@ -61,10 +61,17 @@ func (e VLESS) Export(_ context.Context, p clientprofile.Profile, t ports.Export
 	name := "splicore-" + string(p.ID)
 	switch e.Target {
 	case ports.Xray:
-		if t.ClientVersion != "26.3.27" || o.Security != module.Plain {
+		if p.Transport.Type() == "xhttp" || p.Transport.Type() == "mkcp" {
+			if t.ClientVersion != "26.10.10" || o.Flow != module.NoFlow {
+				return nil, unsupported()
+			}
+		} else if t.ClientVersion != "26.3.27" || o.Security != module.Plain {
 			return nil, unsupported()
 		}
 		stream := map[string]any{"network": "raw", "security": "none"}
+		if p.Transport.Type() == "xhttp" || p.Transport.Type() == "mkcp" {
+			stream = xraySecurity(string(o.Security), p.TLS)
+		}
 		node := map[string]any{"tag": name, "protocol": "vless", "settings": map[string]any{"vnext": []any{
 			map[string]any{"address": p.Endpoint.Host, "port": p.Endpoint.Port, "users": []any{map[string]any{"id": credential.UUID.Reveal(), "encryption": "none"}}}}}, "streamSettings": stream}
 		if err := streamProjection(p, e.Target, node); err != nil {
@@ -128,6 +135,9 @@ func (e VLESS) Describe(p clientprofile.Profile) (ports.ExportDescription, error
 	shape := "sing-box-outbound"
 	switch e.Target {
 	case ports.Xray:
+		if p.Transport.Type() == "xhttp" {
+			return ports.ExportDescription{Compatibility: "VLESS over XHTTP; Xray 26.10.10; explicit transport/security settings", ContentShape: "xray-outbound"}, nil
+		}
 		o, err := module.DecodeClientOptions(p.Options.Data)
 		if err != nil || o.Security != module.Plain {
 			return ports.ExportDescription{}, unsupported()

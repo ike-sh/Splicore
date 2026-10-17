@@ -11,6 +11,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
+	streamcfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/jsonstrict"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	"github.com/ike-sh/Splicore/internal/splicore/tlsconfig"
@@ -25,7 +26,15 @@ func ValidatePassword(s secret.Value) error   { return credential.ValidatePasswo
 func GeneratePassword() (secret.Value, error) { return credential.GeneratePassword() }
 
 type Settings struct {
-	TLS TLSSettings `json:"tls"`
+	TLS             TLSSettings       `json:"tls"`
+	StreamTransport *streamcfg.Config `json:"stream_transport,omitempty"`
+}
+
+func (s Settings) Transport() streamcfg.Config {
+	if s.StreamTransport != nil {
+		return s.StreamTransport.Clone()
+	}
+	return streamcfg.Config{Kind: "hysteria"}
 }
 
 func (Settings) Format(s fmt.State, verb rune) {
@@ -39,7 +48,7 @@ func invalid() error {
 }
 func Decode(b []byte) (Settings, error) {
 	var s Settings
-	if len(b) > 16384 || jsonstrict.Decode(b, &s) != nil || tlsconfig.Validate(s.TLS) != nil {
+	if len(b) > 16384 || streamcfg.ValidateMember(b) != nil || jsonstrict.Decode(b, &s) != nil || tlsconfig.Validate(s.TLS) != nil || s.Transport().Type() != "hysteria" || s.Transport().ValidateServer() != nil {
 		return s, invalid()
 	}
 	return s, nil
@@ -103,6 +112,8 @@ func (m Module) BuildClientProfile(ctx context.Context, b ports.AuthorizedBindin
 	}
 	s, _ := Decode(b.Inbound.Settings.Data)
 	options, _ := json.Marshal(struct{}{})
-	p := clientprofile.Profile{ID: b.Binding.ID, Schema: 1, Protocol: Key(), Endpoint: b.Inbound.DisplayEndpoints[0].Endpoint, Credentials: b.Credential.Payload, TLS: clientprofile.TLS{Enabled: true, ServerName: s.TLS.ServerName, ALPN: []string{"h3"}, Trust: "explicit_ca", CACertificate: s.TLS.CACertificate}, Transport: clientprofile.Transport{Kind: "quic"}, UDPPayload: true, Options: access.Settings{Schema: 1, Data: options}, Metadata: identity.Metadata{}}
+	transport := s.Transport()
+	transport.Hysteria = nil // server masquerade/tuning is not exported as client intent
+	p := clientprofile.Profile{ID: b.Binding.ID, Schema: 1, Protocol: Key(), Endpoint: b.Inbound.DisplayEndpoints[0].Endpoint, Credentials: b.Credential.Payload, TLS: clientprofile.TLS{Enabled: true, ServerName: s.TLS.ServerName, ALPN: []string{"h3"}, Trust: "explicit_ca", CACertificate: s.TLS.CACertificate}, Transport: transport, UDPPayload: !s.Transport().HysteriaSettings().DisableUDP, Options: access.Settings{Schema: 1, Data: options}, Metadata: identity.Metadata{}}
 	return p, p.Validate()
 }

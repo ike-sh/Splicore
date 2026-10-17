@@ -42,10 +42,15 @@ func (f TrojanOutboundFactory) Build(ctx context.Context, n client.RemoteNode, c
 		return nil, err
 	}
 	o, _ := module.DecodeClientOptions(n.Options.Data)
-	return &trojanDialer{protected: d, node: n, key: wire.Derive(c.Payload.(access.PasswordPayload).Password), tls: t, udp: o.UDP, owner: clientio.New()}, nil
+	transport, err := sharedClient(d.DialContext, n, t)
+	if err != nil {
+		return nil, err
+	}
+	return &trojanDialer{transport: transport, protected: d, node: n, key: wire.Derive(c.Payload.(access.PasswordPayload).Password), tls: t, udp: o.UDP, owner: clientio.New()}, nil
 }
 
 type trojanDialer struct {
+	transport *shared.Client
 	protected *underlay.Dialer
 	node      client.RemoteNode
 	key       wire.Key
@@ -59,7 +64,13 @@ func (d *trojanDialer) open(ctx context.Context, dst access.Endpoint, command by
 	if dst.Validate() != nil {
 		return nil, identity.Err(identity.Invalid, "invalid Trojan destination")
 	}
-	raw, err := shared.Dial(ctx, d.protected.DialContext, net.JoinHostPort(d.node.Endpoint.Host, portString(d.node.Endpoint.Port)), d.node.Transport, d.tls)
+	var raw net.Conn
+	var err error
+	if d.transport != nil {
+		raw, err = d.transport.DialContext(ctx)
+	} else {
+		raw, err = shared.Dial(ctx, d.protected.DialContext, net.JoinHostPort(d.node.Endpoint.Host, portString(d.node.Endpoint.Port)), d.node.Transport, d.tls)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -76,13 +87,17 @@ func (d *trojanDialer) open(ctx context.Context, dst access.Endpoint, command by
 			<-callbackDone
 		}
 	}()
-	deadline := time.Now().Add(5 * time.Second)
-	if t, ok := ctx.Deadline(); ok && t.Before(deadline) {
-		deadline = t
-	}
-	_ = raw.SetDeadline(deadline)
-	c := &backend.Stream{Conn: raw, Raw: raw}
+	admission, finish := shared.BeginAdmission(raw, 5*time.Second)
+	defer func() {
+		if !success {
+			admission.Close()
+		}
+	}()
+	c := &backend.Stream{Conn: admission, Raw: raw}
 	if err = backend.Client(c, d.key, command, dst); err != nil {
+		return nil, err
+	}
+	if err = finish(); err != nil {
 		return nil, err
 	}
 	_ = c.SetDeadline(time.Time{})
@@ -117,6 +132,12 @@ func (d *trojanDialer) ListenPacket(ctx context.Context, dst access.Endpoint) (n
 	return d.owner.Packet(backend.NewPacket(context.Background(), c))
 }
 func (d *trojanDialer) Close() error {
-	d.once.Do(func() { d.owner.Close(); clear(d.key[:]) })
+	d.once.Do(func() {
+		d.owner.Close()
+		if d.transport != nil {
+			d.transport.Close()
+		}
+		clear(d.key[:])
+	})
 	return nil
 }

@@ -31,6 +31,8 @@ type Tunnel struct {
 	server, reusable          bool
 	request                   Request
 	rmu, wmu                  sync.Mutex
+	startMu                   sync.Mutex
+	requestReserved           bool
 	cache                     []byte
 	readStarted, writeStarted bool
 	readEnd, writeEnd         atomic.Bool
@@ -44,7 +46,15 @@ func ClientTCP(c net.Conn, k *Key, dst access.Endpoint) (net.Conn, error) {
 	return &Tunnel{Conn: c, t: newTransport(c, k), request: q}, nil
 }
 func (c *Tunnel) Write(p []byte) (int, error) {
-	c.wmu.Lock()
+	if len(p) == 0 {
+		c.wmu.Lock()
+		defer c.wmu.Unlock()
+		if c.writeEnd.Load() {
+			return 0, net.ErrClosed
+		}
+		return 0, nil
+	}
+	c.lockWrite()
 	defer c.wmu.Unlock()
 	if c.writeEnd.Load() {
 		return 0, net.ErrClosed
@@ -86,6 +96,25 @@ func (c *Tunnel) Write(p []byte) (int, error) {
 	c.writeStarted = true
 	return len(p), nil
 }
+
+// The first client writer reserves the request before payload I/O starts.
+// Read can then receive its reply while a large initial submission is still
+// writing. Subsequent writers wait only on wmu, leaving startup readable.
+func (c *Tunnel) lockWrite() {
+	if c.server {
+		c.wmu.Lock()
+		return
+	}
+	c.startMu.Lock()
+	if c.requestReserved {
+		c.startMu.Unlock()
+		c.wmu.Lock()
+		return
+	}
+	c.wmu.Lock()
+	c.requestReserved = true
+	c.startMu.Unlock()
+}
 func (c *Tunnel) Read(p []byte) (int, error) {
 	c.rmu.Lock()
 	defer c.rmu.Unlock()
@@ -96,19 +125,23 @@ func (c *Tunnel) Read(p []byte) (int, error) {
 		return 0, io.EOF
 	}
 	if !c.server && !c.readStarted {
-		c.wmu.Lock()
-		if !c.writeStarted {
+		c.startMu.Lock()
+		if !c.requestReserved {
+			c.wmu.Lock()
+			c.requestReserved = true
 			q, e := EncodeRequest(c.request)
 			if e == nil {
 				_, e = c.t.write.Write(q)
 			}
 			if e != nil {
 				c.wmu.Unlock()
+				c.startMu.Unlock()
 				return 0, e
 			}
 			c.writeStarted = true
+			c.wmu.Unlock()
 		}
-		c.wmu.Unlock()
+		c.startMu.Unlock()
 		p, e := c.t.read.Next()
 		if e != nil {
 			return 0, e
@@ -134,7 +167,7 @@ func (c *Tunnel) Read(p []byte) (int, error) {
 	return n, nil
 }
 func (c *Tunnel) CloseWrite() error {
-	c.wmu.Lock()
+	c.lockWrite()
 	defer c.wmu.Unlock()
 	if c.writeEnd.Load() {
 		return nil

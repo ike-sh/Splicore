@@ -18,6 +18,7 @@ import (
 	"github.com/gorilla/websocket"
 	cfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/finalmask"
+	"github.com/ike-sh/Splicore/internal/splicore/streamtransport/mkcp"
 )
 
 const ChunkSize = 32 << 10
@@ -31,7 +32,7 @@ func tlsConfig(c *tls.Config, kind string) *tls.Config {
 		return nil
 	}
 	c = c.Clone()
-	if kind == "tcp" {
+	if kind == "tcp" || kind == "mkcp" {
 		return c
 	}
 	if kind == "grpc" {
@@ -42,6 +43,9 @@ func tlsConfig(c *tls.Config, kind string) *tls.Config {
 	return c
 }
 func Dial(ctx context.Context, dial DialFunc, address string, c cfg.Config, tc *tls.Config) (net.Conn, error) {
+	if c.Type() == "hysteria" {
+		return nil, errors.New("Hysteria requires its specialized authenticated stream/datagram transport")
+	}
 	if dial == nil {
 		return nil, errors.New("shared transport requires an approved dialer")
 	}
@@ -53,8 +57,35 @@ func Dial(ctx context.Context, dial DialFunc, address string, c cfg.Config, tc *
 			return nil, e
 		}
 	}
+	if c.Type() == "mkcp" {
+		raw, e := mkcp.Dial(ctx, dial, address, c.MKCPSettings())
+		if e != nil {
+			return nil, e
+		}
+		if tc == nil {
+			return raw, nil
+		}
+		secured := tls.Client(raw, tlsConfig(tc, "mkcp"))
+		dl := time.Now().Add(HandshakeTimeout)
+		if d, ok := ctx.Deadline(); ok && d.Before(dl) {
+			dl = d
+		}
+		raw.SetDeadline(dl)
+		stop := context.AfterFunc(ctx, func() { raw.Close() })
+		err := secured.HandshakeContext(ctx)
+		stop()
+		if err != nil {
+			raw.Abort(err)
+			return nil, err
+		}
+		raw.SetDeadline(time.Time{})
+		return secured, nil
+	}
 	if c.Type() == "grpc" {
 		return dialGRPC(ctx, dial, address, c, tlsConfig(tc, "grpc"))
+	}
+	if c.Type() == "xhttp" {
+		return dialXHTTP(ctx, dial, address, c, tc)
 	}
 	if c.Type() == "ws" {
 		admissionCtx := ctx

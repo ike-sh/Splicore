@@ -2,7 +2,6 @@
 package snell
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
@@ -12,13 +11,13 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
-	"io"
 	"strconv"
 )
 
 type Module struct{ Version int }
 type Settings struct {
-	Version int `json:"version"`
+	Version  int    `json:"version"`
+	ObfsMode string `json:"obfs_mode,omitempty"`
 }
 
 func Key(v int) access.ProtocolKey {
@@ -27,31 +26,13 @@ func Key(v int) access.ProtocolKey {
 
 // Decode rejects unknown fields, duplicate keys, trailing input and non-integer versions.
 func Decode(b []byte) (Settings, error) {
-	if len(b) > 16384 {
-		return Settings{}, invalid()
-	}
-	d := json.NewDecoder(bytes.NewReader(b))
-	t, e := d.Token()
-	if e != nil || t != json.Delim('{') {
-		return Settings{}, invalid()
-	}
 	var s Settings
-	seen := false
-	for d.More() {
-		t, e = d.Token()
-		if e != nil || t != "version" || seen {
-			return Settings{}, invalid()
-		}
-		seen = true
-		if d.Decode(&s.Version) != nil {
-			return Settings{}, invalid()
-		}
-	}
-	t, e = d.Token()
-	if e != nil || t != json.Delim('}') || !seen {
+	if strictOptions(b, &s) != nil || (s.Version != 4 && s.Version != 5 && s.Version != 6) || ValidateObfs(s.ObfsMode, "", "") != nil {
 		return Settings{}, invalid()
 	}
-	if d.Decode(new(any)) != io.EOF || (s.Version != 5 && s.Version != 6) {
+	var fields map[string]json.RawMessage
+	_ = json.Unmarshal(b, &fields)
+	if s.Version != 4 && len(fields) != 1 {
 		return Settings{}, invalid()
 	}
 	return s, nil
@@ -66,6 +47,8 @@ func (m Module) Metadata() ports.ProtocolMetadata {
 // ClientVersion is the canonical, explicit server-to-client compatibility mapping.
 func ClientVersion(server int) (int, error) {
 	switch server {
+	case 4:
+		return 4, nil
 	case 5:
 		return 4, nil
 	case 6:
@@ -76,6 +59,9 @@ func ClientVersion(server int) (int, error) {
 }
 func (m Module) Capabilities(ports.CapabilityContext) ports.Capabilities {
 	clients := []ports.ClientCompatibility{{Format: ports.SingBox, Client: "sing-box", Version: "1.14.1", Evidence: ""}}
+	if m.Version == 4 {
+		clients = []ports.ClientCompatibility{{Format: ports.SingBox, Client: "sing-box", Version: "1.14.3"}, {Format: ports.Mihomo, Client: "mihomo", Version: "1.19.32"}}
+	}
 	if m.Version == 5 {
 		clients = append(clients, ports.ClientCompatibility{Format: ports.Mihomo, Client: "mihomo", Version: "1.19.30", Evidence: ""})
 	}

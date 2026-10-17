@@ -11,6 +11,15 @@ layer. Protocol authentication and TCP/UDP framing remain owned by the protocol.
 | Trojan standard | TLS | TLS |
 | Other protocol families | Their existing transport | Rejected |
 
+[XHTTP](XHTTP.md) adds bounded H1/H2 request/stream modes; supported TLS and
+REALITY combinations are documented there. [Modern mKCP](MKCP.md) supplies
+reliable ordered streams over UDP for VLESS flow-none, VMess and TLS Trojan.
+REALITY and Vision over mKCP are rejected.
+
+[Hysteria](HYSTERIA_TRANSPORT.md) is a specialized QUIC transport owned by
+Hysteria2, rather than a general protocol wrapper. [NaiveProxy](NAIVE.md)
+owns its H2/H3 CONNECT carriers. Generic QUIC transport is not implemented.
+
 `internal/splicore/domain/streamtransport` defines bounded intent;
 `internal/splicore/streamtransport` supplies dialing and listener wrapping.
 Client node/profile `transport` and server `stream_transport` use the same model:

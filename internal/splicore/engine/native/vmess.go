@@ -105,10 +105,10 @@ func (h *vmessHandle) Start(ctx context.Context) error {
 	if h.started {
 		return nil
 	}
-	l, err := (&net.ListenConfig{}).Listen(ctx, "tcp", net.JoinHostPort(h.endpoint.Host, portString(h.endpoint.Port)))
+	l, err := shared.ListenCarrier(ctx, net.JoinHostPort(h.endpoint.Host, portString(h.endpoint.Port)), h.transport)
 	if err != nil {
 		if addressInUse(err) {
-			return identity.Err(identity.PortConflict, "TCP listener port is already in use")
+			return identity.Err(identity.PortConflict, h.transport.Carrier()+" listener port is already in use")
 		}
 		return identity.Err(identity.Unavailable, "VMess listener start failed")
 	}
@@ -202,10 +202,11 @@ func (h *vmessHandle) serve(raw net.Conn) {
 	defer h.wg.Done()
 	defer raw.Close()
 	defer func() { h.mu.Lock(); delete(h.connections, raw); h.mu.Unlock() }()
-	_ = raw.SetDeadline(time.Now().Add(5 * time.Second))
-	var c net.Conn = raw
+	admission, finish := shared.BeginAdmission(raw, 5*time.Second)
+	defer admission.Close()
+	var c net.Conn = admission
 	if h.tls != nil && h.transport.Type() == "tcp" {
-		tc := tls.Server(raw, h.tls)
+		tc := tls.Server(admission, h.tls)
 		if tc.HandshakeContext(h.ctx) != nil {
 			return
 		}
@@ -214,6 +215,9 @@ func (h *vmessHandle) serve(raw net.Conn) {
 	}
 	r, id, err := wire.ReadRequestWithClock(c, h.keys, h.replay, h.now)
 	if err != nil || !h.admitted.Load() {
+		return
+	}
+	if finish() != nil {
 		return
 	}
 	_ = c.SetDeadline(time.Time{})

@@ -153,15 +153,21 @@ func (h *vlessHandle) Start(ctx context.Context) error {
 			return identity.Err(identity.Unavailable, "REALITY target is unavailable")
 		}
 	}
-	l, err := (&net.ListenConfig{}).Listen(ctx, "tcp", net.JoinHostPort(h.endpoint.Host, portString(h.endpoint.Port)))
+	l, err := shared.ListenCarrier(ctx, net.JoinHostPort(h.endpoint.Host, portString(h.endpoint.Port)), h.transport)
 	if err != nil {
 		if addressInUse(err) {
-			return identity.Err(identity.PortConflict, "TCP listener port is already in use")
+			return identity.Err(identity.PortConflict, h.transport.Carrier()+" listener port is already in use")
 		}
 		return identity.Err(identity.Unavailable, "VLESS listener start failed")
 	}
 	if h.transport.Type() != "tcp" {
-		wrapped, e := shared.WrapListener(l, h.transport, h.transportTLS)
+		var wrapped net.Listener
+		var e error
+		if h.transport.Type() == "xhttp" && h.transportTLS == nil && h.handshake != nil {
+			wrapped, e = shared.WrapSecureListener(l, h.transport, h.handshake)
+		} else {
+			wrapped, e = shared.WrapListener(l, h.transport, h.transportTLS)
+		}
 		if e != nil {
 			l.Close()
 			return e
@@ -252,14 +258,17 @@ func (h *vlessHandle) serve(raw net.Conn) {
 	defer h.wg.Done()
 	defer raw.Close()
 	defer func() { h.mu.Lock(); delete(h.connections, raw); h.mu.Unlock() }()
-	_ = raw.SetDeadline(time.Now().Add(5 * time.Second))
 	c, e := finalmask.Wrap(raw, h.transport.FinalMask, true)
 	if e != nil {
 		return
 	}
 	masked := c
 	defer masked.Close()
-	_ = masked.SetDeadline(time.Now().Add(5 * time.Second))
+	// Apply admission to the complete wrapper chain: mask delays own private
+	// deadline state as well as the underlying socket's read/write deadlines.
+	admission, finish := shared.BeginAdmission(masked, 5*time.Second)
+	defer admission.Close()
+	c = admission
 	stopMask := context.AfterFunc(h.ctx, func() { _ = masked.Close() })
 	defer stopMask()
 	var plain *vision.PlainConn
@@ -296,6 +305,9 @@ func (h *vlessHandle) serve(raw net.Conn) {
 		return
 	}
 	user := h.users[id]
+	if finish() != nil {
+		return
+	}
 	_ = c.SetDeadline(time.Time{})
 	var stream net.Conn = &backend.Conn{Conn: c, Server: true}
 	if h.flow == module.Vision {

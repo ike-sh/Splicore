@@ -20,6 +20,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/jsonstrict"
 	atm "github.com/ike-sh/Splicore/internal/splicore/protocol/anytls"
 	hm "github.com/ike-sh/Splicore/internal/splicore/protocol/hysteria2"
+	nm "github.com/ike-sh/Splicore/internal/splicore/protocol/naive"
 	ssm "github.com/ike-sh/Splicore/internal/splicore/protocol/shadowsocks"
 	trm "github.com/ike-sh/Splicore/internal/splicore/protocol/trojan"
 	tm "github.com/ike-sh/Splicore/internal/splicore/protocol/tuic"
@@ -201,6 +202,17 @@ func ParseURI(raw string) (Candidate, error) {
 		return c, invalid()
 	}
 	switch u.Scheme {
+	case "naive+https", "naive+quic":
+		value, err := nm.ParseURI(raw)
+		if err != nil {
+			return c, err
+		}
+		options, _ := json.Marshal(nm.ClientOptions{Mode: value.Mode, Padding: "auto"})
+		c.Node = client.RemoteNode{Name: value.Name, Protocol: nm.Key(), Endpoint: value.Endpoint, Transport: client.Transport{Kind: nm.Carrier(value.Mode)},
+			Security: client.Security{Kind: "tls", TLS: access.ClientTLS{Enabled: true, ServerName: value.Endpoint.Host, Trust: "system", ALPN: []string{nm.ALPN(value.Mode)}}},
+			Options:  client.Options{Schema: 1, Data: options}}
+		pair, _ := json.Marshal(map[string]string{"username": value.Credentials.Username.Reveal(), "password": value.Credentials.Password.Reveal()})
+		c.Credential = Credential{Kind: access.UsernamePassword, Value: string(pair)}
 	case "anytls":
 		v, err := atm.ParseURI(raw)
 		if err != nil {
@@ -311,7 +323,7 @@ func ParseURI(raw string) (Candidate, error) {
 		if sni == "" {
 			sni = u.Hostname()
 		}
-		c.Node = client.RemoteNode{Name: u.Fragment, Protocol: hm.Key(), Endpoint: access.Endpoint{Host: u.Hostname(), Port: uint16(port)}, Transport: client.Transport{Kind: "quic"}, Security: client.Security{Kind: "tls", TLS: access.ClientTLS{Enabled: true, ServerName: sni, Trust: "system", ALPN: []string{"h3"}}}, Options: client.Options{Schema: 1, Data: json.RawMessage(`{}`)}}
+		c.Node = client.RemoteNode{Name: u.Fragment, Protocol: hm.Key(), Endpoint: access.Endpoint{Host: u.Hostname(), Port: uint16(port)}, Transport: client.Transport{Kind: "hysteria"}, Security: client.Security{Kind: "tls", TLS: access.ClientTLS{Enabled: true, ServerName: sni, Trust: "system", ALPN: []string{"h3"}}}, Options: client.Options{Schema: 1, Data: json.RawMessage(`{}`)}}
 		c.Credential = Credential{access.Password, password}
 	default:
 		return c, errUnsupported

@@ -17,6 +17,9 @@ External Xray, sing-box and Mihomo runtime processes are not required or bundled
 VLESS supports native Vision over raw TLS 1.3 or REALITY. Its optional TCP
 FinalMask chain supports header-custom, fragment and Sudoku. AnyTLS provides
 native client/server TLS sessions with TCP, UoT2, reuse, multiplexing and padding.
+Native [NaiveProxy](NAIVE.md) provides TCP CONNECT over H2/H3;
+[mKCP](MKCP.md) supplies shared ordered streams over UDP;
+[Hysteria](HYSTERIA_TRANSPORT.md) is the specialized Hysteria2 QUIC transport.
 See [capabilities](CAPABILITY_MATRIX.md), [VLESS](../protocol/VLESS.md),
 [FinalMask](FINALMASK.md) and [AnyTLS](ANYTLS.md).
 

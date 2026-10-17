@@ -74,6 +74,9 @@ func (Module) DecodeCreation(b json.RawMessage) (ports.CreationDraft, error) {
 	d.Name = w.Name
 	d.Protocol = Key(s.Security)
 	d.Transport = "tcp"
+	if s.Stream != nil {
+		d.Transport = s.Stream.Carrier()
+	}
 	d.Listener = w.Listener
 	d.Display = w.Display
 	d.Settings, _ = json.Marshal(s)
