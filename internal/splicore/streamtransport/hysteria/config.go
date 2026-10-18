@@ -159,3 +159,15 @@ func paddingFrom(random io.Reader) (string, error) {
 	}
 	return string(b), nil
 }
+
+// Obfuscation adds eight bytes per Salamander datagram. Gecko splits Initials
+// into configured final UDP sizes. Conservative 1200-byte QUIC payloads avoid
+// library PMTU/GSO assumptions escaping either packet transform.
+func packetCarrier(h cfg.Hysteria) *quic.Config {
+	q := carrier(h.QUIC)
+	if h.Obfs != nil && h.Obfs.Type != "none" {
+		q.InitialPacketSize = 1200
+		q.DisablePathMTUDiscovery = true
+	}
+	return q
+}

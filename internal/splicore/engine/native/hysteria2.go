@@ -93,7 +93,7 @@ func (h *hysteria2Handle) Start(ctx context.Context) error {
 	h.server, err = backend.NewServer(h.ctx, &admissionPacket{PacketConn: packet, h: h}, backend.ServerConfig{TLS: h.tls, Transport: h.transport, Authenticate: h.authenticate, TCP: h.tcp, UDP: h.udp})
 	if err != nil {
 		_ = packet.Close()
-		return identity.Err(identity.Unavailable, "Hysteria2 construction failed")
+		return identity.Err(identity.Unavailable, "Hysteria2 construction failed: "+err.Error())
 	}
 	h.started = true
 	h.running.Store(true)
@@ -132,7 +132,7 @@ func (h *hysteria2Handle) Close(ctx context.Context) error {
 	h.lifecycle.Unlock()
 	if server != nil {
 		if err := server.Close(ctx); err != nil {
-			return identity.Err(identity.Unavailable, "Hysteria2 shutdown timed out")
+			return identity.Err(identity.Unavailable, "Hysteria2 shutdown failed: "+err.Error())
 		}
 	}
 	return nil

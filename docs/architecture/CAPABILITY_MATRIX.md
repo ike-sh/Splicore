@@ -38,6 +38,9 @@ UDP forwarding, CONNECT-UDP and MASQUE are not implemented. Chromium fingerprint
 HTTP/3 authentication, connection reuse, congestion selection and masquerade.
 It supports native Reno, BBR, Brutal and force-brutal, with 404, string, rooted
 file and HTTP/HTTPS proxy masquerade. BBR equivalence and performance are not certified.
+Salamander, Gecko (experimental), and fixed or randomized UDP port hopping
+are supported. Linux server UDP port ranges use nftables and require `nft`
+and `CAP_NET_ADMIN`.
 Hysteria v1, generic QUIC transport and arbitrary VLESS/VMess/Trojan over
 Hysteria are not supported. XHTTP HTTP/3 is not implemented.
 

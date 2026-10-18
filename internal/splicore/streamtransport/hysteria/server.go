@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
+	"errors"
 	"net"
 	"net/http"
 	"sync"
@@ -12,6 +13,7 @@ import (
 	"github.com/apernet/quic-go"
 	"github.com/apernet/quic-go/http3"
 	cfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
+	wire "github.com/ike-sh/Splicore/internal/splicore/streamtransport/hysteria/packet"
 )
 
 type Hooks struct {
@@ -39,6 +41,7 @@ type Server struct {
 	done            chan struct{}
 	mask            http.Handler
 	closeMask       func()
+	closeErr        error
 }
 
 // NewServer consumes packet ownership, including all initialization failures.
@@ -46,10 +49,21 @@ func NewServer(ctx context.Context, packet net.PacketConn, c ServerConfig) (*Ser
 	if packet == nil {
 		return nil, ErrConfig
 	}
-	fail := func(e error) (*Server, error) { _ = packet.Close(); return nil, e }
-	if !validTLS(c.TLS) || len(c.TLS.Certificates) == 0 && c.TLS.GetCertificate == nil || c.Authenticate == nil || c.Application == nil || c.Settings.Validate() != nil {
+	packet = wire.Own(packet)
+	fail := func(e error) (*Server, error) { return nil, errors.Join(e, packet.Close()) }
+	if !validTLS(c.TLS) || len(c.TLS.Certificates) == 0 && c.TLS.GetCertificate == nil || c.Authenticate == nil || c.Application == nil || c.Settings.Validate() != nil || c.Settings.UDP != nil && c.Settings.UDP.Ports != "" {
 		return fail(ErrConfig)
 	}
+	wrapped, e := wire.ServerRange(packet, c.Settings.UDP)
+	if e != nil {
+		return fail(e)
+	}
+	packet = wrapped
+	wrapped, e = wire.Wrap(packet, c.Settings.Obfs)
+	if e != nil {
+		return fail(e)
+	}
+	packet = wrapped
 	c.Settings = c.Settings.Clone()
 	c.TLS = snapshotTLS(c.TLS)
 	c.TLS.MinVersion = tls.VersionTLS13
@@ -64,7 +78,7 @@ func NewServer(ctx context.Context, packet net.PacketConn, c ServerConfig) (*Ser
 		return fail(e)
 	}
 	tr := &quic.Transport{Conn: packet, StatelessResetKey: &key}
-	ln, e := tr.Listen(http3.ConfigureTLSConfig(c.TLS), carrier(c.Settings.QUIC))
+	ln, e := tr.Listen(http3.ConfigureTLSConfig(c.TLS), packetCarrier(c.Settings))
 	if e != nil {
 		_ = tr.Close()
 		closeMask()
@@ -130,12 +144,12 @@ func (s *Server) Close(ctx context.Context) error {
 			_ = q.CloseWithError(0x100, "")
 		}
 		_ = s.transport.Close()
-		_ = s.packet.Close()
+		s.closeErr = s.packet.Close()
 		go func() { s.workers.Wait(); s.closeMask(); close(s.done) }()
 	})
 	select {
 	case <-s.done:
-		return nil
+		return s.closeErr
 	case <-ctx.Done():
 		return ctx.Err()
 	}

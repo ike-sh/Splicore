@@ -11,7 +11,8 @@ Mieru, Trojan, VMess, AnyTLS and [NaiveProxy](docs/architecture/NAIVE.md), with 
 SOCKS5, HTTP, Mixed and TUN traffic entry.
 Shared stream transports include raw TCP, WebSocket, HTTPUpgrade, gRPC,
 [XHTTP](docs/architecture/XHTTP.md) and [modern mKCP](docs/architecture/MKCP.md).
-Hysteria2 uses the native [specialized Hysteria transport](docs/architecture/HYSTERIA_TRANSPORT.md).
+Hysteria2 uses the native [specialized Hysteria transport](docs/architecture/HYSTERIA_TRANSPORT.md),
+including Salamander, Gecko obfuscation (experimental) and UDP port hopping.
 
 See the [capability matrix](docs/architecture/CAPABILITY_MATRIX.md) and
 [Core scope](docs/architecture/CORE_SCOPE.md) for capability details and boundaries.

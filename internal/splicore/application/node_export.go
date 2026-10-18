@@ -13,10 +13,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/trojan"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/vmess"
-	"net"
-	"net/url"
 	"slices"
-	"strconv"
 	"strings"
 )
 
@@ -168,14 +165,10 @@ func (s *Service) ExportNodes(ctx context.Context, r NodeExportRequest) (NodeExp
 			}
 			profile.Metadata["display_name"] = n.Name
 		}
-		if r.Format == "uri" && n.Protocol.Protocol == "hysteria2" {
-			if n.Security.TLS.Trust != "system" {
-				return NodeExport{}, identity.Err(identity.UnsupportedExport, "URI cannot represent trust")
-			}
-			u := url.URL{Scheme: "hysteria2", User: url.User(cred.Payload.(access.PasswordPayload).Password.Reveal()), Host: net.JoinHostPort(n.Endpoint.Host, strconv.Itoa(int(n.Endpoint.Port))), RawQuery: url.Values{"sni": {n.Security.TLS.ServerName}}.Encode(), Fragment: n.Name}
-			uris = append(uris, u.String())
-			continue
+		if n.Protocol.Protocol == "hysteria2" {
+			profile.Metadata = identity.Metadata{"display_name": n.Name}
 		}
+
 		exporter, e := s.exporters.Get(ports.Format(r.Format))
 		if e != nil {
 			return NodeExport{}, e

@@ -14,6 +14,20 @@ type Hysteria2 struct{ Target ports.Format }
 
 func (e Hysteria2) Format() ports.Format { return e.Target }
 func (e Hysteria2) Export(_ context.Context, p clientprofile.Profile, t ports.ExportTarget) ([]byte, error) {
+
+	if e.Target == ports.URI {
+		key, ok := p.Credentials.(access.PasswordPayload)
+		var options map[string]json.RawMessage
+		if p.Validate() != nil || p.Protocol != module.Key() || !ok || !p.UDPPayload || t.Format != ports.URI || t.ClientVersion != "" || json.Unmarshal(p.Options.Data, &options) != nil || options == nil || len(options) != 0 {
+			return nil, unsupported()
+		}
+		name := p.Metadata["display_name"]
+		if name == "" {
+			name = "splicore-" + string(p.ID)
+		}
+		value, err := module.EncodeURI(module.URI{Endpoint: p.Endpoint, Password: key.Password, TLS: p.TLS, Transport: p.Transport, Name: name})
+		return []byte(value), err
+	}
 	if p.Transport.HysteriaSettings() != (cfg.Hysteria{Version: 2}) {
 		return nil, unsupported()
 	}
@@ -54,6 +68,9 @@ func (e Hysteria2) Export(_ context.Context, p clientprofile.Profile, t ports.Ex
 }
 func (e Hysteria2) Describe(p clientprofile.Profile) (ports.ExportDescription, error) {
 	shape := "sing-box-outbound"
+	if e.Target == ports.URI {
+		shape = "hysteria2-uri"
+	}
 	if e.Target == ports.Mihomo {
 		shape = "mihomo-config-fragment"
 	}
