@@ -246,7 +246,7 @@ func TestXHTTPQueryInHeaderURLGrammar(t *testing.T) {
 	for _, path := range []string{"/normal/path", "/path,with,comma", "/,leading-comma", "/trailing,", "/a,b/c,d", "/a%2Cb", "/a,b/?tenant=a,b"} {
 		for _, placement := range []string{"queryInHeader", "header", "query", "cookie"} {
 			t.Run(path+"/"+placement, func(t *testing.T) {
-				c := cfg.Config{Kind: "xhttp", Path: path, Headers: map[string]string{"X-Application": "one,two"}, XHTTP: &cfg.XHTTP{Mode: "packet-up", PaddingObfs: true, PaddingPlacement: placement, Padding: cfg.Range{1, 1}}}
+				c := cfg.Config{Kind: "xhttp", Path: path, Headers: map[string]string{"X-Application": "one,two"}, XHTTP: &cfg.XHTTP{Mode: "packet-up", PaddingObfs: true, PaddingPlacement: placement, Padding: cfg.Range{Min: 1, Max: 1}}}
 				if err := c.Validate(); err != nil {
 					t.Fatal(err)
 				}
@@ -272,7 +272,7 @@ func TestXHTTPQueryInHeaderURLGrammar(t *testing.T) {
 			})
 		}
 	}
-	c := cfg.Config{Kind: "xhttp", Path: "/a,b", XHTTP: &cfg.XHTTP{PaddingObfs: true, PaddingPlacement: "queryInHeader", Padding: cfg.Range{1, 1}}}
+	c := cfg.Config{Kind: "xhttp", Path: "/a,b", XHTTP: &cfg.XHTTP{PaddingObfs: true, PaddingPlacement: "queryInHeader", Padding: cfg.Range{Min: 1, Max: 1}}}
 	for _, carrier := range []string{"http://example.test/a,b/?x_padding=X&x_padding=X", "http://example.test/%xx?x_padding=X", "http://example.test/a,b/?x_padding=X,X", "http://example.test/a,b/?other=X", "http://example.test/a,b/?x_padding=X;other=X"} {
 		r := httptest.NewRequest("POST", "http://example.test/a,b/", nil)
 		decorate(r, c, "id", "0", false, rand.Reader)

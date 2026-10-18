@@ -27,7 +27,7 @@ func (Hysteria2OutboundFactory) Validate(n client.RemoteNode, c access.Credentia
 		return err
 	}
 	var empty struct{}
-	if n.Protocol != module.Key() || n.Transport.Kind != "quic" && n.Transport.Kind != "hysteria" || n.Security.Kind != "tls" || jsonstrict.Decode(n.Options.Data, &empty) != nil || n.Transport.HysteriaSettings().Masquerade != nil || n.Transport.HysteriaSettings().DisableUDP {
+	if n.Protocol != module.Key() || n.Transport.Kind != "quic" && n.Transport.Kind != "hysteria" || n.Security.Kind != "tls" || jsonstrict.Decode(n.Options.Data, &empty) != nil || !n.Transport.HysteriaSettings().ClientOnly() {
 		return identity.Err(identity.Invalid, "unsupported Hysteria2 client settings")
 	}
 	return (module.Module{}).ValidateCredential(c)

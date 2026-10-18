@@ -56,7 +56,7 @@ Bob's label increments Alice only. Saved Alice configs fail after Binding disabl
 Bob reconnects. SQLite restart retains disabled state; existing clients reconnect;
 re-enable, forced client kill, daemon shutdown and UDP port reuse pass.
 Mihomo uses the non-leaf CA pin; sing-box uses explicit CA PEM. No insecure PASS path.
-Surge UnsupportedExport; URI/obfs/masquerade are unqualified/deferred.
+Surge UnsupportedExport. Current native obfs/hopping and HTTP/3 masquerade scope is documented in [Hysteria transport](../architecture/HYSTERIA_TRANSPORT.md); historical cells above describe their original campaign.
 See [HY2 support](../protocol/HYSTERIA2.md), [workflow](../development/PHASE_3_HYSTERIA2.md)
 and [full evidence report](../reports/PHASE_3_HYSTERIA2_VERTICAL_SLICE_REPORT.md).
 

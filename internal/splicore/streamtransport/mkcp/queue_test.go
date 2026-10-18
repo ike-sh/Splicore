@@ -336,11 +336,19 @@ func TestClosedSessionQueueActivityChurn256(t *testing.T) {
 		t.Fatal(e)
 	}
 	defer l.Close()
+	// Session Done joins callbacks that need l.mu. Fence each WaitGroup
+	// generation against registration of the next peer under that same mutex;
+	// UDP delivery alone does not synchronize a zero-counter Add with Wait.
+	joinOwners := func() {
+		l.mu.Lock()
+		defer l.mu.Unlock()
+		l.owners.Wait()
+	}
 	seed := blockedSession(t, l, 90)
 	waitDone(t, p.entered)
 	seed.abort(net.ErrClosed)
 	waitDone(t, seed.Done())
-	l.owners.Wait()
+	joinOwners()
 	completed, allocated, released, maximumRetired := 0, 0, 0, 0
 	outcomes := [6]int{}
 	for cycle := 0; cycle < 256; cycle++ {
@@ -393,7 +401,7 @@ func TestClosedSessionQueueActivityChurn256(t *testing.T) {
 				c.advance(now.Add(normalClock.idle))
 			}
 			waitDone(t, c.Done())
-			l.owners.Wait()
+			joinOwners()
 			buffers.observeReleased(t, n)
 			queueHasNoReferences(t, l.writer, c)
 			allocated += buffers.allocated

@@ -135,7 +135,7 @@ func TestXHTTPSessionSecureGenerationAndCollision(t *testing.T) {
 	if e := c.reserveSession(&clientSession{}, "packet-up"); e == nil {
 		t.Fatal("entropy error ignored")
 	}
-	for _, x := range []cfg.XHTTP{{}, {SessionTable: "Base62", SessionLength: cfg.Range{32, 32}}, {SessionTable: "number", SessionLength: cfg.Range{37, 40}}} {
+	for _, x := range []cfg.XHTTP{{}, {SessionTable: "Base62", SessionLength: cfg.Range{Min: 32, Max: 32}}, {SessionTable: "number", SessionLength: cfg.Range{Min: 37, Max: 40}}} {
 		seen := map[string]bool{}
 		for i := 0; i < 4096; i++ {
 			id, e := sessionToken(x, rand.Reader)
@@ -184,7 +184,7 @@ func (admissionBase) Addr() net.Addr { return address("test-listener") }
 func (admissionBase) Close() error   { return nil }
 func admissionListener() *Listener {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Listener{base: admissionBase{}, config: cfg.Config{Kind: "xhttp", Path: "/ready", XHTTP: &cfg.XHTTP{Padding: cfg.Range{1, 1}}}, ctx: ctx, cancel: cancel, server: &http.Server{}, sessions: map[string]*session{}, connections: map[net.Conn]bool{}, queue: make(chan net.Conn, 64), entropy: rand.Reader}
+	return &Listener{base: admissionBase{}, config: cfg.Config{Kind: "xhttp", Path: "/ready", XHTTP: &cfg.XHTTP{Padding: cfg.Range{Min: 1, Max: 1}}}, ctx: ctx, cancel: cancel, server: &http.Server{}, sessions: map[string]*session{}, connections: map[net.Conn]bool{}, queue: make(chan net.Conn, 64), entropy: rand.Reader}
 }
 
 type readyResponse struct {

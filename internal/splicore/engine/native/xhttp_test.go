@@ -90,7 +90,7 @@ func TestNativeXHTTPFragmentedAdmission(t *testing.T) {
 			defer cancel()
 			tcp := netaddrEndpoint(vmessTCP(t, "127.0.0.1:0").Addr())
 			in, n, credential := sharedIntent(t, protocol, "xhttp", true)
-			n.Transport.XHTTP = &cfg.XHTTP{Mode: "packet-up", PacketBytes: cfg.Range{16, 16}, Interval: cfg.Range{6000, 6000}}
+			n.Transport.XHTTP = &cfg.XHTTP{Mode: "packet-up", PacketBytes: cfg.Range{Min: 16, Max: 16}, Interval: cfg.Range{Min: 6000, Max: 6000}}
 			serverTransport := n.Transport.Clone()
 			serverTransport.XHTTP.Interval = cfg.Range{}
 			var settings map[string]json.RawMessage

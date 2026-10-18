@@ -8,7 +8,7 @@ import (
 )
 
 func TestXHTTPProjectionRetainsEveryControl(t *testing.T) {
-	c := cfg.Config{Kind: "xhttp", Host: "authority.test", Path: "/path?x=1", Headers: map[string]string{"X-Custom": "value"}, XHTTP: &cfg.XHTTP{Mode: "packet-up", Padding: cfg.Range{100, 200}, PaddingObfs: true, PaddingPlacement: "cookie", PaddingMethod: "tokenish", Method: "GET", SessionPlacement: "header", SequencePlacement: "query", DataPlacement: "header", XMUX: &cfg.XMUX{MaxConnections: cfg.Range{1, 2}, Requests: cfg.Range{20, 30}}}}
+	c := cfg.Config{Kind: "xhttp", Host: "authority.test", Path: "/path?x=1", Headers: map[string]string{"X-Custom": "value"}, XHTTP: &cfg.XHTTP{Mode: "packet-up", Padding: cfg.Range{Min: 100, Max: 200}, PaddingObfs: true, PaddingPlacement: "cookie", PaddingMethod: "tokenish", Method: "GET", SessionPlacement: "header", SequencePlacement: "query", DataPlacement: "header", XMUX: &cfg.XMUX{MaxConnections: cfg.Range{Min: 1, Max: 2}, Requests: cfg.Range{Min: 20, Max: 30}}}}
 	p, e := xhttpProjection(c)
 	if e != nil {
 		t.Fatal(e)

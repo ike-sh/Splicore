@@ -71,6 +71,7 @@ func NativeCore() (*Protocols, *Engines, *Exporters, error) {
 			mapping[anytls.Key()] = exporter.AnyTLS{Target: d.Target}
 		}
 		if d.Target == ports.URI {
+			mapping[hysteria2.Key()] = exporter.Hysteria2{Target: d.Target}
 			mapping[naive.Key()] = exporter.Naive{Target: d.Target}
 		}
 		mapping[proxy.Key("socks5")] = exporter.Proxy{Target: d.Target}

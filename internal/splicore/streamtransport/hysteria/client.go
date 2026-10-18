@@ -12,6 +12,7 @@ import (
 	"github.com/apernet/quic-go"
 	"github.com/apernet/quic-go/http3"
 	cfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
+	"github.com/ike-sh/Splicore/internal/splicore/streamtransport/hysteria/packet"
 )
 
 type ClientConfig struct {
@@ -36,7 +37,7 @@ type Manager struct {
 }
 
 func NewManager(ctx context.Context, c ClientConfig) (*Manager, error) {
-	if !validTLS(c.TLS) || c.Socket == nil || c.Password == "" || len(c.Password) > 1024 || c.Settings.Validate() != nil {
+	if !validTLS(c.TLS) || c.Socket == nil || c.Password == "" || len(c.Password) > 1024 || c.Settings.Validate() != nil || !c.Settings.ClientOnly() {
 		return nil, ErrConfig
 	}
 	c.TLS = snapshotTLS(c.TLS)
@@ -136,24 +137,37 @@ func (m *Manager) Close() {
 	m.once.Do(func() { m.mu.Lock(); m.closed = true; m.mu.Unlock(); m.cancel(); m.workers.Wait() })
 }
 func dial(ctx context.Context, config ClientConfig) (*Connection, error) {
-	packet, address, e := config.Socket(ctx)
+	socket, address, e := config.Socket(ctx)
+	packetConn := socket
 	if e != nil {
 		return nil, e
 	}
-	if packet == nil || address == nil {
-		if packet != nil {
-			_ = packet.Close()
+	if packetConn == nil || address == nil {
+		if packetConn != nil {
+			_ = packetConn.Close()
 		}
 		return nil, ErrConfig
 	}
-	tr := &quic.Transport{Conn: packet}
+	socket = packet.Own(socket)
+	packetConn, address, e = packet.Hop(socket, address, config.Settings.UDP)
+	if e != nil {
+		_ = socket.Close()
+		return nil, e
+	}
+	before := packetConn
+	packetConn, e = packet.Wrap(packetConn, config.Settings.Obfs)
+	if e != nil {
+		_ = before.Close()
+		return nil, e
+	}
+	tr := &quic.Transport{Conn: packetConn}
 	var q *quic.Conn
-	qc := carrier(config.Settings.QUIC)
+	qc := packetCarrier(config.Settings)
 	qc.AssumePeerMaxDatagramFrameSize = 0
 	qc.OmitMaxDatagramFrameSize = true
 	control := &http3.Transport{TLSClientConfig: config.TLS.Clone(), QUICConfig: qc}
 	var socketOnce sync.Once
-	closeSocket := func() { socketOnce.Do(func() { _ = packet.Close() }) }
+	closeSocket := func() { socketOnce.Do(func() { _ = packetConn.Close() }) }
 	release := func() { _ = control.Close(); _ = tr.Close(); closeSocket() }
 	failed := true
 	defer func() {

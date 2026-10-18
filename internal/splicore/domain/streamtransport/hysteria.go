@@ -15,11 +15,13 @@ import (
 // Hysteria is specialized transport intent. Credentials remain in the existing
 // credential/binding model; proxy targets and UDP framing remain protocol data.
 type Hysteria struct {
-	Version        int         `json:"version"`
-	UDPIdleTimeout int         `json:"udp_idle_timeout,omitempty"`
-	DisableUDP     bool        `json:"disable_udp,omitempty"`
-	QUIC           QUIC        `json:"quic,omitempty"`
-	Masquerade     *Masquerade `json:"masquerade,omitempty"`
+	Version        int           `json:"version"`
+	UDPIdleTimeout int           `json:"udp_idle_timeout,omitempty"`
+	DisableUDP     bool          `json:"disable_udp,omitempty"`
+	QUIC           QUIC          `json:"quic,omitempty"`
+	Masquerade     *Masquerade   `json:"masquerade,omitempty"`
+	Obfs           *HysteriaObfs `json:"obfs,omitempty"`
+	UDP            *HysteriaUDP  `json:"udp,omitempty"`
 }
 
 // QUIC is carrier tuning, independent of proxy protocol semantics. All time
@@ -71,7 +73,7 @@ func exact(b []byte, dst any, members ...string) error {
 func (h *Hysteria) UnmarshalJSON(b []byte) error {
 	type plain Hysteria
 	var p plain
-	if exact(b, &p, "version", "udp_idle_timeout", "disable_udp", "quic", "masquerade") != nil {
+	if exact(b, &p, "version", "udp_idle_timeout", "disable_udp", "quic", "masquerade", "obfs", "udp") != nil {
 		return bad()
 	}
 	*h = Hysteria(p)
@@ -96,6 +98,14 @@ func (m *Masquerade) UnmarshalJSON(b []byte) error {
 	return m.Validate()
 }
 func (h Hysteria) Clone() Hysteria {
+	if h.Obfs != nil {
+		o := *h.Obfs
+		h.Obfs = &o
+	}
+	if h.UDP != nil {
+		u := *h.UDP
+		h.UDP = &u
+	}
 	if h.Masquerade != nil {
 		m := *h.Masquerade
 		m.Headers = maps.Clone(m.Headers)
@@ -117,6 +127,9 @@ func (h Hysteria) IdleSeconds() int {
 }
 func (h Hysteria) Validate() error {
 	if h.Version != 2 || h.UDPIdleTimeout != 0 && (h.UDPIdleTimeout < 2 || h.UDPIdleTimeout > 600) || h.QUIC.Validate() != nil {
+		return bad()
+	}
+	if h.Obfs != nil && h.Obfs.Validate() != nil || h.UDP != nil && h.UDP.Validate() != nil {
 		return bad()
 	}
 	if h.Masquerade != nil {

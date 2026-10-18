@@ -31,8 +31,8 @@ historical composition and evidence. The
 [Phase 17 report](../reports/PHASE17_SINGBOX_DECOUPLING_REPORT.md) records the
 current independent implementation and development validation.
 The native password map selects an authenticated user; no username is transmitted.
-The specialized transport owns QUIC tuning and HTTP/3 masquerade. Obfuscation
-and realm options remain unsupported. Explicit native transport settings support
+The specialized transport owns QUIC tuning and HTTP/3 masquerade. Native Salamander, experimental Gecko and UDP port hopping run below QUIC.
+Realm remains unsupported. Explicit native transport settings support
 BBR, Brutal and force-brutal, with the limits documented in the transport contract.
 
 ## Capabilities
@@ -49,9 +49,11 @@ BBR, Brutal and force-brutal, with the limits documented in the transport contra
 | HotUserUpdate | false; stop/reconstruct the affected Inbound |
 | HotReload / listener mutation | Unavailable |
 | Quota / speed / max-session enforcement | Unsupported |
-| obfs / hopping / realm | Unsupported |
+| Salamander / Gecko / UDP hopping | Supported; Gecko experimental; see transport limits |
+| Linux built-in port range | nftables; numeric listener binds first port |
+| Realm | Unsupported |
 | Masquerade | Default 404, string, rooted file, HTTP/HTTPS proxy |
-| URI import | Bounded hy2/hysteria2 import; SNI and verified TLS only |
+| URI import/export | hy2/hysteria2; multi-port, obfs and verified system TLS; tuning rejects on export |
 | Congestion-control selector | Native specialized transport: Reno default, BBR, Brutal, force-brutal |
 | Qualification | Experimental; never Stable |
 
@@ -177,7 +179,7 @@ Private-key contents stay out of SQLite and every ClientProfile/export.
 | sing-box | 1.14.1 | `sing-box-outbound`; explicit CA, SNI, h3, insecure=false |
 | Mihomo | 1.19.30 | `mihomo-config-fragment` containing proxies; non-leaf CA pin, SNI, skip-cert-verify=false |
 | Surge | Any | UnsupportedExport |
-| URI export | Any | Deferred; URI import is a separate bounded contract |
+| URI export | Standard HY2 | System trust, SNI, obfs, multi-port; unrepresentable tuning rejects |
 
 Mihomo's [CA fingerprint verifier](https://github.com/MetaCubeX/mihomo/blob/v1.19.30/component/ca/fingerprint.go)
 verifies leaf chain, validity and SNI when the pin matches a non-leaf certificate.

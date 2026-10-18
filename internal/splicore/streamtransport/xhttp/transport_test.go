@@ -181,7 +181,7 @@ func TestXHTTPPlacementsPaddingMethods(t *testing.T) {
 	for _, p := range []string{"header", "queryInHeader", "query", "cookie"} {
 		for _, method := range []string{"repeat-x", "tokenish"} {
 			t.Run(p+"/"+method, func(t *testing.T) {
-				cl, _ := fixture(t, cfg.Config{Kind: "xhttp", XHTTP: &cfg.XHTTP{PaddingObfs: true, PaddingPlacement: p, PaddingMethod: method, Padding: cfg.Range{64, 64}}}, 2)
+				cl, _ := fixture(t, cfg.Config{Kind: "xhttp", XHTTP: &cfg.XHTTP{PaddingObfs: true, PaddingPlacement: p, PaddingMethod: method, Padding: cfg.Range{Min: 64, Max: 64}}}, 2)
 				c, e := cl.DialContext(context.Background())
 				if e != nil {
 					t.Fatal(e)
@@ -195,7 +195,7 @@ func TestXHTTPPlacementsPaddingMethods(t *testing.T) {
 func TestXHTTPConcurrentIsolationReuseAndDeadlines(t *testing.T) {
 	for _, mode := range []string{"packet-up", "stream-up", "stream-one"} {
 		t.Run(mode, func(t *testing.T) {
-			cl, l := fixture(t, cfg.Config{Kind: "xhttp", XHTTP: &cfg.XHTTP{Mode: mode, XMUX: &cfg.XMUX{MaxConnections: cfg.Range{1, 1}}}}, 2)
+			cl, l := fixture(t, cfg.Config{Kind: "xhttp", XHTTP: &cfg.XHTTP{Mode: mode, XMUX: &cfg.XMUX{MaxConnections: cfg.Range{Min: 1, Max: 1}}}}, 2)
 			var wg sync.WaitGroup
 			conns := make([]net.Conn, 8)
 			for i := range conns {
@@ -237,7 +237,7 @@ func TestXHTTPConcurrentIsolationReuseAndDeadlines(t *testing.T) {
 func TestXHTTPH1ConcurrentDownloadsLeaveUploadCapacity(t *testing.T) {
 	for _, mode := range []string{"packet-up", "stream-up", "auto"} {
 		t.Run(mode, func(t *testing.T) {
-			cl, _ := fixture(t, cfg.Config{Kind: "xhttp", XHTTP: &cfg.XHTTP{Mode: mode, XMUX: &cfg.XMUX{MaxConnections: cfg.Range{1, 1}}}}, 1)
+			cl, _ := fixture(t, cfg.Config{Kind: "xhttp", XHTTP: &cfg.XHTTP{Mode: mode, XMUX: &cfg.XMUX{MaxConnections: cfg.Range{Min: 1, Max: 1}}}}, 1)
 			conns := make([]net.Conn, 8)
 			for i := range conns {
 				c, e := cl.DialContext(context.Background())
@@ -265,7 +265,7 @@ func TestXHTTPStreamingHeadersAndKeepalive(t *testing.T) {
 			if e != nil {
 				t.Fatal(e)
 			}
-			c := cfg.Config{Kind: "xhttp", Headers: map[string]string{"X-Application": "local"}, XHTTP: &cfg.XHTTP{Mode: "stream-up", NoSSE: noSSE, KeepAlive: cfg.Range{1, 1}, Padding: cfg.Range{4, 4}}}
+			c := cfg.Config{Kind: "xhttp", Headers: map[string]string{"X-Application": "local"}, XHTTP: &cfg.XHTTP{Mode: "stream-up", NoSSE: noSSE, KeepAlive: cfg.Range{Min: 1, Max: 1}, Padding: cfg.Range{Min: 4, Max: 4}}}
 			ln, e := NewListener(raw, c, nil, nil)
 			if e != nil {
 				t.Fatal(e)
@@ -373,7 +373,7 @@ func TestXHTTPTruncatedPacketAndCustomSessionTokens(t *testing.T) {
 	}
 	seen := map[string]bool{}
 	for i := 0; i < 1024; i++ {
-		s, e := sessionToken(cfg.XHTTP{SessionTable: "Base62", SessionLength: cfg.Range{32, 32}}, rand.Reader)
+		s, e := sessionToken(cfg.XHTTP{SessionTable: "Base62", SessionLength: cfg.Range{Min: 32, Max: 32}}, rand.Reader)
 		if e != nil || len(s) != 32 || seen[s] {
 			t.Fatal("custom token uniqueness", e)
 		}
@@ -427,7 +427,7 @@ func TestXHTTPPacketOrderingMalformedAndBounds(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	c := cfg.Config{Kind: "xhttp", Path: "/order", XHTTP: &cfg.XHTTP{Mode: "packet-up", PacketBytes: cfg.Range{16, 16}, Buffered: 2}}
+	c := cfg.Config{Kind: "xhttp", Path: "/order", XHTTP: &cfg.XHTTP{Mode: "packet-up", PacketBytes: cfg.Range{Min: 16, Max: 16}, Buffered: 2}}
 	ln, e := NewListener(raw, c, nil, nil)
 	if e != nil {
 		t.Fatal(e)
@@ -530,7 +530,7 @@ func TestXHTTPConcurrentPostsPreserveOneSessionOrdering(t *testing.T) {
 }
 
 func TestXHTTPPacketSizeAndMinimumRequestInterval(t *testing.T) {
-	config := cfg.Config{Kind: "xhttp", XHTTP: &cfg.XHTTP{Mode: "packet-up", PacketBytes: cfg.Range{128, 128}, Interval: cfg.Range{80, 80}}}
+	config := cfg.Config{Kind: "xhttp", XHTTP: &cfg.XHTTP{Mode: "packet-up", PacketBytes: cfg.Range{Min: 128, Max: 128}, Interval: cfg.Range{Min: 80, Max: 80}}}
 	_, l := fixture(t, config, 0)
 	times := make(chan time.Time, 4)
 	front := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -606,7 +606,7 @@ func TestXHTTPEnvelopeRobustness(t *testing.T) {
 	for _, method := range []string{"repeat-x", "tokenish"} {
 		for _, size := range []int32{1, 64, 100, 1000} {
 			t.Run(method+strconv.Itoa(int(size)), func(t *testing.T) {
-				x := (cfg.XHTTP{Padding: cfg.Range{size, size}, PaddingMethod: method}).Normalized()
+				x := (cfg.XHTTP{Padding: cfg.Range{Min: size, Max: size}, PaddingMethod: method}).Normalized()
 				p, e := padding(x, bytes.NewReader(make([]byte, 10000)))
 				if e != nil || p == "" {
 					t.Fatal(e)
@@ -626,19 +626,19 @@ func TestXHTTPEnvelopeRobustness(t *testing.T) {
 func TestXHTTPXMUXRetirement(t *testing.T) {
 	for _, control := range []string{"concurrency", "connections", "reuse", "requests", "lifetime", "keepalive-disabled"} {
 		t.Run(control, func(t *testing.T) {
-			m := &cfg.XMUX{MaxConnections: cfg.Range{1, 1}}
+			m := &cfg.XMUX{MaxConnections: cfg.Range{Min: 1, Max: 1}}
 			switch control {
 			case "concurrency":
 				m.MaxConnections = cfg.Range{}
-				m.MaxConcurrency = cfg.Range{1, 1}
+				m.MaxConcurrency = cfg.Range{Min: 1, Max: 1}
 			case "connections":
-				m.MaxConnections = cfg.Range{2, 2}
+				m.MaxConnections = cfg.Range{Min: 2, Max: 2}
 			case "reuse":
-				m.Reuse = cfg.Range{1, 1}
+				m.Reuse = cfg.Range{Min: 1, Max: 1}
 			case "requests":
-				m.Requests = cfg.Range{2, 2}
+				m.Requests = cfg.Range{Min: 2, Max: 2}
 			case "lifetime":
-				m.Lifetime = cfg.Range{1, 1}
+				m.Lifetime = cfg.Range{Min: 1, Max: 1}
 			case "keepalive-disabled":
 				m.KeepAlive = -1
 			}

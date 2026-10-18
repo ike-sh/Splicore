@@ -18,7 +18,7 @@ func TestSnellV4ExternalRoundTripAndLimits(t *testing.T) {
 	p := snellProfile(4, "2001:db8::1")
 	p.Options.Data = json.RawMessage(`{"version":4,"reuse":true,"obfs_mode":"http","obfs_host":"cover.example"}`)
 	for _, target := range []ports.ExportTarget{{Format: ports.SingBox, ClientVersion: "1.14.3"}, {Format: ports.Mihomo, ClientVersion: "1.19.32"}} {
-		b, e := (exporter.Snell{target.Format}).Export(context.Background(), p, target)
+		b, e := (exporter.Snell{Target: target.Format}).Export(context.Background(), p, target)
 		if e != nil {
 			t.Fatal(e)
 		}
@@ -37,16 +37,16 @@ func TestSnellV4ExternalRoundTripAndLimits(t *testing.T) {
 			t.Fatal(format, o, e)
 		}
 		p.Options.Data = json.RawMessage(`{"version":4,"obfs_mode":"http","obfs_uri":"/custom"}`)
-		if _, e := (exporter.Snell{target.Format}).Export(context.Background(), p, target); e == nil {
+		if _, e := (exporter.Snell{Target: target.Format}).Export(context.Background(), p, target); e == nil {
 			t.Fatal("custom URI lost")
 		}
 		p.Options.Data = json.RawMessage(`{"version":4,"udp_port":24444}`)
-		if _, e := (exporter.Snell{target.Format}).Export(context.Background(), p, target); e == nil {
+		if _, e := (exporter.Snell{Target: target.Format}).Export(context.Background(), p, target); e == nil {
 			t.Fatal("UDP endpoint lost")
 		}
 		p.Options.Data = json.RawMessage(`{"version":4,"reuse":true,"obfs_mode":"http","obfs_host":"cover.example"}`)
 	}
-	d, e := (exporter.Snell{ports.SingBox}).Describe(snellProfile(5, "localhost"))
+	d, e := (exporter.Snell{Target: ports.SingBox}).Describe(snellProfile(5, "localhost"))
 	if e != nil || d.ClientWireVersion != 4 || !strings.Contains(d.Compatibility, "v5 server") {
 		t.Fatal(d, e)
 	}

@@ -169,7 +169,7 @@ func (c Config) ValidateServer() error {
 		}
 		return nil
 	}
-	if c.Validate() != nil || len(c.Headers) != 0 {
+	if c.Validate() != nil || len(c.Headers) != 0 || c.Type() == "hysteria" && c.HysteriaSettings().UDP != nil && c.HysteriaSettings().UDP.Ports != "" {
 		return bad()
 	}
 	return nil

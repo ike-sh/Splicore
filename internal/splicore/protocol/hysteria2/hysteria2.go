@@ -54,7 +54,7 @@ func Decode(b []byte) (Settings, error) {
 	return s, nil
 }
 func (Module) Metadata() ports.ProtocolMetadata {
-	return ports.ProtocolMetadata{Roles: ports.Roles{Inbound: true, Outbound: true}, Key: Key(), ABI: 1, CredentialKinds: []access.CredentialKind{access.Password}, Availability: ports.Compiled, Qualification: "experimental", Provenance: "Splicore-owned Hysteria2 wire/lifecycle; independent AperNet QUIC; password identity; static TLS; no obfs"}
+	return ports.ProtocolMetadata{Roles: ports.Roles{Inbound: true, Outbound: true}, Key: Key(), ABI: 1, CredentialKinds: []access.CredentialKind{access.Password}, Availability: ports.Compiled, Qualification: "experimental", Provenance: "Splicore-owned Hysteria2 wire/lifecycle; independent AperNet QUIC; password identity; static TLS; native Salamander/Gecko and UDP hopping"}
 }
 func (Module) Capabilities(ports.CapabilityContext) ports.Capabilities {
 	return ports.Capabilities{
@@ -74,6 +74,13 @@ func (Module) ValidateInbound(i access.Inbound) error {
 	}
 	if i.Protocol != Key() || i.Engine != "native" || !i.Enabled || len(i.Listeners) != 1 || i.Listeners[0].Transport != "udp" || len(i.DisplayEndpoints) != 1 {
 		return invalid()
+	}
+	s, _ := Decode(i.Settings.Data)
+	if u := s.Transport().HysteriaSettings().UDP; u != nil && u.ServerPortRange != "" {
+		lo, _, e := streamcfg.HysteriaServerRange(u.ServerPortRange)
+		if e != nil || i.Listeners[0].Endpoint.Port != lo {
+			return invalid()
+		}
 	}
 	return nil
 }
@@ -113,7 +120,12 @@ func (m Module) BuildClientProfile(ctx context.Context, b ports.AuthorizedBindin
 	s, _ := Decode(b.Inbound.Settings.Data)
 	options, _ := json.Marshal(struct{}{})
 	transport := s.Transport()
-	transport.Hysteria = nil // server masquerade/tuning is not exported as client intent
+	clientSettings := transport.HysteriaSettings().ClientProfile()
+	if clientSettings.Obfs != nil || clientSettings.UDP != nil {
+		transport.Hysteria = &clientSettings
+	} else {
+		transport.Hysteria = nil
+	}
 	p := clientprofile.Profile{ID: b.Binding.ID, Schema: 1, Protocol: Key(), Endpoint: b.Inbound.DisplayEndpoints[0].Endpoint, Credentials: b.Credential.Payload, TLS: clientprofile.TLS{Enabled: true, ServerName: s.TLS.ServerName, ALPN: []string{"h3"}, Trust: "explicit_ca", CACertificate: s.TLS.CACertificate}, Transport: transport, UDPPayload: !s.Transport().HysteriaSettings().DisableUDP, Options: access.Settings{Schema: 1, Data: options}, Metadata: identity.Metadata{}}
 	return p, p.Validate()
 }
