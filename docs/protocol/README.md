@@ -22,6 +22,10 @@ no mass file relocation is needed.
 
 ## Read and change in this order
 
+Experimental [native TrustTunnel](TRUSTTUNNEL.md) provides authenticated H2/H3
+TCP/UDP sessions, automatic selection and bounded static deep-link import/export.
+Its ICMP and optional extension boundaries are documented separately.
+
 1. [Protocol SDK](../architecture/PROTOCOL_SDK.md): registry keys, ports, schemas and effective capabilities.
 2. [Engine model](../architecture/ENGINE_MODEL.md): private execution; Protocol is separate from Engine.
 3. [Domain](../architecture/DOMAIN_MODEL.md) and [policy](../architecture/POLICY_USAGE.md): authenticated Binding identity and shared enforcement.
