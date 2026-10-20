@@ -6,6 +6,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	"github.com/ike-sh/Splicore/internal/splicore/registry"
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"sync"
 	"time"
@@ -23,6 +24,18 @@ func accountAllowed(a access.Account) bool {
 	return a.Enabled && a.Status == access.Active && (a.ExpiresAt == nil || time.Now().Before(*a.ExpiresAt))
 }
 func (s *Service) EnableRuntime(ctx context.Context) error {
+	return s.enableRuntime(ctx, nil)
+}
+
+// EnableRuntimeWithClient restores local listeners before server listeners.
+// Fixed-target local tunnels may be server destinations. SQLite recovery and
+// the plan key are initialized first; all listeners still derive from committed
+// state. Server-only callers retain EnableRuntime's existing behavior.
+func (s *Service) EnableRuntimeWithClient(ctx context.Context, outbounds *registry.Outbounds, hostDirectory ...string) error {
+	return s.enableRuntime(ctx, func() error { return s.EnableClientRuntime(ctx, outbounds, hostDirectory...) })
+}
+
+func (s *Service) enableRuntime(ctx context.Context, beforeServers func() error) error {
 	r, ok := s.repo.(ports.RuntimeRepository)
 	if !ok {
 		return identity.Err(identity.Unavailable, "runtime repository unavailable")
@@ -42,8 +55,15 @@ func (s *Service) EnableRuntime(ctx context.Context) error {
 	if snapshot.PendingTransactions > 0 {
 		return identity.Err(identity.Unavailable, "unrecognized pending operation requires review")
 	}
+	if beforeServers != nil {
+		if e := beforeServers(); e != nil {
+			_ = s.CloseRuntime(context.Background())
+			return e
+		}
+	}
 	inbounds, e := r.Inbounds(ctx)
 	if e != nil {
+		_ = s.CloseRuntime(context.Background())
 		return e
 	}
 	for _, i := range inbounds {

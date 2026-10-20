@@ -49,6 +49,27 @@ func routeFallback(gen *snapshot, inbound identity.ID) P.Action {
 	}
 	return P.Action{Kind: P.Outbound, ID: gen.state.Route.DefaultOutbound}
 }
+
+// Resolve only the configured destination through the retained generation's
+// Core DNS policy. Keep the logical endpoint unchanged in profile state.
+func resolveTarget(ctx context.Context, gen *snapshot, target access.Endpoint) (access.Endpoint, error) {
+	if !gen.state.Network.DNS.Enabled {
+		return target, nil
+	}
+	if _, err := netip.ParseAddr(target.Host); err == nil {
+		return target, nil
+	}
+	result, err := gen.network.Lookup(ctx, target.Host)
+	if err != nil {
+		return target, err
+	}
+	if len(result.Addresses) == 0 {
+		return target, identity.Err(identity.Unavailable, "DNS has no usable address")
+	}
+	target.Host = result.Addresses[0].String()
+	return target, nil
+}
+
 func selectRoute(ctx context.Context, gen *snapshot, inbound identity.ID, target access.Endpoint, network string, affinity map[identity.ID]P.Action) (networkruntime.Explanation, access.Endpoint, error) {
 	q := networkruntime.Query{Port: target.Port, Network: network, LocalInbound: inbound}
 	ip, err := netip.ParseAddr(target.Host)
@@ -72,16 +93,12 @@ func selectRoute(ctx context.Context, gen *snapshot, inbound identity.ID, target
 		return selected, target, err
 	}
 	if q.Domain != "" && len(q.Resolved) == 0 && gen.state.Network.DNS.Enabled {
-		result, err := gen.network.Lookup(ctx, q.Domain)
+		target, err = resolveTarget(ctx, gen, target)
 		if err != nil {
 			return networkruntime.Explanation{}, target, err
 		}
-		if len(result.Addresses) == 0 {
-			return networkruntime.Explanation{}, target, identity.Err(identity.Unavailable, "DNS has no usable address")
-		}
 		// Match the address that this connection will actually dial. Original domain remains available.
-		q.Resolved = result.Addresses[:1]
-		target.Host = result.Addresses[0].String()
+		q.Resolved = []netip.Addr{netip.MustParseAddr(target.Host)}
 	}
 	selected, err := gen.network.Explain(q, routeFallback(gen, inbound), true, affinity)
 	return selected, target, err
