@@ -55,6 +55,12 @@ Display endpoint, listener, SNI and REALITY target are independent. Client
 profiles contain the display endpoint, authorized UUID, explicit CA or REALITY
 public key/short ID/SNI. Server private keys and target endpoints stay server owned.
 
+For protected cover destinations, point REALITY's target at a configured
+[local tunnel guard](LOCAL_TUNNEL_GUARD.md). The guard admits exact visible SNI
+through native route policy and dials only its fixed configured destination.
+Optional `server_names` accepts up to 16 distinct DNS names and must include
+`server_name`; this handshake policy is separate from guard route admission.
+
 ## Flow and underlay composition
 
 Vision owns padding, bounded framing and TLS traffic detection. A supported

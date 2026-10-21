@@ -47,14 +47,15 @@ type PortRange struct {
 	End   uint16 `json:"end"`
 }
 type RuleMatch struct {
-	Domains       []string      `json:"domains,omitempty"`
-	Suffixes      []string      `json:"domain_suffixes,omitempty"`
-	Keywords      []string      `json:"domain_keywords,omitempty"`
-	CIDRs         []string      `json:"ip_cidrs,omitempty"`
-	Ports         []PortRange   `json:"ports,omitempty"`
-	Networks      []string      `json:"networks,omitempty"`
-	LocalInbounds []identity.ID `json:"local_inbounds,omitempty"`
-	RuleSets      []identity.ID `json:"rule_sets,omitempty"`
+	SniffedDomains []string      `json:"sniffed_domains,omitempty"`
+	Domains        []string      `json:"domains,omitempty"`
+	Suffixes       []string      `json:"domain_suffixes,omitempty"`
+	Keywords       []string      `json:"domain_keywords,omitempty"`
+	CIDRs          []string      `json:"ip_cidrs,omitempty"`
+	Ports          []PortRange   `json:"ports,omitempty"`
+	Networks       []string      `json:"networks,omitempty"`
+	LocalInbounds  []identity.ID `json:"local_inbounds,omitempty"`
+	RuleSets       []identity.ID `json:"rule_sets,omitempty"`
 }
 type RouteRule struct {
 	ID     identity.ID `json:"id"`
@@ -243,11 +244,16 @@ func (c Config) Validate(out, in map[identity.ID]bool) error {
 	}
 	var match func(RuleMatch, bool) error
 	match = func(m RuleMatch, dnsOnly bool) error {
-		size := len(m.Domains) + len(m.Suffixes) + len(m.Keywords) + len(m.CIDRs) + len(m.Ports) + len(m.LocalInbounds) + len(m.RuleSets)
+		size := len(m.SniffedDomains) + len(m.Domains) + len(m.Suffixes) + len(m.Keywords) + len(m.CIDRs) + len(m.Ports) + len(m.LocalInbounds) + len(m.RuleSets)
 		if size > 256 || len(m.Networks) > 2 {
 			return invalid("rule match exceeds limits")
 		}
 		for _, s := range append(append([]string{}, m.Domains...), m.Suffixes...) {
+			if _, e := Domain(s); e != nil {
+				return e
+			}
+		}
+		for _, s := range m.SniffedDomains {
 			if _, e := Domain(s); e != nil {
 				return e
 			}
@@ -282,7 +288,7 @@ func (c Config) Validate(out, in map[identity.ID]bool) error {
 				return invalid("missing ruleset")
 			}
 		}
-		if dnsOnly && (len(m.CIDRs)+len(m.Ports)+len(m.Networks)+len(m.LocalInbounds) > 0) {
+		if dnsOnly && (len(m.SniffedDomains)+len(m.CIDRs)+len(m.Ports)+len(m.Networks)+len(m.LocalInbounds) > 0) {
 			return invalid("DNS rules require domain-only matches")
 		}
 		return nil

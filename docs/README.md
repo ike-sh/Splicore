@@ -14,6 +14,8 @@
 ## Protocols and configuration
 
 - [VLESS, Vision, TLS and REALITY combinations](protocol/VLESS.md)
+- [Native TrustTunnel](protocol/TRUSTTUNNEL.md)
+- [REALITY protected destinations and local tunnel guards](protocol/LOCAL_TUNNEL_GUARD.md)
 - [TCP FinalMask: header-custom, fragment and Sudoku](architecture/FINALMASK.md)
 - [AnyTLS: TLS, v2/v1, multiplexing, padding and UoT2](architecture/ANYTLS.md)
 - [AnyTLS server configuration](configuration/inbound/anytls.md)

@@ -10,15 +10,25 @@ import (
 )
 
 type Query struct {
-	Domain       string       `json:"domain,omitempty"`
-	IP           netip.Addr   `json:"ip,omitzero"`
-	Resolved     []netip.Addr `json:"resolved_ips,omitempty"`
-	Port         uint16       `json:"port"`
-	Network      string       `json:"network"`
-	LocalInbound identity.ID  `json:"local_inbound,omitempty"`
+	SniffedProtocol string       `json:"sniffed_protocol,omitempty"`
+	SniffedDomain   string       `json:"sniffed_domain,omitempty"`
+	Domain          string       `json:"domain,omitempty"`
+	IP              netip.Addr   `json:"ip,omitzero"`
+	Resolved        []netip.Addr `json:"resolved_ips,omitempty"`
+	Port            uint16       `json:"port"`
+	Network         string       `json:"network"`
+	LocalInbound    identity.ID  `json:"local_inbound,omitempty"`
 }
 
 func (q Query) Validate() error {
+	if q.SniffedProtocol != "" && q.SniffedProtocol != "tls" || q.SniffedDomain != "" && q.SniffedProtocol != "tls" {
+		return identity.Err(identity.Invalid, "invalid sniffed route metadata")
+	}
+	if q.SniffedDomain != "" {
+		if _, err := P.Domain(q.SniffedDomain); err != nil {
+			return err
+		}
+	}
 	if q.Port == 0 || (q.Network != "tcp" && q.Network != "udp") || q.Domain == "" && !q.IP.IsValid() || len(q.Resolved) > 32 {
 		return identity.Err(identity.Invalid, "invalid route query")
 	}
@@ -39,6 +49,7 @@ func (q Query) Validate() error {
 }
 
 type compiledMatch struct {
+	sniffedExact    map[string]bool
 	exact           map[string]bool
 	suffix, keyword []string
 	cidrs           []netip.Prefix
@@ -68,6 +79,14 @@ type Matcher struct {
 
 func compileMatch(m P.RuleMatch) (compiledMatch, error) {
 	c := compiledMatch{exact: map[string]bool{}, networks: map[string]bool{}, locals: map[identity.ID]bool{}, ports: append([]P.PortRange(nil), m.Ports...), sets: append([]identity.ID(nil), m.RuleSets...)}
+	c.sniffedExact = map[string]bool{}
+	for _, s := range m.SniffedDomains {
+		d, err := P.Domain(s)
+		if err != nil {
+			return c, err
+		}
+		c.sniffedExact[d] = true
+	}
 	for _, s := range m.Domains {
 		d, err := P.Domain(s)
 		if err != nil {
@@ -141,6 +160,12 @@ type setResult struct {
 func (m *Matcher) matches(c compiledMatch, q Query, depth int, used *[]identity.ID, memo map[identity.ID]setResult) bool {
 	if depth > 16 {
 		return false
+	}
+	if len(c.sniffedExact) > 0 {
+		domain, err := P.Domain(q.SniffedDomain)
+		if err != nil || q.SniffedProtocol != "tls" || !c.sniffedExact[domain] {
+			return false
+		}
 	}
 	domain := strings.ToLower(strings.TrimSuffix(q.Domain, "."))
 	if len(c.exact)+len(c.suffix)+len(c.keyword) > 0 {

@@ -68,7 +68,11 @@ func Serve(ctx context.Context, c config.Config) (err error) {
 	if err != nil {
 		return err
 	}
-	if err = service.EnableRuntime(ctx); err != nil {
+	outbounds, err := registry.NewOutbounds(native.SnellOutboundFactory{}, native.Hysteria2OutboundFactory{}, native.TUICOutboundFactory{}, native.VLESSOutboundFactory{}, native.MieruOutboundFactory{}, native.ShadowsocksOutboundFactory{}, native.TrojanOutboundFactory{}, native.VMessOutboundFactory{}, native.AnyTLSOutboundFactory{}, native.SOCKS5OutboundFactory{}, native.HTTPOutboundFactory{}, native.NaiveOutboundFactory{}, native.TrustTunnelOutboundFactory{})
+	if err != nil {
+		return err
+	}
+	if err = service.EnableRuntimeWithClient(ctx, outbounds, filepath.Join(c.StateDirectory, "host-network")); err != nil {
 		return err
 	}
 	defer func() {
@@ -76,13 +80,6 @@ func Serve(ctx context.Context, c config.Config) (err error) {
 		defer cancel()
 		err = errors.Join(err, service.CloseRuntime(shutdown))
 	}()
-	outbounds, err := registry.NewOutbounds(native.SnellOutboundFactory{}, native.Hysteria2OutboundFactory{}, native.TUICOutboundFactory{}, native.VLESSOutboundFactory{}, native.MieruOutboundFactory{}, native.ShadowsocksOutboundFactory{}, native.TrojanOutboundFactory{}, native.VMessOutboundFactory{}, native.AnyTLSOutboundFactory{}, native.SOCKS5OutboundFactory{}, native.HTTPOutboundFactory{}, native.NaiveOutboundFactory{})
-	if err != nil {
-		return err
-	}
-	if err = service.EnableClientRuntime(ctx, outbounds, filepath.Join(c.StateDirectory, "host-network")); err != nil {
-		return err
-	}
 	if err = service.StartManagement(ctx); err != nil {
 		return err
 	}

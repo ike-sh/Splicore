@@ -22,9 +22,11 @@ import (
 	nm "github.com/ike-sh/Splicore/internal/splicore/protocol/naive"
 	ssm "github.com/ike-sh/Splicore/internal/splicore/protocol/shadowsocks"
 	trm "github.com/ike-sh/Splicore/internal/splicore/protocol/trojan"
+	ttm "github.com/ike-sh/Splicore/internal/splicore/protocol/trusttunnel"
 	tm "github.com/ike-sh/Splicore/internal/splicore/protocol/tuic"
 	vm "github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
 	vmm "github.com/ike-sh/Splicore/internal/splicore/protocol/vmess"
+	"github.com/ike-sh/Splicore/protocol/trusttunnel/deeplink"
 )
 
 type Credential struct {
@@ -124,7 +126,7 @@ func Parse(format string, body []byte) (Result, error) {
 			if line == "" {
 				continue
 			}
-			if len(line) > provider.MaxURI {
+			if len(line) > uriLimit(line) {
 				return out, invalid()
 			}
 			c, e := ParseURI(line)
@@ -163,9 +165,15 @@ func Parse(format string, body []byte) (Result, error) {
 
 var errUnsupported = unsupported()
 
+func uriLimit(s string) int {
+	if strings.HasPrefix(s, "tt://") {
+		return deeplink.MaxURI
+	}
+	return provider.MaxURI
+}
 func ParseURI(raw string) (Candidate, error) {
 	var c Candidate
-	if len(raw) > provider.MaxURI || !utf8.ValidString(raw) || strings.ContainsAny(raw, "\r\n\x00") {
+	if len(raw) > uriLimit(raw) || !utf8.ValidString(raw) || strings.ContainsAny(raw, "\r\n\x00") {
 		return c, invalid()
 	}
 	if strings.HasPrefix(raw, "socks://") || strings.HasPrefix(raw, "socks5://") || strings.HasPrefix(raw, "socks5h://") || strings.HasPrefix(raw, "http://") {
@@ -199,6 +207,17 @@ func ParseURI(raw string) (Candidate, error) {
 	if strings.HasPrefix(raw, "hy2://") || strings.HasPrefix(raw, "hysteria2://") {
 		return parseHysteriaURI(raw)
 	}
+	if strings.HasPrefix(raw, "tt://") {
+		node, u, p, e := ttm.ImportLink(raw)
+		if e != nil {
+			return c, e
+		}
+		c.Node = node
+		pair, _ := json.Marshal(map[string]string{"username": u, "password": p})
+		c.Credential = Credential{Kind: access.UsernamePassword, Value: string(pair)}
+		return c, nil
+	}
+
 	u, e := url.Parse(raw)
 	if e != nil || u.Opaque != "" {
 		return c, invalid()

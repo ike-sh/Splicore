@@ -7,12 +7,16 @@ and a persistent control plane in a single Core implementation.
 ## Capabilities
 
 Supported protocols include Shadowsocks/SS2022, Snell, Hysteria2, TUIC, VLESS,
-Mieru, Trojan, VMess, AnyTLS and [NaiveProxy](docs/architecture/NAIVE.md), with local
+Mieru, Trojan, VMess, AnyTLS, [TrustTunnel](docs/protocol/TRUSTTUNNEL.md) and
+[NaiveProxy](docs/architecture/NAIVE.md), with local
 SOCKS5, HTTP, Mixed and TUN traffic entry.
 Shared stream transports include raw TCP, WebSocket, HTTPUpgrade, gRPC,
 [XHTTP](docs/architecture/XHTTP.md) and [modern mKCP](docs/architecture/MKCP.md).
 Hysteria2 uses the native [specialized Hysteria transport](docs/architecture/HYSTERIA_TRANSPORT.md),
 including Salamander, Gecko obfuscation (experimental) and UDP port hopping.
+Native REALITY protected destinations can use a
+[local tunnel guard](docs/protocol/LOCAL_TUNNEL_GUARD.md) with bounded TLS SNI
+inspection, route-only matching and fail-closed routing to a fixed destination.
 
 See the [capability matrix](docs/architecture/CAPABILITY_MATRIX.md) and
 [Core scope](docs/architecture/CORE_SCOPE.md) for capability details and boundaries.

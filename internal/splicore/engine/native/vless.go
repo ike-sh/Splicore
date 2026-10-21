@@ -97,7 +97,7 @@ func (c VLESSCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (por
 		for i, id := range s.Reality.ShortIDs {
 			ids[i] = string(id)
 		}
-		h.handshake, err = backend.RealityServer(s.Reality.ServerName, in.ServerCredentials[0].Payload.(access.PrivateKeyPayload).Material.Reveal(), ids, s.Reality.Target, dialer.DialContext)
+		h.handshake, err = backend.RealityServerNames(s.Reality.Names(), in.ServerCredentials[0].Payload.(access.PrivateKeyPayload).Material.Reveal(), ids, s.Reality.Target, dialer.DialContext)
 		if err != nil {
 			cancel()
 			return nil, identity.Err(identity.Invalid, "invalid REALITY settings")

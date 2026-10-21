@@ -31,6 +31,7 @@ type SessionView struct {
 	Stats      TrafficStats `json:"stats"`
 }
 type Status struct {
+	TunnelGuards     []TunnelObservation        `json:"tunnel_guards,omitempty"`
 	Accounts         []Observation              `json:"accounts"`
 	ProxyInterfaces  []ports.OutboundCapability `json:"proxy_interfaces"`
 	Underlay         underlay.Status            `json:"underlay"`
@@ -94,6 +95,9 @@ func (m *Manager) Status(state client.ProfileState, capabilities []ports.Outboun
 		v := Observation{ID: i.ID}
 		if c := m.inStats[i.ID]; c != nil {
 			v.Stats = c.stats()
+			if i.Kind == "tunnel" {
+				out.TunnelGuards = append(out.TunnelGuards, TunnelObservation{ID: i.ID, Stats: c.guard.stats()})
+			}
 		}
 		out.LocalStats = append(out.LocalStats, v)
 	}

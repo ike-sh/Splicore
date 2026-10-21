@@ -26,6 +26,7 @@ import (
 )
 
 type counter struct {
+	guard                                       tunnelCounter
 	errors                                      atomic.Int64
 	upload, download, total, active             atomic.Int64
 	udpTotal, udpActive, packetsUp, packetsDown atomic.Int64
@@ -121,6 +122,7 @@ type Manager struct {
 	inStats, outStats, nodeStats map[identity.ID]*counter
 	wg                           sync.WaitGroup
 	closed                       bool
+	tunnelActive                 int   // admitted tunnel sessions, protected by mu
 	cleanupError                 error // retained retirement debt; protected by mu
 	changed                      chan struct{}
 	udpIdle                      time.Duration
@@ -522,7 +524,7 @@ func (m *Manager) accept(l *localListener) {
 			return
 		}
 		m.mu.Lock()
-		if m.closed || !l.ready.Load() || len(m.sessions) >= 4096 {
+		if m.closed || !l.ready.Load() || len(m.sessions) >= 4096 || l.spec.Kind == "tunnel" && m.tunnelActive >= 512 {
 			m.mu.Unlock()
 			_ = c.Close()
 			continue
@@ -536,6 +538,9 @@ func (m *Manager) accept(l *localListener) {
 		ctx, cancel := context.WithCancel(context.Background())
 		s := &session{id: id, inbound: l.spec.ID, local: c, cancel: cancel}
 		m.sessions[id] = s
+		if l.spec.Kind == "tunnel" {
+			m.tunnelActive++
+		}
 		m.wg.Add(1)
 		m.mu.Unlock()
 		go m.serve(ctx, s, l.spec.Kind)
@@ -572,6 +577,9 @@ func (m *Manager) serve(ctx context.Context, s *session, kind string) {
 		}
 		m.mu.Lock()
 		delete(m.sessions, s.id)
+		if kind == "tunnel" {
+			m.tunnelActive--
+		}
 		close(m.changed)
 		m.changed = make(chan struct{})
 		m.mu.Unlock()
@@ -580,6 +588,10 @@ func (m *Manager) serve(ctx context.Context, s *session, kind string) {
 	reader := bufio.NewReader(s.local)
 	gen = m.acquire()
 	if gen == nil {
+		return
+	}
+	if kind == "tunnel" {
+		m.serveTunnel(ctx, s, gen)
 		return
 	}
 	if kind == "mixed" {
@@ -644,8 +656,13 @@ func (m *Manager) serveStream(ctx context.Context, s *session, gen *snapshot, ta
 		reply(socks.NotAllowed)
 		return
 	}
+	m.serveSelectedStream(ctx, s, gen, selected, resolved, reader, reply, connected)
+}
+
+// Reuse the ordinary native outbound, accounting, cancellation and half-close
+// path after an ingress has obtained its own routing metadata.
+func (m *Manager) serveSelectedStream(ctx context.Context, s *session, gen *snapshot, selected networkruntime.Explanation, target access.Endpoint, reader io.Reader, reply func(byte), connected func() error) {
 	oid := selectedOutbound(selected.Selected)
-	target = resolved
 	var node identity.ID
 	for _, o := range gen.state.Outbounds {
 		if o.ID == oid && o.NodeID != nil {

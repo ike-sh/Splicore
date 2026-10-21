@@ -112,6 +112,8 @@ func (o Outbound) Validate() error {
 }
 
 type LocalInbound struct {
+	Tunnel           *TunnelSettings  `json:"tunnel,omitempty"`
+	Sniffing         *SniffingPolicy  `json:"sniffing,omitempty"`
 	AllowLAN         bool             `json:"allow_lan,omitempty"`
 	Auth             bool             `json:"auth,omitempty"`
 	Bindings         []access.Binding `json:"bindings,omitempty"`
@@ -129,6 +131,12 @@ func (i LocalInbound) Validate() error {
 	}
 	if i.SelectedOutbound != "" && ValidateOutboundID(i.SelectedOutbound) != nil {
 		return invalid()
+	}
+	if i.Kind == "tunnel" {
+		return i.validateTunnel()
+	}
+	if i.Tunnel != nil || i.Sniffing != nil {
+		return identity.Err(identity.Invalid, "tunnel and sniffing settings require kind tunnel")
 	}
 	if i.Kind == "tun" {
 		if i.TUN == nil || i.Listen != (access.Endpoint{}) || i.Auth || i.AllowLAN || len(i.Bindings) > 0 {
@@ -272,6 +280,9 @@ func (s ProfileState) Validate() error {
 		}
 	}
 	if e := s.Network.Validate(out, ids); e != nil {
+		return e
+	}
+	if e := s.validateTunnelRoutes(); e != nil {
 		return e
 	}
 	return s.ValidateProviderDependencies()

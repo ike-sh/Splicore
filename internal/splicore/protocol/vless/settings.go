@@ -63,11 +63,22 @@ func (v *ShortID) UnmarshalJSON(b []byte) error {
 }
 
 type RealitySettings struct {
-	PublicKey  PublicKey       `json:"public_key,omitempty"`
-	ShortIDs   []ShortID       `json:"short_ids"`
-	ServerName string          `json:"server_name"`
-	Target     access.Endpoint `json:"target"`
+	ServerNames []string        `json:"server_names,omitempty"`
+	PublicKey   PublicKey       `json:"public_key,omitempty"`
+	ShortIDs    []ShortID       `json:"short_ids"`
+	ServerName  string          `json:"server_name"`
+	Target      access.Endpoint `json:"target"`
 }
+
+// Names is handshake policy only. ServerName remains the exported client
+// default; local tunnel route policy is configured independently.
+func (r RealitySettings) Names() []string {
+	if len(r.ServerNames) == 0 {
+		return []string{r.ServerName}
+	}
+	return append([]string(nil), r.ServerNames...)
+}
+
 type Settings struct {
 	Stream         *streamcfg.Config   `json:"stream_transport,omitempty"`
 	Security       Security            `json:"security"`
@@ -168,6 +179,22 @@ func validateSettings(s Settings, publicRequired bool) error {
 		r := s.Reality
 		kind, err := access.ParseHost(r.ServerName)
 		if err != nil || kind != access.DNS || r.Target.Validate() != nil || len(r.ShortIDs) > 16 {
+			return invalid()
+		}
+		if len(r.ServerNames) > 16 {
+			return invalid()
+		}
+		names, hasDefault := map[string]bool{}, false
+		for _, name := range r.Names() {
+			kind, e := access.ParseHost(name)
+			canonical := strings.ToLower(name)
+			if e != nil || kind != access.DNS || names[canonical] {
+				return invalid()
+			}
+			names[canonical] = true
+			hasDefault = hasDefault || name == r.ServerName
+		}
+		if !hasDefault {
 			return invalid()
 		}
 		if (publicRequired || r.PublicKey != "") && ValidatePublicKey(r.PublicKey) != nil {

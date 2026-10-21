@@ -31,6 +31,21 @@ var errReality = errors.New("REALITY authentication failed")
 // RealityServer delegates TLS/REALITY to the admitted library. Target sockets
 // are injected and bounded, and parent cancellation owns both sockets.
 func RealityServer(name, key string, ids []string, target access.Endpoint, dial func(context.Context, string, string) (net.Conn, error)) (func(context.Context, net.Conn) (net.Conn, error), error) {
+	return RealityServerNames([]string{name}, key, ids, target, dial)
+}
+
+func RealityServerNames(names []string, key string, ids []string, target access.Endpoint, dial func(context.Context, string, string) (net.Conn, error)) (func(context.Context, net.Conn) (net.Conn, error), error) {
+	if len(names) == 0 || len(names) > 16 {
+		return nil, errReality
+	}
+	serverNames := make(map[string]bool, len(names))
+	for _, name := range names {
+		kind, err := access.ParseHost(name)
+		if err != nil || kind != access.DNS || serverNames[name] {
+			return nil, errReality
+		}
+		serverNames[name] = true
+	}
 	private, err := base64.RawURLEncoding.DecodeString(key)
 	if err != nil || len(private) != 32 {
 		return nil, errReality
@@ -48,7 +63,7 @@ func RealityServer(name, key string, ids []string, target access.Endpoint, dial 
 	if len(shortIDs) == 0 {
 		shortIDs[[8]byte{}] = true
 	}
-	config := &utls.RealityConfig{Config: utls.Config{ServerName: name, MinVersion: utls.VersionTLS13, SessionTicketsDisabled: true}, Type: "tcp", Dest: net.JoinHostPort(target.Host, portString(target.Port)), PrivateKey: private, ServerNames: map[string]bool{name: true}, ShortIds: shortIDs}
+	config := &utls.RealityConfig{Config: utls.Config{ServerName: names[0], MinVersion: utls.VersionTLS13, SessionTicketsDisabled: true}, Type: "tcp", Dest: net.JoinHostPort(target.Host, portString(target.Port)), PrivateKey: private, ServerNames: serverNames, ShortIds: shortIDs}
 	return func(ctx context.Context, c net.Conn) (net.Conn, error) {
 		local := config.Clone()
 		callCtx, cancel := context.WithTimeout(ctx, 5*time.Second)

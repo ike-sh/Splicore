@@ -9,6 +9,7 @@ identity does not imply ownership of another Core process.
 | Snell v5/v6 | TCP / UDP | PSK; v5 uses the v4 compatibility adapter |
 | Hysteria2 | TCP / UDP | Specialized Hysteria transport; mandatory TLS and H3 authentication |
 | NaiveProxy | TCP | TLS H2 CONNECT or QUIC H3 CONNECT; Basic authentication |
+| TrustTunnel base | TCP / UDP | Authenticated TLS HTTP/2 or HTTP/3; experimental |
 | TUIC v5 | TCP / UDP | QUIC/TLS and UUID/password |
 | VLESS flow-none | TCP / XUDP | Plain/TLS; supported raw REALITY |
 | VLESS Vision | TCP only | Raw TLS 1.3 or REALITY |
@@ -22,6 +23,14 @@ Local entry includes SOCKS5 TCP/UDP, HTTP, Mixed and native TUN. Routing support
 DIRECT/REJECT and bounded selectors, URL-Test, fallback and load balance. DNS,
 proxy providers, RuleSet providers, canonical imports and encrypted source
 storage share the control plane.
+
+[TrustTunnel](../protocol/TRUSTTUNNEL.md) provides native inbound/outbound
+sessions and bounded static deep links. HTTP/3 and automatic mode require
+`with_quic`; optional features and reference interoperability have documented limits.
+[Local tunnel guards](../protocol/LOCAL_TUNNEL_GUARD.md) provide loopback TCP
+entry for REALITY protected destinations, bounded visible TLS SNI inspection,
+route-only admission, fixed configured targets and Core DNS resolution.
+They do not terminate TLS or provide a general UDP firewall.
 
 Raw TCP/TLS, WebSocket, HTTPUpgrade, gRPC, XHTTP and modern mKCP streams are available to
 VMess/VLESS/Trojan under their profile limits. Other protocols retain their own
