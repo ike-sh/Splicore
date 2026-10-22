@@ -8459,6 +8459,9 @@
           },
           {
             "$ref": "#/components/schemas/MieruDocument"
+          },
+          {
+            "$ref": "#/components/schemas/ShadowQUICDocument"
           }
         ]
       },
@@ -9362,7 +9365,8 @@
             "enum": [
               "none",
               "tls",
-              "reality"
+              "reality",
+              "jls"
             ]
           },
           "tls": {
@@ -9381,7 +9385,7 @@
             "const": 1
           },
           "data": {
-            "oneOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/SnellSettings"
               },
@@ -9399,6 +9403,9 @@
               },
               {
                 "$ref": "#/components/schemas/MieruSettings"
+              },
+              {
+                "$ref": "#/components/schemas/ShadowQUICClientOptions"
               }
             ]
           }
@@ -10510,7 +10517,8 @@
               "",
               "system",
               "explicit_ca",
-              "reality"
+              "reality",
+              "jls"
             ]
           },
           "ca_certificate": {
@@ -10529,7 +10537,7 @@
         "required": [
           "enabled"
         ],
-        "description": "Public client material only; private keys cannot be represented. Adapter validates required fields and combinations."
+        "description": "Public client material only; private keys cannot be represented. Adapter validates required fields and combinations. JLS requires kind=jls, trust=jls, enabled=true, exactly alpn=[h3], explicit DNS server_name and no CA/REALITY material. JLS-authenticated Hello messages supply server trust; ordinary TLS fallback cannot authorize a proxy command."
       },
       "ClientTUICOptions": {
         "type": "object",
@@ -13086,6 +13094,288 @@
           "binding"
         ],
         "description": "Create requires write-only username_password credential. Update takes existing binding with changed enabled."
+      },
+      "ShadowQUICSettings": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "server_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253,
+            "description": "Explicit DNS SNI for JLS v3; no IP literal, wildcard or URL.",
+            "pattern": "^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$"
+          },
+          "camouflage_endpoint": {
+            "$ref": "#/components/schemas/Endpoint"
+          },
+          "max_connections": {
+            "anyOf": [
+              {
+                "const": 0
+              },
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 128
+              }
+            ],
+            "default": 32,
+            "description": "Zero selects the default."
+          },
+          "max_streams": {
+            "anyOf": [
+              {
+                "const": 0
+              },
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 256
+              }
+            ],
+            "default": 64,
+            "description": "Zero selects the default."
+          },
+          "max_udp_flows": {
+            "anyOf": [
+              {
+                "const": 0
+              },
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 128
+              }
+            ],
+            "default": 32,
+            "description": "Zero selects the default."
+          },
+          "handshake_timeout": {
+            "anyOf": [
+              {
+                "const": 0
+              },
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30
+              }
+            ],
+            "default": 5,
+            "description": "Zero selects the default."
+          },
+          "idle_timeout": {
+            "anyOf": [
+              {
+                "const": 0
+              },
+              {
+                "type": "integer",
+                "minimum": 10,
+                "maximum": 600
+              }
+            ],
+            "default": 60,
+            "description": "Zero selects the default."
+          },
+          "keepalive": {
+            "anyOf": [
+              {
+                "const": 0
+              },
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 599
+              }
+            ],
+            "default": 15,
+            "description": "Zero selects the default."
+          },
+          "udp_idle_timeout": {
+            "anyOf": [
+              {
+                "const": 0
+              },
+              {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 600
+              }
+            ],
+            "default": 60,
+            "description": "Zero selects the default."
+          }
+        },
+        "required": [
+          "server_name",
+          "camouflage_endpoint"
+        ],
+        "description": "Unversioned ShadowQUIC proxy grammar with JLS v3. DATAGRAM mode only, payload at most 1200 bytes; 0-RTT disabled. Timeout fields are seconds; keepalive must be below idle_timeout."
+      },
+      "ShadowQUICClientOptions": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "max_streams": {
+            "anyOf": [
+              {
+                "const": 0
+              },
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 256
+              }
+            ],
+            "default": 64,
+            "description": "Zero selects the default."
+          },
+          "max_udp_flows": {
+            "anyOf": [
+              {
+                "const": 0
+              },
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 128
+              }
+            ],
+            "default": 32,
+            "description": "Zero selects the default."
+          },
+          "handshake_timeout": {
+            "anyOf": [
+              {
+                "const": 0
+              },
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30
+              }
+            ],
+            "default": 5,
+            "description": "Zero selects the default."
+          },
+          "idle_timeout": {
+            "anyOf": [
+              {
+                "const": 0
+              },
+              {
+                "type": "integer",
+                "minimum": 10,
+                "maximum": 600
+              }
+            ],
+            "default": 60,
+            "description": "Zero selects the default."
+          },
+          "keepalive": {
+            "anyOf": [
+              {
+                "const": 0
+              },
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 599
+              }
+            ],
+            "default": 15,
+            "description": "Zero selects the default."
+          },
+          "udp_idle_timeout": {
+            "anyOf": [
+              {
+                "const": 0
+              },
+              {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 600
+              }
+            ],
+            "default": 60,
+            "description": "Zero selects the default."
+          }
+        },
+        "description": "One lazy persistent session per node/credential generation. No server max_connections option."
+      },
+      "ShadowQUICDocument": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schema": {
+            "const": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "listener": {
+            "$ref": "#/components/schemas/Endpoint"
+          },
+          "display_endpoint": {
+            "$ref": "#/components/schemas/Endpoint"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/ShadowQUICSettings"
+          },
+          "policy_mode": {
+            "type": "string"
+          },
+          "users": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 128,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "account_name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "username": {
+                  "type": "string",
+                  "maxLength": 255
+                },
+                "password": {
+                  "type": "string",
+                  "writeOnly": true
+                },
+                "enabled": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "account_enabled": {
+                  "type": "boolean",
+                  "default": true
+                },
+                "traffic_policy": {
+                  "type": "object"
+                }
+              },
+              "required": [
+                "account_name"
+              ]
+            }
+          }
+        },
+        "required": [
+          "schema",
+          "name",
+          "listener",
+          "display_endpoint",
+          "settings",
+          "users"
+        ]
       }
     },
     "parameters": {

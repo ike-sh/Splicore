@@ -89,3 +89,10 @@ forwardproxy `v2.11.7-naive`. GET/HEAD preambles receive a minimal static respon
 Native clients use bounded connection pools, stream deadlines, tunnel retirement
 and CUBIC for H3. See [Native NaiveProxy](NAIVE.md) for configuration and limits.
 Real hardware remains **NOT YET QUALIFIED**; Linux arm64 remains **BUILD ONLY**.
+
+## ShadowQUIC
+
+Native client/server with JLS v3, QUIC v1, TCP streams and UDP DATAGRAM.
+Configuration, limits and unsupported commands are in [ShadowQUIC](../protocol/SHADOWQUIC.md).
+The separate JLS QUIC/TLS stack is isolated to this protocol. No existing QUIC
+consumer is switched to it.

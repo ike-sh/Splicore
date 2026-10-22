@@ -78,3 +78,13 @@ locally materialized selected modules and records successful go mod verify.
 Graph-only non-linked modules are listed separately. Binary metadata identifies
 actual product modules. No distribution or license change is performed in this
 implementation round.
+
+## Native ShadowQUIC candidate
+
+Phase30 adds the independent MIT JLS QUIC library and BSD-3-Clause JLS TLS
+library, isolated to ShadowQUIC. Their five linked support libraries retain
+Go-style BSD notices. Exact pins and verbatim license texts are recorded in
+[third-party notices](../../THIRD_PARTY_NOTICES.md). No ShadowQUIC reference
+source is ported or embedded; its executable is used only for external
+qualification. No Mihomo Core or prohibited SagerNet module is imported.
+The rationale and alternatives are in [ADR 0043](../adr/0043-native-shadowquic-jls.md).

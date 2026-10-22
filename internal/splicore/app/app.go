@@ -68,7 +68,7 @@ func Serve(ctx context.Context, c config.Config) (err error) {
 	if err != nil {
 		return err
 	}
-	outbounds, err := registry.NewOutbounds(native.SnellOutboundFactory{}, native.Hysteria2OutboundFactory{}, native.TUICOutboundFactory{}, native.VLESSOutboundFactory{}, native.MieruOutboundFactory{}, native.ShadowsocksOutboundFactory{}, native.TrojanOutboundFactory{}, native.VMessOutboundFactory{}, native.AnyTLSOutboundFactory{}, native.SOCKS5OutboundFactory{}, native.HTTPOutboundFactory{}, native.NaiveOutboundFactory{}, native.TrustTunnelOutboundFactory{})
+	outbounds, err := registry.NewOutbounds(native.SnellOutboundFactory{}, native.Hysteria2OutboundFactory{}, native.TUICOutboundFactory{}, native.VLESSOutboundFactory{}, native.MieruOutboundFactory{}, native.ShadowsocksOutboundFactory{}, native.TrojanOutboundFactory{}, native.VMessOutboundFactory{}, native.AnyTLSOutboundFactory{}, native.SOCKS5OutboundFactory{}, native.HTTPOutboundFactory{}, native.NaiveOutboundFactory{}, native.TrustTunnelOutboundFactory{}, native.ShadowQUICOutboundFactory{})
 	if err != nil {
 		return err
 	}

@@ -24,6 +24,8 @@ def rule(path, functions, classification, purpose, evidence):
 
 rule("streamtransport/transport.go", "Dial", "Protected", "shared WebSocket/HTTPUpgrade/raw TCP+TLS", "Every socket comes from injected approved dial; WebSocket NetDialContext/NetDialTLSContext override all dialing; Proxy nil")
 rule("streamtransport/grpc.go", "dialGRPC", "Protected", "shared gRPC HTTP/2 underlay", "WithContextDialer injects approved numeric/endpoint socket; grpc-go never uses ambient default dialer")
+rule("engine/native/shadowquic.go", "Start", "Intentionally Local", "ShadowQUIC UDP ingress", "Admission-gated owned listener; JLS library receives only this socket")
+rule("engine/native/shadowquic.go", "dialTarget", "Protected", "ShadowQUIC target sockets", "Validated semantic target -> injected ServerTarget, bounded dial deadline and joined relay; domain replies preserved")
 rule("engine/native/snell_outbound.go", "DialContext", "Protected", "Snell proxy underlay delegation", "d.dial uses injected ProxyUnderlay and returns owned socket")
 rule("engine/relay/packet.go", "target", "Protected", "server UDP target delegation", "Native protocol passes approved ServerTarget callback; relay owns bounded connected sockets")
 rule("networkruntime/dns.go", "exchangeDNS", "Protected", "managed DNS outbound delegation", "Snapshot-owned selected protected dial path; no ambient resolver")
@@ -72,6 +74,7 @@ def backend_rule(path, functions, classification, purpose, evidence):
     for fn in functions.split():
         rules[("protocol/" + path, fn)] = (classification, purpose, evidence)
 
+backend_rule("shadowquic/session/quic.go", "session NewServer", "Protected", "ShadowQUIC private JLS QUIC delegation", "Injected owned socket only; explicit authenticated-state gate before proxy commands")
 for protocol in ("hysteria2", "tuic"):
     backend_rule(protocol + "/backend/client.go", "connect", "Protected", "private QUIC transport", "Transport.Conn is the injected protected packet socket; QUIC never creates a default socket")
     backend_rule(protocol + "/backend/server.go", "NewServer", "Intentionally Local", "QUIC listener delegation", "Transport.Conn is the native handle's owned UDP ingress")

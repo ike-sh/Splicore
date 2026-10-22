@@ -152,3 +152,29 @@ func (m *Manager) FlushDNS() error {
 	gen.network.FlushCache()
 	return nil
 }
+
+// BootstrapHost retains the committed DNS generation for server infrastructure.
+// Bootstrap uses its explicit bootstrap server, without policy-group recursion.
+func (m *Manager) BootstrapHost(ctx context.Context, domain string) ([]netip.Addr, error) {
+	gen := m.acquire()
+	if gen == nil {
+		return nil, identity.Err(identity.Unavailable, "Core DNS runtime unavailable")
+	}
+	defer gen.release()
+	return gen.network.Bootstrap(ctx, domain)
+}
+
+// LookupHost resolves a server target through the committed DNS rule selection.
+// Disabled managed DNS retains the explicit existing system-bootstrap policy.
+func (m *Manager) LookupHost(ctx context.Context, domain string) ([]netip.Addr, error) {
+	gen := m.acquire()
+	if gen == nil {
+		return nil, identity.Err(identity.Unavailable, "Core DNS runtime unavailable")
+	}
+	defer gen.release()
+	if !gen.state.Network.DNS.Enabled {
+		return gen.network.Bootstrap(ctx, domain)
+	}
+	result, err := gen.network.Lookup(ctx, domain)
+	return result.Addresses, err
+}

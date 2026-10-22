@@ -68,3 +68,6 @@ Native is the sole runtime engine. Historical Phase 6/7 direction is superseded;
 
 - [Decision](../adr/0035-xray-runtime-removed-from-core.md)
 - [Correction report](../reports/ARCHITECTURE_CORRECTION_XRAY_BOUNDARY_REPORT.md)
+
+Native ShadowQUIC configuration and scope: [ShadowQUIC](SHADOWQUIC.md), with
+[the proposed JLS library boundary](../adr/0043-native-shadowquic-jls.md).

@@ -100,6 +100,16 @@
     "conn, err = d.protected.DialContext(ctx, \"tcp\", net.JoinHostPort(d.node.Endpoint.Host, strconv.Itoa(int(d.node.Endpoint.Port))))"
   ],
   [
+    "internal/splicore/engine/native/shadowquic.go",
+    "Start",
+    "packet, err := (&net.ListenConfig{}).ListenPacket(ctx, \"udp\", net.JoinHostPort(h.endpoint.Host, portString(h.endpoint.Port)))"
+  ],
+  [
+    "internal/splicore/engine/native/shadowquic.go",
+    "dialTarget",
+    "return h.protected.DialContext(ctx, network, module.Address(dst))"
+  ],
+  [
     "internal/splicore/engine/native/shadowsocks.go",
     "Start",
     "lc := net.ListenConfig{}"
@@ -448,6 +458,16 @@
     "protocol/mieru/backend/mieru_outbound.go",
     "dial",
     "c, err := o.d.client.DialContext(joined, addr)"
+  ],
+  [
+    "protocol/shadowquic/session/quic.go",
+    "NewServer",
+    "s.listener, err = s.transport.Listen(tc, qc)"
+  ],
+  [
+    "protocol/shadowquic/session/quic.go",
+    "session",
+    "q, err := transport.Dial(ctx, remote, tc, quicConfig(c.config.Limits, false))"
   ],
   [
     "protocol/tuic/backend/client.go",

@@ -13,7 +13,8 @@ already selected grpc-go v1.80.0 (Apache-2.0) directly. Their complete notices a
 listed below. No Xray, sing-box or Mihomo implementation source is imported.
 This inventory records locally materialized selected modules, including test/tool
 dependencies. Full graph-only non-linked nodes are listed in external evidence;
-they are not represented as linked product code. No publication is performed.
+they are not represented as linked product code. No publication is performed. Phase30 adds independent JLS QUIC/TLS libraries
+and their five linked support modules listed below; no MetaCubeX Core is imported.
 
 License/copyright/NOTICE/AUTHORS texts below are preserved verbatim from the
 selected module cache. go mod verify passed. Concrete product modules are also
@@ -39,6 +40,13 @@ verified against the three binary metadata inventories.
 | github.com/klauspost/compress | v1.19.1 | [LICENSE](licenses/third-party/github.com/klauspost/compress/v1.19.1/LICENSE) |
 | github.com/klauspost/cpuid/v2 | v2.3.0 | [LICENSE](licenses/third-party/github.com/klauspost/cpuid/v2/v2.3.0/LICENSE) |
 | github.com/mattn/go-isatty | v0.0.24 | [LICENSE](licenses/third-party/github.com/mattn/go-isatty/v0.0.24/LICENSE) |
+| github.com/metacubex/cpu | v0.1.0 | [LICENSE](licenses/third-party/github.com/metacubex/cpu/v0.1.0/LICENSE) |
+| github.com/metacubex/hkdf | v0.1.0 | [LICENSE](licenses/third-party/github.com/metacubex/hkdf/v0.1.0/LICENSE) |
+| github.com/metacubex/hpke | v0.1.0 | [LICENSE](licenses/third-party/github.com/metacubex/hpke/v0.1.0/LICENSE) |
+| github.com/metacubex/jls-quic-go | v0.0.0-20260727080412-732f2fc9a34d | [LICENSE](licenses/third-party/github.com/metacubex/jls-quic-go/v0.0.0-20260727080412-732f2fc9a34d/LICENSE) |
+| github.com/metacubex/jls-tls | v0.0.0-20260723084315-67adc0e2f796 | [LICENSE](licenses/third-party/github.com/metacubex/jls-tls/v0.0.0-20260723084315-67adc0e2f796/LICENSE) |
+| github.com/metacubex/mlkem | v0.1.0 | [LICENSE](licenses/third-party/github.com/metacubex/mlkem/v0.1.0/LICENSE) |
+| github.com/metacubex/randv2 | v0.2.0 | [LICENSE](licenses/third-party/github.com/metacubex/randv2/v0.2.0/LICENSE) |
 | github.com/metacubex/utls | v1.8.7 | [LICENSE](licenses/third-party/github.com/metacubex/utls/v1.8.7/LICENSE) |
 | github.com/miekg/dns | v1.1.72 | [AUTHORS](licenses/third-party/github.com/miekg/dns/v1.1.72/AUTHORS), [COPYRIGHT](licenses/third-party/github.com/miekg/dns/v1.1.72/COPYRIGHT), [LICENSE](licenses/third-party/github.com/miekg/dns/v1.1.72/LICENSE) |
 | github.com/ncruces/go-strftime | v1.0.0 | [LICENSE](licenses/third-party/github.com/ncruces/go-strftime/v1.0.0/LICENSE) |
