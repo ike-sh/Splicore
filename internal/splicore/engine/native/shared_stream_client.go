@@ -20,9 +20,20 @@ func sharedSecurity(kind string, t access.ClientTLS, tc *tls.Config) (shared.Cli
 	}
 	return s, nil
 }
-func sharedClient(dial shared.DialFunc, n client.RemoteNode, tc *tls.Config) (*shared.Client, error) {
-	if n.Transport.Type() != "xhttp" {
+
+func sharedClient(ctx context.Context, dial shared.DialFunc, n client.RemoteNode, tc *tls.Config) (*shared.Client, error) {
+	if n.Transport.Type() == "quic-stream" {
+		socket, err := nativePacketSocket(ctx, n.Endpoint)
+		if err != nil {
+			return nil, err
+		}
+		return shared.NewPacketClient(socket, n.Transport, tc)
+	}
+	if n.Transport.Type() != "xhttp" && !n.Transport.NativeStream() {
 		return nil, nil
+	}
+	if n.Transport.NativeStream() {
+		dial = nativeManagedDial(ctx, dial)
 	}
 	s, e := sharedSecurity(n.Security.Kind, n.Security.TLS, tc)
 	if e != nil {

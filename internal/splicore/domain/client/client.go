@@ -3,21 +3,24 @@ package client
 
 import (
 	"encoding/json"
+	"net/netip"
+
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/provider"
 	streamcfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
-	"net/netip"
 )
 
 const Direct identity.ID = "direct"
 
-type Transport = streamcfg.Config
-type Security struct {
-	Kind string           `json:"kind"`
-	TLS  access.ClientTLS `json:"tls"`
-}
+type (
+	Transport = streamcfg.Config
+	Security  struct {
+		Kind string           `json:"kind"`
+		TLS  access.ClientTLS `json:"tls"`
+	}
+)
 
 // Options are bounded and adapter-validated. Secrets have a separate reference.
 type Options struct {
@@ -73,7 +76,7 @@ func (n RemoteNode) Validate() error {
 	if n.Transport.Kind == "" || n.Transport.ValidateClient() != nil || n.Transport.ValidateALPN(n.Security.TLS.ALPN) != nil || n.Security.TLS.Validate(n.Security.Kind) != nil || n.Options.Schema != 1 || len(n.Options.Data) > 16384 || !json.Valid(n.Options.Data) {
 		return invalid()
 	}
-	if n.Transport.Kind == "hysteria" && n.Transport.ValidatePair(n.Protocol.Protocol, n.Security.Kind) != nil {
+	if (n.Transport.Kind == "hysteria" || n.Transport.NativeStream()) && n.Transport.ValidatePair(n.Protocol.Protocol, n.Security.Kind) != nil {
 		return invalid()
 	}
 	var object map[string]json.RawMessage
@@ -170,6 +173,7 @@ func (i LocalInbound) Validate() error {
 	}
 	return nil
 }
+
 func (i *LocalInbound) Defaults() {
 	if i.Kind != "tun" && i.Listen.Host == "" {
 		i.Listen.Host = "127.0.0.1"
@@ -178,6 +182,7 @@ func (i *LocalInbound) Defaults() {
 		i.Kind = "socks5"
 	}
 }
+
 func ValidateOutboundID(id identity.ID) error {
 	if id == Direct {
 		return nil
@@ -202,6 +207,7 @@ type ProfileState struct {
 func Empty() ProfileState {
 	return ProfileState{Nodes: []RemoteNode{}, Outbounds: []Outbound{{ID: Direct, Name: "DIRECT", Kind: "direct"}}, LocalInbounds: []LocalInbound{}, Route: Route{DefaultOutbound: Direct}, Enabled: true}
 }
+
 func (s ProfileState) Validate() error {
 	if s.Management.Validate() != nil {
 		return invalid()

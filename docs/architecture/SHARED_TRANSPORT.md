@@ -208,7 +208,7 @@ duplicate/alias checks and preserves typed import errors.
 
 ## Deferred and qualification
 
-WebSocket early data, HTTPUpgrade fast-open, generic QUIC, HTTP3,
+WebSocket early data, HTTPUpgrade fast-open, HTTP3,
 generic KCP, Mux.Cool, TunMulti, advanced gRPC paths and new XUDP
 are deferred and rejected. Historical Snell/platform limitations remain.
 Host platform coverage is partial; stream interoperability does not certify
@@ -225,3 +225,10 @@ host network integration. Linux arm64: BUILD ONLY.
 - [Mihomo transport](https://wiki.metacubex.one/en/config/proxies/transport/)
 
 
+
+## Native HTTP/H2 and generic QUIC
+
+Phase31 adds separate TLS `http`, `h2` and `quic-stream` kinds for VLESS
+flow-none, VMess AEAD and Trojan. See the [native wire contract, security and
+lifecycle limits](NATIVE_HTTP_QUIC.md). XHTTP and protocol-specific QUIC runtimes
+remain separate. No existing transport is redirected to these implementations.

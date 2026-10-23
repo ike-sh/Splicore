@@ -80,10 +80,12 @@ func (m MKCP) QueueSlots() uint32 {
 	}
 	return m.MaxSendingWindow / m.MTU
 }
+
 func (m MKCP) PayloadBound() uint64 {
 	// Include the independent transmit snapshot and one partially read segment.
 	return 2*uint64(m.QueueSlots())*uint64(m.MTU) + uint64(m.ReceiveSlots())*1460 + 1460
 }
+
 func (c Config) MKCPSettings() MKCP {
 	if c.MKCP != nil {
 		return *c.MKCP
@@ -93,7 +95,7 @@ func (c Config) MKCPSettings() MKCP {
 
 // Carrier names the owned listening socket independently of upper byte streams.
 func (c Config) Carrier() string {
-	if c.Type() == "mkcp" {
+	if c.Type() == "mkcp" || c.Type() == "quic-stream" {
 		return "udp"
 	}
 	return "tcp"

@@ -15,6 +15,13 @@ func ListenCarrier(ctx context.Context, address string, c cfg.Config) (net.Liste
 		return nil, err
 	}
 	lc := net.ListenConfig{}
+	if c.Type() == "quic-stream" {
+		p, err := lc.ListenPacket(ctx, "udp", address)
+		if err != nil {
+			return nil, err
+		}
+		return &quicCarrier{packet: p}, nil
+	}
 	if c.Type() != "mkcp" {
 		return lc.Listen(ctx, "tcp", address)
 	}
@@ -33,3 +40,10 @@ func ListenCarrier(ctx context.Context, address string, c cfg.Config) (net.Liste
 	}
 	return listener, nil
 }
+
+// quicCarrier reserves UDP atomically; TLS composition starts QUIC later.
+type quicCarrier struct{ packet net.PacketConn }
+
+func (c *quicCarrier) Accept() (net.Conn, error) { return nil, errNativeConfig }
+func (c *quicCarrier) Close() error              { return c.packet.Close() }
+func (c *quicCarrier) Addr() net.Addr            { return c.packet.LocalAddr() }

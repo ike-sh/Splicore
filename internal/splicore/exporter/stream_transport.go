@@ -14,6 +14,9 @@ func streamProjection(p clientprofile.Profile, format ports.Format, n map[string
 	if p.Protocol.FeatureProfile == "reality" {
 		security = "reality"
 	}
+	if c.NativeStream() {
+		return unsupported()
+	}
 	if c.ValidatePair(p.Protocol.Protocol, security) != nil {
 		return unsupported()
 	}

@@ -4,6 +4,9 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"net"
+	"time"
+
 	"github.com/gofrs/uuid/v5"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
@@ -15,8 +18,6 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"github.com/ike-sh/Splicore/protocol/vless/backend"
 	"github.com/ike-sh/Splicore/protocol/vless/vision"
-	"net"
-	"time"
 )
 
 type VLESSOutboundFactory struct{}
@@ -26,9 +27,11 @@ func (VLESSOutboundFactory) Capability() ports.OutboundCapability {
 	c.Flows = append(c.Flows, string(module.Vision))
 	return c
 }
+
 func (VLESSOutboundFactory) Validate(n client.RemoteNode, c access.Credential) error {
 	return module.ValidateClientNode(n, c)
 }
+
 func (f VLESSOutboundFactory) Build(ctx context.Context, n client.RemoteNode, c access.Credential) (ports.ClientDialer, error) {
 	if err := f.Validate(n, c); err != nil {
 		return nil, err
@@ -47,7 +50,7 @@ func (f VLESSOutboundFactory) Build(ctx context.Context, n client.RemoteNode, c 
 		}
 	}
 	options, _ := module.DecodeClientOptions(n.Options.Data)
-	transport, err := sharedClient(d.DialContext, n, tc)
+	transport, err := sharedClient(ctx, d.DialContext, n, tc)
 	if err != nil {
 		return nil, err
 	}
@@ -139,6 +142,7 @@ func (d *vlessDialer) open(ctx context.Context, dst access.Endpoint, packet bool
 	success = true
 	return c, nil
 }
+
 func (d *vlessDialer) DialContext(ctx context.Context, dst access.Endpoint) (net.Conn, error) {
 	ctx, done, err := d.owner.Begin(ctx)
 	if err != nil {
@@ -151,6 +155,7 @@ func (d *vlessDialer) DialContext(ctx context.Context, dst access.Endpoint) (net
 	}
 	return d.owner.Conn(c)
 }
+
 func (d *vlessDialer) ListenPacket(ctx context.Context, dst access.Endpoint) (net.PacketConn, error) {
 	ctx, done, err := d.owner.Begin(ctx)
 	if err != nil {
@@ -163,6 +168,7 @@ func (d *vlessDialer) ListenPacket(ctx context.Context, dst access.Endpoint) (ne
 	}
 	return d.owner.Packet(backend.NewClientPacket(c, dst))
 }
+
 func (d *vlessDialer) Close() error {
 	d.owner.Close()
 	if d.transport != nil {

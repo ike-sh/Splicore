@@ -9,8 +9,6 @@ import (
 	"errors"
 	"io"
 	"net"
-	"os"
-	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -139,14 +137,15 @@ func sqUDPExchange(p net.PacketConn, dst access.Endpoint, sizes []int) error {
 }
 
 func TestShadowQUICNativeMultiUserLifecycleAndBounds(t *testing.T) {
+	if sqResourceSubprocess(t) {
+		return
+	}
 	ctx := underlay.WithFactory(context.Background(), underlay.New())
-	target := netaddrEndpoint(testfixture.TCP(t).Addr())
+	listener, waitTCP := sqLifecycleTCP(t)
+	target := netaddrEndpoint(listener.Addr())
 	udp := trojanUDP(t)
 	udp.Host = "localhost"
-	runtime.GC()
-	before := runtime.NumGoroutine()
-	fds, _ := os.ReadDir("/proc/self/fd")
-	for range 3 {
+	sqResourceLifecycles(t, listener.Addr(), waitTCP, func() {
 		h, in := sqServer(t, ctx)
 		for user := range 2 {
 			n, c := sqNode(t, in, user)
@@ -161,6 +160,7 @@ func TestShadowQUICNativeMultiUserLifecycleAndBounds(t *testing.T) {
 			if e = sqExchange(conn, 65536, true); e != nil {
 				t.Fatal(e)
 			}
+			waitTCP()
 			p, e := d.(ports.ClientPacketDialer).ListenPacket(ctx, udp)
 			if e != nil {
 				t.Fatal(e)
@@ -183,16 +183,14 @@ func TestShadowQUICNativeMultiUserLifecycleAndBounds(t *testing.T) {
 		if h.Start(ctx) == nil {
 			t.Fatal("closed restart")
 		}
-	}
-	deadline := time.Now().Add(3 * time.Second)
-	for runtime.NumGoroutine() > before+8 && time.Now().Before(deadline) {
-		runtime.GC()
-		time.Sleep(20 * time.Millisecond)
-	}
-	after, _ := os.ReadDir("/proc/self/fd")
-	if len(after) > len(fds)+4 || runtime.NumGoroutine() > before+8 {
-		t.Fatal("resource growth", len(fds), len(after), before, runtime.NumGoroutine())
-	}
+		p, e := net.ListenPacket("udp4", module.Address(in.Inbound.Listeners[0].Endpoint))
+		if e != nil {
+			t.Fatal("listener not released", e)
+		}
+		if e = p.Close(); e != nil {
+			t.Fatal(e)
+		}
+	})
 }
 
 func TestShadowQUICNativeBindOwnershipAndPolicy(t *testing.T) {

@@ -49,7 +49,8 @@ global SDK metrics never enter attributed accounting.
 | FinalMask mkcp-legacy | Not implemented / deferred; not qualified |
 | Hysteria transport | Experimental specialized native QUIC/TLS/H3 carrier for Hysteria2; [configuration and limits](HYSTERIA_TRANSPORT.md) |
 | Hysteria BBR / Brutal / force-brutal | Native controller integration implemented; experimental, see transport limits and qualification evidence |
-| Generic KCP / Generic QUIC transport | Not implemented or claimed |
+| Generic KCP transport | Not implemented or claimed |
+| Native HTTP/H2 and generic QUIC | Experimental TLS client/server for VLESS flow-none, VMess AEAD and Trojan; [wire contract and limits](NATIVE_HTTP_QUIC.md) |
 | Xray engine/server/client/child/artifact | Absent |
 | External runtime required | No |
 | XHTTP | Native shared inbound/outbound for VLESS, VMess, Trojan; [configuration](XHTTP.md) |
@@ -59,7 +60,7 @@ global SDK metrics never enter attributed accounting.
 | NaiveProxy HTTPS/H2 and QUIC/H3 | Supported client/server; TCP CONNECT, multi-user Basic auth, payload padding, negotiation and multiplexing |
 | NaiveProxy native UDP payload | Not implemented; H3 is a QUIC carrier for TCP CONNECT |
 | Chromium TLS/HTTP/preamble fingerprint parity | Not claimed; native stack protocol compatibility |
-| Generic V2Ray QUIC transport | Not implemented; Naive H3 support does not enable shared QUIC transport |
+| Generic V2Ray QUIC transport | Not implemented; native quic-stream uses its own ALPN and wire contract |
 
 Native server binding counters are runtime-generation payload/session evidence,
 not durable billing. Quota/rate/session enforcement is limited by the actual
