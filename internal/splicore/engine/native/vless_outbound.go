@@ -17,6 +17,7 @@ import (
 	shared "github.com/ike-sh/Splicore/internal/splicore/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"github.com/ike-sh/Splicore/protocol/vless/backend"
+	"github.com/ike-sh/Splicore/protocol/vless/encryption"
 	"github.com/ike-sh/Splicore/protocol/vless/vision"
 )
 
@@ -57,17 +58,29 @@ func (f VLESSOutboundFactory) Build(ctx context.Context, n client.RemoteNode, c 
 	if options.Flow == module.Vision && tc != nil {
 		tc.MinVersion = tls.VersionTLS13
 	}
-	return &vlessDialer{transport: transport, flow: options.Flow, protected: d, node: n, uuid: [16]byte(u), tls: tc, owner: clientio.New()}, nil
+	var encryptionClient *encryption.Client
+	cfg, err := module.EncryptionConfig(options.Encryption)
+	if err != nil {
+		return nil, err
+	}
+	if cfg != nil {
+		encryptionClient, err = encryption.NewClient(cfg)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &vlessDialer{encryption: encryptionClient, transport: transport, flow: options.Flow, protected: d, node: n, uuid: [16]byte(u), tls: tc, owner: clientio.New()}, nil
 }
 
 type vlessDialer struct {
-	transport *shared.Client
-	flow      module.Flow
-	protected *underlay.Dialer
-	node      client.RemoteNode
-	uuid      [16]byte
-	tls       *tls.Config
-	owner     *clientio.Owner
+	encryption *encryption.Client
+	transport  *shared.Client
+	flow       module.Flow
+	protected  *underlay.Dialer
+	node       client.RemoteNode
+	uuid       [16]byte
+	tls        *tls.Config
+	owner      *clientio.Owner
 }
 
 func (d *vlessDialer) open(ctx context.Context, dst access.Endpoint, packet bool) (net.Conn, error) {
@@ -97,7 +110,10 @@ func (d *vlessDialer) open(ctx context.Context, dst access.Endpoint, packet bool
 	}()
 	stop := context.AfterFunc(ctx, func() { _ = raw.Close() })
 	defer stop()
-	admission, finish := shared.BeginAdmission(raw, 5*time.Second)
+	admission, finish := vlessAdmission(ctx, raw, d.encryption.HandshakeTimeout())
+	if d.encryption != nil {
+		defer finish()
+	}
 	c = admission
 	defer func() {
 		if !success {
@@ -106,7 +122,9 @@ func (d *vlessDialer) open(ctx context.Context, dst access.Endpoint, packet bool
 	}()
 
 	if d.flow == module.Vision {
-		c = vision.LimitRecords(admission)
+		if d.tls != nil || d.node.Security.Kind == "reality" {
+			c = vision.LimitRecords(admission)
+		}
 		if d.tls != nil {
 			secure := tls.Client(c, d.tls)
 			if err = secure.HandshakeContext(ctx); err != nil {
@@ -121,6 +139,17 @@ func (d *vlessDialer) open(ctx context.Context, dst access.Endpoint, packet bool
 			return nil, err
 		}
 	}
+	visionRaw := raw
+	if d.encryption != nil {
+		encrypted, e := d.encryption.Handshake(ctx, c)
+		if e != nil {
+			return nil, e
+		}
+		c = encrypted
+		if d.flow == module.Vision {
+			visionRaw = encrypted.DirectConn()
+		}
+	}
 	var plain *vision.PlainConn
 	flow := ""
 	if d.flow == module.Vision {
@@ -133,12 +162,14 @@ func (d *vlessDialer) open(ctx context.Context, dst access.Endpoint, packet bool
 		return nil, err
 	}
 	if d.flow == module.Vision {
-		c = vision.New(c, plain, raw, d.uuid)
+		c = vision.New(c, plain, visionRaw, d.uuid)
 	}
 	if err = finish(); err != nil {
 		return nil, err
 	}
-	_ = c.SetDeadline(time.Time{})
+	if d.encryption == nil {
+		_ = c.SetDeadline(time.Time{})
+	}
 	success = true
 	return c, nil
 }

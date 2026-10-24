@@ -2,9 +2,10 @@ package vless
 
 import (
 	"encoding/json"
+	"testing"
+
 	cfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
-	"testing"
 )
 
 func TestNativeVisionValidation(t *testing.T) {
@@ -28,7 +29,7 @@ func TestNativeVisionValidation(t *testing.T) {
 			t.Fatal(security, e)
 		}
 		c := (Module{Security: security}).Capabilities(ports.CapabilityContext{Engine: "native"})
-		if c.Security.Vision != (security == TLS || security == Reality && RealityCompiled) {
+		if c.Security.Vision != (security != Reality || RealityCompiled) {
 			t.Fatal("capability")
 		}
 	}

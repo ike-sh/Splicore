@@ -13,10 +13,10 @@ transport and flow remain separate. The sole runtime engine is `native`.
 | Flow | Raw TCP | WebSocket / HTTPUpgrade / gRPC | Payload |
 | --- | --- | --- | --- |
 | `none` | Plain, explicit CA TLS, REALITY | Plain or explicit CA TLS | TCP and existing XUDP |
-| `xtls-rprx-vision` | TLS 1.3 or REALITY | Rejected | TCP only |
+| `xtls-rprx-vision` | TLS 1.3, REALITY, or enabled VLESS Encryption | Rejected | TCP only |
 
 REALITY requires `with_utls`. Unknown flows, the outbound-only historical
-`xtls-rprx-vision-udp443` alias, Vision without security, and Vision over HTTP
+`xtls-rprx-vision-udp443` alias, Vision without TLS/REALITY/encryption, and Vision over HTTP
 transports reject before runtime construction. A wire request must match the
 configured flow and an admitted UUID. There is no flow downgrade.
 
@@ -68,7 +68,8 @@ Outbound order is VLESS → optional Vision → transport → TLS/REALITY →
 copies retain the entire mask underlay. First configured mask is innermost.
 Static TLS verifies explicit trust and SNI. REALITY authentication uses the
 existing admitted uTLS library; its default current TLS key shares are preserved.
-This TLS key exchange is independent of VLESSENC, which is unsupported.
+This TLS key exchange is independent of [native VLESS Encryption](VLESS_ENCRYPTION.md).
+The optional encryption layer runs after outer security and before VLESS decoding.
 
 ## Lifecycle and diagnostics
 

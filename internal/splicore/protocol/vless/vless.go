@@ -17,7 +17,7 @@ func (m Module) Metadata() ports.ProtocolMetadata {
 	if m.Security == Reality && !RealityCompiled {
 		availability = ports.NotCompiled
 	}
-	return ports.ProtocolMetadata{Roles: ports.Roles{Inbound: true, Outbound: true}, Key: Key(m.Security), ABI: 1, CredentialKinds: []access.CredentialKind{access.UUID}, Availability: availability, Qualification: "experimental", Provenance: "Splicore-owned VLESS v0/XUDP wire/lifecycle; TCP; UUID; native none/Vision flow; raw TLS1.3/REALITY for Vision; REALITY requires with_utls"}
+	return ports.ProtocolMetadata{Roles: ports.Roles{Inbound: true, Outbound: true}, Key: Key(m.Security), ABI: 1, CredentialKinds: []access.CredentialKind{access.UUID}, Availability: availability, Qualification: "experimental", Provenance: "Splicore-owned VLESS v0/XUDP wire/lifecycle; TCP; UUID; native none/Vision flow; native VLESS Encryption; Vision requires raw TLS1.3/REALITY or enabled encryption; REALITY requires with_utls"}
 }
 
 func (m Module) Capabilities(c ports.CapabilityContext) ports.Capabilities {
@@ -27,10 +27,8 @@ func (m Module) Capabilities(c ports.CapabilityContext) ports.Capabilities {
 		kinds = []string{"tcp", "xhttp"}
 	}
 	stats := available
-	flows := []string{string(NoFlow)}
-	if m.Security != Plain {
-		flows = append(flows, string(Vision))
-	}
+	// Flow validation still requires enabled encryption when outer security is none.
+	flows := []string{string(NoFlow), string(Vision)}
 	support := ports.Unsupported
 	mutation := ports.MutationUnavailable
 	if stats {
@@ -39,7 +37,7 @@ func (m Module) Capabilities(c ports.CapabilityContext) ports.Capabilities {
 	if available {
 		mutation = ports.Restart
 	}
-	return ports.Capabilities{Transport: ports.TransportCapabilities{Kinds: kinds, TCP: available, UDPTransport: available && m.Security != Reality, UDPPayload: available, IPv4: available, IPv6: available, DomainEndpoint: available}, Identity: ports.IdentityCapabilities{MultiUserNative: available, PerUserStats: stats, AttributedPayload: support, NativeStats: support, StatsUnits: "authenticated routed payload bytes and sessions; runtime generation"}, Security: ports.SecurityCapabilities{TLS: available && m.Security != Plain, Reality: available && m.Security == Reality, Vision: available && m.Security != Plain, Flows: flows}, Policy: ports.PolicyCapabilities{Quota: ports.Unsupported, SpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported}, Mutation: ports.MutationCapabilities{Users: mutation, Listener: ports.MutationUnavailable}, Clients: []ports.ClientCompatibility{}}
+	return ports.Capabilities{Transport: ports.TransportCapabilities{Kinds: kinds, TCP: available, UDPTransport: available && m.Security != Reality, UDPPayload: available, IPv4: available, IPv6: available, DomainEndpoint: available}, Identity: ports.IdentityCapabilities{MultiUserNative: available, PerUserStats: stats, AttributedPayload: support, NativeStats: support, StatsUnits: "authenticated routed payload bytes and sessions; runtime generation"}, Security: ports.SecurityCapabilities{TLS: available && m.Security != Plain, Reality: available && m.Security == Reality, Vision: available, Flows: flows}, Policy: ports.PolicyCapabilities{Quota: ports.Unsupported, SpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported}, Mutation: ports.MutationCapabilities{Users: mutation, Listener: ports.MutationUnavailable}, Clients: []ports.ClientCompatibility{}}
 }
 
 func (m Module) ValidateInbound(i access.Inbound) error {
@@ -99,23 +97,35 @@ func (m Module) BuildRuntime(_ context.Context, in ports.RuntimeIntent) (ports.R
 	if err := m.validateUsers(in); err != nil {
 		return in, err
 	}
-	if m.Security == Reality {
-		if len(in.ServerCredentials) != 1 {
-			return in, invalid()
-		}
-		c := in.ServerCredentials[0]
+	s, _ := Decode(in.Inbound.Settings.Data)
+	if _, err := DecryptionConfig(s, in.ServerCredentials); err != nil {
+		return in, err
+	}
+	realityKeys := 0
+	for _, c := range in.ServerCredentials {
 		p, ok := c.Payload.(access.PrivateKeyPayload)
 		if !ok || c.Validate() != nil || c.State != "active" || c.OwnerInboundID == nil || *c.OwnerInboundID != in.Inbound.ID {
 			return in, invalid()
 		}
-		pub, err := DerivePublicKey(p)
-		s, _ := Decode(in.Inbound.Settings.Data)
-		if err != nil || pub != s.Reality.PublicKey {
+		switch p.Algorithm {
+		case "x25519":
+			realityKeys++
+			if m.Security != Reality {
+				return in, invalid()
+			}
+			pub, err := DerivePublicKey(p)
+			if err != nil || pub != s.Reality.PublicKey {
+				return in, invalid()
+			}
+		case "vless-encryption":
+		default:
 			return in, invalid()
 		}
-	} else if len(in.ServerCredentials) != 0 {
+	}
+	if (m.Security == Reality && realityKeys != 1) || (m.Security != Reality && realityKeys != 0) {
 		return in, invalid()
 	}
+
 	return in, nil
 }
 

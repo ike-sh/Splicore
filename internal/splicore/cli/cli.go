@@ -27,6 +27,9 @@ type Dependencies struct {
 }
 
 func Run(ctx context.Context, args []string, out, errOut io.Writer, deps Dependencies) int {
+	if len(args) > 0 && args[0] == "vlessenc" {
+		return vlessEncryptionCLI(args[1:], out, errOut)
+	}
 	if len(args) > 0 && (args[0] == "provider" || args[0] == "ruleset-provider" || args[0] == "node" && len(args) > 1 && (args[1] == "import" || args[1] == "import-uri" || args[1] == "export" || args[1] == "batch" || args[1] == "apply")) {
 		return managementCLI(ctx, args, out, errOut, deps)
 	}

@@ -121,14 +121,19 @@ func sharedBuild(t *testing.T, ctx context.Context, n client.RemoteNode, c acces
 }
 func sharedPayload(t *testing.T, d ports.ClientDialer, tcp, udp access.Endpoint) {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	sharedPayloadBudget(t, d, tcp, udp, 5*time.Second)
+}
+
+func sharedPayloadBudget(t *testing.T, d ports.ClientDialer, tcp, udp access.Endpoint, budget time.Duration) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), budget)
 	defer cancel()
 	c, e := d.DialContext(ctx, tcp)
 	if e != nil {
 		t.Fatal(e)
 	}
 	defer c.Close()
-	c.SetDeadline(time.Now().Add(5 * time.Second))
+	c.SetDeadline(time.Now().Add(budget))
 	payload := bytes.Repeat([]byte("shared-transport-payload"), 7000)
 	done := make(chan error, 1)
 	go func() { _, e := c.Write(payload); done <- e }()
@@ -145,7 +150,7 @@ func sharedPayload(t *testing.T, d ports.ClientDialer, tcp, udp access.Endpoint)
 		t.Fatal(e)
 	}
 	defer p.Close()
-	p.SetDeadline(time.Now().Add(5 * time.Second))
+	p.SetDeadline(time.Now().Add(budget))
 	body := bytes.Repeat([]byte("udp"), 300)
 	if _, e = p.WriteTo(body, netaddr.UDP(udp)); e != nil {
 		t.Fatal(e)

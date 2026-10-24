@@ -2,12 +2,15 @@
 package vless
 
 import (
+	"bytes"
 	"crypto/ecdh"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
+
 	"github.com/gofrs/uuid/v5"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
@@ -15,7 +18,7 @@ import (
 	streamcfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/jsonstrict"
 	"github.com/ike-sh/Splicore/internal/splicore/tlsconfig"
-	"strings"
+	"github.com/ike-sh/Splicore/protocol/vless/encryption"
 )
 
 type Security string
@@ -30,7 +33,7 @@ type Flow string
 
 const (
 	NoFlow Flow = "none"
-	// Vision is a VLESS flow over raw TLS1.3 or REALITY.
+	// Vision is a TCP flow requiring TLS1.3, REALITY, or VLESS Encryption.
 	Vision Flow = "xtls-rprx-vision"
 )
 
@@ -42,8 +45,10 @@ func ValidateFlow(f Flow) error {
 	return nil
 }
 
-type PublicKey string
-type ShortID string
+type (
+	PublicKey string
+	ShortID   string
+)
 
 func (v *PublicKey) UnmarshalJSON(b []byte) error {
 	var value string
@@ -53,6 +58,7 @@ func (v *PublicKey) UnmarshalJSON(b []byte) error {
 	*v = PublicKey(value)
 	return nil
 }
+
 func (v *ShortID) UnmarshalJSON(b []byte) error {
 	var value string
 	if string(b) == "null" || json.Unmarshal(b, &value) != nil {
@@ -80,6 +86,9 @@ func (r RealitySettings) Names() []string {
 }
 
 type Settings struct {
+	// Encryption is the public client projection. Server material belongs to an
+	// encrypted inbound credential supplied through server_secret.decryption.
+	Encryption     string              `json:"encryption,omitempty"`
 	Stream         *streamcfg.Config   `json:"stream_transport,omitempty"`
 	Security       Security            `json:"security"`
 	Flow           Flow                `json:"flow"`
@@ -92,6 +101,7 @@ type Settings struct {
 
 func (Settings) Format(s fmt.State, v rune) { _, _ = s.Write([]byte("VLESSSettings{[REDACTED]}")) }
 func invalid() error                        { return identity.Err(identity.Invalid, "invalid VLESS settings or credential") }
+
 func Key(s Security) access.ProtocolKey {
 	profile := string(s)
 	if s == Plain {
@@ -99,6 +109,7 @@ func Key(s Security) access.ProtocolKey {
 	}
 	return access.ProtocolKey{Protocol: "vless", WireVersion: "0", FeatureProfile: profile}
 }
+
 func ValidateUUID(v secret.Value) error {
 	s := v.Reveal()
 	u, err := uuid.FromString(s)
@@ -107,6 +118,7 @@ func ValidateUUID(v secret.Value) error {
 	}
 	return nil
 }
+
 func ParseShortID(s ShortID) ([8]byte, error) {
 	var out [8]byte
 	if len(s) > 16 || len(s)%2 != 0 {
@@ -117,6 +129,7 @@ func ParseShortID(s ShortID) ([8]byte, error) {
 	}
 	return out, nil
 }
+
 func ValidatePublicKey(s PublicKey) error {
 	b, err := base64.RawURLEncoding.Strict().DecodeString(string(s))
 	if err != nil || len(b) != 32 || base64.RawURLEncoding.EncodeToString(b) != string(s) {
@@ -124,6 +137,7 @@ func ValidatePublicKey(s PublicKey) error {
 	}
 	return nil
 }
+
 func DerivePublicKey(p access.PrivateKeyPayload) (PublicKey, error) {
 	if p.Validate() != nil {
 		return "", invalid()
@@ -136,6 +150,7 @@ func DerivePublicKey(p access.PrivateKeyPayload) (PublicKey, error) {
 	}
 	return PublicKey(base64.RawURLEncoding.EncodeToString(key.PublicKey().Bytes())), nil
 }
+
 func GenerateServerKey() (access.PrivateKeyPayload, PublicKey, error) {
 	key, err := ecdh.X25519().GenerateKey(rand.Reader)
 	if err != nil {
@@ -147,14 +162,18 @@ func GenerateServerKey() (access.PrivateKeyPayload, PublicKey, error) {
 	pub, err := DerivePublicKey(p)
 	return p, pub, err
 }
+
 func validateSettings(s Settings, publicRequired bool) error {
+	if _, err := encryption.ParseClient(encryptionValue(s.Encryption)); err != nil {
+		return invalid()
+	}
 	if err := ValidateFlow(s.Flow); err != nil {
 		return err
 	}
 	if s.Stream != nil && (s.Stream.ValidatePair("vless", string(s.Security)) != nil || s.Stream.ValidateServer() != nil) {
 		return invalid()
 	}
-	if s.Flow == Vision && (s.Security == Plain || s.Stream != nil && s.Stream.Type() != "tcp") {
+	if s.Flow == Vision && ((s.Security == Plain && encryptionValue(s.Encryption) == "none") || s.Stream != nil && s.Stream.Type() != "tcp") {
 		return invalid()
 	}
 	if s.Transport != "tcp" || s.PacketEncoding != "xudp" {
@@ -165,7 +184,7 @@ func validateSettings(s Settings, publicRequired bool) error {
 	}
 	switch s.Security {
 	case Plain:
-		if s.TLS != nil || s.Reality != nil || s.Flow != NoFlow {
+		if s.TLS != nil || s.Reality != nil || (s.Flow != NoFlow && encryptionValue(s.Encryption) == "none") {
 			return invalid()
 		}
 	case TLS:
@@ -213,12 +232,13 @@ func validateSettings(s Settings, publicRequired bool) error {
 	}
 	return nil
 }
+
 func decode(b []byte, publicRequired bool) (Settings, error) {
 	var s Settings
 	if err := streamcfg.ValidateMember(b); err != nil {
 		return s, err
 	}
-	if len(b) > 16384 || streamcfg.ValidateMember(b) != nil || jsonstrict.Decode(b, &s) != nil {
+	if len(b) > 16384 || streamcfg.ValidateMember(b) != nil || encryptionMember(b) != nil || jsonstrict.Decode(b, &s) != nil {
 		return Settings{}, invalid()
 	}
 	var fields map[string]json.RawMessage
@@ -242,6 +262,7 @@ func decode(b []byte, publicRequired bool) (Settings, error) {
 func Decode(b []byte) (Settings, error) { return decode(b, true) }
 
 type ClientOptions struct {
+	Encryption     string   `json:"encryption,omitempty"`
 	Security       Security `json:"security"`
 	Flow           Flow     `json:"flow"`
 	PacketEncoding string   `json:"packet_encoding"`
@@ -249,13 +270,16 @@ type ClientOptions struct {
 
 func DecodeClientOptions(b []byte) (ClientOptions, error) {
 	var o ClientOptions
-	if len(b) > 16384 || jsonstrict.Decode(b, &o) != nil {
+	if len(b) > 16384 || encryptionMember(b) != nil || jsonstrict.Decode(b, &o) != nil {
+		return o, invalid()
+	}
+	if _, err := encryption.ParseClient(encryptionValue(o.Encryption)); err != nil {
 		return o, invalid()
 	}
 	if err := ValidateFlow(o.Flow); err != nil {
 		return o, err
 	}
-	if o.Flow == Vision && o.Security == Plain {
+	if o.Flow == Vision && o.Security == Plain && encryptionValue(o.Encryption) == "none" {
 		return o, invalid()
 	}
 	if o.PacketEncoding != "xudp" || (o.Security != Plain && o.Security != TLS && o.Security != Reality) {
@@ -263,7 +287,30 @@ func DecodeClientOptions(b []byte) (ClientOptions, error) {
 	}
 	return o, nil
 }
+
 func clientOptions(s Settings) json.RawMessage {
-	b, _ := json.Marshal(ClientOptions{Security: s.Security, Flow: s.Flow, PacketEncoding: s.PacketEncoding})
+	b, _ := json.Marshal(ClientOptions{Encryption: s.Encryption, Security: s.Security, Flow: s.Flow, PacketEncoding: s.PacketEncoding})
 	return b
+}
+
+func encryptionValue(s string) string {
+	if s == "" {
+		return "none"
+	} // Preserve historical omitted Splicore fields.
+	return s
+}
+
+func encryptionMember(b []byte) error {
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(b, &fields) != nil {
+		return invalid()
+	}
+	for k, v := range fields {
+		if strings.EqualFold(k, "encryption") {
+			if k != "encryption" || bytes.Equal(bytes.TrimSpace(v), []byte("null")) || bytes.Equal(bytes.TrimSpace(v), []byte(`""`)) {
+				return invalid()
+			}
+		}
+	}
+	return nil
 }

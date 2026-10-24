@@ -4,6 +4,11 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"net"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"github.com/gofrs/uuid/v5"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
@@ -16,12 +21,9 @@ import (
 	shared "github.com/ike-sh/Splicore/internal/splicore/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"github.com/ike-sh/Splicore/protocol/vless/backend"
+	"github.com/ike-sh/Splicore/protocol/vless/encryption"
 	"github.com/ike-sh/Splicore/protocol/vless/vision"
 	"github.com/ike-sh/Splicore/protocol/vless/wire"
-	"net"
-	"sync"
-	"sync/atomic"
-	"time"
 )
 
 type VLESSCompiler struct{}
@@ -41,6 +43,7 @@ func (VLESSCompiler) Supports(in ports.RuntimeIntent) error {
 	_, err = (module.Module{Security: s.Security}).BuildRuntime(context.Background(), in)
 	return err
 }
+
 func (c VLESSCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (ports.PreparedRuntime, error) {
 	var flow struct {
 		Flow module.Flow `json:"flow"`
@@ -61,6 +64,18 @@ func (c VLESSCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (por
 	}
 	ctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	h := &vlessHandle{flow: s.Flow, ctx: ctx, cancel: cancel, endpoint: in.Inbound.Listeners[0].Endpoint, protected: dialer, total: &traffic.Counter{}, users: map[string]*traffic.Counter{}, uuids: map[[16]byte]string{}, connections: map[net.Conn]bool{}, done: make(chan struct{})}
+	cfg, err := module.DecryptionConfig(s, in.ServerCredentials)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	if cfg != nil {
+		h.decryption, err = encryption.NewServer(cfg)
+		if err != nil {
+			cancel()
+			return nil, err
+		}
+	}
 	if s.Stream != nil {
 		h.transport = s.Stream.Clone()
 	}
@@ -97,7 +112,7 @@ func (c VLESSCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (por
 		for i, id := range s.Reality.ShortIDs {
 			ids[i] = string(id)
 		}
-		h.handshake, err = backend.RealityServerNames(s.Reality.Names(), in.ServerCredentials[0].Payload.(access.PrivateKeyPayload).Material.Reveal(), ids, s.Reality.Target, dialer.DialContext)
+		h.handshake, err = backend.RealityServerNames(s.Reality.Names(), realityServerKey(in.ServerCredentials), ids, s.Reality.Target, dialer.DialContext)
 		if err != nil {
 			cancel()
 			return nil, identity.Err(identity.Invalid, "invalid REALITY settings")
@@ -115,6 +130,7 @@ func (c VLESSCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (por
 }
 
 type vlessHandle struct {
+	decryption        *encryption.Server
 	flow              module.Flow
 	transport         streamcfg.Config
 	transportTLS      *tls.Config
@@ -181,12 +197,14 @@ func (h *vlessHandle) Start(ctx context.Context) error {
 	go h.accept()
 	return nil
 }
+
 func (h *vlessHandle) Health(ctx context.Context) error {
 	if ctx.Err() != nil || !h.running.Load() {
 		return identity.Err(identity.Unavailable, "VLESS listener is not healthy")
 	}
 	return nil
 }
+
 func (h *vlessHandle) Activate() {
 	h.lifecycle.Lock()
 	defer h.lifecycle.Unlock()
@@ -201,6 +219,7 @@ func (h *vlessHandle) BindingStats(id identity.ID) ports.Stats {
 	}
 	return ports.Stats{}
 }
+
 func (h *vlessHandle) Close(ctx context.Context) error {
 	h.lifecycle.Lock()
 	h.mu.Lock()
@@ -213,6 +232,9 @@ func (h *vlessHandle) Close(ctx context.Context) error {
 			connections = append(connections, c)
 		}
 		h.mu.Unlock()
+		if h.decryption != nil {
+			_ = h.decryption.Close()
+		}
 		if h.cancel != nil {
 			h.cancel()
 		}
@@ -234,6 +256,7 @@ func (h *vlessHandle) Close(ctx context.Context) error {
 		return identity.Err(identity.Unavailable, "VLESS shutdown timed out")
 	}
 }
+
 func (h *vlessHandle) accept() {
 	defer h.wg.Done()
 	defer h.running.Store(false)
@@ -254,6 +277,7 @@ func (h *vlessHandle) accept() {
 		go h.serve(raw)
 	}
 }
+
 func (h *vlessHandle) serve(raw net.Conn) {
 	defer h.wg.Done()
 	defer raw.Close()
@@ -266,13 +290,16 @@ func (h *vlessHandle) serve(raw net.Conn) {
 	defer masked.Close()
 	// Apply admission to the complete wrapper chain: mask delays own private
 	// deadline state as well as the underlying socket's read/write deadlines.
-	admission, finish := shared.BeginAdmission(masked, 5*time.Second)
+	admission, finish := vlessAdmission(h.ctx, masked, h.decryption.HandshakeTimeout())
+	if h.decryption != nil {
+		defer finish()
+	}
 	defer admission.Close()
 	c = admission
 	stopMask := context.AfterFunc(h.ctx, func() { _ = masked.Close() })
 	defer stopMask()
 	var plain *vision.PlainConn
-	if h.flow == module.Vision {
+	if h.flow == module.Vision && h.handshake != nil && h.transport.Type() == "tcp" {
 		c = vision.LimitRecords(c)
 	}
 	if h.handshake != nil && h.transport.Type() == "tcp" {
@@ -283,6 +310,17 @@ func (h *vlessHandle) serve(raw net.Conn) {
 		}
 		if h.flow != module.Vision {
 			defer c.Close()
+		}
+	}
+	visionRaw := masked
+	if h.decryption != nil {
+		encrypted, err := h.decryption.Handshake(h.ctx, c)
+		if err != nil {
+			return
+		}
+		c = encrypted
+		if h.flow == module.Vision {
+			visionRaw = encrypted.DirectConn()
 		}
 	}
 	if h.flow == module.Vision {
@@ -308,10 +346,12 @@ func (h *vlessHandle) serve(raw net.Conn) {
 	if finish() != nil {
 		return
 	}
-	_ = c.SetDeadline(time.Time{})
+	if h.decryption == nil {
+		_ = c.SetDeadline(time.Time{})
+	}
 	var stream net.Conn = &backend.Conn{Conn: c, Server: true}
 	if h.flow == module.Vision {
-		stream = vision.New(stream, plain, masked, request.UUID)
+		stream = vision.New(stream, plain, visionRaw, request.UUID)
 	}
 	if request.Command == wire.TCP {
 		target, err := h.protected.DialContext(h.ctx, "tcp", net.JoinHostPort(request.Destination.Host, portString(request.Destination.Port)))
@@ -331,4 +371,31 @@ func (h *vlessHandle) serve(raw net.Conn) {
 			return h.protected.DialContext(ctx, "udp", net.JoinHostPort(dst.Host, portString(dst.Port)))
 		}, 5*time.Second)
 	})
+}
+
+func realityServerKey(credentials []access.Credential) string {
+	for _, c := range credentials {
+		if p, ok := c.Payload.(access.PrivateKeyPayload); ok && p.Algorithm == "x25519" {
+			return p.Material.Reveal()
+		}
+	}
+	return ""
+}
+
+// Encrypted admission shares the protocol's bounded padding-aware timeout,
+// covering outer security, crypto and inner account authentication. Its timer
+// closes the stream without replacing any tighter transport-owned deadline.
+// Delivery-aware transport admission is retained for historical plain VLESS.
+func vlessAdmission(ctx context.Context, c net.Conn, timeout time.Duration) (net.Conn, func() error) {
+	if timeout == 0 {
+		return shared.BeginAdmission(c, 5*time.Second)
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	stop := context.AfterFunc(ctx, func() { _ = c.Close() })
+	return c, func() error {
+		stop()
+		err := ctx.Err()
+		cancel()
+		return err
+	}
 }
