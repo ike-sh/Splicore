@@ -65,7 +65,7 @@ func TestXHTTPConfigRejections(t *testing.T) {
 	if (Config{Kind: "tcp", XHTTP: &XHTTP{}}).Validate() == nil {
 		t.Fatal("foreign transport options")
 	}
-	if (Config{Kind: "xhttp"}).ValidateALPN([]string{"h3"}) == nil {
+	if (Config{Kind: "xhttp"}).ValidateALPN([]string{"h3", "h2"}) == nil {
 		t.Fatal("H3 fallback")
 	}
 	if (Config{Kind: "xhttp", XHTTP: &XHTTP{Download: &Download{}}}).ValidateServer() == nil {

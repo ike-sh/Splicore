@@ -97,7 +97,7 @@ func (c VLESSCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (por
 			cancel()
 			return nil, identity.Err(identity.Invalid, "invalid VLESS TLS snapshot")
 		}
-		tc := &tls.Config{Certificates: []tls.Certificate{pair}, MinVersion: tls.VersionTLS13}
+		tc := &tls.Config{Certificates: []tls.Certificate{pair}, MinVersion: tls.VersionTLS13, NextProtos: append([]string(nil), s.ALPN...)}
 		h.transportTLS = tc
 		h.handshake = func(ctx context.Context, c net.Conn) (net.Conn, error) {
 			tlsConn := tls.Server(c, tc)
@@ -169,7 +169,7 @@ func (h *vlessHandle) Start(ctx context.Context) error {
 			return identity.Err(identity.Unavailable, "REALITY target is unavailable")
 		}
 	}
-	l, err := shared.ListenCarrier(ctx, net.JoinHostPort(h.endpoint.Host, portString(h.endpoint.Port)), h.transport)
+	l, err := shared.ListenCarrier(ctx, net.JoinHostPort(h.endpoint.Host, portString(h.endpoint.Port)), h.transport, transportALPN(h.transportTLS))
 	if err != nil {
 		if addressInUse(err) {
 			return identity.Err(identity.PortConflict, h.transport.Carrier()+" listener port is already in use")

@@ -119,7 +119,7 @@ func Decode(b []byte) (Settings, error) {
 	if s.AlterID != 0 {
 		return s, Unsupported("unsupported_legacy_vmess")
 	}
-	if s.Stream != nil && (s.Stream.ValidatePair("vmess", s.Security) != nil || s.Stream.ValidateServer() != nil || s.Stream.ValidateALPN(s.ALPN) != nil) {
+	if s.Stream != nil && (s.Stream.ValidatePair("vmess", s.Security) != nil || s.Stream.ValidateServer() != nil || s.Stream.ValidateSecurity(s.Security, s.ALPN) != nil) {
 		return s, Unsupported("unsupported_transport")
 	}
 	if s.Transport != "tcp" {
@@ -202,7 +202,7 @@ func (Module) ValidateInbound(i access.Inbound) error {
 	}
 	carrier := "tcp"
 	if s.Stream != nil {
-		carrier = s.Stream.Carrier()
+		carrier = s.Stream.Carrier(s.ALPN)
 	}
 	if i.Listeners[0].Transport != carrier {
 		return invalid()

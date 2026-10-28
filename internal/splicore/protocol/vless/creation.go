@@ -119,7 +119,7 @@ func (Module) DecodeCreation(b json.RawMessage) (ports.CreationDraft, error) {
 	d.Protocol = Key(s.Security)
 	d.Transport = "tcp"
 	if s.Stream != nil {
-		d.Transport = s.Stream.Carrier()
+		d.Transport = s.Stream.Carrier(s.ALPN)
 	}
 	d.Listener = w.Listener
 	d.Display = w.Display

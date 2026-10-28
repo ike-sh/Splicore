@@ -36,6 +36,9 @@ func (p Profile) Validate() error {
 	if p.Schema != 1 || p.Credentials == nil || p.Transport.Validate() != nil || p.Transport.ValidateALPN(p.TLS.ALPN) != nil {
 		return identity.Err(identity.Invalid, "invalid client profile")
 	}
+	if p.Transport.XHTTPH3(p.TLS.ALPN) && p.TLS.Validate("tls") != nil {
+		return identity.Err(identity.Invalid, "invalid XHTTP H3 security")
+	}
 	if err := access.ValidatePayload(p.Credentials); err != nil {
 		return err
 	}

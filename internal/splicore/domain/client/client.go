@@ -73,7 +73,7 @@ func (n RemoteNode) Validate() error {
 	if err := n.Endpoint.Validate(); err != nil {
 		return err
 	}
-	if n.Transport.Kind == "" || n.Transport.ValidateClient() != nil || n.Transport.ValidateALPN(n.Security.TLS.ALPN) != nil || n.Security.TLS.Validate(n.Security.Kind) != nil || n.Options.Schema != 1 || len(n.Options.Data) > 16384 || !json.Valid(n.Options.Data) {
+	if n.Transport.Kind == "" || n.Transport.ValidateClient() != nil || n.Transport.ValidateSecurity(n.Security.Kind, n.Security.TLS.ALPN) != nil || n.Security.TLS.Validate(n.Security.Kind) != nil || n.Options.Schema != 1 || len(n.Options.Data) > 16384 || !json.Valid(n.Options.Data) {
 		return invalid()
 	}
 	if (n.Transport.Kind == "hysteria" || n.Transport.NativeStream()) && n.Transport.ValidatePair(n.Protocol.Protocol, n.Security.Kind) != nil {

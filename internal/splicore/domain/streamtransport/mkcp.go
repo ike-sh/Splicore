@@ -94,7 +94,10 @@ func (c Config) MKCPSettings() MKCP {
 }
 
 // Carrier names the owned listening socket independently of upper byte streams.
-func (c Config) Carrier() string {
+func (c Config) Carrier(alpn ...[]string) string {
+	if len(alpn) > 0 && c.XHTTPH3(alpn[0]) {
+		return "udp"
+	}
 	if c.Type() == "mkcp" || c.Type() == "quic-stream" {
 		return "udp"
 	}

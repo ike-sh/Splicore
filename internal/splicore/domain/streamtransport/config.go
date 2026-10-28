@@ -136,6 +136,9 @@ func (c Config) ValidateALPN(alpn []string) error {
 		return bad()
 	}
 	if c.Type() == "xhttp" {
+		if c.XHTTPH3(alpn) {
+			return nil
+		}
 		if len(alpn) == 0 {
 			return nil
 		}

@@ -69,6 +69,13 @@ func WrapListener(base net.Listener, c cfg.Config, tc *tls.Config) (net.Listener
 		return base, nil
 	}
 	if c.Type() == "xhttp" {
+		if tc != nil && c.XHTTPH3(tc.NextProtos) {
+			carrier, ok := base.(*quicCarrier)
+			if !ok {
+				return nil, errNativeConfig
+			}
+			return xhttp.NewPacketListener(carrier.packet, c, tc)
+		}
 		return xhttp.NewListener(base, c, tc, nil)
 	}
 	if c.Type() != "ws" && c.Type() != "httpupgrade" && c.Type() != "grpc" {

@@ -121,7 +121,7 @@ func (d *vlessDialer) open(ctx context.Context, dst access.Endpoint, packet bool
 		}
 	}()
 
-	if d.flow == module.Vision {
+	if d.flow == module.Vision && d.transport == nil {
 		if d.tls != nil || d.node.Security.Kind == "reality" {
 			c = vision.LimitRecords(admission)
 		}

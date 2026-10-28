@@ -10,12 +10,12 @@ import (
 
 // ListenCarrier atomically acquires the transport's actual listening socket.
 // Stream protocols consume the same listener interface regardless of carrier.
-func ListenCarrier(ctx context.Context, address string, c cfg.Config) (net.Listener, error) {
+func ListenCarrier(ctx context.Context, address string, c cfg.Config, alpn ...[]string) (net.Listener, error) {
 	if err := c.ValidateServer(); err != nil {
 		return nil, err
 	}
 	lc := net.ListenConfig{}
-	if c.Type() == "quic-stream" {
+	if c.Type() == "quic-stream" || len(alpn) > 0 && c.XHTTPH3(alpn[0]) {
 		p, err := lc.ListenPacket(ctx, "udp", address)
 		if err != nil {
 			return nil, err

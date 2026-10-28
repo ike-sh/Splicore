@@ -89,6 +89,7 @@ type Settings struct {
 	// Encryption is the public client projection. Server material belongs to an
 	// encrypted inbound credential supplied through server_secret.decryption.
 	Encryption     string              `json:"encryption,omitempty"`
+	ALPN           []string            `json:"alpn,omitempty"`
 	Stream         *streamcfg.Config   `json:"stream_transport,omitempty"`
 	Security       Security            `json:"security"`
 	Flow           Flow                `json:"flow"`
@@ -173,7 +174,10 @@ func validateSettings(s Settings, publicRequired bool) error {
 	if s.Stream != nil && (s.Stream.ValidatePair("vless", string(s.Security)) != nil || s.Stream.ValidateServer() != nil) {
 		return invalid()
 	}
-	if s.Flow == Vision && ((s.Security == Plain && encryptionValue(s.Encryption) == "none") || s.Stream != nil && s.Stream.Type() != "tcp") {
+	if s.Stream != nil && s.Stream.ValidateSecurity(string(s.Security), s.ALPN) != nil || len(s.ALPN) > 0 && s.Security != TLS {
+		return invalid()
+	}
+	if s.Flow == Vision && ((s.Security == Plain && encryptionValue(s.Encryption) == "none") || s.Stream != nil && s.Stream.Type() != "tcp" && !(s.Stream.XHTTPH3(s.ALPN) && encryptionValue(s.Encryption) != "none")) {
 		return invalid()
 	}
 	if s.Transport != "tcp" || s.PacketEncoding != "xudp" {
@@ -189,6 +193,9 @@ func validateSettings(s Settings, publicRequired bool) error {
 		}
 	case TLS:
 		if s.TLS == nil || tlsconfig.Validate(*s.TLS) != nil || s.Reality != nil {
+			return invalid()
+		}
+		if (access.ClientTLS{Enabled: true, ServerName: s.TLS.ServerName, Trust: "explicit_ca", CACertificate: s.TLS.CACertificate, ALPN: s.ALPN}).Validate("tls") != nil {
 			return invalid()
 		}
 	case Reality:

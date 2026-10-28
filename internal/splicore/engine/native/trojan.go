@@ -89,7 +89,7 @@ func (h *trojanHandle) Start(ctx context.Context) error {
 	if h.started {
 		return nil
 	}
-	l, err := shared.ListenCarrier(ctx, net.JoinHostPort(h.endpoint.Host, portString(h.endpoint.Port)), h.transport)
+	l, err := shared.ListenCarrier(ctx, net.JoinHostPort(h.endpoint.Host, portString(h.endpoint.Port)), h.transport, transportALPN(h.tls))
 	if err != nil {
 		if addressInUse(err) {
 			return identity.Err(identity.PortConflict, h.transport.Carrier()+" listener port is already in use")

@@ -42,7 +42,7 @@ func Decode(b []byte) (Settings, error) {
 	if err := streamcfg.ValidateMember(b); err != nil {
 		return s, err
 	}
-	if len(b) > 16384 || streamcfg.ValidateMember(b) != nil || jsonstrict.Decode(b, &s) != nil || tlsconfig.Validate(s.TLS) != nil || s.Stream != nil && (s.Stream.ValidatePair("trojan", "tls") != nil || s.Stream.ValidateServer() != nil || s.Stream.ValidateALPN(s.ALPN) != nil) {
+	if len(b) > 16384 || streamcfg.ValidateMember(b) != nil || jsonstrict.Decode(b, &s) != nil || tlsconfig.Validate(s.TLS) != nil || s.Stream != nil && (s.Stream.ValidatePair("trojan", "tls") != nil || s.Stream.ValidateServer() != nil || s.Stream.ValidateSecurity("tls", s.ALPN) != nil) {
 		return s, invalid()
 	}
 	t := access.ClientTLS{Enabled: true, ServerName: s.TLS.ServerName, ALPN: s.ALPN, Trust: "explicit_ca", CACertificate: s.TLS.CACertificate}
@@ -84,7 +84,7 @@ func (Module) ValidateInbound(i access.Inbound) error {
 	}
 	carrier := "tcp"
 	if s.Stream != nil {
-		carrier = s.Stream.Carrier()
+		carrier = s.Stream.Carrier(s.ALPN)
 	}
 	if i.Listeners[0].Transport != carrier {
 		return invalid()
