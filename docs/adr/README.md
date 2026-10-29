@@ -133,3 +133,10 @@ Native is the sole runtime engine. Historical Phase 6/7 direction is superseded;
   Proposed; consolidate local SOCKS5/HTTP/Mixed, typed local bindings in existing
   listener documents, strict no-auth upstream marker and shared remote DNS policy.
   Phase 20 review is pending.
+
+## Phase34 native WireGuard endpoint
+
+- [0044 — Native userspace WireGuard endpoint](0044-native-wireguard-endpoint.md):
+  Proposed; official engine, existing Core IP stack, immutable credential
+  generation, Core DNS/routing and deterministic lifecycle. Independent review
+  is required before Freeze.

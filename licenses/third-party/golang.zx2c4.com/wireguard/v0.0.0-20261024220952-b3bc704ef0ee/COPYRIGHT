@@ -1,0 +1,8 @@
+Official wireguard-go, revision b3bc704ef0ee21a36298601a9e1e5ff90377ac52.
+Source: https://git.zx2c4.com/wireguard-go
+
+Verbatim copyright notices from engine and supporting package source headers:
+Copyright (C) 2017-2025 WireGuard LLC. All Rights Reserved.
+
+See verbatim LICENSE for upstream MIT terms.
+No upstream source is vendored or modified by Splicore.

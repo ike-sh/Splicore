@@ -27,6 +27,9 @@ type Dependencies struct {
 }
 
 func Run(ctx context.Context, args []string, out, errOut io.Writer, deps Dependencies) int {
+	if len(args) > 0 && args[0] == "wireguard" {
+		return wireGuardCLI(ctx, args[1:], out, errOut, deps)
+	}
 	if len(args) > 0 && args[0] == "vlessenc" {
 		return vlessEncryptionCLI(args[1:], out, errOut)
 	}

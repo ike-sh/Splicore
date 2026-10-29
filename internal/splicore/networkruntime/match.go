@@ -2,14 +2,19 @@
 package networkruntime
 
 import (
-	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
-	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
 	"net/netip"
 	"strings"
 	"sync/atomic"
+
+	E "github.com/ike-sh/Splicore/internal/splicore/domain/endpoint"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
 )
 
 type Query struct {
+	ServerInbound   identity.ID  `json:"server_inbound,omitempty"`
+	EndpointTag     string       `json:"endpoint_tag,omitempty"`
+	PeerPublicKey   string       `json:"peer_public_key,omitempty"`
 	SniffedProtocol string       `json:"sniffed_protocol,omitempty"`
 	SniffedDomain   string       `json:"sniffed_domain,omitempty"`
 	Domain          string       `json:"domain,omitempty"`
@@ -21,6 +26,20 @@ type Query struct {
 }
 
 func (q Query) Validate() error {
+	if q.ServerInbound != "" && q.ServerInbound.Validate() != nil {
+		return identity.Err(identity.Invalid, "invalid server inbound query")
+	}
+	if (q.EndpointTag == "") != (q.PeerPublicKey == "") {
+		return identity.Err(identity.Invalid, "incomplete endpoint credential metadata")
+	}
+	if q.EndpointTag != "" {
+		if !identity.Label(q.EndpointTag, 64) {
+			return E.ErrInvalid
+		}
+		if _, err := E.DecodeKey(q.PeerPublicKey); err != nil {
+			return err
+		}
+	}
 	if q.SniffedProtocol != "" && q.SniffedProtocol != "tls" || q.SniffedDomain != "" && q.SniffedProtocol != "tls" {
 		return identity.Err(identity.Invalid, "invalid sniffed route metadata")
 	}
@@ -49,14 +68,16 @@ func (q Query) Validate() error {
 }
 
 type compiledMatch struct {
-	sniffedExact    map[string]bool
-	exact           map[string]bool
-	suffix, keyword []string
-	cidrs           []netip.Prefix
-	ports           []P.PortRange
-	networks        map[string]bool
-	locals          map[identity.ID]bool
-	sets            []identity.ID
+	serverInbounds               map[identity.ID]bool
+	endpointTags, peerPublicKeys map[string]bool
+	sniffedExact                 map[string]bool
+	exact                        map[string]bool
+	suffix, keyword              []string
+	cidrs                        []netip.Prefix
+	ports                        []P.PortRange
+	networks                     map[string]bool
+	locals                       map[identity.ID]bool
+	sets                         []identity.ID
 }
 type compiledRule struct {
 	id     identity.ID
@@ -79,6 +100,18 @@ type Matcher struct {
 
 func compileMatch(m P.RuleMatch) (compiledMatch, error) {
 	c := compiledMatch{exact: map[string]bool{}, networks: map[string]bool{}, locals: map[identity.ID]bool{}, ports: append([]P.PortRange(nil), m.Ports...), sets: append([]identity.ID(nil), m.RuleSets...)}
+	c.serverInbounds = map[identity.ID]bool{}
+	for _, v := range m.ServerInbounds {
+		c.serverInbounds[v] = true
+	}
+	c.endpointTags = map[string]bool{}
+	for _, v := range m.EndpointTags {
+		c.endpointTags[v] = true
+	}
+	c.peerPublicKeys = map[string]bool{}
+	for _, v := range m.PeerPublicKeys {
+		c.peerPublicKeys[v] = true
+	}
 	c.sniffedExact = map[string]bool{}
 	for _, s := range m.SniffedDomains {
 		d, err := P.Domain(s)
@@ -119,6 +152,7 @@ func compileMatch(m P.RuleMatch) (compiledMatch, error) {
 	}
 	return c, nil
 }
+
 func Compile(c P.Config) (*Matcher, error) {
 	m := &Matcher{sets: map[identity.ID]compiledSet{}}
 	for _, r := range c.Route.Rules {
@@ -158,6 +192,12 @@ type setResult struct {
 }
 
 func (m *Matcher) matches(c compiledMatch, q Query, depth int, used *[]identity.ID, memo map[identity.ID]setResult) bool {
+	if len(c.serverInbounds) > 0 && !c.serverInbounds[q.ServerInbound] {
+		return false
+	}
+	if len(c.endpointTags) > 0 && !c.endpointTags[q.EndpointTag] || len(c.peerPublicKeys) > 0 && !c.peerPublicKeys[q.PeerPublicKey] {
+		return false
+	}
 	if depth > 16 {
 		return false
 	}
@@ -251,6 +291,9 @@ func (m *Matcher) Match(q Query, fallback P.Action, count bool) Explanation {
 	e := Explanation{Action: fallback, RuleSets: []identity.ID{}}
 	memo := map[identity.ID]setResult{}
 	for _, r := range m.rules {
+		if q.ServerInbound != "" && len(r.match.serverInbounds) == 0 {
+			continue
+		}
 		var sets []identity.ID
 		if m.matches(r.match, q, 0, &sets, memo) {
 			e.Rule = r.id
@@ -264,6 +307,7 @@ func (m *Matcher) Match(q Query, fallback P.Action, count bool) Explanation {
 	}
 	return e
 }
+
 func (m *Matcher) DNSServer(domain string, fallback identity.ID) identity.ID {
 	q := Query{Domain: domain}
 	memo := map[identity.ID]setResult{}

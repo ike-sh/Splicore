@@ -72,6 +72,12 @@ func Serve(ctx context.Context, c config.Config) (err error) {
 	if err != nil {
 		return err
 	}
+	defer service.CloseWireGuardEndpoints(context.Background())
+	for _, endpoint := range c.WireGuardEndpoints {
+		if _, err = service.CreateWireGuardEndpoint(ctx, endpoint); err != nil {
+			return err
+		}
+	}
 	if err = service.EnableRuntimeWithClient(ctx, outbounds, filepath.Join(c.StateDirectory, "host-network")); err != nil {
 		return err
 	}
@@ -80,6 +86,11 @@ func Serve(ctx context.Context, c config.Config) (err error) {
 		defer cancel()
 		err = errors.Join(err, service.CloseRuntime(shutdown))
 	}()
+	for _, endpoint := range c.WireGuardEndpoints {
+		if _, err = service.StartWireGuardEndpoint(ctx, endpoint.Tag); err != nil {
+			return err
+		}
+	}
 	if err = service.StartManagement(ctx); err != nil {
 		return err
 	}

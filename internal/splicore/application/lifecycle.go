@@ -3,13 +3,16 @@ package application
 import (
 	"context"
 	"crypto/rand"
+	"errors"
+	"net"
+	"sync"
+	"time"
+
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	"github.com/ike-sh/Splicore/internal/splicore/registry"
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
-	"sync"
-	"time"
 )
 
 type runtimeState struct {
@@ -23,6 +26,7 @@ type runtimeState struct {
 func accountAllowed(a access.Account) bool {
 	return a.Enabled && a.Status == access.Active && (a.ExpiresAt == nil || time.Now().Before(*a.ExpiresAt))
 }
+
 func (s *Service) EnableRuntime(ctx context.Context) error {
 	return s.enableRuntime(ctx, nil)
 }
@@ -90,6 +94,7 @@ func (s *Service) enableRuntime(ctx context.Context, beforeServers func() error)
 	}
 	return nil
 }
+
 func (s *Service) prepare(ctx context.Context, in ports.RuntimeIntent) (ports.RuntimeHandle, error) {
 	p, e := s.protocols.Get(in.Inbound.Protocol)
 	if e != nil {
@@ -113,6 +118,11 @@ func (s *Service) prepare(ctx context.Context, in ports.RuntimeIntent) (ports.Ru
 		ctx = underlay.WithBootstrap(ctx, s.client.manager.BootstrapHost)
 		ctx = underlay.WithTargetLookup(ctx, s.client.manager.LookupHost)
 	}
+	if s.client != nil {
+		ctx = ports.WithTargetRouter(ctx, func(call context.Context, network, address string, fallback ports.TargetDialer) (net.Conn, error) {
+			return s.client.manager.DialServerTarget(call, in.Inbound.ID, network, address, fallback)
+		})
+	}
 	prepared, e := eng.Compile(ctx, in)
 	if e != nil {
 		return nil, e
@@ -124,8 +134,10 @@ func (s *Service) prepare(ctx context.Context, in ports.RuntimeIntent) (ports.Ru
 	}
 	return h, nil
 }
+
 func (s *Service) CloseRuntime(ctx context.Context) error {
-	clientErr := s.CloseClientRuntime(ctx)
+	endpointErr := s.CloseWireGuardEndpoints(ctx)
+	clientErr := errors.Join(endpointErr, s.CloseClientRuntime(ctx))
 	if s.runtime == nil {
 		return clientErr
 	}

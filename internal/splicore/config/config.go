@@ -6,8 +6,8 @@ import (
 	"io"
 	"path/filepath"
 
+	E "github.com/ike-sh/Splicore/internal/splicore/domain/endpoint"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
-
 	"gopkg.in/yaml.v3"
 )
 
@@ -17,10 +17,11 @@ type API struct {
 	UnixSocket string `json:"unix_socket" yaml:"unix_socket"`
 }
 type Config struct {
-	Schema         int    `json:"schema" yaml:"schema"`
-	StateDirectory string `json:"state_directory" yaml:"state_directory"`
-	KeyFile        string `json:"key_file,omitempty" yaml:"key_file,omitempty"`
-	API            API    `json:"api" yaml:"api"`
+	WireGuardEndpoints []E.WireGuard `json:"wireguard_endpoints,omitempty" yaml:"wireguard_endpoints,omitempty"`
+	Schema             int           `json:"schema" yaml:"schema"`
+	StateDirectory     string        `json:"state_directory" yaml:"state_directory"`
+	KeyFile            string        `json:"key_file,omitempty" yaml:"key_file,omitempty"`
+	API                API           `json:"api" yaml:"api"`
 }
 
 func Default() Config {
@@ -75,6 +76,16 @@ func checkNode(n *yaml.Node, depth int) error {
 }
 
 func (c Config) Validate() error {
+	if len(c.WireGuardEndpoints) > 64 {
+		return identity.Err(identity.Invalid, "too many network endpoints")
+	}
+	tags := map[string]bool{}
+	for _, endpoint := range c.WireGuardEndpoints {
+		if endpoint.Validate() != nil || tags[endpoint.Tag] {
+			return identity.Err(identity.Invalid, "invalid WireGuard endpoints")
+		}
+		tags[endpoint.Tag] = true
+	}
 	if c.KeyFile != "" && (!filepath.IsAbs(c.KeyFile) || !identity.Label(c.KeyFile, 1024)) {
 		return identity.Err(identity.Invalid, "key file must be an absolute path")
 	}

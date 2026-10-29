@@ -3,8 +3,6 @@ package native
 import (
 	"context"
 	"crypto/tls"
-	streamcfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
-	shared "github.com/ike-sh/Splicore/internal/splicore/streamtransport"
 	"net"
 	"slices"
 	"sync"
@@ -13,10 +11,12 @@ import (
 
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	streamcfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/engine/relay"
 	"github.com/ike-sh/Splicore/internal/splicore/engine/traffic"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	module "github.com/ike-sh/Splicore/internal/splicore/protocol/trojan"
+	shared "github.com/ike-sh/Splicore/internal/splicore/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"github.com/ike-sh/Splicore/protocol/trojan/backend"
 	"github.com/ike-sh/Splicore/protocol/trojan/wire"
@@ -29,6 +29,7 @@ func (TrojanCompiler) Supports(in ports.RuntimeIntent) error {
 	_, err := (module.Module{}).BuildRuntime(context.Background(), in)
 	return err
 }
+
 func (c TrojanCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (ports.PreparedRuntime, error) {
 	if err := c.Supports(in); err != nil {
 		return nil, err
@@ -48,7 +49,7 @@ func (c TrojanCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (po
 		return nil, err
 	}
 	ctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
-	h := &trojanHandle{ctx: ctx, cancel: cancel, endpoint: in.Inbound.Listeners[0].Endpoint, protected: d, tls: &tls.Config{Certificates: []tls.Certificate{pair}, MinVersion: tls.VersionTLS12, NextProtos: slices.Clone(s.ALPN)}, connections: map[net.Conn]bool{}, users: map[string]*traffic.Counter{}, total: &traffic.Counter{}, done: make(chan struct{})}
+	h := &trojanHandle{ctx: ctx, cancel: cancel, endpoint: in.Inbound.Listeners[0].Endpoint, protected: ports.RoutedTargetDialer(ctx, d), tls: &tls.Config{Certificates: []tls.Certificate{pair}, MinVersion: tls.VersionTLS12, NextProtos: slices.Clone(s.ALPN)}, connections: map[net.Conn]bool{}, users: map[string]*traffic.Counter{}, total: &traffic.Counter{}, done: make(chan struct{})}
 	if s.Stream != nil {
 		h.transport = *s.Stream
 	}
@@ -67,7 +68,7 @@ type trojanHandle struct {
 	ctx               context.Context
 	cancel            context.CancelFunc
 	endpoint          access.Endpoint
-	protected         *underlay.Dialer
+	protected         ports.TargetDialer
 	tls               *tls.Config
 	listener          net.Listener
 	connections       map[net.Conn]bool
@@ -111,6 +112,7 @@ func (h *trojanHandle) Start(ctx context.Context) error {
 	go h.accept()
 	return nil
 }
+
 func (h *trojanHandle) Activate() {
 	h.lifecycle.Lock()
 	defer h.lifecycle.Unlock()
@@ -118,6 +120,7 @@ func (h *trojanHandle) Activate() {
 		h.admitted.Store(true)
 	}
 }
+
 func (h *trojanHandle) Health(ctx context.Context) error {
 	if ctx.Err() != nil || !h.running.Load() {
 		return identity.Err(identity.Unavailable, "Trojan listener is not healthy")
@@ -131,6 +134,7 @@ func (h *trojanHandle) BindingStats(id identity.ID) ports.Stats {
 	}
 	return ports.Stats{}
 }
+
 func (h *trojanHandle) Close(ctx context.Context) error {
 	h.lifecycle.Lock()
 	h.mu.Lock()
@@ -168,6 +172,7 @@ func (h *trojanHandle) Close(ctx context.Context) error {
 		return identity.Err(identity.Unavailable, "Trojan shutdown timed out")
 	}
 }
+
 func (h *trojanHandle) accept() {
 	defer h.wg.Done()
 	defer h.running.Store(false)
@@ -188,6 +193,7 @@ func (h *trojanHandle) accept() {
 		go h.serve(raw)
 	}
 }
+
 func (h *trojanHandle) serve(raw net.Conn) {
 	defer h.wg.Done()
 	defer raw.Close()

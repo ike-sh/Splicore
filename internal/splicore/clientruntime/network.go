@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/netip"
+
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
 	"github.com/ike-sh/Splicore/internal/splicore/networkruntime"
-	"net/netip"
+	"github.com/ike-sh/Splicore/internal/splicore/wireguardendpoint"
 )
 
 func bootstrapKey(c P.Config, n client.RemoteNode) string {
@@ -32,12 +34,14 @@ func bootstrapKey(c P.Config, n client.RemoteNode) string {
 	}{server, c.DNS.Strategy, c.DNS.TimeoutSeconds})
 	return string(b)
 }
+
 func selectedOutbound(a P.Action) identity.ID {
 	if a.Kind == P.Direct {
 		return client.Direct
 	}
 	return a.ID
 }
+
 func routeFallback(gen *snapshot, inbound identity.ID) P.Action {
 	for _, i := range gen.state.LocalInbounds {
 		if i.ID == inbound && i.SelectedOutbound != "" {
@@ -71,7 +75,18 @@ func resolveTarget(ctx context.Context, gen *snapshot, target access.Endpoint) (
 }
 
 func selectRoute(ctx context.Context, gen *snapshot, inbound identity.ID, target access.Endpoint, network string, affinity map[identity.ID]P.Action) (networkruntime.Explanation, access.Endpoint, error) {
-	q := networkruntime.Query{Port: target.Port, Network: network, LocalInbound: inbound}
+	return selectRouteFallback(ctx, gen, inbound, target, network, affinity, routeFallback(gen, inbound))
+}
+
+type serverFlowKey struct{}
+
+func selectRouteFallback(ctx context.Context, gen *snapshot, inbound identity.ID, target access.Endpoint, network string, affinity map[identity.ID]P.Action, fallback P.Action) (networkruntime.Explanation, access.Endpoint, error) {
+	server, _ := ctx.Value(serverFlowKey{}).(identity.ID)
+	q := networkruntime.Query{ServerInbound: server, Port: target.Port, Network: network, LocalInbound: inbound}
+	if peer, ok := wireguardendpoint.PeerIdentity(ctx); ok {
+		q.EndpointTag = peer.EndpointTag
+		q.PeerPublicKey = peer.PeerPublicKey
+	}
 	ip, err := netip.ParseAddr(target.Host)
 	if err == nil {
 		q.IP = ip
@@ -87,9 +102,9 @@ func selectRoute(ctx context.Context, gen *snapshot, inbound identity.ID, target
 		return networkruntime.Explanation{}, target, err
 	}
 	// A first unconditional domain REJECT does not perform a DNS query.
-	initial := gen.network.Matcher.Match(q, routeFallback(gen, inbound), false)
+	initial := gen.network.Matcher.Match(q, fallback, false)
 	if initial.Action.Kind == P.Reject && len(gen.state.Network.Route.Rules) > 0 && initial.Rule == gen.state.Network.Route.Rules[0].ID {
-		selected, err := gen.network.Explain(q, routeFallback(gen, inbound), true, affinity)
+		selected, err := gen.network.Explain(q, fallback, true, affinity)
 		return selected, target, err
 	}
 	if q.Domain != "" && len(q.Resolved) == 0 && gen.state.Network.DNS.Enabled {
@@ -100,7 +115,7 @@ func selectRoute(ctx context.Context, gen *snapshot, inbound identity.ID, target
 		// Match the address that this connection will actually dial. Original domain remains available.
 		q.Resolved = []netip.Addr{netip.MustParseAddr(target.Host)}
 	}
-	selected, err := gen.network.Explain(q, routeFallback(gen, inbound), true, affinity)
+	selected, err := gen.network.Explain(q, fallback, true, affinity)
 	return selected, target, err
 }
 
@@ -118,6 +133,7 @@ func (m *Manager) NetworkStatus() NetworkStatus {
 	defer gen.release()
 	return NetworkStatus{gen.network.Matcher.Hits(), gen.network.Groups(), gen.network.DNSStats()}
 }
+
 func (m *Manager) ExplainRoute(q networkruntime.Query) (networkruntime.Explanation, error) {
 	gen := m.acquire()
 	if gen == nil {
@@ -132,6 +148,7 @@ func (m *Manager) ExplainRoute(q networkruntime.Query) (networkruntime.Explanati
 	}
 	return explanation, err
 }
+
 func (m *Manager) DNSLookup(ctx context.Context, domain string) (networkruntime.DNSResult, error) {
 	gen := m.acquire()
 	if gen == nil || !gen.state.Enabled {
@@ -143,6 +160,7 @@ func (m *Manager) DNSLookup(ctx context.Context, domain string) (networkruntime.
 	defer gen.release()
 	return gen.network.Lookup(ctx, domain)
 }
+
 func (m *Manager) FlushDNS() error {
 	gen := m.acquire()
 	if gen == nil {

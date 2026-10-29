@@ -63,7 +63,7 @@ func (c VLESSCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (por
 		return nil, err
 	}
 	ctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
-	h := &vlessHandle{flow: s.Flow, ctx: ctx, cancel: cancel, endpoint: in.Inbound.Listeners[0].Endpoint, protected: dialer, total: &traffic.Counter{}, users: map[string]*traffic.Counter{}, uuids: map[[16]byte]string{}, connections: map[net.Conn]bool{}, done: make(chan struct{})}
+	h := &vlessHandle{flow: s.Flow, ctx: ctx, cancel: cancel, endpoint: in.Inbound.Listeners[0].Endpoint, protected: ports.RoutedTargetDialer(ctx, dialer), total: &traffic.Counter{}, users: map[string]*traffic.Counter{}, uuids: map[[16]byte]string{}, connections: map[net.Conn]bool{}, done: make(chan struct{})}
 	cfg, err := module.DecryptionConfig(s, in.ServerCredentials)
 	if err != nil {
 		cancel()
@@ -138,7 +138,7 @@ type vlessHandle struct {
 	ctx               context.Context
 	cancel            context.CancelFunc
 	endpoint          access.Endpoint
-	protected         *underlay.Dialer
+	protected         ports.TargetDialer
 	handshake         func(context.Context, net.Conn) (net.Conn, error)
 	targetProbe       func(context.Context) error
 	listener          net.Listener

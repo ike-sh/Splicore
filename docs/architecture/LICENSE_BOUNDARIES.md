@@ -88,3 +88,15 @@ Go-style BSD notices. Exact pins and verbatim license texts are recorded in
 source is ported or embedded; its executable is used only for external
 qualification. No Mihomo Core or prohibited SagerNet module is imported.
 The rationale and alternatives are in [ADR 0043](../adr/0043-native-shadowquic-jls.md).
+
+## Native WireGuard endpoint (Phase34)
+
+The official module `golang.zx2c4.com/wireguard` is pinned at
+`v0.0.0-20261024220952-b3bc704ef0ee` (commit
+`b3bc704ef0ee21a36298601a9e1e5ff90377ac52`). It is linked through exported
+engine/bind/TUN interfaces without copying or changing upstream source. Retain
+its MIT permission text and source copyright notices listed in
+[third-party notices](../../THIRD_PARTY_NOTICES.md). Existing selected module
+versions, including the official gVisor pin, remain unchanged. External official
+and Xray validation executables stay outside the repository and distribution.
+This implementation performs no publication.

@@ -2,6 +2,7 @@ package clientruntime
 
 import (
 	"encoding/json"
+
 	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
@@ -17,6 +18,10 @@ func validateNetworkCapabilities(state client.ProfileState, registry *registry.O
 		nodes[n.ID] = n
 	}
 	for _, o := range state.Outbounds {
+		if o.Kind == "endpoint" {
+			udp[o.ID] = true
+			continue
+		}
 		if o.NodeID == nil {
 			continue
 		}

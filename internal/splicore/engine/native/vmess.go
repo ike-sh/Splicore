@@ -3,6 +3,12 @@ package native
 import (
 	"context"
 	"crypto/tls"
+	"net"
+	"slices"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	streamcfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
@@ -14,11 +20,6 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"github.com/ike-sh/Splicore/protocol/vmess/backend"
 	"github.com/ike-sh/Splicore/protocol/vmess/wire"
-	"net"
-	"slices"
-	"sync"
-	"sync/atomic"
-	"time"
 )
 
 // VMessCompiler owns replay history across listener generation replacement.
@@ -36,6 +37,7 @@ func (*VMessCompiler) Supports(in ports.RuntimeIntent) error {
 	_, err := (module.Module{}).BuildRuntime(context.Background(), in)
 	return err
 }
+
 func (c *VMessCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (ports.PreparedRuntime, error) {
 	if c == nil || c.replay == nil || c.now == nil {
 		return nil, identity.Err(identity.Invalid, "VMess compiler is uninitialized")
@@ -62,7 +64,7 @@ func (c *VMessCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (po
 		tc = &tls.Config{Certificates: []tls.Certificate{pair}, MinVersion: tls.VersionTLS12, NextProtos: slices.Clone(s.ALPN)}
 	}
 	ctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
-	h := &vmessHandle{ctx: ctx, cancel: cancel, endpoint: in.Inbound.Listeners[0].Endpoint, protected: d, tls: tc, connections: map[net.Conn]bool{}, users: map[string]*traffic.Counter{}, total: &traffic.Counter{}, done: make(chan struct{}), replay: c.replay, now: c.now}
+	h := &vmessHandle{ctx: ctx, cancel: cancel, endpoint: in.Inbound.Listeners[0].Endpoint, protected: ports.RoutedTargetDialer(ctx, d), tls: tc, connections: map[net.Conn]bool{}, users: map[string]*traffic.Counter{}, total: &traffic.Counter{}, done: make(chan struct{}), replay: c.replay, now: c.now}
 	if s.Stream != nil {
 		h.transport = *s.Stream
 	}
@@ -81,7 +83,7 @@ type vmessHandle struct {
 	ctx               context.Context
 	cancel            context.CancelFunc
 	endpoint          access.Endpoint
-	protected         *underlay.Dialer
+	protected         ports.TargetDialer
 	tls               *tls.Config
 	listener          net.Listener
 	connections       map[net.Conn]bool
@@ -127,6 +129,7 @@ func (h *vmessHandle) Start(ctx context.Context) error {
 	go h.accept()
 	return nil
 }
+
 func (h *vmessHandle) Activate() {
 	h.lifecycle.Lock()
 	defer h.lifecycle.Unlock()
@@ -134,6 +137,7 @@ func (h *vmessHandle) Activate() {
 		h.admitted.Store(true)
 	}
 }
+
 func (h *vmessHandle) Health(ctx context.Context) error {
 	if ctx.Err() != nil || !h.running.Load() {
 		return identity.Err(identity.Unavailable, "VMess listener is not healthy")
@@ -147,6 +151,7 @@ func (h *vmessHandle) BindingStats(id identity.ID) ports.Stats {
 	}
 	return ports.Stats{}
 }
+
 func (h *vmessHandle) Close(ctx context.Context) error {
 	h.lifecycle.Lock()
 	h.mu.Lock()
@@ -178,6 +183,7 @@ func (h *vmessHandle) Close(ctx context.Context) error {
 		return identity.Err(identity.Unavailable, "VMess shutdown timed out")
 	}
 }
+
 func (h *vmessHandle) accept() {
 	defer h.wg.Done()
 	defer h.running.Store(false)
@@ -198,6 +204,7 @@ func (h *vmessHandle) accept() {
 		go h.serve(raw)
 	}
 }
+
 func (h *vmessHandle) serve(raw net.Conn) {
 	defer h.wg.Done()
 	defer raw.Close()

@@ -121,3 +121,14 @@ Orphan WinDivert binaries and their adjacent license were removed from the activ
 tree in Phase 21 Deep Core Purge; their exact bytes remain in precleanup evidence.
 No retained source embeds or derives from those driver assets. Historical sing-box GPL attribution remains even
 though its active Go dependencies and inherited dead runtime were removed.
+
+## Native WireGuard endpoint
+
+| Module/version | Purpose | Why standard library is insufficient | License |
+| --- | --- | --- | --- |
+| golang.zx2c4.com/wireguard v0.0.0-20261024220952-b3bc704ef0ee | Official in-process WireGuard cryptographic engine; exact revision b3bc704ef0ee21a36298601a9e1e5ff90377ac52 | No standard WireGuard engine; protocol and crypto rewrite prohibited | [MIT text](licenses/third-party/golang.zx2c4.com/wireguard/v0.0.0-20261024220952-b3bc704ef0ee/LICENSE), [copyright attribution](licenses/third-party/golang.zx2c4.com/wireguard/v0.0.0-20261024220952-b3bc704ef0ee/COPYRIGHT) |
+
+Splicore links official `device`, `conn`, and `tun` APIs. Its own memory TUN
+reuses the already pinned official gVisor stack. The upstream `tun/netstack`
+helper is used only by an external compatibility fixture. No engine fork,
+vendored source, kernel WireGuard prerequisite or external runtime is added.

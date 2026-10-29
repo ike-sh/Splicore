@@ -6,6 +6,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
+	"sync"
+	"time"
+
 	"github.com/ike-sh/Splicore/internal/splicore/clientruntime"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
@@ -15,9 +19,6 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/proxy"
 	"github.com/ike-sh/Splicore/internal/splicore/registry"
-	"reflect"
-	"sync"
-	"time"
 )
 
 // CredentialInput is an explicit write-only secret boundary, never returned by queries.
@@ -89,6 +90,7 @@ func (s *Service) EnableClientRuntime(ctx context.Context, factories *registry.O
 	}
 	c := &clientState{repo: repo, factories: factories, manager: clientruntime.NewWithUnderlay(s.underlay), management: newManagementState()}
 	s.client = c
+	c.manager.ConfigureEndpoints(s.borrowEndpoint)
 	c.manager.ConfigureAccounts(repo.Account)
 	if len(hostDirectory) > 0 {
 		if err := c.manager.ConfigureHost(ctx, hostDirectory[0]); err != nil {
@@ -113,6 +115,7 @@ func (s *Service) EnableClientRuntime(ctx context.Context, factories *registry.O
 	}
 	return nil
 }
+
 func (s *Service) CloseClientRuntime(ctx context.Context) error {
 	if s.client == nil {
 		return nil
@@ -126,6 +129,7 @@ func (s *Service) CloseClientRuntime(ctx context.Context) error {
 	c.closed = true
 	return c.manager.Close(ctx)
 }
+
 func (s *Service) ClientStatus(ctx context.Context) (clientruntime.Status, error) {
 	if s.client == nil {
 		return clientruntime.Status{}, identity.Err(identity.NotImplemented, "client runtime unavailable")
@@ -147,6 +151,7 @@ func (s *Service) ClientStatus(ctx context.Context) (clientruntime.Status, error
 	}
 	return status, nil
 }
+
 func (s *Service) clientCredentials(ctx context.Context, state client.ProfileState, newCredentials []access.Credential) (map[identity.ID]access.Credential, error) {
 	out := map[identity.ID]access.Credential{}
 	for _, c := range newCredentials {
@@ -491,6 +496,7 @@ func (s *Service) clientCandidate(ctx context.Context, b json.RawMessage) (clien
 	err = clientruntime.Validate(out.state, credentials, s.client.factories)
 	return out, err
 }
+
 func remoteCredential(node, id identity.ID, input CredentialInput) (access.Credential, error) {
 	// Payload decoding is the shared credential-kind boundary, not protocol dispatch.
 	payload, err := access.DecodeRemotePayload(input.Kind, input.Value)
@@ -500,10 +506,12 @@ func remoteCredential(node, id identity.ID, input CredentialInput) (access.Crede
 	c := access.Credential{ID: id, OwnerNodeID: &node, Kind: input.Kind, Schema: 1, State: "active", Payload: payload, Stamp: identity.NewStamp(time.Now())}
 	return c, c.Validate()
 }
+
 func (s *Service) ValidateClient(ctx context.Context, b json.RawMessage) error {
 	_, err := s.PlanClient(ctx, b)
 	return err
 }
+
 func (s *Service) PlanClient(ctx context.Context, b json.RawMessage) (ports.ClientPlan, error) {
 	if s.client == nil {
 		return ports.ClientPlan{}, identity.Err(identity.NotImplemented, "client runtime unavailable")
@@ -520,6 +528,7 @@ func (s *Service) PlanClient(ctx context.Context, b json.RawMessage) (ports.Clie
 	}
 	return ports.ClientPlan{Revision: candidate.state.Revision, Digest: s.creationDigest("client", b, candidate.state.Revision), Resource: candidate.mutation.Resource, Action: candidate.mutation.Action}, nil
 }
+
 func (s *Service) ApplyClient(ctx context.Context, req ApplyRequest) (result ClientResult, err error) {
 	if s.client == nil {
 		return result, identity.Err(identity.NotImplemented, "client runtime unavailable")
