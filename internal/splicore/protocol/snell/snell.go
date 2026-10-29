@@ -6,19 +6,22 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"strconv"
+
 	"github.com/ike-sh/Splicore/internal/splicore/clientprofile"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
-	"strconv"
 )
 
-type Module struct{ Version int }
-type Settings struct {
-	Version  int    `json:"version"`
-	ObfsMode string `json:"obfs_mode,omitempty"`
-}
+type (
+	Module   struct{ Version int }
+	Settings struct {
+		Version  int    `json:"version"`
+		ObfsMode string `json:"obfs_mode,omitempty"`
+	}
+)
 
 func Key(v int) access.ProtocolKey {
 	return access.ProtocolKey{Protocol: "snell", WireVersion: strconv.Itoa(v), FeatureProfile: "base"}
@@ -37,11 +40,13 @@ func Decode(b []byte) (Settings, error) {
 	}
 	return s, nil
 }
+
 func invalid() error {
 	return identity.Err(identity.Invalid, "unsupported Snell settings or credential")
 }
+
 func (m Module) Metadata() ports.ProtocolMetadata {
-	return ports.ProtocolMetadata{Roles: ports.Roles{Inbound: true, Outbound: true}, Key: Key(m.Version), ABI: 1, CredentialKinds: []access.CredentialKind{access.PSK}, Availability: ports.Compiled, Qualification: "experimental", Provenance: "Splicore-owned Snell wire and lifecycle; single binding; no QUIC proxy mode"}
+	return ports.ProtocolMetadata{Roles: ports.Roles{Inbound: true, Outbound: true}, Key: Key(m.Version), ABI: 1, CredentialKinds: []access.CredentialKind{access.PSK}, Availability: ports.Compiled, Qualification: "experimental", Provenance: "Splicore-owned Snell wire and lifecycle; single binding; v5.0.1 DRS and authenticated QUIC proxy"}
 }
 
 // ClientVersion is the canonical, explicit server-to-client compatibility mapping.
@@ -50,13 +55,14 @@ func ClientVersion(server int) (int, error) {
 	case 4:
 		return 4, nil
 	case 5:
-		return 4, nil
+		return 5, nil
 	case 6:
 		return 6, nil
 	default:
 		return 0, invalid()
 	}
 }
+
 func (m Module) Capabilities(ports.CapabilityContext) ports.Capabilities {
 	clients := []ports.ClientCompatibility{{Format: ports.SingBox, Client: "sing-box", Version: "1.14.1", Evidence: ""}}
 	if m.Version == 4 {
@@ -67,6 +73,7 @@ func (m Module) Capabilities(ports.CapabilityContext) ports.Capabilities {
 	}
 	return ports.Capabilities{Transport: ports.TransportCapabilities{TCP: true, UDPPayload: true, IPv4: true, IPv6: true, DomainEndpoint: true}, Identity: ports.IdentityCapabilities{MultiUserNative: false, AttributedPayload: ports.Native, NativeStats: ports.Native, StatsUnits: "authenticated payload bytes; routed sessions; process lifetime"}, Policy: ports.PolicyCapabilities{Quota: ports.Unsupported, SpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported}, Mutation: ports.MutationCapabilities{Users: ports.MutationUnavailable, Listener: ports.MutationUnavailable}, Clients: clients}
 }
+
 func (m Module) ValidateInbound(i access.Inbound) error {
 	if e := i.Validate(); e != nil {
 		return e
@@ -92,6 +99,7 @@ func ValidatePSK(v secret.Value) error {
 	}
 	return nil
 }
+
 func GeneratePSK() (secret.Value, error) {
 	var b [32]byte
 	if _, e := rand.Read(b[:]); e != nil {
@@ -99,6 +107,7 @@ func GeneratePSK() (secret.Value, error) {
 	}
 	return secret.New(base64.RawURLEncoding.EncodeToString(b[:])), nil
 }
+
 func (m Module) ValidateCredential(c access.Credential) error {
 	if e := c.Validate(); e != nil {
 		return e
@@ -109,6 +118,7 @@ func (m Module) ValidateCredential(c access.Credential) error {
 	}
 	return ValidatePSK(p.Key)
 }
+
 func (m Module) BuildRuntime(_ context.Context, in ports.RuntimeIntent) (ports.RuntimeIntent, error) {
 	if e := m.ValidateInbound(in.Inbound); e != nil {
 		return ports.RuntimeIntent{}, e
@@ -128,6 +138,7 @@ func (m Module) BuildRuntime(_ context.Context, in ports.RuntimeIntent) (ports.R
 	}
 	return in, nil
 }
+
 func (m Module) BuildClientProfile(ctx context.Context, b ports.AuthorizedBinding) (clientprofile.Profile, error) {
 	if _, e := m.BuildRuntime(ctx, ports.RuntimeIntent{Inbound: b.Inbound, Bindings: []access.Binding{b.Binding}, Credentials: []access.Credential{b.Credential}}); e != nil {
 		return clientprofile.Profile{}, e

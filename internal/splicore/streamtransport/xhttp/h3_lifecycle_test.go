@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/apernet/quic-go"
+	"github.com/apernet/quic-go/http3"
 	cfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
-	"github.com/quic-go/quic-go"
-	"github.com/quic-go/quic-go/http3"
 )
 
 func h3DialSession(t *testing.T, cl *Client) (net.Conn, *clientSession) {

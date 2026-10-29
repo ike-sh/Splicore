@@ -76,10 +76,11 @@ type User struct{ ID, Username, Password string }
 func (User) Format(s fmt.State, _ rune) { _, _ = s.Write([]byte("ShadowQUICUser{[REDACTED]}")) }
 
 type ClientConfig struct {
-	ServerName string
-	User       User
-	Limits     Limits
-	Socket     func(context.Context) (net.PacketConn, net.Addr, error)
+	ServerName    string
+	UDPOverStream bool
+	User          User
+	Limits        Limits
+	Socket        func(context.Context) (net.PacketConn, net.Addr, error)
 }
 type ServerConfig struct {
 	ServerName   string

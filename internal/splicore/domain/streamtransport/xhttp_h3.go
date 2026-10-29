@@ -7,7 +7,7 @@ func (c Config) XHTTPH3(alpn []string) bool {
 
 // ValidateSecurity binds the carrier selector to its outer security policy.
 func (c Config) ValidateSecurity(security string, alpn []string) error {
-	if c.ValidateALPN(alpn) != nil || c.XHTTPH3(alpn) && security != "tls" {
+	if c.ValidateALPN(alpn) != nil || c.H3 != nil && !c.XHTTPH3(alpn) || c.XHTTPH3(alpn) && security != "tls" {
 		return bad()
 	}
 	return nil

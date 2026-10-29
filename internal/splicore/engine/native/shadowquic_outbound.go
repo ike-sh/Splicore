@@ -33,7 +33,7 @@ func (f ShadowQUICOutboundFactory) Build(ctx context.Context, n client.RemoteNod
 		return nil, err
 	}
 	p, _ := module.Pair(c.Payload)
-	transport, err := session.NewClient(session.ClientConfig{ServerName: n.Security.TLS.ServerName, User: session.User{Username: p.Username.Reveal(), Password: p.Password.Reveal()}, Limits: o.Limits, Socket: socket})
+	transport, err := session.NewClient(session.ClientConfig{ServerName: n.Security.TLS.ServerName, UDPOverStream: o.UDPOverStream, User: session.User{Username: p.Username.Reveal(), Password: p.Password.Reveal()}, Limits: o.Limits, Socket: socket})
 	if err != nil {
 		return nil, err
 	}

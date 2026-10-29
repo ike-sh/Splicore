@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -36,14 +35,13 @@ func TestTunnelCoreDNSSQLiteAPIRecovery(t *testing.T) {
 
 func testTunnelSQLiteAPIRecovery(t *testing.T, managedDNS bool) {
 	ctx := context.Background()
-	var coreQueries, systemQueries atomic.Int64
+	var coreQueries atomic.Int64
+	systemQueries := &atomic.Int64{}
 	if managedDNS {
-		previous := net.DefaultResolver
-		net.DefaultResolver = &net.Resolver{PreferGo: true, Dial: func(context.Context, string, string) (net.Conn, error) {
-			systemQueries.Add(1)
-			return nil, errors.New("SQLite tunnel test forbids system DNS")
-		}}
-		t.Cleanup(func() { net.DefaultResolver = previous })
+		systemQueries = isolatedResolver(t)
+		if systemQueries == nil {
+			return
+		}
 	}
 	path := filepath.Join(t.TempDir(), "state", "state.db")
 	s, store := setupSnell(t, path, nil)

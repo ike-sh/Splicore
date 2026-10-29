@@ -10,7 +10,7 @@ import (
 func TestWireRoundTripAndRejection(t *testing.T) {
 	for _, host := range []string{"127.0.0.1", "::1", "target.test"} {
 		dst := access.Endpoint{Host: host, Port: 443}
-		for _, cmd := range []byte{connect, associate} {
+		for _, cmd := range []byte{connect, associate, associateStream} {
 			b, e := command(cmd, dst)
 			if e != nil {
 				t.Fatal(e)
@@ -39,7 +39,7 @@ func TestWireRoundTripAndRejection(t *testing.T) {
 			}
 		}
 	}
-	for _, b := range [][]byte{{4, 1, 127, 0, 0, 1, 0, 80}, {5}, {255}, {1, 9}, {1, 3, 0, 0, 80}, {1, 3, 1, 0, 0, 80}, {1, 1, 127, 0, 0, 1, 0, 0}} {
+	for _, b := range [][]byte{{2, 1, 127, 0, 0, 1, 0, 80}, {5}, {255}, {1, 9}, {1, 3, 0, 0, 80}, {1, 3, 1, 0, 0, 80}, {1, 1, 127, 0, 0, 1, 0, 0}} {
 		if _, _, e := readCommand(bytes.NewReader(b)); e == nil {
 			t.Fatal("bad command accepted", b)
 		}

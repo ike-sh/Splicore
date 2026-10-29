@@ -12,9 +12,11 @@ explicitly; a missing version is rejected. Runtime engine: `native`.
 | 5 | Supported in the qualified compatible scope | Supported / supported | Existing compatible request handling | None |
 | 6 | Supported / supported | Supported / supported | Existing request handling | Existing encrypted traffic shaping |
 
-The v5 client projection uses v4 TCP/UDP semantics. Official v5 servers accept
-v4 clients. **Snell v5 QUIC Proxy Mode is not implemented.** v6 shaping and PSK
-rules remain separate. v5/v6 canonical options remain exactly `{"version":5}`
+The explicit v5 client/server use classic authenticated records with the official
+v5 dynamic record schedule. v5 servers also accept v4 TCP/UDP clients. Native v5
+QUIC Proxy Mode authenticates Initial packets over UDP and forwards subsequent
+fixed-bit QUIC packets without extra framing. v6 shaping and PSK rules remain
+separate. v5/v6 canonical options remain exactly `{"version":5}`
 and `{"version":6}`; additional mode, obfs or reuse fields are rejected there.
 TLS obfs, ShadowTLS, Restls and JLS are outside this native profile.
 
@@ -66,7 +68,8 @@ not automatically replayed. A later request creates a fresh transport.
 ## Accounts, credentials and statistics
 
 The managed profile has one Account/Binding/PSK per inbound, one TCP listener
-and one display endpoint. `multi_user_native=false`; userkey/multi-user extensions
+and one display endpoint. v5 additionally owns UDP on the same address and port;
+both binds must succeed before runtime activation. `multi_user_native=false`; userkey/multi-user extensions
 are not qualified. Listener endpoints require an IP address. Display endpoints
 may be IP or domain. The existing single-binding and transaction rules apply.
 
@@ -104,8 +107,10 @@ reference clients cannot configure a custom URI.
 Mihomo closes the upstream on an early SOCKS upload EOF, including against the
 official server; its qualification verifies the complete echo before application
 close. Native, official-server and sing-box paths also verify half-close responses.
-Previous v5 export targets
-Mihomo 1.19.30 and sing-box 1.14.1 and v6 sing-box 1.14.1 remain supported.
+Surge v5 declarations preserve version 5. Mihomo and sing-box v5 profiles
+explicitly project version 4 compatibility and cannot expose QUIC Proxy Mode.
+Previous v5 export targets Mihomo 1.19.30 and sing-box 1.14.1 and v6 sing-box
+1.14.1 remain supported.
 Unknown export target versions are rejected. Qualification uses controlled
 Linux amd64 references. Linux arm64 is build only. **Real hardware remains
 NOT YET QUALIFIED.**
@@ -116,3 +121,38 @@ Behavioral references: [Surge policy](https://manual.nssurge.com/policies/snell.
 [Mihomo documentation](https://wiki.metacubex.one/en/config/proxies/snell/).
 Reference programs serve only as interoperability oracles; their source is not
 adapted into production.
+
+## Phase35 v5 qualification boundary
+
+Reference: official Snell v5.0.1, release-material commit
+`54d0db008069eedb941ecf4922f87ba4662ae2a7`. Controlled official-server probes
+confirm per-submission record-ceiling growth of 1421 bytes to 16383, all records
+within a submission sharing a ceiling, and reset to 1421 after more than 30 seconds
+idle. The first record also accounts for salt/header/padding. Clean and lossy TCP
+experiments cover small interactive writes, large writes, long and concurrent
+streams without corruption or truncation.
+
+The native selector admits structurally valid QUIC v1/v2 Initial datagrams of at
+least 1200 bytes, independently of port. Ordinary UDP, including non-QUIC traffic
+on port 443, keeps UDP over TCP. Selection is fixed for the packet flow; there is
+no application-data replay onto another carrier. Initial control and target data
+use the observed official AES-GCM/Argon2id record format with a fresh salt. Raw
+forwarding requires an authenticated source flow, preserves datagram size and
+adds no bytes; raw-before-auth and tampered/wrong-key control are rejected.
+Repeated protected Initials cannot change an existing flow's destination.
+
+Each runtime owns its UDP listener; each source flow owns one target UDP socket,
+a 32-packet queue and a joined worker/reader. Limits are 128 flows, 65000-byte
+payloads, five-second admission/write budgets and 60-second idle expiry. Close
+cancels admission and closes/joins all sockets. UDP bind failure releases the TCP
+listener. IPv4 and IPv6 carrier and target paths are tested. Independent real
+QUIC handshakes and concurrent streams interoperate with native and official
+servers, including protected Initial and subsequent raw traffic. Raw data has no
+extra anti-replay guarantee; QUIC owns its cryptographic replay protection.
+
+No official Surge client or verified client capture is available:
+`SURGE_V5_CLIENT_CLASSIFICATION_ORACLE_UNAVAILABLE`. The conservative native
+selector is not a claim to reproduce Surge's private classification algorithm.
+Official client-to-native rows remain externally unverified; official Linux
+server interoperability and independent QUIC wire tests qualify the implemented
+server/protocol behavior. Full Surge client behavior is not claimed.

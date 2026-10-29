@@ -4,20 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
+	"testing"
+
 	"github.com/ike-sh/Splicore/internal/splicore/clientprofile"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/snell"
-	"strings"
-	"testing"
 )
 
 func profile(v int, host string) clientprofile.Profile {
 	id, _ := identity.NewID()
 	return clientprofile.Profile{ID: id, Schema: 1, Protocol: snell.Key(v), Endpoint: access.Endpoint{Host: host, Port: 24443}, Credentials: access.PSKPayload{Key: secret.New("SyntheticPhase2TestKey0001")}, Transport: clientprofile.Transport{Kind: "tcp"}, UDPPayload: true, Options: access.Settings{Schema: 1, Data: json.RawMessage(fmt.Sprintf(`{"version":%d}`, v))}, Metadata: identity.Metadata{}}
 }
+
 func TestExportContracts(t *testing.T) {
 	for _, host := range []string{"192.0.2.7", "2001:db8::7", "node.example.invalid"} {
 		for _, v := range []int{5, 6} {
@@ -38,7 +40,7 @@ func TestExportContracts(t *testing.T) {
 					t.Fatal(e)
 				}
 				if target.Format == ports.Surge {
-					if !strings.Contains(string(b), host) || !strings.HasSuffix(string(b), fmt.Sprintf("version=%d", wire)) || strings.Contains(string(b), "udp-relay") {
+					if !strings.Contains(string(b), host) || !strings.HasSuffix(string(b), fmt.Sprintf("version=%d", v)) || strings.Contains(string(b), "udp-relay") {
 						t.Fatal("Surge contract")
 					}
 				} else {
@@ -61,6 +63,7 @@ func TestExportContracts(t *testing.T) {
 		t.Fatal("profile leak")
 	}
 }
+
 func FuzzExport(f *testing.F) {
 	f.Add("2001:db8::7", "SyntheticPhase2TestKey0001")
 	f.Add("host, injection", "key\nsecret")

@@ -34,9 +34,13 @@ func testSocket(remote net.Addr) func(context.Context) (net.PacketConn, net.Addr
 	}
 }
 
-func testServer(t *testing.T, limits Limits) (*Server, net.Addr, *atomic.Int32) {
+func testServer(t *testing.T, limits Limits, ipv6 ...bool) (*Server, net.Addr, *atomic.Int32) {
 	t.Helper()
-	p, e := net.ListenPacket("udp4", "127.0.0.1:0")
+	network, bind := "udp4", "127.0.0.1:0"
+	if len(ipv6) > 0 && ipv6[0] {
+		network, bind = "udp6", "[::1]:0"
+	}
+	p, e := net.ListenPacket(network, bind)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -378,7 +382,7 @@ func TestSessionMalformedStreamsVersionAndPlainTLS(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	for _, raw := range [][]byte{{4, 1, 0, 0, 0, 0, 0, 0}, {5}, {255}, {1, 3, 0, 0, 80}, {1, 9}} {
+	for _, raw := range [][]byte{{2, 1, 0, 0, 0, 0, 0, 0}, {5}, {255}, {1, 3, 0, 0, 80}, {1, 9}} {
 		st, e := s.open(ctx)
 		if e != nil {
 			t.Fatal(e)

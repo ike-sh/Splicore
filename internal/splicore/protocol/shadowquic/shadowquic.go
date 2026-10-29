@@ -31,7 +31,11 @@ type (
 		Camouflage access.Endpoint `json:"camouflage_endpoint"`
 	}
 )
-type ClientOptions struct{ session.Limits }
+
+type ClientOptions struct {
+	session.Limits
+	UDPOverStream bool `json:"udp_over_stream,omitempty"`
+}
 
 func (Settings) Format(s fmt.State, _ rune) { _, _ = s.Write([]byte("ShadowQUICSettings{[REDACTED]}")) }
 
@@ -51,6 +55,8 @@ func exact(b []byte, server bool) error {
 	allowed := map[string]bool{"max_streams": true, "max_udp_flows": true, "handshake_timeout": true, "idle_timeout": true, "keepalive": true, "udp_idle_timeout": true}
 	if server {
 		allowed["server_name"], allowed["camouflage_endpoint"], allowed["max_connections"] = true, true, true
+	} else {
+		allowed["udp_over_stream"] = true
 	}
 	for k, v := range obj {
 		if !allowed[k] || strings.TrimSpace(string(v)) == "null" {
@@ -89,7 +95,7 @@ func (Module) Metadata() ports.ProtocolMetadata {
 	if !session.Enabled() {
 		availability = ports.NotCompiled
 	}
-	return ports.ProtocolMetadata{Key: Key(), ABI: 1, Roles: ports.Roles{Inbound: true, Outbound: true}, CredentialKinds: []access.CredentialKind{access.UsernamePassword}, Availability: availability, Qualification: "experimental", Provenance: "Splicore-owned ShadowQUIC grammar; upstream v0.4.4; independent JLS v3 libraries; TCP and UDP DATAGRAM; 0-RTT disabled"}
+	return ports.ProtocolMetadata{Key: Key(), ABI: 1, Roles: ports.Roles{Inbound: true, Outbound: true}, CredentialKinds: []access.CredentialKind{access.UsernamePassword}, Availability: availability, Qualification: "experimental", Provenance: "Splicore-owned ShadowQUIC grammar; upstream v0.4.7; independent JLS v3 libraries; TCP, UDP DATAGRAM and CMD4 streams; 0-RTT disabled"}
 }
 
 func (Module) Capabilities(ports.CapabilityContext) ports.Capabilities {

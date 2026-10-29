@@ -52,7 +52,7 @@ func h3ReclaimGoroutines() int {
 		if n < len(buf) {
 			count := 0
 			for stack := range bytes.SplitSeq(buf[:n], []byte("\n\n")) {
-				if bytes.Contains(stack, []byte("github.com/quic-go/quic-go")) {
+				if bytes.Contains(stack, []byte("github.com/apernet/quic-go")) {
 					count++
 				}
 			}

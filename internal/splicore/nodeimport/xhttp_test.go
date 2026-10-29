@@ -28,3 +28,23 @@ func TestXHTTPCanonicalImportRetainsControls(t *testing.T) {
 		t.Fatal("canonical roundtrip lost controls", e)
 	}
 }
+
+func TestPhase35H3CanonicalImportRetainsIndependentTuning(t *testing.T) {
+	b := []byte(`{"schema_version":1,"nodes":[{"node":{"name":"local-h3","protocol":{"protocol":"vless","wire_version":"0","feature_profile":"tls"},"endpoint":{"host":"127.0.0.1","port":8443},"transport":{"kind":"xhttp","h3":{"disableChromeParrot":true,"initStreamReceiveWindow":65536,"maxIncomingStreams":32},"xhttp":{"mode":"packet-up","downloadSettings":{"endpoint":{"host":"::1","port":8444},"transport":{"kind":"xhttp","h3":{"maxIncomingStreams":64}},"security":"tls","tls":{"enabled":true,"server_name":"download.synthetic.test","trust":"system","alpn":["h3"]}}}},"security":{"kind":"tls","tls":{"enabled":true,"server_name":"upload.synthetic.test","trust":"system","alpn":["h3"]}},"options":{"schema_version":1,"data":{"security":"tls","flow":"none","packet_encoding":"xudp"}},"metadata":{}},"credential":{"kind":"uuid","value":"68f4f564-142b-46b3-8c89-322a37ef1b30"}}]}`)
+	r, err := Parse("canonical", b)
+	if err != nil || len(r.Candidates) != 1 || len(r.Issues) != 0 {
+		t.Fatal("H3 import", err, r.Issues)
+	}
+	tr := r.Candidates[0].Node.Transport
+	if tr.H3 == nil || tr.XHTTP.Download.Transport.H3 == nil || tr.H3.MaxIncomingStreams != 32 || tr.XHTTP.Download.Transport.H3.MaxIncomingStreams != 64 {
+		t.Fatal("independent tuning collapsed")
+	}
+	encoded, err := json.Marshal(Document{Schema: 1, Nodes: r.Candidates})
+	if err != nil {
+		t.Fatal(err)
+	}
+	round, err := Parse("canonical", encoded)
+	if err != nil || len(round.Candidates) != 1 || !reflect.DeepEqual(tr, round.Candidates[0].Node.Transport) {
+		t.Fatal("canonical H3 persistence", err)
+	}
+}

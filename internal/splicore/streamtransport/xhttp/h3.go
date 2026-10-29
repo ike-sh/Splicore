@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/apernet/quic-go"
+	"github.com/apernet/quic-go/http3"
 	cfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
-	"github.com/quic-go/quic-go"
-	"github.com/quic-go/quic-go/http3"
 )
 
 const h3Compiled = true
@@ -26,7 +26,7 @@ const h3Compiled = true
 func h3QUICConfig(server bool, keep int64) *quic.Config {
 	incoming, idle := int64(-1), 300*time.Second
 	if server {
-		incoming, idle = 128, 30*time.Second
+		incoming, idle = 100, 30*time.Second
 	}
 	if keep == 0 && !server {
 		keep = 10
@@ -37,10 +37,44 @@ func h3QUICConfig(server bool, keep int64) *quic.Config {
 		InitialPacketSize: 1200,
 		MaxIdleTimeout:    idle, KeepAlivePeriod: time.Duration(max(keep, 0)) * time.Second,
 		MaxIncomingStreams: incoming, MaxIncomingUniStreams: 16,
-		InitialStreamReceiveWindow: 64 << 10, MaxStreamReceiveWindow: 1 << 20,
-		InitialConnectionReceiveWindow: 512 << 10, MaxConnectionReceiveWindow: 8 << 20,
-		EnableDatagrams: false, Allow0RTT: false,
+		InitialStreamReceiveWindow: 2 << 20, MaxStreamReceiveWindow: 6 << 20,
+		InitialConnectionReceiveWindow: 3 << 20, MaxConnectionReceiveWindow: 15 << 20,
+		EnableDatagrams: false, Allow0RTT: false, ChromeParrot: !server,
 	}
+}
+
+func h3Configured(server bool, keep int64, h *cfg.H3) *quic.Config {
+	q := h3QUICConfig(server, keep)
+	if h == nil {
+		return q
+	}
+	if h.InitialStreamWindow > 0 {
+		q.InitialStreamReceiveWindow = h.InitialStreamWindow
+	}
+	if h.MaxStreamWindow > 0 {
+		q.MaxStreamReceiveWindow = h.MaxStreamWindow
+	}
+	if h.InitialConnectionWindow > 0 {
+		q.InitialConnectionReceiveWindow = h.InitialConnectionWindow
+	}
+	if h.MaxConnectionWindow > 0 {
+		q.MaxConnectionReceiveWindow = h.MaxConnectionWindow
+	}
+	// Never let an auto-tuning ceiling undercut an explicit initial window.
+	q.MaxStreamReceiveWindow = max(q.MaxStreamReceiveWindow, q.InitialStreamReceiveWindow)
+	q.MaxConnectionReceiveWindow = max(q.MaxConnectionReceiveWindow, q.InitialConnectionReceiveWindow)
+	if h.MaxIdleTimeout > 0 {
+		q.MaxIdleTimeout = time.Duration(h.MaxIdleTimeout) * time.Second
+	}
+	if h.KeepAlivePeriod > 0 && !server {
+		q.KeepAlivePeriod = time.Duration(h.KeepAlivePeriod) * time.Second
+	}
+	if h.MaxIncomingStreams > 0 {
+		q.MaxIncomingStreams = h.MaxIncomingStreams
+	}
+	q.DisablePathMTUDiscovery = h.DisablePathMTUDiscovery
+	q.ChromeParrot = !server && !h.DisableChromeParrot
+	return q
 }
 
 func h3TLS(tc *tls.Config) *tls.Config {
@@ -68,6 +102,7 @@ func (s *h3Socket) close() {
 }
 
 type h3Transport struct {
+	tuning *cfg.H3
 	*http3.Transport
 	socket   PacketSocket
 	ctx      context.Context
@@ -228,9 +263,9 @@ func (h *h3Transport) RoundTrip(r *http.Request) (*http.Response, error) {
 
 func newH3Transport(s Security, keep int64) http.RoundTripper {
 	ctx, cancel := context.WithCancel(context.Background())
-	h := &h3Transport{socket: s.PacketSocket, ctx: ctx, cancel: cancel, sockets: map[*h3Socket]bool{}, carriers: map[*h3Carrier]bool{}}
+	h := &h3Transport{tuning: s.H3, socket: s.PacketSocket, ctx: ctx, cancel: cancel, sockets: map[*h3Socket]bool{}, carriers: map[*h3Carrier]bool{}}
 	h.Transport = &http3.Transport{
-		TLSClientConfig: h3TLS(s.TLS), QUICConfig: h3QUICConfig(false, keep),
+		TLSClientConfig: h3TLS(s.TLS), QUICConfig: h3Configured(false, keep, s.H3),
 		MaxResponseHeaderBytes: 1 << 20, DisableCompression: true, Dial: h.dial,
 	}
 	return h
@@ -268,7 +303,16 @@ func (h *h3Transport) dialOwned(ctx context.Context, _ string, tc *tls.Config, q
 		}
 		return nil, errEnvelope
 	}
-	socket := &h3Socket{packet: p, quic: &quic.Transport{Conn: p}, owner: owner}
+	transport := &quic.Transport{Conn: p}
+	if h.tuning != nil {
+		transport.DisableGSO = h.tuning.DisableGSO
+	}
+	if qc.ChromeParrot {
+		transport.ConnectionIDGenerator = quic.ZeroLengthConnectionIDGenerator{}
+		tc = tc.Clone()
+		tc.GetCertificate = nil
+	}
+	socket := &h3Socket{packet: p, quic: transport, owner: owner}
 	h.mu.Lock()
 	if h.closed || (owner != nil && owner.retiring) {
 		h.mu.Unlock()
@@ -381,7 +425,18 @@ func NewPacketListener(p net.PacketConn, c cfg.Config, tc *tls.Config) (net.List
 			}
 		},
 	}
-	ql, err := tr.Listen(h3TLS(tc), h3QUICConfig(true, 0))
+	if c.H3 != nil {
+		tr.DisableGSO = c.H3.DisableGSO
+	}
+	if c.H3 == nil || !c.H3.DisableStatelessReset {
+		key := &quic.StatelessResetKey{}
+		if _, err := io.ReadFull(rand.Reader, key[:]); err != nil {
+			cancel()
+			return nil, err
+		}
+		tr.StatelessResetKey = key
+	}
+	ql, err := tr.Listen(h3TLS(tc), h3Configured(true, 0, c.H3))
 	if err != nil {
 		cancel()
 		_ = tr.Close()

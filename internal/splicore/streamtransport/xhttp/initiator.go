@@ -19,33 +19,40 @@ import (
 	"golang.org/x/net/http2"
 )
 
-type DialFunc func(context.Context, string, string) (net.Conn, error)
-type PacketSocket = func(context.Context) (net.PacketConn, net.Addr, error)
-type Security struct {
-	TLS          *tls.Config
-	Handshake    Handshake
-	ServerName   string
-	Reality      bool
-	PacketSocket PacketSocket
-}
-type Resolver func(cfg.Download) (Security, error)
-type Client struct {
-	dial       DialFunc
-	config     cfg.Config
-	security   Security
-	target     string
-	pool       *connectionPool
-	downstream *Client
-	ctx        context.Context
-	cancel     context.CancelFunc
-	mu         sync.Mutex
-	sessions   map[*clientSession]bool
-	identities map[string]*clientSession
-	entropy    io.Reader
-	workers    sync.WaitGroup
-	closed     bool
-	once       sync.Once
-}
+type (
+	DialFunc     func(context.Context, string, string) (net.Conn, error)
+	PacketSocket = func(context.Context) (net.PacketConn, net.Addr, error)
+	Security     struct {
+		H3           *cfg.H3
+		TLS          *tls.Config
+		Handshake    Handshake
+		ServerName   string
+		Reality      bool
+		PacketSocket PacketSocket
+	}
+)
+
+type (
+	Resolver func(cfg.Download) (Security, error)
+	Client   struct {
+		dial       DialFunc
+		config     cfg.Config
+		security   Security
+		target     string
+		pool       *connectionPool
+		downstream *Client
+		ctx        context.Context
+		cancel     context.CancelFunc
+		mu         sync.Mutex
+		sessions   map[*clientSession]bool
+		identities map[string]*clientSession
+		entropy    io.Reader
+		workers    sync.WaitGroup
+		closed     bool
+		once       sync.Once
+	}
+)
+
 type connectionPool struct {
 	owner                          *Client
 	mu                             sync.Mutex
@@ -80,6 +87,9 @@ func NewClient(dial DialFunc, target string, c cfg.Config, security Security, re
 	if dial == nil || c.Type() != "xhttp" || c.ValidateClient() != nil {
 		return nil, errEnvelope
 	}
+	if c.H3 != nil && (security.TLS == nil || !c.XHTTPH3(security.TLS.NextProtos)) {
+		return nil, errEnvelope
+	}
 	if security.TLS != nil && c.ValidateALPN(security.TLS.NextProtos) != nil {
 		return nil, errEnvelope
 	}
@@ -95,8 +105,10 @@ func NewClient(dial DialFunc, target string, c cfg.Config, security Security, re
 	if options(c).SelectMode(security.Reality) == "stream-one" && httpVersion(security) == 1 {
 		return nil, errors.New("XHTTP stream-one requires HTTP/2")
 	}
+	cloned := c.Clone()
+	security.H3 = cloned.H3
 	ctx, cancel := context.WithCancel(context.Background())
-	cl := &Client{dial: dial, target: target, config: c.Clone(), security: security, ctx: ctx, cancel: cancel, sessions: map[*clientSession]bool{}, identities: map[string]*clientSession{}, entropy: rand.Reader}
+	cl := &Client{dial: dial, target: target, config: cloned, security: security, ctx: ctx, cancel: cancel, sessions: map[*clientSession]bool{}, identities: map[string]*clientSession{}, entropy: rand.Reader}
 	x := options(c)
 	m := x.XMUX
 	mc, e := m.MaxConnections.Pick(rand.Reader)
@@ -128,6 +140,7 @@ func NewClient(dial DialFunc, target string, c cfg.Config, security Security, re
 	}
 	return cl, nil
 }
+
 func httpVersion(s Security) int {
 	if s.Reality {
 		return 2
@@ -143,6 +156,7 @@ func httpVersion(s Security) int {
 	}
 	return 2
 }
+
 func (c *Client) URL() *url.URL {
 	scheme := "http"
 	if c.security.TLS != nil || c.security.Handshake != nil {
@@ -164,6 +178,7 @@ func (c *Client) URL() *url.URL {
 	path, query := c.config.XHTTPPath()
 	return &url.URL{Scheme: scheme, Host: host, Path: path, RawQuery: query}
 }
+
 func (p *connectionPool) lease() (*httpEntry, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -204,6 +219,7 @@ func (p *connectionPool) lease() (*httpEntry, error) {
 	best.reuse++
 	return best, nil
 }
+
 func (p *connectionPool) release(e *httpEntry) {
 	p.mu.Lock()
 	e.active--
@@ -215,6 +231,7 @@ func (p *connectionPool) release(e *httpEntry) {
 	}
 	p.mu.Unlock()
 }
+
 func (p *connectionPool) close() {
 	p.mu.Lock()
 	p.closed = true
@@ -224,6 +241,7 @@ func (p *connectionPool) close() {
 	p.entries = nil
 	p.mu.Unlock()
 }
+
 func (p *connectionPool) newEntry() (*httpEntry, error) {
 	m := options(p.owner.config).XMUX
 	r, e := m.Reuse.Pick(rand.Reader)
@@ -274,6 +292,7 @@ func (c *ownedSocket) Close() error {
 	c.once.Do(func() { c.entry.mu.Lock(); delete(c.entry.sockets, c); c.entry.mu.Unlock() })
 	return e
 }
+
 func (e *httpEntry) connect(ctx context.Context, secured bool) (net.Conn, error) {
 	admission, stop := context.WithTimeout(ctx, cfg.XHTTPLegAdmissionTimeout)
 	defer stop()
@@ -333,6 +352,7 @@ func (e *httpEntry) connect(ctx context.Context, secured bool) (net.Conn, error)
 	ok = true
 	return c, nil
 }
+
 func (e *httpEntry) close() {
 	if v, ok := e.transport.(io.Closer); ok {
 		_ = v.Close()
@@ -355,6 +375,7 @@ func (e *httpEntry) close() {
 		s.Close()
 	}
 }
+
 func (e *httpEntry) request(r *http.Request) (*http.Response, error) {
 	e.pool.mu.Lock()
 	e.requests++
@@ -376,9 +397,11 @@ func (s *clientSession) close() { s.fail(net.ErrClosed) }
 func (s *clientSession) fail(err error) {
 	s.once.Do(func() { s.cancel(err); s.app.Close(); s.bridge.Close() })
 }
+
 func (s *clientSession) request(e *httpEntry, r *http.Request) (*http.Response, error) {
 	return e.request(r.WithContext(context.WithValue(r.Context(), sessionFailureKey{}, s.fail)))
 }
+
 func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	upload, e := c.pool.lease()
 	if e != nil {
@@ -498,6 +521,7 @@ func (c *Client) reserveSession(s *clientSession, mode string) error {
 	c.workers.Add(1)
 	return nil
 }
+
 func (s *clientSession) run(mode, sid string, down *Client) {
 	defer s.close()
 	if mode == "packet-up" {
@@ -556,6 +580,7 @@ func (s *clientSession) run(mode, sid string, down *Client) {
 	defer resp.Body.Close()
 	_, _ = io.CopyBuffer(s.bridge, resp.Body, make([]byte, 32<<10))
 }
+
 func (s *clientSession) packets(sid string) {
 	defer s.close()
 	x := options(s.client.config)
@@ -635,6 +660,7 @@ func (s *clientSession) packets(sid string) {
 		seq++
 	}
 }
+
 func (c *Client) Close() error {
 	c.once.Do(func() {
 		c.mu.Lock()

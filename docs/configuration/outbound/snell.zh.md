@@ -29,7 +29,11 @@ ASCII 路径及可选 query，不允许空格、控制字符和 fragment。未�
 保留的经典 record 预算限制大 datagram，详见
 [Native Snell](../../protocol/SNELL.md)。
 
-v5/v6 的 options 仍分别只有 version=5/6；v5 使用 v4 兼容客户端语义，
-v6 使用已有独立行为。未实现 v5 QUIC Proxy Mode、TLS obfs 和 userkey 多用户。
+v5/v6 的 options 仍分别只有 version=5/6。v5 显式启用动态 record 和
+QUIC Proxy Mode：有效 QUIC v1/v2 Initial 使用 UDP-over-UDP，普通 UDP
+保持 UDP-over-TCP，不按端口 443 分类。v6 使用已有独立行为。
+未实现 TLS obfs 和 userkey 多用户。官方 Surge 客户端私有分类算法缺少 oracle，
+明确标记 SURGE_V5_CLIENT_CLASSIFICATION_ORACLE_UNAVAILABLE；已验证范围详见
+[Native Snell](../../protocol/SNELL.md)。
 规范 JSON 保留所有支持的字段；sing-box/Mihomo 导入导出支持 v4 reuse、UDP、
 HTTP host，但不支持自定义 URI 或另设 UDP 端口的导出。没有新增 Snell URI 格式。

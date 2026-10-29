@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/apernet/quic-go"
+	"github.com/apernet/quic-go/http3"
 	cfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
-	"github.com/quic-go/quic-go"
-	"github.com/quic-go/quic-go/http3"
 )
 
 // The front rejects a request before processing any HTTP headers or body. The
@@ -109,7 +109,7 @@ func h3RetryFixture(t *testing.T, mode string, socketGate func(context.Context, 
 	cl, err := NewClient(func(context.Context, string, string) (net.Conn, error) {
 		t.Error("HTTP/3 attempted TCP fallback")
 		return nil, net.ErrClosed
-	}, ql.Addr().String(), cfg.Config{Kind: "xhttp", XHTTP: &cfg.XHTTP{Mode: mode, XMUX: &cfg.XMUX{MaxConnections: cfg.Range{Min: 1, Max: 1}}}}, Security{TLS: ct, PacketSocket: func(ctx context.Context) (net.PacketConn, net.Addr, error) {
+	}, ql.Addr().String(), cfg.Config{Kind: "xhttp", H3: &cfg.H3{DisableChromeParrot: true}, XHTTP: &cfg.XHTTP{Mode: mode, XMUX: &cfg.XMUX{MaxConnections: cfg.Range{Min: 1, Max: 1}}}}, Security{TLS: ct, PacketSocket: func(ctx context.Context) (net.PacketConn, net.Addr, error) {
 		index := int(dials.Add(1))
 		if socketGate != nil {
 			if err := socketGate(ctx, index); err != nil {

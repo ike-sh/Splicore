@@ -26,7 +26,7 @@ func quicConfig(l Limits, server bool) *quic.Config {
 	if server {
 		streams = int64(l.MaxStreams)
 	}
-	return &quic.Config{Versions: []quic.Version{quic.Version1}, EnableDatagrams: true, MaxIncomingStreams: streams, MaxIncomingUniStreams: -1, HandshakeIdleTimeout: l.Handshake(), MaxIdleTimeout: time.Duration(l.IdleSeconds) * time.Second, KeepAlivePeriod: time.Duration(l.KeepAliveSeconds) * time.Second, InitialStreamReceiveWindow: 128 << 10, MaxStreamReceiveWindow: 1 << 20, InitialConnectionReceiveWindow: 1 << 20, MaxConnectionReceiveWindow: 4 << 20}
+	return &quic.Config{Versions: []quic.Version{quic.Version1}, EnableDatagrams: true, MaxIncomingStreams: streams, MaxIncomingUniStreams: int64(l.MaxFlows), HandshakeIdleTimeout: l.Handshake(), MaxIdleTimeout: time.Duration(l.IdleSeconds) * time.Second, KeepAlivePeriod: time.Duration(l.KeepAliveSeconds) * time.Second, InitialStreamReceiveWindow: 128 << 10, MaxStreamReceiveWindow: 1 << 20, InitialConnectionReceiveWindow: 1 << 20, MaxConnectionReceiveWindow: 4 << 20}
 }
 
 type Client struct {
@@ -180,7 +180,7 @@ func (c *Client) OpenPacket(ctx context.Context, dst access.Endpoint) (net.Packe
 	if err != nil {
 		return nil, err
 	}
-	if !s.conn.ConnectionState().SupportsDatagrams.Remote {
+	if !c.config.UDPOverStream && !s.conn.ConnectionState().SupportsDatagrams.Remote {
 		return nil, ErrProtocol
 	}
 	ctrl, err := s.open(ctx)
@@ -188,7 +188,11 @@ func (c *Client) OpenPacket(ctx context.Context, dst access.Endpoint) (net.Packe
 		return nil, err
 	}
 	stop := context.AfterFunc(ctx, func() { _ = ctrl.Close() })
-	header, _ := command(associate, access.Endpoint{Host: "0.0.0.0"})
+	cmd := byte(associate)
+	if c.config.UDPOverStream {
+		cmd = associateStream
+	}
+	header, _ := command(cmd, access.Endpoint{Host: "0.0.0.0"})
 	_ = ctrl.SetWriteDeadline(time.Now().Add(c.config.Limits.Handshake()))
 	_, err = ctrl.Write(header)
 	if !stop() || err != nil || ctx.Err() != nil {
@@ -202,7 +206,7 @@ func (c *Client) OpenPacket(ctx context.Context, dst access.Endpoint) (net.Packe
 		return nil, err
 	}
 	_ = ctrl.SetWriteDeadline(time.Time{})
-	p, err := s.packet(ctrl, &dst)
+	p, err := s.packetMode(ctrl, &dst, c.config.UDPOverStream)
 	if err != nil {
 		_ = ctrl.Close()
 		return nil, err
@@ -341,14 +345,14 @@ func (s *Server) serve(q *quic.Conn, id string) {
 				return
 			}
 			_ = stream.SetReadDeadline(time.Time{})
-			if cmd == associate && (dst.Port != 0 || net.ParseIP(dst.Host) == nil || !net.ParseIP(dst.Host).IsUnspecified()) {
+			if cmd != connect && (dst.Port != 0 || net.ParseIP(dst.Host) == nil || !net.ParseIP(dst.Host).IsUnspecified()) {
 				return
 			}
 			if cmd == connect {
 				_ = s.config.TCP(q.Context(), id, stream, dst)
 				return
 			}
-			p, err := c.packet(stream, nil)
+			p, err := c.packetMode(stream, nil, cmd == associateStream)
 			if err != nil {
 				return
 			}

@@ -5,13 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/ike-sh/Splicore/internal/splicore/clientprofile"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/snell"
-	"strconv"
-	"strings"
 )
 
 type Snell struct{ Target ports.Format }
@@ -22,8 +23,11 @@ func (e Snell) Describe(p clientprofile.Profile) (ports.ExportDescription, error
 		return ports.ExportDescription{}, unsupported()
 	}
 	v, _ := snell.ClientVersion(s.Version)
+	if s.Version == 5 && e.Target != ports.Surge {
+		v = 4
+	}
 	compat := "exact"
-	if s.Version == 5 {
+	if s.Version == 5 && e.Target != ports.Surge {
 		compat = "v4 TCP/UDP client to v5 server; QUIC Proxy Mode unavailable"
 	}
 	shape := "sing-box-outbound"
@@ -40,6 +44,7 @@ func (e Snell) Format() ports.Format { return e.Target }
 func unsupported() error {
 	return identity.Err(identity.UnsupportedExport, "UnsupportedExport: client version or protocol feature not supported")
 }
+
 func (e Snell) Export(_ context.Context, p clientprofile.Profile, t ports.ExportTarget) ([]byte, error) {
 	if p.Validate() != nil {
 		return nil, identity.Err(identity.Invalid, "invalid client projection")
@@ -53,7 +58,10 @@ func (e Snell) Export(_ context.Context, p clientprofile.Profile, t ports.Export
 	if t.Format != e.Target {
 		return nil, unsupported()
 	}
-	v, _ := snell.ClientVersion(s.Version) // Explicit canonical compatibility mapping.
+	v, _ := snell.ClientVersion(s.Version)
+	if s.Version == 5 && e.Target != ports.Surge {
+		v = 4
+	} // Explicit canonical compatibility mapping.
 	name := "splicore-" + string(p.ID)
 	psk := k.Key.Reveal()
 	switch e.Target {

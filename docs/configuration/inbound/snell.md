@@ -24,6 +24,8 @@ Unknown fields, duplicate keys and null values are rejected.
 
 The native server supports TCP and UDP relay over TCP, including IPv4/IPv6/domain
 destinations and serial reusable v4 requests. HTTP obfs is an initial header
-wrapper. TLS obfs, userkey multi-user extensions and v5 QUIC Proxy Mode are not
-implemented. See [Native Snell](../../protocol/SNELL.md) for wire limits,
+wrapper. v5 also owns UDP on the same listener address and port for authenticated
+QUIC Initials and raw QUIC forwarding. Allow both TCP and UDP through the network.
+UDP bind failure rolls back TCP; Close releases both. v5 retains v4 TCP/UDP
+compatibility. TLS obfs and userkey multi-user extensions are not implemented. See [Native Snell](../../protocol/SNELL.md) for wire limits,
 interoperability, statistics and qualification scope.

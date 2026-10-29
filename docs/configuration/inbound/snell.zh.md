@@ -22,7 +22,9 @@ v5/v6 的 settings 仍只能包含 version，v6 保留已有流量整形行为�
 凭证规则。监听地址必须为 IP。每个入站只有一个账户、绑定和 PSK。
 支持 TCP、经 TCP 转发的 UDP、IPv4/IPv6/域名目的地，以及 v4 串行连接复用。
 HTTP obfs 只包装首次提交的头部，不提供 TLS 安全。
-未实现 TLS obfs、userkey 多用户扩展和 v5 QUIC Proxy Mode。
+v5 另外拥有同一地址、端口的 UDP 监听器，用于认证 QUIC Initial 与后续原始
+QUIC 转发；网络须允许 TCP 和 UDP。UDP 绑定失败会回滚 TCP，Close 释放两者。
+v5 保留 v4 TCP/UDP 客户端兼容。未实现 TLS obfs 和 userkey 多用户扩展。
 
 完整限制及互通范围见 [Native Snell](../../protocol/SNELL.md)。真实硬件仍为
 NOT YET QUALIFIED；Linux arm64 仅构建验证。

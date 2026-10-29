@@ -63,14 +63,9 @@ func setupSnell(t *testing.T, path string, repoWrap func(ports.RuntimeRepository
 }
 func freePort(t *testing.T) uint16 {
 	t.Helper()
-	l, e := net.Listen("tcp", "127.0.0.1:0")
-	if e != nil {
-		t.Fatal(e)
-	}
-	p := uint16(l.Addr().(*net.TCPAddr).Port)
-	l.Close()
-	return p
+	return availableListenerPort(t)
 }
+
 func doc(p uint16, v int) json.RawMessage {
 	return json.RawMessage(fmt.Sprintf(`{"schema":1,"account_name":"synthetic-account","name":"synthetic-snell","listener":{"host":"127.0.0.1","port":%d},"display_endpoint":{"host":"127.0.0.1","port":%d},"settings":{"version":%d}}`, p, p, v))
 }

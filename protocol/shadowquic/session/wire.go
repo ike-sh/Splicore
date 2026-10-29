@@ -9,8 +9,9 @@ import (
 )
 
 const (
-	connect   = 1
-	associate = 3
+	connect         = 1
+	associate       = 3
+	associateStream = 4
 )
 
 func readCommand(r io.Reader) (byte, access.Endpoint, error) {
@@ -18,7 +19,7 @@ func readCommand(r io.Reader) (byte, access.Endpoint, error) {
 	if _, err := io.ReadFull(r, cmd[:]); err != nil {
 		return 0, access.Endpoint{}, err
 	}
-	if cmd[0] != connect && cmd[0] != associate {
+	if cmd[0] != connect && cmd[0] != associate && cmd[0] != associateStream {
 		return 0, access.Endpoint{}, ErrProtocol
 	}
 	dst, err := address.ReadSOCKS(r)
@@ -29,7 +30,7 @@ func readCommand(r io.Reader) (byte, access.Endpoint, error) {
 }
 
 func command(cmd byte, dst access.Endpoint) ([]byte, error) {
-	if cmd != connect && cmd != associate || cmd == connect && dst.Validate() != nil {
+	if cmd != connect && cmd != associate && cmd != associateStream || cmd == connect && dst.Validate() != nil {
 		return nil, ErrProtocol
 	}
 	b, err := address.MarshalSOCKS(dst)
@@ -60,4 +61,18 @@ func mapping(dst access.Endpoint, id uint16) ([]byte, error) {
 		return nil, ErrProtocol
 	}
 	return binary.BigEndian.AppendUint16(b, id), nil
+}
+
+func readStreamPayload(r io.Reader) ([]byte, error) {
+	var head [2]byte
+	if _, err := io.ReadFull(r, head[:]); err != nil {
+		return nil, err
+	}
+	n := int(binary.BigEndian.Uint16(head[:]))
+	if n > MaxPayload {
+		return nil, ErrLimit
+	}
+	b := make([]byte, n)
+	_, err := io.ReadFull(r, b)
+	return b, err
 }

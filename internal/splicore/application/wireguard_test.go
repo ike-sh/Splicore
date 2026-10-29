@@ -150,6 +150,10 @@ func wgDNS(t *testing.T, count *atomic.Int64, refreshed *atomic.Bool) access.End
 }
 
 func TestPhase34WireGuardCoreRoutingDNS(t *testing.T) {
+	ambient := isolatedResolver(t)
+	if ambient == nil {
+		return
+	}
 	ctx := context.Background()
 	s, store := setupProtocols(t, filepath.Join(t.TempDir(), "private", "state.db"), nil, registry.NativeCore)
 	defer stop(t, s, store)
@@ -165,18 +169,12 @@ func TestPhase34WireGuardCoreRoutingDNS(t *testing.T) {
 	local := freePort(t)
 	addLocal(t, s, local, out)
 	clientApply(t, s, application.ClientMutation{Resource: "local-inbound", Action: "create", LocalInbound: &client.LocalInbound{Name: "WireGuard ingress", Kind: "endpoint", EndpointTag: config.Tag, SelectedOutbound: client.Direct}})
-	var queries, ambient atomic.Int64
+	var queries atomic.Int64
 	var refreshed atomic.Bool
 	dnsEndpoint := wgDNS(t, &queries, &refreshed)
 	resolver := networkID(t)
 	network := P.Config{Servers: []P.DNSServer{{ID: resolver, Name: "Core DNS", Type: "udp", Endpoint: dnsEndpoint, Detour: P.Action{Kind: P.Direct}}}, DNS: P.DNSProfile{Enabled: true, DefaultServer: resolver, BootstrapServer: resolver, Strategy: "ipv4_only", TimeoutSeconds: 2, Cache: P.DNSCachePolicy{Capacity: 4}}, Route: P.RouteProfile{Rules: []P.RouteRule{{ID: networkID(t), Name: "authenticated endpoint", Match: P.RuleMatch{EndpointTags: []string{config.Tag}, PeerPublicKeys: []string{pub}}, Action: P.Action{Kind: P.Direct}}}}}
 	applyNetwork(t, s, network)
-	old := net.DefaultResolver
-	net.DefaultResolver = &net.Resolver{PreferGo: true, Dial: func(context.Context, string, string) (net.Conn, error) {
-		ambient.Add(1)
-		return nil, net.InvalidAddrError("ambient DNS forbidden")
-	}}
-	defer func() { net.DefaultResolver = old }()
 	if _, err = s.StartWireGuardEndpoint(ctx, config.Tag); err != nil {
 		t.Fatal(err)
 	}

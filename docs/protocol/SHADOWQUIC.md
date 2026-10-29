@@ -2,7 +2,7 @@
 
 - Documentation status: Canonical
 - Audience: Operators and client integrators
-- Last reviewed: 2026-10-21
+- Last reviewed: 2026-10-29
 - Owner: Splicore maintainers
 - Responsibility: Native ShadowQUIC configuration and supported wire behavior.
 - Lifecycle: Update with protocol or configuration changes.
@@ -10,7 +10,7 @@
 ## Identity and scope
 
 Protocol key: `shadowquic / unversioned / jls3`. The reference is
-[ShadowQUIC v0.4.4](https://github.com/spongebob888/shadowquic/tree/bb82cce54b61a4fc3112f664a71e07fd34775c13),
+[ShadowQUIC v0.4.7](https://github.com/spongebob888/shadowquic/tree/3b8af96bf0c97d409e9a59dbb716280a7c5136bb),
 whose proxy grammar has no version field. JLS v3 authenticates TLS Hello messages;
 QUIC v1 carries bidirectional TCP command streams and UDP DATAGRAM associations.
 Build with `with_quic`. Both native client and server roles are available.
@@ -22,8 +22,13 @@ stream retires the association. Initial binding must be an unspecified address
 with port zero; the server owns ephemeral target sockets. UDP payload is limited
 to 1200 bytes and may also be constrained by the peer's negotiated datagram size.
 Domains remain semantic destinations, including replies. Queues may drop packets.
-UDP over unidirectional streams, SunnyQUIC and remote administrative extensions
-are unsupported. 0-RTT and resumption are disabled.
+UDP command 4 carries payloads over QUIC unidirectional streams. Each stream
+starts with a 16-bit big-endian CID, followed by repeated 16-bit big-endian length
+and payload; control mappings are identical to command 3. Payload streams may
+arrive before their mapping and wait within the handshake budget. Duplicate
+active CID streams, wrong-mode payloads and oversized/truncated frames are
+rejected without terminating unrelated sessions. SunnyQUIC and remote
+administrative extensions remain unsupported. 0-RTT and resumption are disabled.
 
 ## Server creation
 
@@ -76,7 +81,9 @@ seconds. Unknown keys, duplicate keys, nulls and invalid combinations are reject
 | `udp_idle_timeout` | 60 | 2–600; association inactivity and server target inactivity | both |
 
 Client `options` is `{"schema_version":1,"data":{}}` with the shared tuning
-fields above; it cannot contain server-only settings. These bounded JSON fields
+fields above and optional boolean `udp_over_stream` (default false). Set it true
+to select CMD4; false retains CMD3 DATAGRAM. Both modes keep the 1200-byte payload
+limit. Client options cannot contain server-only settings. These bounded JSON fields
 are committed state, restored through existing SQLite restart/backup services.
 Runtime sessions and generated camouflage certificate keys are derived state.
 
@@ -127,3 +134,7 @@ hold at most 32 packets each. Unknown mappings expire after one second when next
 examined and cannot be delivered after expiry. Retired CIDs are not reused within
 the same connection, preventing delayed packets reaching a new association.
 EOF/reset, timeout and shutdown remove mappings and wake blocked packet I/O.
+
+Phase35 tests pinned official v0.4.7 in both CMD3/CMD4 directions, plus TCP,
+half-close, credentials, concurrency, IPv4/IPv6 targets and deterministic Close.
+CMD4 has no dependency on resumption or 0-RTT; both remain disabled.

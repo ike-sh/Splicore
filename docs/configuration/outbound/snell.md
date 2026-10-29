@@ -46,10 +46,13 @@ packet flow remains connected to its destination. Alternate UDP port selects a
 TCP association endpoint, not a UDP underlay. The preserved classic record
 budget can reject large datagrams; see [Native Snell](../../protocol/SNELL.md).
 
-v5 options remain `{"version":5}` and use v4-compatible TCP/UDP client semantics.
+v5 options remain `{"version":5}` and explicitly enable v5 dynamic records and
+QUIC Proxy Mode. Valid QUIC v1/v2 Initials select UDP over UDP; ordinary UDP keeps
+UDP over TCP, independently of destination port.
 v6 options remain `{"version":6}` and use the separate existing v6 behavior.
-Neither accepts the v4 optional fields. v5 QUIC Proxy Mode, TLS obfs and userkey
-multi-user extensions are not implemented.
+Neither accepts the v4 optional fields. TLS obfs and userkey multi-user extensions
+are not implemented. Surge private classifier verification remains unavailable;
+see the precise qualification boundary in [Native Snell](../../protocol/SNELL.md).
 
 Existing sing-box/Mihomo dialects support v4 reuse, UDP selection and HTTP host.
 Custom URI/UDP-port export to those clients is rejected. Canonical JSON preserves

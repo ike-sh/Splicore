@@ -19,10 +19,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/apernet/quic-go"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	cfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/testkit"
-	"github.com/quic-go/quic-go"
 	"golang.org/x/net/http2"
 )
 
@@ -596,6 +596,7 @@ func TestXHTTPH3IdleAndHandshakeCancellation(t *testing.T) {
 	cl, _, _ := h3Fixture(t, cfg.Config{Kind: "xhttp"})
 	tr := newH3Transport(cl.security, -1).(*h3Transport)
 	defer tr.Close()
+	tr.QUICConfig.ChromeParrot = false // Chrome profile pins its advertised idle timeout.
 	tr.QUICConfig.MaxIdleTimeout = 150 * time.Millisecond
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -698,6 +699,7 @@ func TestXHTTPH3Keepalive(t *testing.T) {
 	cl, _, _ := h3Fixture(t, cfg.Config{Kind: "xhttp"})
 	tr := newH3Transport(cl.security, 1).(*h3Transport)
 	defer tr.Close()
+	tr.QUICConfig.ChromeParrot = false // Chrome profile pins its advertised idle timeout.
 	tr.QUICConfig.MaxIdleTimeout = 150 * time.Millisecond
 	tr.QUICConfig.KeepAlivePeriod = 30 * time.Millisecond
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)

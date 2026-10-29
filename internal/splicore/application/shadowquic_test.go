@@ -33,6 +33,10 @@ import (
 )
 
 func TestShadowQUICApplicationDNSRoutingRestartAndRestore(t *testing.T) {
+	ambient := isolatedResolver(t)
+	if ambient == nil {
+		return
+	}
 	ctx := context.Background()
 	root := t.TempDir()
 	path := filepath.Join(root, "original", "state.db")
@@ -74,13 +78,6 @@ func TestShadowQUICApplicationDNSRoutingRestartAndRestore(t *testing.T) {
 	config := P.Config{Servers: []P.DNSServer{{ID: resolver, Name: "controlled Core DNS", Type: "udp", Endpoint: dns, Detour: P.Action{Kind: P.Direct}}}, DNS: P.DNSProfile{Enabled: true, DefaultServer: resolver, BootstrapServer: resolver, Strategy: "ipv4_only", TimeoutSeconds: 2, Cache: P.DNSCachePolicy{Capacity: 4}}, Route: P.RouteProfile{Final: &P.Action{Kind: P.Outbound, ID: out}, Rules: []P.RouteRule{{ID: networkID(t), Name: "blocked domain", Match: P.RuleMatch{Domains: []string{"blocked.test"}}, Action: P.Action{Kind: P.Reject}}, {ID: networkID(t), Name: "direct domain", Match: P.RuleMatch{Domains: []string{"direct.test"}}, Action: P.Action{Kind: P.Direct}}}}}
 	applyNetwork(t, s, config)
 	// Managed resolution must precede adapter construction and must never fall back.
-	old := net.DefaultResolver
-	var ambient atomic.Int64
-	net.DefaultResolver = &net.Resolver{PreferGo: true, Dial: func(context.Context, string, string) (net.Conn, error) {
-		ambient.Add(1)
-		return nil, net.InvalidAddrError("ambient DNS forbidden")
-	}}
-	defer func() { net.DefaultResolver = old }()
 	for _, host := range []string{"managed.test", "127.0.0.1", "::ffff:127.0.0.1", "direct.test"} {
 		dst := target
 		dst.Host = host
@@ -285,6 +282,10 @@ func shadowQUICDNS(t *testing.T, counter *atomic.Int64) access.Endpoint {
 }
 
 func TestShadowQUICCamouflageCoreDNSAndNXDOMAIN(t *testing.T) {
+	ambient := isolatedResolver(t)
+	if ambient == nil {
+		return
+	}
 	ctx := context.Background()
 	s, store := setupProtocols(t, filepath.Join(t.TempDir(), "private", "state.db"), nil, registry.NativeCore)
 	defer stop(t, s, store)
@@ -299,13 +300,6 @@ func TestShadowQUICCamouflageCoreDNSAndNXDOMAIN(t *testing.T) {
 	endpoint := shadowQUICDNS(t, &queries)
 	id := networkID(t)
 	applyNetwork(t, s, P.Config{Servers: []P.DNSServer{{ID: id, Name: "bootstrap", Type: "udp", Endpoint: endpoint, Detour: P.Action{Kind: P.Direct}}}, DNS: P.DNSProfile{Enabled: true, DefaultServer: id, BootstrapServer: id, Strategy: "ipv4_only", TimeoutSeconds: 1}})
-	old := net.DefaultResolver
-	var ambient atomic.Int64
-	net.DefaultResolver = &net.Resolver{PreferGo: true, Dial: func(context.Context, string, string) (net.Conn, error) {
-		ambient.Add(1)
-		return nil, net.InvalidAddrError("ambient resolver forbidden")
-	}}
-	defer func() { net.DefaultResolver = old }()
 	for _, host := range []string{"cover.fixture.local", "missing.fixture.local"} {
 		port := udpPort(t)
 		doc, _ := json.Marshal(map[string]any{"schema": 1, "name": "Camouflage bootstrap", "listener": access.Endpoint{Host: "127.0.0.1", Port: port}, "display_endpoint": access.Endpoint{Host: "127.0.0.1", Port: port}, "settings": module.Settings{ServerName: "cover.test", Camouflage: access.Endpoint{Host: host, Port: 443}}, "users": []any{map[string]any{"account_name": "Alpha"}}})

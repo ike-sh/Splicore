@@ -47,3 +47,25 @@ func TestStrictConfigurationAndSNI(t *testing.T) {
 		t.Fatal("control username")
 	}
 }
+
+func TestCMD4ClientOptionPersistence(t *testing.T) {
+	for _, raw := range []string{`{}`, `{"udp_over_stream":false}`, `{"udp_over_stream":true,"max_udp_flows":64}`} {
+		opts, err := DecodeClient([]byte(raw))
+		if err != nil {
+			t.Fatal(err)
+		}
+		encoded, err := json.Marshal(opts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		restored, err := DecodeClient(encoded)
+		if err != nil || restored != opts {
+			t.Fatal("CMD4 option lost", err)
+		}
+	}
+	for _, raw := range []string{`{"udp_over_stream":null}`, `{"udp_over_stream":1}`, `{"UDP_over_stream":true}`, `{"udp_over_stream":true,"udp_over_stream":false}`} {
+		if _, err := DecodeClient([]byte(raw)); err == nil {
+			t.Fatal("ambiguous CMD4 option", raw)
+		}
+	}
+}

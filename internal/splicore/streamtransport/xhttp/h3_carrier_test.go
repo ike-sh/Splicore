@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/apernet/quic-go"
+	"github.com/apernet/quic-go/http3"
 	cfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
-	"github.com/quic-go/quic-go"
-	"github.com/quic-go/quic-go/http3"
 )
 
 type h3CarrierResult struct {
@@ -143,7 +143,7 @@ func newH3CarrierFixture(t *testing.T, count int, mode string) *h3CarrierFixture
 	cl, err := NewClient(func(context.Context, string, string) (net.Conn, error) {
 		t.Error("unexpected TCP fallback")
 		return nil, net.ErrClosed
-	}, ql.Addr().String(), cfg.Config{Kind: "xhttp", XHTTP: &cfg.XHTTP{Mode: mode, XMUX: &cfg.XMUX{MaxConnections: cfg.Range{Min: 1, Max: 1}}}}, Security{TLS: ct, PacketSocket: func(ctx context.Context) (net.PacketConn, net.Addr, error) {
+	}, ql.Addr().String(), cfg.Config{Kind: "xhttp", H3: &cfg.H3{DisableChromeParrot: true}, XHTTP: &cfg.XHTTP{Mode: mode, XMUX: &cfg.XMUX{MaxConnections: cfg.Range{Min: 1, Max: 1}}}}, Security{TLS: ct, PacketSocket: func(ctx context.Context) (net.PacketConn, net.Addr, error) {
 		n := int(f.dials.Add(1))
 		if n >= 2 && n <= count {
 			i := n - 2

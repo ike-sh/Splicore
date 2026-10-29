@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/quic-go/quic-go"
+	"github.com/apernet/quic-go"
 )
 
 // Capture both physical objects before the server can reject a request and

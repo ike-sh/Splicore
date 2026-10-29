@@ -21,6 +21,7 @@ import (
 const MaxHeaders = 16 << 10
 
 type Config struct {
+	H3          *H3               `json:"h3,omitempty"`
 	Hysteria    *Hysteria         `json:"hysteria,omitempty"`
 	MKCP        *MKCP             `json:"mkcp,omitempty"`
 	XHTTP       *XHTTP            `json:"xhttp,omitempty"`
@@ -40,7 +41,7 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 	if len(b) > 16384 || jsonstrict.Decode(b, &fields) != nil || fields == nil {
 		return bad()
 	}
-	allowed := map[string]bool{"kind": true, "path": true, "host": true, "headers": true, "service_name": true, "final_mask": true, "xhttp": true, "mkcp": true, "hysteria": true}
+	allowed := map[string]bool{"kind": true, "path": true, "host": true, "headers": true, "service_name": true, "final_mask": true, "xhttp": true, "mkcp": true, "hysteria": true, "h3": true}
 	for k, v := range fields {
 		if !allowed[k] || bytes.Equal(bytes.TrimSpace(v), []byte("null")) {
 			return bad()
@@ -75,6 +76,10 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 }
 
 func (c Config) Clone() Config {
+	if c.H3 != nil {
+		h := *c.H3
+		c.H3 = &h
+	}
 	if c.Hysteria != nil {
 		h := c.Hysteria.Clone()
 		c.Hysteria = &h
@@ -211,6 +216,9 @@ func bad() error {
 }
 
 func (c Config) Validate() error {
+	if c.H3 != nil && (c.Type() != "xhttp" || c.H3.Validate() != nil) {
+		return bad()
+	}
 	if c.Hysteria != nil && c.Type() != "hysteria" {
 		return bad()
 	}

@@ -11,23 +11,23 @@ proxy protocol → XHTTP → optional shared TLS / REALITY → approved network 
 
 | Mode | Upload | Download | HTTP support |
 | --- | --- | --- | --- |
-| `packet-up` | Numbered bounded requests | Separate streaming GET | H1, H2 |
-| `stream-up` | Streaming request | Separate streaming GET | H1, H2 |
-| `stream-one` | One streaming request | Its streaming response | H2 |
-| `auto` | Selects one of the above | Follows the selected mode | H1, H2 |
+| `packet-up` | Numbered bounded requests | Separate streaming GET | H1, H2, H3 |
+| `stream-up` | Streaming request | Separate streaming GET | H1, H2, H3 |
+| `stream-one` | One streaming request | Its streaming response | H2, H3 |
+| `auto` | Selects one of the above | Follows the selected mode | H1, H2, H3 |
 
 Auto selects packet-up for plaintext and TLS. With REALITY it selects stream-one;
 with REALITY and `downloadSettings` it selects stream-up. Explicit modes are
 preserved. Plaintext uses H1. TLS defaults to H2; a single `http/1.1` ALPN selects
-H1. REALITY uses H2 and requires `with_utls`. Vision remains a raw stream flow and
-cannot be combined with XHTTP. Trojan requires TLS.
+H1. REALITY uses H2 and requires `with_utls`. Vision requires the qualified VLESS Encryption plus H3 profile when used with
+XHTTP; other Vision/XHTTP combinations are rejected. Trojan requires TLS.
 
 For H1 stream-up with the Xray 26.10.10 server, set its
 `scStreamUpServerSecs` to `-1`: its response keepalive can compete with streaming
 request-body reads. Native H1 stream-up supports its own response keepalive.
 
-HTTP/3 is not implemented for this transport. An `h3` ALPN fails validation;
-there is no fallback to H2. XHTTP support does not imply generic V2Ray QUIC,
+A single `h3` ALPN selects native HTTP/3 with verified TLS1.3 and `with_quic`.
+Direct REALITY plus H3 is explicitly rejected, matching pinned Xray. XHTTP support does not imply generic V2Ray QUIC,
 Mux.Cool, or new XUDP features. FinalMask retains its raw VLESS boundary.
 
 ## Canonical configuration
@@ -211,6 +211,58 @@ duplicate application bytes. Stream close is a full close; TCP half-close is
 not exposed by XHTTP.
 
 Canonical node import/persistence retains XHTTP controls. VLESS XHTTP export
-targets Xray 26.10.10 and retains transport/security/download settings. Complex
+targets Xray 26.10.10 for the preserved H1/H2 profile and 26.10.21 for current
+XHTTP including H3 on either leg, retaining transport/security/download settings. Complex
 XHTTP URI and other ecosystem exports are rejected rather than losing options.
 Hardware deployment remains NOT YET QUALIFIED; Linux arm64 remains BUILD ONLY.
+
+## Phase35 H3 compatibility controls
+
+Pinned reference: Xray v26.10.21 / `1b1647cd9ddf0abc34b981d4611fc03bcac1ca74`.
+H3 uses the already-pinned independent apernet QUIC library with the upstream
+ChromeParrot client profile and zero-length source CID by default. This is the
+library's specified profile; it is not a claim of complete browser behavior.
+Browser Dialer remains external browser/application integration.
+
+Optional `transport.h3` applies only to an explicit TLS/H3 leg. It uses these
+upstream parameter names and projects to Xray `streamSettings.finalmask.quicParams`,
+including independent `downloadSettings`:
+
+| Control | Accepted nonzero range |
+| --- | --- |
+| `initStreamReceiveWindow`, `maxStreamReceiveWindow` | 16 KiB–64 MiB |
+| `initConnectionReceiveWindow`, `maxConnectionReceiveWindow` | 16 KiB–64 MiB |
+| `maxIncomingStreams` | 8–1024 |
+| `maxIdleTimeout` | 4–120 seconds |
+| `keepAlivePeriod` | 2–60 seconds |
+| `disableChromeParrot`, `disablePathMTUDiscovery`, `disableGSO`, `disableStatelessReset` | boolean |
+
+Zero omits a tuning override. Explicit initial/max pairs must be ordered.
+Unknown, duplicate, case-folded or null fields are rejected. Clones and canonical
+persistence preserve each leg's independent controls. Without ChromeParrot,
+stream windows default to 2/6 MiB initial/max and connection windows 3/15 MiB.
+ChromeParrot itself pins the client initial windows to 6/15 MiB, idle timeout to
+30 seconds and incoming bidi/uni stream credits to 100/103; disable it explicitly
+when controlling those advertised parameters. Bounded native socket/admission
+policy remains in effect. Server stateless-reset keys are random and runtime-owned.
+
+TLS tickets, session resumption and QUIC 0-RTT remain disabled, matching default
+upstream policy. Upstream's separate opt-in resumption setting is not exposed;
+CMD4 and the H3 wire profile do not require it. No early application data or
+resumption interoperability is claimed. Congestion controller selection remains
+the independent library's native policy; upstream's optional BBR/Brutal controls
+are not exposed as wire capabilities.
+
+External pinned-Xray tests cover both client/server directions and IPv6 underlay,
+all direct modes, tuned windows, selected numeric IP with independent domain SNI
+and HTTP Host/path, H3-to-H2 translation for all modes, and H3-to-H1 translation
+for auto/packet-up/stream-up. With an Xray H1 origin, stream-up requires its
+server-only `scStreamUpServerSecs=-1`; official-client probes reproduce the
+blocking default keepalive boundary. H1 stream-one is not qualified. Mixed
+H3/H1 and H3/H2 upload/download legs pass both directions through independent
+external front doors reaching one origin session owner. The fixture proves HTTP
+translation semantics, not availability or policy of a commercial CDN.
+
+Physical carrier identity, request retry, partial-send protection, blocked writes,
+unused connection reclamation and joined Close retain their Phase33 ownership
+rules. Managed DNS supplies numeric socket destinations with no ambient retry.

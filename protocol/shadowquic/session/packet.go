@@ -42,13 +42,17 @@ type connection struct {
 	streams   chan struct{}
 	wg        sync.WaitGroup
 	once      sync.Once
+	changed   chan struct{}
+	uni       map[*quic.ReceiveStream]*packet
+	uniIDs    map[uint16]*quic.ReceiveStream
 }
 
 func newConnection(q *quic.Conn, l Limits) *connection {
 	l = l.Defaults()
-	c := &connection{conn: q, limits: l, packets: map[*packet]bool{}, receive: map[uint16]destination{}, allocated: map[*packet]int{}, streams: make(chan struct{}, l.MaxStreams)}
-	c.wg.Add(1)
+	c := &connection{conn: q, limits: l, packets: map[*packet]bool{}, receive: map[uint16]destination{}, allocated: map[*packet]int{}, streams: make(chan struct{}, l.MaxStreams), changed: make(chan struct{}), uni: map[*quic.ReceiveStream]*packet{}, uniIDs: map[uint16]*quic.ReceiveStream{}}
+	c.wg.Add(2)
 	go c.datagrams()
+	go c.unistreams()
 	return c
 }
 
@@ -68,7 +72,7 @@ func (c *connection) open(ctx context.Context) (*stream, error) {
 	return &stream{Stream: st, conn: c.conn, afterClose: func() { <-c.streams }}, nil
 }
 
-func (c *connection) packet(ctrl *stream, pinned *access.Endpoint) (*packet, error) {
+func (c *connection) packetMode(ctrl *stream, pinned *access.Endpoint, overStream bool) (*packet, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.closing || c.conn.Context().Err() != nil {
@@ -77,7 +81,8 @@ func (c *connection) packet(ctrl *stream, pinned *access.Endpoint) (*packet, err
 	if len(c.packets) >= c.limits.MaxFlows {
 		return nil, ErrLimit
 	}
-	p := &packet{conn: c, ctrl: ctrl, pinned: pinned, closed: make(chan struct{}), received: make(chan datagram, 32), changed: make(chan struct{}), gate: make(chan struct{}, 1), send: map[access.Endpoint]uint16{}, last: time.Now()}
+	ctx, cancel := context.WithCancel(c.conn.Context())
+	p := &packet{conn: c, ctrl: ctrl, pinned: pinned, closed: make(chan struct{}), received: make(chan datagram, 32), changed: make(chan struct{}), gate: make(chan struct{}, 1), send: map[access.Endpoint]uint16{}, last: time.Now(), overStream: overStream, ctx: ctx, cancel: cancel, sendStreams: map[uint16]*quic.SendStream{}}
 	c.packets[p] = true
 	c.wg.Add(2)
 	go p.control()
@@ -114,7 +119,9 @@ func (c *connection) datagrams() {
 		c.mu.Lock()
 		if target, ok := c.receive[id]; ok {
 			d.dst = target.endpoint
-			c.deliver(target.packet, d)
+			if !target.packet.overStream {
+				c.deliver(target.packet, d)
+			}
 		} else if c.seen[id/64]&(uint64(1)<<(id%64)) == 0 {
 			c.expirePending(d.at)
 			if len(c.pending) < 32 {
@@ -155,13 +162,19 @@ func (c *connection) register(p *packet, dst access.Endpoint, id uint16) error {
 		return ErrLimit
 	}
 	c.receive[id] = destination{p, dst}
+	if c.changed != nil {
+		close(c.changed)
+		c.changed = make(chan struct{})
+	}
 	c.seen[id/64] |= uint64(1) << (id % 64)
 	c.expirePending(time.Now())
 	out := c.pending[:0]
 	for _, d := range c.pending {
 		if d.id == id {
-			d.dst = dst
-			c.deliver(p, d)
+			if !p.overStream {
+				d.dst = dst
+				c.deliver(p, d)
+			}
 		} else {
 			out = append(out, d)
 		}
@@ -197,6 +210,15 @@ func (c *connection) remove(p *packet) {
 		if target.packet == p {
 			delete(c.receive, id)
 		}
+	}
+	for st, owner := range c.uni {
+		if owner == p {
+			st.CancelRead(0)
+		}
+	}
+	if c.changed != nil {
+		close(c.changed)
+		c.changed = make(chan struct{})
 	}
 }
 
@@ -238,6 +260,10 @@ type packet struct {
 	gate                        chan struct{}
 	last                        time.Time
 	send                        map[access.Endpoint]uint16 // protected by gate, never by the deadline mutex.
+	overStream                  bool
+	ctx                         context.Context
+	cancel                      context.CancelFunc
+	sendStreams                 map[uint16]*quic.SendStream // protected by mu; Close can cancel blocked writes.
 }
 
 func (p *packet) touch() { p.mu.Lock(); p.last = time.Now(); p.mu.Unlock() }
@@ -405,6 +431,9 @@ func (p *packet) WriteTo(b []byte, a net.Addr) (int, error) {
 		}
 		p.send[dst] = id
 	}
+	if p.overStream {
+		return p.writeStream(id, b)
+	}
 	frame := make([]byte, 2, len(b)+2)
 	binary.BigEndian.PutUint16(frame, id)
 	if err = p.conn.conn.SendDatagram(append(frame, b...)); err != nil {
@@ -415,13 +444,28 @@ func (p *packet) WriteTo(b []byte, a net.Addr) (int, error) {
 }
 
 func (p *packet) Close() error {
-	p.once.Do(func() { close(p.closed); _ = p.ctrl.Close(); p.conn.remove(p) })
+	p.once.Do(func() {
+		close(p.closed)
+		if p.cancel != nil {
+			p.cancel()
+		}
+		p.mu.Lock()
+		for _, st := range p.sendStreams {
+			st.CancelWrite(0)
+		}
+		p.mu.Unlock()
+		_ = p.ctrl.Close()
+		p.conn.remove(p)
+	})
 	return nil
 }
 func (p *packet) LocalAddr() net.Addr { return p.conn.conn.LocalAddr() }
 func (p *packet) SetDeadline(t time.Time) error {
 	p.mu.Lock()
 	p.readDeadline, p.writeDeadline = t, t
+	for _, st := range p.sendStreams {
+		_ = st.SetWriteDeadline(t)
+	}
 	close(p.changed)
 	p.changed = make(chan struct{})
 	p.mu.Unlock()
@@ -440,6 +484,9 @@ func (p *packet) SetReadDeadline(t time.Time) error {
 func (p *packet) SetWriteDeadline(t time.Time) error {
 	p.mu.Lock()
 	p.writeDeadline = t
+	for _, st := range p.sendStreams {
+		_ = st.SetWriteDeadline(t)
+	}
 	close(p.changed)
 	p.changed = make(chan struct{})
 	p.mu.Unlock()

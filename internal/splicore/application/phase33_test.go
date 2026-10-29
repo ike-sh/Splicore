@@ -4,7 +4,6 @@ package application_test
 
 import (
 	"context"
-	"net"
 	"path/filepath"
 	"reflect"
 	"sync/atomic"
@@ -28,6 +27,10 @@ func TestPhase33ApplicationDNSRoutingSQLite(t *testing.T) {
 	for _, protocol := range []string{"vless", "vmess", "trojan"} {
 		for _, kind := range []string{"xhttp"} {
 			t.Run(protocol+"/"+kind, func(t *testing.T) {
+				ambient := isolatedResolver(t)
+				if ambient == nil {
+					return
+				}
 				ctx := context.Background()
 				root := t.TempDir()
 				path := filepath.Join(root, "original", "state.db")
@@ -89,13 +92,6 @@ func TestPhase33ApplicationDNSRoutingSQLite(t *testing.T) {
 				if e = transfer(local, ipv6, []byte("H3 IPv6 route")); e != nil {
 					t.Fatal(e)
 				}
-				old := net.DefaultResolver
-				ambient := &atomic.Int64{}
-				net.DefaultResolver = &net.Resolver{PreferGo: true, Dial: func(context.Context, string, string) (net.Conn, error) {
-					ambient.Add(1)
-					return nil, net.InvalidAddrError("ambient DNS forbidden")
-				}}
-				defer func() { net.DefaultResolver = old }()
 				status, e := s.ClientStatus(ctx)
 				if e != nil {
 					t.Fatal(e)

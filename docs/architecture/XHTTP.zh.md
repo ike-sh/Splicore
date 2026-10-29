@@ -13,7 +13,12 @@ XHTTP → 可选共享 TLS / REALITY → 网络。它不新增代理认证或协
 普通明文或 TLS 的 auto 选择 packet-up。REALITY 的 auto 选择 stream-one；
 REALITY 配置 downloadSettings 时选择 stream-up。明文使用 H1，TLS 默认 H2，
 单一 http/1.1 ALPN 选择 H1。REALITY 使用 H2，要求 with_utls。
-H3 尚未实现，h3 ALPN 会报错。Vision 和 FinalMask 保持原来的 raw VLESS 边界。
+单独的 h3 ALPN 使用 with_quic 原生 HTTP/3、TLS1.3；direct REALITY+H3
+显式拒绝。Vision 仅允许已验证的 VLESS Encryption+H3 组合。
+Phase35 的参数、分离方向与代理转换边界见 [完整说明](XHTTP.md#phase35-h3-compatibility-controls)。
+H3 默认使用固定 apernet 库的 ChromeParrot 和零长度源 CID；transport.h3
+提供有界窗口、流数、超时与 PMTU/GSO 等控制，导出为 Xray finalmask.quicParams。
+resumption/0-RTT 保持关闭，Browser Dialer 属外部应用集成。
 XHTTP 不代表支持通用 V2Ray QUIC 或 Mux.Cool。Trojan 要求 TLS。
 与 Xray 26.10.10 服务端使用 H1 stream-up 时，服务端 scStreamUpServerSecs
 需要设为 -1，避免其响应 keepalive 与请求体读取争用。原生 H1 服务端支持 keepalive。

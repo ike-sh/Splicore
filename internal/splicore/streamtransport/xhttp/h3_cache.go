@@ -13,8 +13,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/quic-go/quic-go"
-	"github.com/quic-go/quic-go/http3"
+	"github.com/apernet/quic-go"
+	"github.com/apernet/quic-go/http3"
 )
 
 // Each managed Transport may create exactly one physical connection. A second

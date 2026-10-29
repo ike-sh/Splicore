@@ -24,6 +24,7 @@ func (SnellOutboundFactory) Capability() ports.OutboundCapability {
 	c.UDPDomainResolution = "local"
 	return c
 }
+
 func (SnellOutboundFactory) Validate(n client.RemoteNode, c access.Credential) error {
 	if e := clientconfig.Ownership(n, c); e != nil {
 		return e
@@ -40,6 +41,7 @@ func (SnellOutboundFactory) Validate(n client.RemoteNode, c access.Credential) e
 	}
 	return (module.Module{Version: s.Version}).ValidateCredential(c)
 }
+
 func (f SnellOutboundFactory) Build(ctx context.Context, n client.RemoteNode, c access.Credential) (ports.ClientDialer, error) {
 	if e := f.Validate(n, c); e != nil {
 		return nil, e
@@ -81,6 +83,7 @@ type snellDialer struct {
 func (d *snellDialer) dial(ctx context.Context) (net.Conn, error) {
 	return d.dialPort(ctx, d.endpoint.Port)
 }
+
 func (d *snellDialer) dialPort(ctx context.Context, port uint16) (net.Conn, error) {
 	raw, e := d.protected.DialContext(ctx, "tcp", net.JoinHostPort(d.endpoint.Host, portString(port)))
 	if e != nil {
@@ -92,6 +95,7 @@ func (d *snellDialer) dialPort(ctx context.Context, port uint16) (net.Conn, erro
 	}
 	return owned, e
 }
+
 func (d *snellDialer) DialContext(ctx context.Context, dst access.Endpoint) (net.Conn, error) {
 	ctx, done, e := d.owner.Begin(ctx)
 	if e != nil {
@@ -120,6 +124,7 @@ func (d *snellDialer) DialContext(ctx context.Context, dst access.Endpoint) (net
 	}
 	return c, nil
 }
+
 func (d *snellDialer) ListenPacket(ctx context.Context, dst access.Endpoint) (net.PacketConn, error) {
 	ctx, done, e := d.owner.Begin(ctx)
 	if e != nil {
@@ -144,6 +149,13 @@ func (d *snellDialer) ListenPacket(ctx context.Context, dst access.Endpoint) (ne
 		}
 		dst.Host = ips[0].String()
 	}
+	if d.options.Version == 5 {
+		return newSnellV5Packet(d, dst)
+	}
+	return d.listenPacketTCP(ctx, dst)
+}
+
+func (d *snellDialer) listenPacketTCP(ctx context.Context, dst access.Endpoint) (net.PacketConn, error) {
 	port := d.endpoint.Port
 	if d.options.UDPPort != 0 {
 		port = d.options.UDPPort

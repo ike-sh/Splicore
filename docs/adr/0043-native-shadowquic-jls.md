@@ -50,6 +50,8 @@ existing system-DNS policy when no client DNS generation is configured.
 The additional QUIC/TLS library increases binary size and adds a separate
 upstream security/notice maintenance obligation. Pins and full license texts
 must remain auditable. The native scope covers TCP and UDP DATAGRAM with
-explicit limits; UDP stream mode and remote administration are unsupported.
-Official v0.4.4 peers are qualification tools only. Configuration and bounds
+explicit limits. Phase35 adds native CMD4 UDP stream associations in the same
+engine, preserving default CMD3 and disabled resumption/0-RTT; remote
+administration remains unsupported.
+Phase35 official v0.4.7 peers are qualification tools only. Configuration and bounds
 are documented in [ShadowQUIC](../protocol/SHADOWQUIC.md).

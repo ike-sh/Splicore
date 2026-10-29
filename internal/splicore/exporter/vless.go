@@ -83,7 +83,8 @@ func (e VLESS) Export(_ context.Context, p clientprofile.Profile, t ports.Export
 			if p.Transport.XHTTPH3(p.TLS.ALPN) {
 				version = "26.10.21"
 			}
-			if t.ClientVersion != version || o.Flow != module.NoFlow {
+			currentXHTTP := p.Transport.Type() == "xhttp" && t.ClientVersion == "26.10.21"
+			if t.ClientVersion != version && !currentXHTTP || o.Flow != module.NoFlow {
 				return nil, unsupported()
 			}
 		} else if t.ClientVersion != "26.3.27" || o.Security != module.Plain {

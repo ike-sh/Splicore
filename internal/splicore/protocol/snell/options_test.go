@@ -44,7 +44,7 @@ func TestV4StrictClientServerSeparation(t *testing.T) {
 			t.Fatal(uri)
 		}
 	}
-	for server, want := range map[int]int{4: 4, 5: 4, 6: 6} {
+	for server, want := range map[int]int{4: 4, 5: 5, 6: 6} {
 		got, e := ClientVersion(server)
 		if e != nil || got != want {
 			t.Fatal(server, got, e)
