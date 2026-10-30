@@ -55,32 +55,35 @@ type route struct {
 	publicKey string
 }
 type Endpoint struct {
-	operation sync.Mutex
-	pending   *clientio.Owner
-	config    E.WireGuard
-	options   Options
-	ctx       context.Context
-	cancel    context.CancelFunc
-	done      chan struct{}
-	state     State
-	device    *device.Device
-	bind      *udpBind
-	tun       *memoryTUN
-	stack     *nativetun.Runtime
-	routes    []route
-	addresses []netip.Addr
-	err       error
+	operation     sync.Mutex
+	pending       *clientio.Owner
+	config        E.WireGuard
+	options       Options
+	ctx           context.Context
+	cancel        context.CancelFunc
+	done          chan struct{}
+	state         State
+	device        *device.Device
+	bind          *udpBind
+	tun           *memoryTUN
+	stack         *nativetun.Runtime
+	backend       WireGuardBackend
+	backendStatus BackendStatus
+	kernelFactory func(*Endpoint, E.WireGuard) (WireGuardBackend, error)
+	routes        []route
+	addresses     []netip.Addr
+	err           error
 }
 
 func New(parent context.Context, config E.WireGuard, options Options) (*Endpoint, error) {
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
-	if !nativetun.Included || options.Dispatcher == nil || options.Underlay == nil {
+	if (!nativetun.Included && config.RequestedBackend() == E.Userspace) || options.Dispatcher == nil || options.Underlay == nil {
 		return nil, nativetun.ErrUnavailable
 	}
 	ctx, cancel := context.WithCancel(parent)
-	e := &Endpoint{config: config.Clone(), options: options, ctx: ctx, cancel: cancel, done: make(chan struct{}), state: Created, pending: clientio.New()}
+	e := &Endpoint{config: config.Clone(), options: options, ctx: ctx, cancel: cancel, done: make(chan struct{}), state: Created, pending: clientio.New(), backendStatus: BackendStatus{Requested: config.RequestedBackend(), PeerCount: len(config.Peers)}}
 	for _, raw := range config.Addresses {
 		e.addresses = append(e.addresses, netip.MustParsePrefix(raw).Addr())
 	}
@@ -115,10 +118,74 @@ func (e *Endpoint) startLocked(ctx context.Context) error {
 	request, cancel := context.WithCancel(ctx)
 	stop := context.AfterFunc(e.ctx, cancel)
 	defer func() { stop(); cancel() }()
+	resolved := e.config.Clone()
+	for i, peer := range resolved.Peers {
+		if peer.Endpoint == "" {
+			continue
+		}
+		host, port, _ := E.SplitEndpoint(peer.Endpoint)
+		ips, err := e.resolveWith(request, host, e.options.LookupEndpoint)
+		if err != nil {
+			return err
+		}
+		resolved.Peers[i].Endpoint = netip.AddrPortFrom(ips[0], port).String()
+	}
+	e.backendStatus = BackendStatus{Requested: e.config.RequestedBackend(), PeerCount: len(resolved.Peers)}
+	if e.config.RequestedBackend() != E.Userspace {
+		factory := e.kernelFactory
+		if factory == nil {
+			factory = newKernelBackend
+		}
+		b, err := factory(e, resolved)
+		if err == nil && b == nil {
+			err = &BackendError{Class: RuntimeFailure, Operation: "nil kernel backend"}
+		}
+		if err == nil {
+			e.backend = b
+			err = b.Prepare(request)
+			if err == nil {
+				err = b.Start(request)
+			}
+		}
+		if err == nil {
+			e.backendStatus.Selected = E.Kernel
+			e.backendStatus.Availability = Supported
+			e.state = Active
+			return nil
+		}
+		e.backendStatus.Availability = backendAvailability(err)
+		if b != nil {
+			if cleanup := b.Close(); cleanup != nil {
+				err = errors.Join(err, &BackendError{Class: CleanupFailure, Operation: "rollback", Cause: cleanup})
+				e.backendStatus.Availability = backendAvailability(err)
+				return err
+			}
+		}
+		e.backend = nil
+		if e.config.RequestedBackend() != E.Auto || !fallbackEligible(err) {
+			return err
+		}
+	}
+	if !nativetun.Included {
+		return nativetun.ErrUnavailable
+	}
+	e.backend = &userspaceBackend{e: e, config: resolved}
+	if err := e.backend.Prepare(request); err != nil {
+		return err
+	}
+	if err := e.backend.Start(request); err != nil {
+		return err
+	}
+	e.backendStatus.Selected = E.Userspace
+	e.state = Active
+	return nil
+}
+
+func (e *Endpoint) startUserspace(request context.Context, config E.WireGuard) error {
 	var configuration strings.Builder
-	key := e.config.PrivateKey.Reveal()
-	fmt.Fprintf(&configuration, "private_key=%s\nlisten_port=%d\nreplace_peers=true\n", hex.EncodeToString(key[:]), e.config.ListenPort)
-	for _, peer := range e.config.Peers {
+	key := config.PrivateKey.Reveal()
+	fmt.Fprintf(&configuration, "private_key=%s\nlisten_port=%d\nreplace_peers=true\n", hex.EncodeToString(key[:]), config.ListenPort)
+	for _, peer := range config.Peers {
 		public, _ := E.DecodeKey(peer.PublicKey)
 		fmt.Fprintf(&configuration, "public_key=%s\nreplace_allowed_ips=true\n", hex.EncodeToString(public[:]))
 		if peer.PreSharedKey.Present() {
@@ -177,8 +244,17 @@ func (e *Endpoint) shutdown() {
 	e.operation.Lock()
 	defer e.operation.Unlock()
 	e.state = Closing
+	if e.backend != nil {
+		e.err = errors.Join(e.err, e.backend.Close())
+	}
+	e.state = Closed
+	close(e.done)
+}
+
+func (e *Endpoint) closeUserspace() error {
+	var err error
 	if e.stack != nil {
-		e.err = errors.Join(e.err, e.stack.Close())
+		err = errors.Join(err, e.stack.Close())
 	}
 	if e.device != nil {
 		e.device.Close()
@@ -190,11 +266,10 @@ func (e *Endpoint) shutdown() {
 		e.tun.drain()
 	}
 	if e.bind != nil {
-		e.err = errors.Join(e.err, e.bind.Close())
+		err = errors.Join(err, e.bind.Close())
 	}
 	e.stack = nil
-	e.state = Closed
-	close(e.done)
+	return err
 }
 func (e *Endpoint) Close() error                        { e.cancel(); <-e.done; return e.err }
 func (e *Endpoint) SupportsNetwork(network string) bool { return network == "tcp" || network == "udp" }
@@ -285,13 +360,13 @@ func (e *Endpoint) target(ctx context.Context, target access.Endpoint) (netip.Ad
 	return netip.AddrPort{}, netip.Addr{}, errors.New("WireGuard destination has no AllowedIPs route")
 }
 
-func (e *Endpoint) activeStack() (*nativetun.Runtime, error) {
+func (e *Endpoint) activeBackend() (WireGuardBackend, error) {
 	e.operation.Lock()
 	defer e.operation.Unlock()
 	if e.state != Active || e.ctx.Err() != nil {
 		return nil, net.ErrClosed
 	}
-	return e.stack, nil
+	return e.backend, nil
 }
 
 func (e *Endpoint) DialContext(ctx context.Context, target access.Endpoint) (net.Conn, error) {
@@ -301,7 +376,7 @@ func (e *Endpoint) DialContext(ctx context.Context, target access.Endpoint) (net
 	}
 	defer done()
 	ctx = request
-	stack, err := e.activeStack()
+	stack, err := e.activeBackend()
 	if err != nil {
 		return nil, err
 	}
@@ -319,7 +394,7 @@ func (e *Endpoint) ListenPacket(ctx context.Context, target access.Endpoint) (ne
 	}
 	defer done()
 	ctx = request
-	stack, err := e.activeStack()
+	stack, err := e.activeBackend()
 	if err != nil {
 		return nil, err
 	}
@@ -384,6 +459,7 @@ type PeerStatus struct {
 	AllowedIPs         []string  `json:"allowed_ips"`
 }
 type Status struct {
+	BackendStatus
 	Tag           string       `json:"tag"`
 	State         State        `json:"state"`
 	Addresses     []string     `json:"addresses"`
@@ -397,10 +473,19 @@ type Status struct {
 func (e *Endpoint) Status() Status {
 	e.operation.Lock()
 	defer e.operation.Unlock()
-	status := Status{Tag: e.config.Tag, State: e.state, Addresses: append([]string(nil), e.config.Addresses...), MTU: e.config.InnerMTU(), ListenPort: e.config.ListenPort, Peers: make([]PeerStatus, len(e.config.Peers))}
-	peers := map[string]*PeerStatus{}
+	status := Status{BackendStatus: e.backendStatus, Tag: e.config.Tag, State: e.state, Addresses: append([]string(nil), e.config.Addresses...), MTU: e.config.InnerMTU(), ListenPort: e.config.ListenPort, Peers: make([]PeerStatus, len(e.config.Peers))}
 	for i, p := range e.config.Peers {
 		status.Peers[i] = PeerStatus{PublicKey: p.PublicKey, ConfiguredEndpoint: p.Endpoint, Keepalive: p.PersistentKeepaliveInterval, AllowedIPs: append([]string(nil), p.AllowedIPs...)}
+	}
+	if e.backend != nil && e.state != Closed {
+		e.backend.Status(&status)
+	}
+	return status
+}
+
+func (e *Endpoint) userspaceStatus(status *Status) {
+	peers := map[string]*PeerStatus{}
+	for i, p := range status.Peers {
 		key, _ := E.DecodeKey(p.PublicKey)
 		peers[hex.EncodeToString(key[:])] = &status.Peers[i]
 	}
@@ -411,11 +496,11 @@ func (e *Endpoint) Status() Status {
 		status.QueuedPackets = len(e.tun.decrypted) + len(e.tun.plaintext)
 	}
 	if e.device == nil || e.state == Closed {
-		return status
+		return
 	}
 	raw, err := e.device.IpcGet()
 	if err != nil {
-		return status
+		return
 	}
 	var current *PeerStatus
 	var seconds int64
@@ -451,5 +536,4 @@ func (e *Endpoint) Status() Status {
 			}
 		}
 	}
-	return status
 }

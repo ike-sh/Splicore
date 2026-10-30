@@ -88,7 +88,7 @@ func (s *Service) ReplaceWireGuardEndpoint(ctx context.Context, config E.WireGua
 	s.endpoints[config.Tag] = replacement
 	s.endpointMu.Unlock()
 	if err = replacement.Start(ctx); err != nil {
-		return replacement.Status(), identity.Err(identity.Unavailable, "replacement WireGuard endpoint could not start")
+		return replacement.Status(), wireGuardStartError(err, "replacement WireGuard endpoint could not start")
 	}
 	return replacement.Status(), nil
 }
@@ -130,9 +130,17 @@ func (s *Service) StartWireGuardEndpoint(ctx context.Context, tag string) (wireg
 		return wireguardendpoint.Status{}, err
 	}
 	if err = e.Start(ctx); err != nil {
-		return e.Status(), identity.Err(identity.Unavailable, "WireGuard endpoint could not start")
+		return e.Status(), wireGuardStartError(err, "WireGuard endpoint could not start")
 	}
 	return e.Status(), nil
+}
+
+func wireGuardStartError(cause error, message string) error {
+	err := identity.Err(identity.Unavailable, message)
+	if _, ok := errors.AsType[*wireguardendpoint.BackendError](cause); ok {
+		return errors.Join(err, cause)
+	}
+	return err
 }
 
 func (s *Service) WireGuardEndpointStatus(_ context.Context, tag string) (wireguardendpoint.Status, error) {

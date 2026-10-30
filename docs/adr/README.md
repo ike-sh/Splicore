@@ -140,3 +140,9 @@ Native is the sole runtime engine. Historical Phase 6/7 direction is superseded;
   Proposed; official engine, existing Core IP stack, immutable credential
   generation, Core DNS/routing and deterministic lifecycle. Independent review
   is required before Freeze.
+
+## Phase36 WireGuard kernel fast path
+
+- [0045 — Linux WireGuard kernel backend](0045-wireguard-kernel-fast-path.md):
+  Native device, anonymous namespaces, kernel TCP/UDP and shared Core orchestration.
+  Existing configurations keep userspace semantics; independent review is required.

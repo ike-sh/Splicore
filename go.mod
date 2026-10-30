@@ -4,11 +4,13 @@ go 1.26.3
 
 require (
 	github.com/gofrs/uuid/v5 v5.5.1
+	github.com/google/nftables v0.3.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/metacubex/utls v1.8.7
 	github.com/miekg/dns v1.1.72
 	golang.org/x/crypto v0.54.0
 	golang.org/x/sys v0.47.0
+	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
 	gvisor.dev/gvisor v0.0.0-20261004063249-f57b8fc79db4
@@ -16,6 +18,10 @@ require (
 )
 
 require (
+	github.com/google/go-cmp v0.7.0 // indirect
+	github.com/mdlayher/genetlink v1.3.2 // indirect
+	github.com/mdlayher/netlink v1.7.3-0.20250113171957-fbb4dce95f42 // indirect
+	github.com/mdlayher/socket v0.5.1 // indirect
 	github.com/metacubex/cpu v0.1.0 // indirect
 	github.com/metacubex/hkdf v0.1.0 // indirect
 	github.com/metacubex/hpke v0.1.0 // indirect
@@ -25,7 +31,7 @@ require (
 
 require (
 	github.com/refraction-networking/utls v1.8.2 // indirect
-	github.com/vishvananda/netns v0.0.5 // indirect
+	github.com/vishvananda/netns v0.0.5
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect
 	golang.org/x/mod v0.38.0 // indirect
 	golang.org/x/net v0.57.0

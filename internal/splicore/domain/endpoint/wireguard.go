@@ -83,13 +83,30 @@ type WireGuardPeer struct {
 	PersistentKeepaliveInterval int      `json:"persistent_keepalive_interval,omitempty" yaml:"persistent_keepalive_interval,omitempty"`
 }
 type WireGuard struct {
-	Tag        string          `json:"tag" yaml:"tag"`
-	Addresses  []string        `json:"addresses" yaml:"addresses"`
-	PrivateKey Secret          `json:"private_key" yaml:"private_key"`
-	ListenPort int             `json:"listen_port" yaml:"listen_port"`
-	MTU        int             `json:"mtu,omitempty" yaml:"mtu,omitempty"`
-	Peers      []WireGuardPeer `json:"peers" yaml:"peers"`
-	Reserved   []int           `json:"reserved,omitempty" yaml:"reserved,omitempty"`
+	Backend    WireGuardBackend `json:"backend,omitempty" yaml:"backend,omitempty"`
+	Tag        string           `json:"tag" yaml:"tag"`
+	Addresses  []string         `json:"addresses" yaml:"addresses"`
+	PrivateKey Secret           `json:"private_key" yaml:"private_key"`
+	ListenPort int              `json:"listen_port" yaml:"listen_port"`
+	MTU        int              `json:"mtu,omitempty" yaml:"mtu,omitempty"`
+	Peers      []WireGuardPeer  `json:"peers" yaml:"peers"`
+	Reserved   []int            `json:"reserved,omitempty" yaml:"reserved,omitempty"`
+}
+
+// An omitted backend retains the unprivileged Phase34 implementation.
+type WireGuardBackend string
+
+const (
+	Userspace WireGuardBackend = "userspace"
+	Kernel    WireGuardBackend = "kernel"
+	Auto      WireGuardBackend = "auto"
+)
+
+func (c WireGuard) RequestedBackend() WireGuardBackend {
+	if c.Backend == "" {
+		return Userspace
+	}
+	return c.Backend
 }
 
 func (c WireGuard) Clone() WireGuard {
@@ -110,6 +127,9 @@ func (c WireGuard) InnerMTU() int {
 }
 
 func (c WireGuard) Validate() error {
+	if b := c.RequestedBackend(); b != Userspace && b != Kernel && b != Auto {
+		return ErrInvalid
+	}
 	if c.Tag == "validate" || !identity.Label(c.Tag, 64) || strings.ContainsAny(c.Tag, "/\\ \t\r\n") || !c.PrivateKey.Present() || c.PrivateKey.Reveal() == ([32]byte{}) || c.ListenPort < 0 || c.ListenPort > 65535 || c.InnerMTU() < 1280 || c.InnerMTU() > 9000 || len(c.Addresses) == 0 || len(c.Addresses) > 16 || len(c.Peers) == 0 || len(c.Peers) > 128 {
 		return ErrInvalid
 	}
