@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ike-sh/Splicore/internal/splicore/amneziawgendpoint"
 	"github.com/ike-sh/Splicore/internal/splicore/clientruntime"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
@@ -123,6 +124,7 @@ type Service struct {
 	endpointOperation sync.Mutex
 	endpointMu        sync.Mutex
 	endpoints         map[string]*wireguardendpoint.Endpoint
+	awgEndpoints      map[string]*amneziawgendpoint.Endpoint
 	endpointsClosed   bool
 	underlay          *underlay.Factory
 	client            *clientState

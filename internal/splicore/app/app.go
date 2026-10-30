@@ -73,6 +73,12 @@ func Serve(ctx context.Context, c config.Config) (err error) {
 		return err
 	}
 	defer service.CloseWireGuardEndpoints(context.Background())
+	defer service.CloseAmneziaWGEndpoints(context.Background())
+	for _, endpoint := range c.AmneziaWGEndpoints {
+		if _, err = service.CreateAmneziaWGEndpoint(ctx, endpoint); err != nil {
+			return err
+		}
+	}
 	for _, endpoint := range c.WireGuardEndpoints {
 		if _, err = service.CreateWireGuardEndpoint(ctx, endpoint); err != nil {
 			return err
@@ -88,6 +94,11 @@ func Serve(ctx context.Context, c config.Config) (err error) {
 	}()
 	for _, endpoint := range c.WireGuardEndpoints {
 		if _, err = service.StartWireGuardEndpoint(ctx, endpoint.Tag); err != nil {
+			return err
+		}
+	}
+	for _, endpoint := range c.AmneziaWGEndpoints {
+		if _, err = service.StartAmneziaWGEndpoint(ctx, endpoint.Tag); err != nil {
 			return err
 		}
 	}

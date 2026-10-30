@@ -19,8 +19,6 @@ require (
 
 require (
 	github.com/google/go-cmp v0.7.0 // indirect
-	github.com/mdlayher/genetlink v1.3.2 // indirect
-	github.com/mdlayher/netlink v1.7.3-0.20250113171957-fbb4dce95f42 // indirect
 	github.com/mdlayher/socket v0.5.1 // indirect
 	github.com/metacubex/cpu v0.1.0 // indirect
 	github.com/metacubex/hkdf v0.1.0 // indirect
@@ -68,3 +66,11 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
 )
+
+require (
+	github.com/amnezia-vpn/amneziawg-go/v3 v3.1.20260828
+	github.com/mdlayher/genetlink v1.3.2
+	github.com/mdlayher/netlink v1.7.3-0.20250113171957-fbb4dce95f42
+)
+
+replace github.com/amnezia-vpn/amneziawg-go/v3 => ./third_party/amneziawg-go

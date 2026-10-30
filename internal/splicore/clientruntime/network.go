@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/netip"
 
+	"github.com/ike-sh/Splicore/internal/splicore/amneziawgendpoint"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
@@ -84,6 +85,10 @@ func selectRouteFallback(ctx context.Context, gen *snapshot, inbound identity.ID
 	server, _ := ctx.Value(serverFlowKey{}).(identity.ID)
 	q := networkruntime.Query{ServerInbound: server, Port: target.Port, Network: network, LocalInbound: inbound}
 	if peer, ok := wireguardendpoint.PeerIdentity(ctx); ok {
+		q.EndpointTag = peer.EndpointTag
+		q.PeerPublicKey = peer.PeerPublicKey
+	}
+	if peer, ok := amneziawgendpoint.PeerIdentity(ctx); ok {
 		q.EndpointTag = peer.EndpointTag
 		q.PeerPublicKey = peer.PeerPublicKey
 	}

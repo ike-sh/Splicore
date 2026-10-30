@@ -8,21 +8,26 @@ import (
 	"net/url"
 	"strconv"
 
+	"github.com/ike-sh/Splicore/internal/splicore/amneziawgendpoint"
 	"github.com/ike-sh/Splicore/internal/splicore/application"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 )
 
 type Problem struct {
-	Code            identity.Code      `json:"code"`
-	Message         string             `json:"message"`
-	RequestID       string             `json:"request_id"`
-	CurrentRevision *identity.Revision `json:"current_revision,omitempty"`
+	BackendAvailability amneziawgendpoint.Availability `json:"backend_availability,omitempty"`
+	Code                identity.Code                  `json:"code"`
+	Message             string                         `json:"message"`
+	RequestID           string                         `json:"request_id"`
+	CurrentRevision     *identity.Revision             `json:"current_revision,omitempty"`
 }
 
 func Handler(service application.Queries) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
+		if amneziaWGRoute(w, r, service) {
+			return
+		}
 		if wireGuardRoute(w, r, service) {
 			return
 		}
@@ -129,7 +134,11 @@ func writeError(w http.ResponseWriter, err error) {
 			message = "listener port is already in use"
 		}
 	}
-	writeJSON(w, status, Problem{Code: code, Message: message, RequestID: requestID(), CurrentRevision: current})
+	var availability amneziawgendpoint.Availability
+	if e, ok := errors.AsType[*amneziawgendpoint.BackendError](err); ok {
+		availability = e.Class
+	}
+	writeJSON(w, status, Problem{BackendAvailability: availability, Code: code, Message: message, RequestID: requestID(), CurrentRevision: current})
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

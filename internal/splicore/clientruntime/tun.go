@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ike-sh/Splicore/internal/splicore/amneziawgendpoint"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
@@ -122,6 +123,10 @@ func (m *Manager) registerFlow(parent context.Context, inbound identity.ID, c ne
 	ctx, cancel := context.WithCancel(parent)
 	s := &session{id: id, inbound: inbound, local: c, packetLocal: packet, cancel: cancel}
 	if peer, ok := wireguardendpoint.PeerIdentity(ctx); ok {
+		s.endpointTag = peer.EndpointTag
+		s.peerPublicKey = peer.PeerPublicKey
+	}
+	if peer, ok := amneziawgendpoint.PeerIdentity(ctx); ok {
 		s.endpointTag = peer.EndpointTag
 		s.peerPublicKey = peer.PeerPublicKey
 	}

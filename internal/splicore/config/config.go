@@ -17,6 +17,7 @@ type API struct {
 	UnixSocket string `json:"unix_socket" yaml:"unix_socket"`
 }
 type Config struct {
+	AmneziaWGEndpoints []E.AmneziaWG `json:"amneziawg_endpoints,omitempty" yaml:"amneziawg_endpoints,omitempty"`
 	WireGuardEndpoints []E.WireGuard `json:"wireguard_endpoints,omitempty" yaml:"wireguard_endpoints,omitempty"`
 	Schema             int           `json:"schema" yaml:"schema"`
 	StateDirectory     string        `json:"state_directory" yaml:"state_directory"`
@@ -76,13 +77,19 @@ func checkNode(n *yaml.Node, depth int) error {
 }
 
 func (c Config) Validate() error {
-	if len(c.WireGuardEndpoints) > 64 {
+	if len(c.WireGuardEndpoints)+len(c.AmneziaWGEndpoints) > 64 {
 		return identity.Err(identity.Invalid, "too many network endpoints")
 	}
 	tags := map[string]bool{}
 	for _, endpoint := range c.WireGuardEndpoints {
 		if endpoint.Validate() != nil || tags[endpoint.Tag] {
 			return identity.Err(identity.Invalid, "invalid WireGuard endpoints")
+		}
+		tags[endpoint.Tag] = true
+	}
+	for _, endpoint := range c.AmneziaWGEndpoints {
+		if endpoint.Validate() != nil || tags[endpoint.Tag] {
+			return identity.Err(identity.Invalid, "invalid AmneziaWG endpoints")
 		}
 		tags[endpoint.Tag] = true
 	}

@@ -136,7 +136,7 @@ func (s *Service) prepare(ctx context.Context, in ports.RuntimeIntent) (ports.Ru
 }
 
 func (s *Service) CloseRuntime(ctx context.Context) error {
-	endpointErr := s.CloseWireGuardEndpoints(ctx)
+	endpointErr := errors.Join(s.CloseWireGuardEndpoints(ctx), s.CloseAmneziaWGEndpoints(ctx))
 	clientErr := errors.Join(endpointErr, s.CloseClientRuntime(ctx))
 	if s.runtime == nil {
 		return clientErr

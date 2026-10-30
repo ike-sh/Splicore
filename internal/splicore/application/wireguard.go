@@ -41,7 +41,8 @@ func (s *Service) CreateWireGuardEndpoint(ctx context.Context, config E.WireGuar
 	s.endpointMu.Lock()
 	closed := s.endpointsClosed
 	existing := s.endpoints[config.Tag]
-	count := len(s.endpoints)
+	awgExisting := s.awgEndpoints[config.Tag]
+	count := len(s.endpoints) + len(s.awgEndpoints)
 	s.endpointMu.Unlock()
 	if closed {
 		return wireguardendpoint.Status{}, identity.Err(identity.Unavailable, "network endpoint registry closed")
@@ -49,7 +50,7 @@ func (s *Service) CreateWireGuardEndpoint(ctx context.Context, config E.WireGuar
 	if count >= 64 {
 		return wireguardendpoint.Status{}, identity.Err(identity.Invalid, "network endpoint registry limit exceeded")
 	}
-	if existing != nil {
+	if existing != nil || awgExisting != nil {
 		return wireguardendpoint.Status{}, identity.Err(identity.Conflict, "network endpoint tag already exists")
 	}
 	endpoint, err := s.newWireGuardEndpoint(config)
@@ -117,11 +118,25 @@ func (s *Service) wireGuardEndpoint(tag string) (*wireguardendpoint.Endpoint, er
 	return e, nil
 }
 
+func (s *Service) lookupEndpoint(tag string) (ports.ClientDialer, error) {
+	s.endpointMu.Lock()
+	defer s.endpointMu.Unlock()
+	if !s.endpointsClosed {
+		if e := s.endpoints[tag]; e != nil {
+			return e, nil
+		}
+		if e := s.awgEndpoints[tag]; e != nil {
+			return e, nil
+		}
+	}
+	return nil, identity.Err(identity.NotFound, "network endpoint not found")
+}
+
 func (s *Service) borrowEndpoint(tag string) (ports.ClientDialer, error) {
-	if _, err := s.wireGuardEndpoint(tag); err != nil {
+	if _, err := s.lookupEndpoint(tag); err != nil {
 		return nil, err
 	}
-	return clientruntime.BorrowedEndpoint{Lookup: func() (ports.ClientDialer, error) { return s.wireGuardEndpoint(tag) }}, nil
+	return clientruntime.BorrowedEndpoint{Lookup: func() (ports.ClientDialer, error) { return s.lookupEndpoint(tag) }}, nil
 }
 
 func (s *Service) StartWireGuardEndpoint(ctx context.Context, tag string) (wireguardendpoint.Status, error) {
