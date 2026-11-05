@@ -119,6 +119,8 @@ func mieruTransfer(c client.Client, dest net.Addr, size int) error {
 	if e != nil {
 		return e
 	}
+	// Match the production read-deadline boundary while retaining SDK wire I/O.
+	conn = newMieruReadConn(conn)
 	defer conn.Close()
 	conn.SetDeadline(time.Now().Add(5 * time.Second))
 	payload := bytes.Repeat([]byte("abcdefgh"), size/8+1)[:size]
