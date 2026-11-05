@@ -43,6 +43,7 @@ func (b *udpBind) Open(port uint16) ([]conn.ReceiveFunc, uint16, error) {
 	if err != nil {
 		return nil, 0, err
 	}
+	socket = wrapUDPReceiveConn(socket)
 	b.socket = socket
 	actual := uint16(socket.LocalAddr().(*net.UDPAddr).Port)
 	receive := func(packets [][]byte, sizes []int, endpoints []conn.Endpoint) (int, error) {
