@@ -143,8 +143,7 @@ func TestShadowQUICNativeMultiUserLifecycleAndBounds(t *testing.T) {
 	ctx := underlay.WithFactory(context.Background(), underlay.New())
 	listener, waitTCP := sqLifecycleTCP(t)
 	target := netaddrEndpoint(listener.Addr())
-	udp := trojanUDP(t)
-	udp.Host = "localhost"
+	udp := localhostUDP(t)
 	sqResourceLifecycles(t, listener.Addr(), waitTCP, func() {
 		h, in := sqServer(t, ctx)
 		for user := range 2 {

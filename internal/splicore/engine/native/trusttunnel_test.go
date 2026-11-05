@@ -51,7 +51,7 @@ func TestTrustTunnelNativeOwnershipUDPAndMultiUser(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			ctx := underlay.WithFactory(context.Background(), underlay.New())
 			target, finished := naiveLifecycleTarget(t)
-			udp := trojanUDP(t)
+			udp := localhostUDP(t)
 			tcp := netaddrEndpoint(target.Addr())
 			settings := testkit.TLS(t)
 			runtime.GC()
@@ -123,7 +123,6 @@ func TestTrustTunnelNativeOwnershipUDPAndMultiUser(t *testing.T) {
 					}
 					conn.Close()
 					<-finished
-					udp.Host = "localhost"
 					packet, e := dialer.(ports.ClientPacketDialer).ListenPacket(ctx, udp)
 					if e != nil {
 						dialer.Close()

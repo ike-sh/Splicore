@@ -306,7 +306,6 @@ func TestAnyTLSIPv6TCPUDPAndDomainUDP(t *testing.T) {
 	defer d.Close()
 	anytlsTCP(t, d, netaddrEndpoint(l.Addr()))
 	anytlsUDP(t, d, netaddrEndpoint(p.LocalAddr()))
-	dst := trojanUDP(t)
-	dst.Host = "localhost"
+	dst := localhostUDP(t)
 	anytlsUDP(t, d, dst, 0, 512, 8192)
 }

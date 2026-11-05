@@ -72,24 +72,7 @@ func TestOwnedHysteria2ParallelAuthAttributionAndDomainTargets(t *testing.T) {
 	ctx, in, h, ds := ownedHysteria2(t)
 	l := testfixture.TCP(t)
 	dst := access.Endpoint{Host: "localhost", Port: uint16(l.Addr().(*net.TCPAddr).Port)}
-	u, e := net.ListenPacket("udp4", "127.0.0.1:0")
-	if e != nil {
-		t.Fatal(e)
-	}
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		b := make([]byte, 4096)
-		for {
-			n, a, e := u.ReadFrom(b)
-			if e != nil {
-				return
-			}
-			u.WriteTo(b[:n], a)
-		}
-	}()
-	defer func() { u.Close(); <-done }()
-	udst := access.Endpoint{Host: "localhost", Port: uint16(u.LocalAddr().(*net.UDPAddr).Port)}
+	udst := localhostUDP(t)
 	ready := make(chan struct{}, len(ds)*10)
 	start := make(chan struct{})
 	udpFinished := make(chan struct{}, len(ds)*2)
@@ -184,7 +167,7 @@ func TestOwnedHysteria2ParallelAuthAttributionAndDomainTargets(t *testing.T) {
 	for _, d := range ds {
 		d.Close()
 	}
-	if e = h.Close(ctx); e != nil {
+	if e := h.Close(ctx); e != nil {
 		t.Fatal(e)
 	}
 	for _, b := range in.Bindings {
