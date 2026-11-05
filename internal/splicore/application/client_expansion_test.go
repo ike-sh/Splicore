@@ -22,7 +22,6 @@ import (
 	tm "github.com/ike-sh/Splicore/internal/splicore/protocol/tuic"
 	vm "github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
 	"github.com/ike-sh/Splicore/internal/splicore/registry"
-	"github.com/ike-sh/Splicore/internal/splicore/storage/sqlite"
 	"github.com/ike-sh/Splicore/internal/splicore/testkit"
 	"io"
 	"net"
@@ -100,25 +99,6 @@ func expansionNode(t *testing.T, s *application.Service, c expansionCase, endpoi
 func expansionProxy(t *testing.T, s *application.Service, node identity.ID, engine string) identity.ID {
 	t.Helper()
 	return clientApply(t, s, application.ClientMutation{Resource: "outbound", Action: "create", Outbound: &client.Outbound{Name: "phase11-" + engine, Kind: "proxy", NodeID: &node, Engine: engine}}).ID
-}
-func expansionCredential(t *testing.T, store *sqlite.Store, result application.CreationResult, index int) access.Payload {
-	t.Helper()
-	bindings, err := store.Bindings(context.Background(), result.InboundID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Preserve the creation response's Alice/Bob order rather than repository sorting.
-	for _, b := range bindings {
-		if b.ID == result.Bindings[index].BindingID {
-			c, err := store.RevealCredential(context.Background(), b.CredentialID)
-			if err != nil {
-				t.Fatal(err)
-			}
-			return c.Payload
-		}
-	}
-	t.Fatal("missing created binding")
-	return nil
 }
 func expansionUDP(t *testing.T, host string, fixedPort ...uint16) access.Endpoint {
 	t.Helper()

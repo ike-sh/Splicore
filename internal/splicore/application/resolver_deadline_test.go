@@ -1,6 +1,12 @@
 package application_test
 
 import (
+	"context"
+	"errors"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -37,6 +43,50 @@ func TestResolverFixtureBudget(t *testing.T) {
 			if tc.known && (!budget.deadline.Before(parent) || budget.grace > tc.remaining/5 || !budget.deadline.Add(budget.grace).Before(parent.Add(time.Nanosecond))) {
 				t.Fatal("child exceeds parent's usable lifetime", budget, parent)
 			}
+		})
+	}
+}
+
+func TestResolverFixtureFailureCleanup(t *testing.T) {
+	for _, name := range []string{"nonzero-exit", "cancellation"} {
+		t.Run(name, func(t *testing.T) {
+			const marker = "intentional resolver fixture failure"
+			if os.Getenv(resolverFixtureScope) == t.Name() {
+				if err := os.WriteFile(filepath.Join(t.TempDir(), "owned"), []byte("fixture"), 0600); err != nil {
+					t.Fatal(err)
+				}
+				if name == "cancellation" {
+					t.Log(marker)
+					select {} // The parent must cancel, reap, and remove this child's temp root.
+				}
+				t.Fatal(marker)
+			}
+			budget, err := resolverBudgetFor(time.Now(), time.Now().Add(3*time.Second), true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			result := runResolverFixture(t.Context(), t.Name(), budget)
+			var exit *exec.ExitError
+			if !errors.As(result.err, &exit) || result.state == nil || result.state.Success() || result.pid <= 0 {
+				t.Fatal("child failure was not returned and reaped", result.err, result.state, result.pid)
+			}
+			if !strings.Contains(string(result.output), marker) {
+				t.Fatal("child did not reach the intended failure", string(result.output))
+			}
+			if name == "cancellation" {
+				if !errors.Is(result.contextErr, context.DeadlineExceeded) {
+					t.Fatal("child did not wait for cancellation", result.contextErr)
+				}
+			} else if result.contextErr != nil || result.state.ExitCode() != 1 {
+				t.Fatal("unexpected child failure", result.contextErr, result.state)
+			}
+			if result.cleanupErr != nil || result.cleanedAt.Before(result.waitedAt) {
+				t.Fatal("cleanup did not follow child reaping", result.cleanupErr)
+			}
+			if _, err = os.Stat(result.tempDir); !errors.Is(err, os.ErrNotExist) {
+				t.Fatal("child temporary directory survived cleanup", result.tempDir, err)
+			}
+			t.Logf("expected failure: pid=%d state=%v context=%v reaped=true temp_removed=true", result.pid, result.state, result.contextErr)
 		})
 	}
 }
