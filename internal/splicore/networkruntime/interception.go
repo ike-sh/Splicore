@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/miekg/dns"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
+	"github.com/miekg/dns"
 )
 
 // ExchangeDNS uses the Phase 12 matcher, detours, trust checks and bounded cache.

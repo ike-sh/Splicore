@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/miekg/dns"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/miekg/dns"
 )
 
 func TestInterceptedDNSSharedCacheIDsBindingsAndMalformed(t *testing.T) {

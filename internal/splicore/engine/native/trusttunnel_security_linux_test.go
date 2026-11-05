@@ -6,13 +6,10 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"net"
 	"net/netip"
 	"os"
 	"strings"
-	"sync/atomic"
-	"syscall"
 	"testing"
 	"time"
 
@@ -113,21 +110,6 @@ func TestTrustTunnelCustomSNIActualHandshake(t *testing.T) {
 		})
 	}
 }
-
-type trustTunnelDenyBackend struct{ attempts atomic.Int32 }
-
-func (*trustTunnelDenyBackend) Capabilities() underlay.Capabilities {
-	return underlay.Capabilities{PerSocket: true, SystemResolver: true}
-}
-func (b *trustTunnelDenyBackend) Protect(_ context.Context, s underlay.Scope, _, _ string, _ syscall.RawConn) error {
-	if s.Purpose == underlay.ServerTarget {
-		b.attempts.Add(1)
-		return errors.New("synthetic host egress policy denial")
-	}
-	return nil
-}
-func (*trustTunnelDenyBackend) Reconcile(context.Context, []underlay.Endpoint) error { return nil }
-func (*trustTunnelDenyBackend) Verify(context.Context) error                         { return nil }
 
 func TestTrustTunnelTargetsUseCoreUnderlayPolicy(t *testing.T) {
 	for _, host := range []string{"127.0.0.1", "localhost", "::ffff:127.0.0.1"} {
