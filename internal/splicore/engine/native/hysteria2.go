@@ -90,7 +90,7 @@ func (h *hysteria2Handle) Start(ctx context.Context) error {
 		}
 		return identity.Err(identity.Unavailable, "Hysteria2 listener start failed")
 	}
-	h.server, err = backend.NewServer(h.ctx, &admissionPacket{PacketConn: packet, h: h}, backend.ServerConfig{TLS: h.tls, Transport: h.transport, Authenticate: h.authenticate, TCP: h.tcp, UDP: h.udp})
+	h.server, err = backend.NewServer(h.ctx, &admissionPacket{PacketConn: packet, h: h}, backend.ServerConfig{TLS: h.tls, Transport: h.transport, MasqueradeDial: h.protected.DialContext, Authenticate: h.authenticate, TCP: h.tcp, UDP: h.udp})
 	if err != nil {
 		_ = packet.Close()
 		return identity.Err(identity.Unavailable, "Hysteria2 construction failed: "+err.Error())

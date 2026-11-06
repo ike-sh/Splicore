@@ -25,6 +25,8 @@ type ServerConfig struct {
 	Settings     cfg.Hysteria
 	Authenticate func(string) (string, bool)
 	Application  func(*Connection) Hooks
+	// MasqueradeDial is mandatory for proxy mode; no ambient dial fallback exists.
+	MasqueradeDial func(context.Context, string, string) (net.Conn, error)
 }
 type Server struct {
 	config          ServerConfig
@@ -68,7 +70,7 @@ func NewServer(ctx context.Context, packet net.PacketConn, c ServerConfig) (*Ser
 	c.TLS = snapshotTLS(c.TLS)
 	c.TLS.MinVersion = tls.VersionTLS13
 	c.TLS.NextProtos = []string{"h3"}
-	mask, closeMask, e := masquerade(c.Settings.Masquerade)
+	mask, closeMask, e := masquerade(c.Settings.Masquerade, c.MasqueradeDial)
 	if e != nil {
 		return fail(e)
 	}

@@ -40,7 +40,7 @@ func serve(t *testing.T, tc *tls.Config, h cfg.Hysteria, auth func(string) (stri
 	if e != nil {
 		t.Fatal(e)
 	}
-	s, e := NewServer(context.Background(), p, ServerConfig{TLS: tc, Settings: h, Authenticate: auth, Application: app})
+	s, e := NewServer(context.Background(), p, ServerConfig{TLS: tc, Settings: h, MasqueradeDial: (&net.Dialer{}).DialContext, Authenticate: auth, Application: app})
 	if e != nil {
 		t.Fatal(e)
 	}

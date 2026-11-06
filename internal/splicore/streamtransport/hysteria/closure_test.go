@@ -209,90 +209,94 @@ func TestMalformedH3FailureTransactionsAndTLSModes(t *testing.T) {
 }
 
 func TestRootFileTraversalAndHTTPHTTPSProxyBoundaries(t *testing.T) {
-	root := t.TempDir()
-	outside := t.TempDir()
-	os.WriteFile(filepath.Join(outside, "secret"), []byte("outside-secret"), 0600)
-	os.WriteFile(filepath.Join(root, "visible"), []byte("visible"), 0600)
-	if e := os.Symlink(filepath.Join(outside, "secret"), filepath.Join(root, "escape")); e != nil {
-		t.Fatal(e)
-	}
-	h, closeRoot, e := masquerade(&cfg.Masquerade{Type: "file", Directory: root})
-	if e != nil {
-		t.Fatal(e)
-	}
-	for _, path := range []string{"/escape", "/../secret", "/%2e%2e/secret"} {
-		w := httptest.NewRecorder()
-		h.ServeHTTP(w, httptest.NewRequest("GET", "https://ordinary"+path, nil))
-		if w.Body.String() == "outside-secret" || w.Code == 200 {
-			t.Fatal("root escaped", path, w.Code)
+	t.Run("file", func(t *testing.T) {
+		root := t.TempDir()
+		outside := t.TempDir()
+		os.WriteFile(filepath.Join(outside, "secret"), []byte("outside-secret"), 0600)
+		os.WriteFile(filepath.Join(root, "visible"), []byte("visible"), 0600)
+		if e := os.Symlink(filepath.Join(outside, "secret"), filepath.Join(root, "escape")); e != nil {
+			t.Fatal(e)
 		}
-	}
-	closeRoot()
-	for _, secure := range []bool{false, true} {
-		for _, rewrite := range []bool{false, true} {
-			name := "http"
-			if secure {
-				name = "https"
+		h, closeRoot, e := masquerade(&cfg.Masquerade{Type: "file", Directory: root}, nil)
+		if e != nil {
+			t.Fatal(e)
+		}
+		for _, path := range []string{"/escape", "/../secret", "/%2e%2e/secret"} {
+			w := httptest.NewRecorder()
+			h.ServeHTTP(w, httptest.NewRequest("GET", "https://ordinary"+path, nil))
+			if w.Body.String() == "outside-secret" || w.Code == 200 {
+				t.Fatal("root escaped", path, w.Code)
 			}
-			if rewrite {
-				name += "-rewrite"
-			}
-			t.Run(name, func(t *testing.T) {
-				var upstreamHost string
-				var calls atomic.Int64
-				var mu sync.Mutex
-				up := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					mu.Lock()
-					upstreamHost = r.Host
-					mu.Unlock()
-					calls.Add(1)
-					if r.Header.Get("Hysteria-Auth") != "" {
-						t.Error("auth leaked")
-					}
-					w.Header().Set("Hysteria-UDP", "true")
-					w.Header().Set("Hysteria-CC-RX", "auto")
-					w.WriteHeader(233)
-					io.WriteString(w, "upstream-body")
-				}))
+		}
+		closeRoot()
+	})
+	t.Run("proxy", func(t *testing.T) {
+		for _, secure := range []bool{false, true} {
+			for _, rewrite := range []bool{false, true} {
+				name := "http"
 				if secure {
-					up.StartTLS()
-				} else {
-					up.Start()
+					name = "https"
 				}
-				defer up.Close()
-				h, cleanup, e := masquerade(&cfg.Masquerade{Type: "proxy", URL: up.URL, RewriteHost: rewrite, Insecure: secure})
-				if e != nil {
-					t.Fatal(e)
-				}
-				r := httptest.NewRequest("POST", "https://original.example/auth", nil)
-				r.Header.Set("Hysteria-Auth", "invalid")
-				w := httptest.NewRecorder()
-				h.ServeHTTP(w, r)
-				if w.Code != 502 || w.Body.String() != "upstream-body" || w.Header().Get("Hysteria-UDP") != "" {
-					t.Fatal("proxy forged admission", w.Code, w.Header())
-				}
-				mu.Lock()
-				host := upstreamHost
-				mu.Unlock()
-				want := "original.example"
 				if rewrite {
-					u, _ := url.Parse(up.URL)
-					want = u.Host
+					name += "-rewrite"
 				}
-				if host != want || calls.Load() != 1 {
-					t.Fatal("Host", host, want)
-				}
-				cleanup()
-				up.Close()
-				w = httptest.NewRecorder()
-				h.ServeHTTP(w, r)
-				if w.Code != 502 {
-					t.Fatal("upstream error", w.Code)
-				}
-				cleanup()
-			})
+				t.Run(name, func(t *testing.T) {
+					var upstreamHost string
+					var calls atomic.Int64
+					var mu sync.Mutex
+					up := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						mu.Lock()
+						upstreamHost = r.Host
+						mu.Unlock()
+						calls.Add(1)
+						if r.Header.Get("Hysteria-Auth") != "" {
+							t.Error("auth leaked")
+						}
+						w.Header().Set("Hysteria-UDP", "true")
+						w.Header().Set("Hysteria-CC-RX", "auto")
+						w.WriteHeader(233)
+						io.WriteString(w, "upstream-body")
+					}))
+					if secure {
+						up.StartTLS()
+					} else {
+						up.Start()
+					}
+					defer up.Close()
+					h, cleanup, e := masquerade(&cfg.Masquerade{Type: "proxy", URL: up.URL, RewriteHost: rewrite, Insecure: secure}, (&net.Dialer{}).DialContext)
+					if e != nil {
+						t.Fatal(e)
+					}
+					r := httptest.NewRequest("POST", "https://original.example/auth", nil)
+					r.Header.Set("Hysteria-Auth", "invalid")
+					w := httptest.NewRecorder()
+					h.ServeHTTP(w, r)
+					if w.Code != 502 || w.Body.String() != "upstream-body" || w.Header().Get("Hysteria-UDP") != "" {
+						t.Fatal("proxy forged admission", w.Code, w.Header())
+					}
+					mu.Lock()
+					host := upstreamHost
+					mu.Unlock()
+					want := "original.example"
+					if rewrite {
+						u, _ := url.Parse(up.URL)
+						want = u.Host
+					}
+					if host != want || calls.Load() != 1 {
+						t.Fatal("Host", host, want)
+					}
+					cleanup()
+					up.Close()
+					w = httptest.NewRecorder()
+					h.ServeHTTP(w, r)
+					if w.Code != 502 {
+						t.Fatal("upstream error", w.Code)
+					}
+					cleanup()
+				})
+			}
 		}
-	}
+	})
 }
 
 func TestServerCloseDuringAuthAndTLSQUICIdentityIsolation(t *testing.T) {
