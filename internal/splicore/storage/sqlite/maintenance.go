@@ -38,6 +38,9 @@ func MaintenanceBackup(ctx context.Context, source, destination string) (int, er
 		return 0, fmt.Errorf("stop the service before backup")
 	}
 	defer unlockFile(lock)
+	if err = validateWAL(ctx, source+"-wal"); err != nil {
+		return 0, err
+	}
 	if err = privateDirectory(filepath.Dir(destination)); err != nil {
 		return 0, err
 	}

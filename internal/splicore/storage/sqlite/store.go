@@ -65,6 +65,9 @@ func Open(ctx context.Context, path string, opts Options) (*Store, error) {
 			s.Close()
 		}
 	}()
+	if err = validateWAL(ctx, path+"-wal"); err != nil {
+		return nil, err
+	}
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
 	if err != nil {
 		return nil, identity.Err(identity.Unavailable, "cannot open database file")
