@@ -6,6 +6,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/clientio"
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"net"
 	"net/netip"
@@ -24,11 +25,13 @@ func (unavailableDialer) Close() error { return nil }
 // DIRECT endpoints own a temporary infrastructure lease; proxy destinations
 // use existing outbound adapters and never a second routing implementation.
 type FetchNetwork struct {
-	gen    *snapshot
-	lease  *underlay.Lease
-	direct *underlay.Dialer
-	action P.Action
-	once   sync.Once
+	gen      *snapshot
+	lease    *underlay.Lease
+	direct   *underlay.Dialer
+	action   P.Action
+	owner    *clientio.Owner
+	once     sync.Once
+	closeErr error
 }
 
 func (m *Manager) OpenFetch(ctx context.Context, a P.Action) (*FetchNetwork, error) {
@@ -47,6 +50,7 @@ func (m *Manager) OpenFetch(ctx context.Context, a P.Action) (*FetchNetwork, err
 		g.release()
 		return nil, e
 	}
+	f.owner = clientio.New()
 	f.direct, e = m.underlay.New(underlay.Scope{Purpose: underlay.ProviderFetch, Generation: f.lease.ID})
 	if e != nil {
 		f.Close()
@@ -55,17 +59,30 @@ func (m *Manager) OpenFetch(ctx context.Context, a P.Action) (*FetchNetwork, err
 	return f, nil
 }
 func (f *FetchNetwork) Close() error {
-	var e error
-	f.once.Do(func() { e = f.lease.Close(); e = errors.Join(e, f.gen.release()) })
-	return e
+	f.once.Do(func() {
+		// Cancel and join physical network work before its protection retires.
+		f.owner.Close()
+		f.closeErr = errors.Join(f.lease.Close(), f.gen.release())
+	})
+	return f.closeErr
 }
 func (f *FetchNetwork) Resolve(ctx context.Context, host string) ([]netip.Addr, error) {
+	ctx, done, err := f.owner.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer done()
 	if ip, e := netip.ParseAddr(host); e == nil {
 		return []netip.Addr{ip.Unmap()}, nil
 	}
 	return f.gen.network.Bootstrap(ctx, host)
 }
 func (f *FetchNetwork) Dial(ctx context.Context, target access.Endpoint) (net.Conn, error) {
+	ctx, done, err := f.owner.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer done()
 	a, e := f.gen.network.Select(f.action, nil, true, 0)
 	if e != nil {
 		return nil, e
@@ -78,10 +95,18 @@ func (f *FetchNetwork) Dial(ctx context.Context, target access.Endpoint) (net.Co
 		if e = f.lease.AddEndpoint(ctx, underlay.Scope{Purpose: underlay.ProviderFetch}, []netip.Addr{ip}); e != nil {
 			return nil, e
 		}
-		return f.direct.DialContext(ctx, "tcp", net.JoinHostPort(ip.String(), strconv.Itoa(int(target.Port))))
+		conn, e := f.direct.DialContext(ctx, "tcp", net.JoinHostPort(ip.String(), strconv.Itoa(int(target.Port))))
+		if e != nil {
+			return nil, e
+		}
+		return f.owner.Conn(conn)
 	}
 	if a.Kind != P.Outbound || f.gen.outbounds[a.ID] == nil {
 		return nil, identity.Err(identity.Unavailable, "provider fetch action unavailable")
 	}
-	return f.gen.outbounds[a.ID].DialContext(ctx, target)
+	conn, e := f.gen.outbounds[a.ID].DialContext(ctx, target)
+	if e != nil {
+		return nil, e
+	}
+	return f.owner.Conn(conn)
 }

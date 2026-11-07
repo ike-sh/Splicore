@@ -54,7 +54,13 @@ func Fetch(ctx context.Context, n Network, p provider.Provider, s provider.Sourc
 	original, _ := provider.ValidateURL(s.URL)
 	t := &http.Transport{Proxy: nil, DisableKeepAlives: true, DisableCompression: true, MaxResponseHeaderBytes: 16384, TLSHandshakeTimeout: 5 * time.Second, ResponseHeaderTimeout: 10 * time.Second}
 	defer t.CloseIdleConnections()
-	t.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+	t.DialContext = func(transportCtx context.Context, network, address string) (net.Conn, error) {
+		// This transport belongs to one fetch. Preserve its deadline and caller
+		// cancellation despite net/http's detached pooling dial context.
+		dialCtx, cancelDial := context.WithCancel(ctx)
+		defer cancelDial()
+		stop := context.AfterFunc(transportCtx, cancelDial)
+		defer stop()
 		if network != "tcp" {
 			return nil, failed()
 		}
@@ -66,7 +72,7 @@ func Fetch(ctx context.Context, n Network, p provider.Provider, s provider.Sourc
 		if e != nil || number == 0 {
 			return nil, failed()
 		}
-		ips, e := n.Resolve(ctx, host)
+		ips, e := n.Resolve(dialCtx, host)
 		if e != nil || len(ips) == 0 || len(ips) > 32 {
 			return nil, failed()
 		}
@@ -75,7 +81,7 @@ func Fetch(ctx context.Context, n Network, p provider.Provider, s provider.Sourc
 				return nil, failed()
 			}
 		}
-		return n.Dial(ctx, access.Endpoint{Host: ips[0].Unmap().String(), Port: uint16(number)})
+		return n.Dial(dialCtx, access.Endpoint{Host: ips[0].Unmap().String(), Port: uint16(number)})
 	}
 	client := &http.Client{Transport: t, CheckRedirect: func(req *http.Request, via []*http.Request) error {
 		if len(via) > 3 {
