@@ -148,7 +148,7 @@ func (s *Service) CloseRuntime(ctx context.Context) error {
 	var err error = clientErr
 	for id, h := range r.handles {
 		if e := h.Close(ctx); e != nil {
-			err = e
+			err = errors.Join(err, e)
 		}
 		delete(r.handles, id)
 	}
