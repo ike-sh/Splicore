@@ -20,11 +20,12 @@ import (
 )
 
 type ServerConfig struct {
-	TLS          *tls.Config
-	Transport    cfg.Hysteria
-	Authenticate func(string) (string, bool)
-	TCP          func(context.Context, string, *Stream, access.Endpoint) error
-	UDP          func(context.Context, string, net.PacketConn) error
+	TLS            *tls.Config
+	Transport      cfg.Hysteria
+	Authenticate   func(string) (string, bool)
+	TCP            func(context.Context, string, *Stream, access.Endpoint) error
+	UDP            func(context.Context, string, net.PacketConn) error
+	MasqueradeDial func(context.Context, string, string) (net.Conn, error)
 }
 type Server struct{ transport *ht.Server }
 
@@ -39,7 +40,7 @@ func NewServer(ctx context.Context, packet net.PacketConn, c ServerConfig) (*Ser
 	if c.Transport == (cfg.Hysteria{}) {
 		c.Transport.Version = 2
 	}
-	s, e := ht.NewServer(ctx, packet, ht.ServerConfig{TLS: c.TLS, Settings: c.Transport, Authenticate: c.Authenticate, Application: func(conn *ht.Connection) ht.Hooks {
+	s, e := ht.NewServer(ctx, packet, ht.ServerConfig{TLS: c.TLS, Settings: c.Transport, MasqueradeDial: c.MasqueradeDial, Authenticate: c.Authenticate, Application: func(conn *ht.Connection) ht.Hooks {
 		p := &peer{config: c, connection: conn, packets: map[uint32]*session{}}
 		return ht.Hooks{Dispatch: p.dispatch, Admitted: func() {
 			if conn.UDP {
