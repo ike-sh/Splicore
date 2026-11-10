@@ -142,6 +142,11 @@ def build(out, target):
     require(match and tuple(map(int, match.groups())) >= (1, 26, 3), "Go >=1.26.3 required")
     binary = out / target / ("splicore.exe" if target.startswith("windows") else "splicore")
     binary.parent.mkdir(parents=True, exist_ok=True)
+    build_tmp = out / target / "build-tmp"
+    build_tmp.mkdir(exist_ok=True)
+    env["GOTMPDIR"] = str(build_tmp)
+    if target.startswith("windows") and os.name == "nt":
+        env.update(TEMP=str(build_tmp), TMP=str(build_tmp))
     require(not binary.exists(), "refusing to replace a release build")
     subprocess.run(["go", "build", "-mod=readonly", "-trimpath", "-tags=" + TAGS,
                     "-ldflags=" + flags(meta), "-o", str(binary), "./cmd/splicore"], cwd=ROOT, env=env, check=True)
@@ -204,13 +209,20 @@ def qualify(out, target):
     env = goenv(target)
     env["SPLICORE_RUNTIME_BINARY"] = str(binary)
     summary = {}
-    # A real POSIX filesystem is necessary for Linux's private-file admission.
-    # Hosted Linux uses /tmp; local Windows honors the caller's D: TEMP/TMP.
-    with tempfile.TemporaryDirectory(prefix="sr-") as runtime_tmp:
+    # Linux needs a private POSIX filesystem. Windows uses a canonical checkout
+    # path: hosted TEMP can contain an 8.3 alias rejected by private-file policy.
+    temp_parent = None
+    if target.startswith("windows"):
+        temp_parent = out / "runtime-tmp"
+        temp_parent.mkdir(exist_ok=True)
+        print("Windows ambient TEMP:", tempfile.gettempdir(), "resolved:", Path(tempfile.gettempdir()).resolve(), flush=True)
+    with tempfile.TemporaryDirectory(prefix="sr-", dir=temp_parent) as runtime_tmp:
         if target.startswith("linux"):
             os.chmod(runtime_tmp, 0o700)
             require(Path(runtime_tmp).stat().st_mode & 0o077 == 0, "Linux qualification needs a private POSIX temp directory")
             env.update(TMPDIR=runtime_tmp, GOTMPDIR=runtime_tmp)
+        else:
+            env.update(TEMP=runtime_tmp, TMP=runtime_tmp, GOTMPDIR=runtime_tmp)
         for profile, tags in (("default", []), ("full", ["-tags=" + TAGS])):
             for action in ("build", "vet", "test"):
                 args = ["go", action, "-mod=readonly"]

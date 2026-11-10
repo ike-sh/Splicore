@@ -229,6 +229,11 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          $runtimeTmp = Join-Path $pwd 'build/runtime-tmp'
+          New-Item -ItemType Directory -Force $runtimeTmp | Out-Null
+          $env:TEMP = $runtimeTmp
+          $env:TMP = $runtimeTmp
+          $env:GOTMPDIR = $runtimeTmp
           $env:SPLICORE_RUNTIME_BINARY = Join-Path $pwd 'build/downloaded-core/splicore.exe'
           go test -count=1 -v -timeout=90s -tags with_quic,with_utls,with_gvisor -run '^TestRuntimeBinaryTrafficShutdownAndRestart$' ./cmd/splicore
           if ($LASTEXITCODE -ne 0) { throw 'Downloaded Windows product qualification failed' }

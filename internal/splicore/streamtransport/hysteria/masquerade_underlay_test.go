@@ -382,12 +382,8 @@ func TestMasqueradeConcurrentRequestsAndRedirect(t *testing.T) {
 		})
 	}
 	workers.Wait()
-	before := dials.Load()
-	w := httptest.NewRecorder()
-	h.ServeHTTP(w, masqueradeRequest(context.Background(), "/redirect", defaults))
-	if w.Code != 302 || w.Header().Get("Location") != "http://must-not-dial.invalid/" || w.Body.String() != "redirect-response" || dials.Load() != before {
-		t.Fatal("redirect followed or pool not reused", w.Code, dials.Load(), before)
-	}
+	// RoundTrip may return a pooled connection while its speculative dial is
+	// still finishing. Join that owner's work before examining total dials.
 	cleanup()
 	mu.Lock()
 	all := append([]<-chan struct{}(nil), peers...)
@@ -399,8 +395,43 @@ func TestMasqueradeConcurrentRequestsAndRedirect(t *testing.T) {
 			t.Fatal("concurrent upstream survived Close")
 		}
 	}
-	if before < 1 || before > 32 {
-		t.Fatal("unexpected socket count", before)
+	if total := dials.Load(); total < 1 || total > 32 {
+		t.Fatal("unexpected socket count", total)
+	}
+	// Verify sequential reuse and redirect refusal on a separately warmed
+	// transport, so late concurrent dials cannot be mistaken for redirect hops.
+	var sequentialDials atomic.Int64
+	var sequentialPeer <-chan struct{}
+	sequential, closeSequential, err := masquerade(&cfg.Masquerade{Type: "proxy", URL: "http://protected.invalid/"}, func(context.Context, string, string) (net.Conn, error) {
+		sequentialDials.Add(1)
+		conn, done := masqueradePipe(t, nil, func(r *http.Request) (int, http.Header, string) {
+			if r.URL.Path == "/redirect" {
+				return 302, http.Header{"Location": []string{"http://must-not-dial.invalid/"}}, "redirect-response"
+			}
+			return 200, nil, r.URL.Path
+		})
+		sequentialPeer = done
+		return conn, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer closeSequential()
+	warm := httptest.NewRecorder()
+	sequential.ServeHTTP(warm, masqueradeRequest(context.Background(), "/warm", defaults))
+	if warm.Code != 200 || warm.Body.String() != "/warm" || sequentialDials.Load() != 1 {
+		t.Fatal("failed to warm a single protected connection", warm.Code, sequentialDials.Load())
+	}
+	w := httptest.NewRecorder()
+	sequential.ServeHTTP(w, masqueradeRequest(context.Background(), "/redirect", defaults))
+	if w.Code != 302 || w.Header().Get("Location") != "http://must-not-dial.invalid/" || w.Body.String() != "redirect-response" || sequentialDials.Load() != 1 {
+		t.Fatal("redirect followed or pool not reused", w.Code, sequentialDials.Load())
+	}
+	closeSequential()
+	select {
+	case <-sequentialPeer:
+	case <-time.After(5 * time.Second):
+		t.Fatal("sequential upstream survived Close")
 	}
 	if _, _, err := masquerade(&cfg.Masquerade{Type: "404"}, nil); err != nil {
 		t.Fatal("404 now requires a dialer", err)
