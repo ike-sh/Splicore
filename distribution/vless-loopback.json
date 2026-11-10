@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "name": "local-vless",
+  "listener": {"host": "127.0.0.1", "port": 10810},
+  "display_endpoint": {"host": "127.0.0.1", "port": 10810},
+  "settings": {
+    "security": "none",
+    "flow": "none",
+    "transport": "tcp",
+    "packet_encoding": "xudp"
+  },
+  "users": [{"account_name": "local-user"}]
+}

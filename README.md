@@ -26,8 +26,57 @@ See the [capability matrix](docs/architecture/CAPABILITY_MATRIX.md) and
 Go 1.26.3 or newer is required.
 
 ```sh
-go build -trimpath -tags with_quic,with_utls,with_gvisor ./cmd/splicore
+make build
+# build/linux-amd64/splicore (on Linux amd64)
 ```
+
+Native Windows builds use PowerShell and Go; WSL is not required:
+
+```powershell
+./scripts/splicore-build.ps1
+./build/windows-amd64/splicore.exe help
+```
+
+Both builders use CGO_ENABLED=0 and embed source commit, time and feature tags.
+`make build-matrix` evaluates Windows/Linux amd64/arm64. Cross-compilation does
+not establish native arm64 runtime support. Build outputs remain development
+builds; this change does not publish a release.
+
+## Run the core
+
+One executable owns the daemon, local API, protocol listeners and management CLI.
+Provision a new vault key as the Core account, check the bootstrap, then run:
+
+```sh
+splicore help
+splicore version --json
+splicore key init --file /var/lib/splicore/master.key
+splicore check --config distribution/splicore.yaml
+splicore run --config distribution/splicore.yaml
+# From another terminal:
+splicore status --config distribution/splicore.yaml
+splicore stop --config distribution/splicore.yaml
+```
+
+On Windows use [the Windows bootstrap](distribution/splicore-windows.yaml),
+`splicore.exe`, and its configured `D:/Splicore/keys/master.key` path. New state
+and key directories receive a private owner/SYSTEM DACL. Existing broad or
+foreign-owned state is rejected. Linux requires private mode-0700 directories
+and mode-0600 state/key files. `run` prints `Splicore ready` on stderr after
+initialization; Ctrl+C/SIGTERM or `stop` performs orderly shutdown.
+
+Bootstrap selects process paths. Proxy resources are managed through the local
+API/CLI and persisted in SQLite; no proxy listener is invented for an empty
+database. See [the loopback VLESS example and run sequence](docs/CLI.md).
+Windows foreground control uses a local named pipe; Linux uses a Unix socket.
+No external proxy core is installed or launched. Optional TUN still requires OS
+facilities and privileges, including an external Wintun DLL/driver on Windows.
+
+Native amd64 process tests cover VLESS loopback transfer, authentication refusal,
+shutdown and restart on Windows/Linux. This is a bounded runtime qualification;
+it does not qualify every protocol, TUN, Windows service installation or arm64.
+The frozen v0.3.0 and main histories differ: frozen WireGuard, ShadowQUIC, VLESS
+Encryption and extra transports are not restored by this runtime change.
 
 ## Documentation
 

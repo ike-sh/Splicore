@@ -1,4 +1,4 @@
-//go:build !linux
+//go:build !linux && !windows
 
 package transport
 
@@ -14,3 +14,7 @@ func Listen(string) (net.Listener, error) {
 }
 func ConnContext(ctx context.Context, _ net.Conn) context.Context { return ctx }
 func ProductionSupported() bool                                   { return false }
+
+func CheckControlPath(string) error {
+	return identity.Err(identity.NotImplemented, "production control transport unavailable")
+}

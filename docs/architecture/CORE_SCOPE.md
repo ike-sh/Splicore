@@ -31,6 +31,8 @@ desired state. Physical backups preserve it; current configuration exports omit
 it. Obsolete desktop configuration fields are rejected. Legacy recovery journal
 debt can be retained as opaque history and diagnosed without desktop OS writes.
 
-Platform support is experimental and partially qualified. Linux arm64 is
-build-only; Linux auto-route and real Windows host networking remain partly
-unqualified. See [operations](../OPERATIONS.md).
+Platform support is experimental and partially qualified. Windows/Linux arm64
+are build-only. Windows/Linux amd64 foreground local control, VLESS loopback
+traffic, shutdown and restart have bounded native process tests. Linux auto-route,
+Windows service installation, real host networking and hardware qualification
+retain their existing limits. See [operations](../OPERATIONS.md).

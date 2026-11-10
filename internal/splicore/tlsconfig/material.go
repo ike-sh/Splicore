@@ -15,6 +15,9 @@ func ReadFileSnapshot(path string, private bool) ([]byte, error) {
 	fail := func() ([]byte, error) {
 		return nil, identity.Err(identity.Invalid, "TLS material unavailable or unsafe")
 	}
+	if platformTLS(path, private) != nil {
+		return fail()
+	}
 	resolved, err := filepath.EvalSymlinks(path)
 	if err != nil || resolved != filepath.Clean(path) {
 		return fail()

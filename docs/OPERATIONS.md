@@ -41,6 +41,8 @@ before upgrades or recovery. See [upgrade and backup](UPGRADE.md).
 
 Platform support remains experimental and partially qualified. Native Linux
 auto-route and real Windows host networking have unqualified areas; Windows
-auto-route remains guarded. Windows production local API transport and service
-installation are unavailable. Linux arm64 is build-only. A build result does not
+auto-route remains guarded. Windows foreground local API uses an owner-restricted
+local named pipe; native VLESS loopback traffic and orderly shutdown/restart are
+covered by the runtime process test. Windows service installation and production
+backup remain unavailable. Both arm64 targets are build-only. A build result does not
 certify driver, privilege, route/DNS recovery or host integration behavior.
