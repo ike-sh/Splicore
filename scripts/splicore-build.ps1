@@ -37,7 +37,10 @@ function Invoke-Native([string]$Executable, [string[]]$NativeArguments) {
     $errText = $stderr.Result
     $process.Dispose()
     if ($errText) { [Console]::Error.Write($errText) }
-    if ($global:LASTEXITCODE -ne 0) { throw "Native build tool failed: exit $global:LASTEXITCODE" }
+    if ($global:LASTEXITCODE -ne 0) {
+        if ($outText) { [Console]::Error.Write($outText) }
+        throw "Native build tool failed: exit $global:LASTEXITCODE"
+    }
     return $outText
 }
 
