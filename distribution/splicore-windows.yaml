@@ -1,0 +1,6 @@
+schema: 1
+state_directory: D:/Splicore/state
+key_file: D:/Splicore/keys/master.key
+api:
+  # Stable identity for an owner-restricted local named pipe, not a socket file.
+  unix_socket: D:/Splicore/control/core.sock

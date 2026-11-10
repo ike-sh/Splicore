@@ -45,3 +45,10 @@ See also [NaiveProxy](architecture/NAIVE.md), [mKCP](architecture/MKCP.md),
 [XHTTP](architecture/XHTTP.md) and [Hysteria transport](architecture/HYSTERIA_TRANSPORT.md)
 for their supported settings. Protocol settings belong in typed resources,
 not in the bootstrap YAML.
+
+On Windows use [splicore-windows.yaml](../distribution/splicore-windows.yaml).
+Its `api.unix_socket` absolute path identifies a user-scoped local named pipe;
+it is not opened as a filesystem socket. New state/key directories receive a
+private owner/SYSTEM DACL, and existing broad paths are rejected. `check --config`
+validates configured key/control resources and existing committed state without
+starting listeners. See [offline checks](CLI.md#offline-checks-and-foreground-lifecycle).

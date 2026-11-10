@@ -3,7 +3,7 @@
 API v1 invokes application queries and transactional commands. Linux production
 control uses a protected Unix-domain socket selected by the bootstrap; it is not
 a public HTTP listener. Access is bounded by local socket ownership/permissions.
-Windows production local control transport is unavailable.
+Windows foreground local control uses an owner-restricted, local-only named pipe derived from the bootstrap control identity. HTTP semantics remain the same; no TCP API port is exposed. Windows service installation remains unavailable.
 
 ```sh
 curl --unix-socket /run/splicore/splicore.sock http://localhost/api/v1/system

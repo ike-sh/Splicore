@@ -5,12 +5,12 @@
 Go 1.26.3 or newer is required. From the source checkout:
 
 ```sh
-go build -trimpath -tags with_quic,with_utls,with_gvisor ./cmd/splicore
-./splicore version
+make build
+./build/linux-amd64/splicore version
 ```
 
 For cross compilation, set `GOOS` and `GOARCH` to `linux/amd64`,
-`windows/amd64` or `linux/arm64`; set `CGO_ENABLED=0` and choose an output with
+`windows/amd64`, `windows/arm64` or `linux/arm64`; set `CGO_ENABLED=0` and choose an output with
 `-o`. Windows uses `splicore.exe`. The optional
 [PowerShell build helper](../scripts/splicore-build.ps1) injects version and
 timestamp metadata and builds the same `with_quic,with_utls,with_gvisor` profile.
@@ -28,6 +28,7 @@ new private 32-byte key and refuses to overwrite an existing file.
 ```sh
 ./splicore validate distribution/splicore.yaml
 ./splicore key init --file /var/lib/splicore/master.key
+./splicore check --config distribution/splicore.yaml
 ./splicore run --config distribution/splicore.yaml
 ```
 
@@ -35,6 +36,37 @@ Startup loads the configured key and applies embedded SQLite migrations.
 A missing or unsafe configured key is rejected. Never create a replacement key
 for an existing database; preserve the database and its matching original key. The bootstrap creates no sample users or proxy
 listeners. Manage resources through the [CLI](CLI.md) or [API](api/README.md).
+
+## Run the Windows foreground Core
+
+Use Go 1.26.3+ and PowerShell; WSL is not needed:
+
+```powershell
+./scripts/splicore-build.ps1
+$core = './build/windows-amd64/splicore.exe'
+& $core key init --file D:/Splicore/keys/master.key
+& $core check --config distribution/splicore-windows.yaml
+& $core run --config distribution/splicore-windows.yaml
+# In another terminal:
+& $core status --config distribution/splicore-windows.yaml
+& $core stop --config distribution/splicore-windows.yaml
+```
+
+Customize paths before provisioning. New state/key directories are restricted
+to the current owner and SYSTEM at creation; existing unsafe directories are
+rejected rather than having their ACLs silently changed. Use the same Core user
+for provisioning and operation. The `api.unix_socket` path is a stable identity
+for a local named pipe, not a filesystem socket on Windows. Native foreground
+operation does not require an administrator for ordinary high-port listeners.
+TUN remains separate: it needs an operator-supplied Wintun DLL/driver and elevated
+permissions, and is not qualified by the foreground VLESS loopback test.
+Windows service installation/backup operations remain unavailable.
+
+The PowerShell builder accepts `-TargetOS`, `-TargetArch`, `-Action test|vet`,
+and `-Output`. Git supplies commit/dirty metadata; an environment without native
+Git must supply a verified `-Commit` and `-SourceDirty`. Existing outputs can be
+rebuilt only when their accompanying build SHA256 matches. Temporary/cache/output
+defaults stay under the checkout's ignored `build/` directory, not system TEMP.
 
 ## Native Linux packages
 

@@ -65,7 +65,9 @@ strict policy fails closed. For example, VLESS user changes restart the affected
 runtime generation. Read the live capability API rather than assuming uniform
 hot mutation behavior.
 
-Platform support remains experimental and partially qualified. Linux arm64 is
-build-only; native Linux auto-route and real Windows host networking are not
-fully qualified. Real hardware is NOT YET QUALIFIED; product CLI/API end-to-end
-qualification remains NOT QUALIFIED. See [platform limits](../OPERATIONS.md).
+Platform support remains experimental and partially qualified. Both arm64 targets
+are build-only. Native Windows/Linux amd64 process tests cover the local control
+API, VLESS loopback transfer, authentication refusal, shutdown and persisted
+listener restoration. Other protocol combinations, native Linux auto-route, real
+Windows host networking and real hardware retain their existing qualification
+limits. See [platform limits](../OPERATIONS.md).
