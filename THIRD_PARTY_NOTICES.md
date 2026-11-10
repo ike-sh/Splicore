@@ -81,6 +81,11 @@ unchanged; individual dependency terms remain applicable.
 
 ## Windows local control transport
 
+Official binary archives retain this inventory and the complete verbatim texts
+under `licenses/third-party`. The release's corresponding-source archive includes
+the pinned Go dependency source closure. The original root LICENSE is preserved;
+the complete GPL v3 text is also supplied as [GPL-3.0.txt](licenses/GPL-3.0.txt).
+
 - `github.com/Microsoft/go-winio v0.6.4`: MIT; [verbatim license](licenses/third-party/github.com/Microsoft/go-winio/v0.6.4/LICENSE). Used as an embedded Go named-pipe library, not an external executable.
 
 The Windows control transport requires these Go module graph updates; existing

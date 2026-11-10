@@ -1,0 +1,234 @@
+name: Official release
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/release.yml'
+      - 'scripts/release.py'
+      - 'distribution/RELEASE_VERSION'
+      - 'docs/releases/**'
+      - 'licenses/GPL-3.0.txt'
+      - 'README*'
+      - 'CHANGELOG.md'
+      - 'SECURITY.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: official-release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GOTOOLCHAIN: local
+  GOTELEMETRY: 'off'
+  CGO_ENABLED: '0'
+  GOFLAGS: -mod=readonly
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.identity.outputs.version }}
+      commit: ${{ steps.identity.outputs.commit }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check exact source and version
+        id: identity
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          python3 scripts/release.py identity > "$RUNNER_TEMP/identity.json"
+          python3 - <<'PY'
+          import json, os, subprocess
+          m = json.load(open(os.environ['RUNNER_TEMP'] + '/identity.json'))
+          assert m['commit'] == os.environ['GITHUB_SHA']
+          if os.environ['EVENT_NAME'] == 'push':
+              assert os.environ['GITHUB_REF_TYPE'] == 'tag'
+              assert os.environ['REF_NAME'] == m['version']
+              tag = subprocess.check_output(['git','rev-parse',m['version']+'^{commit}'], text=True).strip()
+              assert tag == m['commit']
+              subprocess.run(['git','fetch','origin','main'], check=True)
+              assert subprocess.check_output(['git','rev-parse','origin/main'], text=True).strip() == m['commit']
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write('version=' + m['version'] + '\ncommit=' + m['commit'] + '\n')
+          print(json.dumps(m))
+          PY
+
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-amd64
+            os: ubuntu-24.04
+            native: true
+          - target: windows-amd64
+            os: windows-2025-vs2026
+            native: true
+          - target: linux-arm64
+            os: ubuntu-24.04
+            native: false
+          - target: windows-arm64
+            os: ubuntu-24.04
+            native: false
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Build exact release core and inspect format
+        shell: bash
+        run: python scripts/release.py build --target '${{ matrix.target }}'
+      - name: Native default/full builds, vet, tests and Linux race
+        if: matrix.native
+        shell: bash
+        run: python scripts/release.py qualify --target '${{ matrix.target }}'
+      - name: Package the qualified target
+        shell: bash
+        run: python scripts/release.py package --target '${{ matrix.target }}'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-transfer-${{ matrix.target }}
+          path: build/release/transfer/*
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always() && matrix.native
+        with:
+          name: qualification-${{ matrix.target }}
+          path: build/release/qualification/${{ matrix.target }}
+          if-no-files-found: warn
+          retention-days: 30
+
+  assemble:
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: release-transfer-*
+          path: build/release/transfer
+          merge-multiple: true
+      - name: Verify inventory, bundle corresponding source and create checksums
+        run: python3 scripts/release.py assemble
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-candidate
+          path: |
+            build/release/final/
+            build/release/RELEASE_NOTES.md
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: [prepare, assemble]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-candidate
+          path: build/payload
+      - name: Verify, upload a new draft, download-check, then publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          RELEASE_COMMIT: ${{ needs.prepare.outputs.commit }}
+        run: |
+          set -euo pipefail
+          python3 scripts/release.py verify --output build/payload/final
+          if gh release view "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo 'Refusing to modify an existing Release' >&2
+            exit 1
+          fi
+          gh release create "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --target "$RELEASE_COMMIT" --draft --title "Splicore $RELEASE_VERSION" \
+            --notes-file build/payload/RELEASE_NOTES.md build/payload/final/*
+          gh release download "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --dir build/draft-download
+          cmp build/payload/final/SHA256SUMS build/draft-download/SHA256SUMS
+          python3 scripts/release.py verify --output build/draft-download
+          gh release edit "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+
+  download-test:
+    needs: [prepare, publish]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-amd64
+            os: ubuntu-24.04
+          - target: windows-amd64
+            os: windows-2025-vs2026
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Download the published assets and verify all hashes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          gh release download "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --dir build/published-download
+          python scripts/release.py verify --output build/published-download \
+            --target '${{ matrix.target }}' --extract-dir build/downloaded-core
+      - name: Run the downloaded Linux product
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          umask 077
+          runtime_tmp=$(mktemp -d /tmp/sr-download.XXXXXX)
+          trap 'rm -rf -- "$runtime_tmp"' EXIT
+          export TMPDIR="$runtime_tmp" GOTMPDIR="$runtime_tmp"
+          export SPLICORE_RUNTIME_BINARY="$GITHUB_WORKSPACE/build/downloaded-core/splicore"
+          go test -count=1 -v -timeout=90s -tags with_quic,with_utls,with_gvisor \
+            -run '^TestRuntimeBinaryTrafficShutdownAndRestart$' ./cmd/splicore
+      - name: Run the downloaded Windows product
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:SPLICORE_RUNTIME_BINARY = Join-Path $pwd 'build/downloaded-core/splicore.exe'
+          go test -count=1 -v -timeout=90s -tags with_quic,with_utls,with_gvisor -run '^TestRuntimeBinaryTrafficShutdownAndRestart$' ./cmd/splicore
+          if ($LASTEXITCODE -ne 0) { throw 'Downloaded Windows product qualification failed' }

@@ -6,6 +6,11 @@ commit `1ac1a339cb1223e9c70eae14c44411c75033c02d`, and is not affiliated with or
 endorsed by SagerNet. Preserve the complete GPL text and additional naming and
 association wording in that file.
 
+The complete GPL v3 text is additionally preserved in
+[licenses/GPL-3.0.txt](../../licenses/GPL-3.0.txt). Official archives include both
+the original notice and that full text. The corresponding-source release archive
+contains exact tracked source, vendored Go dependencies and offline build instructions.
+
 The embedded Mieru dependency and other Go modules retain their own license and
 copyright texts. [Third-party notices](../../THIRD_PARTY_NOTICES.md) index the
 verbatim LICENSE/COPYING/NOTICE/COPYRIGHT/AUTHORS files under
