@@ -25,12 +25,20 @@ import (
 )
 
 func Serve(ctx context.Context, c config.Config) (err error) {
+	return ServeWithReady(ctx, c, nil)
+}
+
+// ServeWithReady retains the same core composition and reports readiness only
+// after committed runtimes and management workers have been initialized.
+func ServeWithReady(ctx context.Context, c config.Config, ready func() error) (err error) {
 	if err := c.Validate(); err != nil {
 		return err
 	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	listener, err := transport.Listen(c.API.UnixSocket)
 	if err != nil {
 		return err
@@ -83,8 +91,36 @@ func Serve(ctx context.Context, c config.Config) (err error) {
 	if err = service.StartManagement(ctx); err != nil {
 		return err
 	}
-	server := transport.Server(api.Handler(service))
-	return serveHTTP(ctx, server, listener, operations.NotifyReady)
+	handler := http.NewServeMux()
+	handler.Handle("/", api.Handler(service))
+	handler.HandleFunc("/api/v1/runtime/shutdown", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		if r.Method != http.MethodPost {
+			w.Header().Set("Allow", "POST")
+			http.Error(w, "POST required", http.StatusMethodNotAllowed)
+			return
+		}
+		if r.URL.RawQuery != "" || r.ContentLength != 0 {
+			http.Error(w, "empty shutdown request required", http.StatusBadRequest)
+			return
+		}
+		defer cancel()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte("{\"shutdown\":true}\n"))
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
+	})
+	server := transport.Server(handler)
+	return serveHTTP(ctx, server, listener, func() error {
+		if err := operations.NotifyReady(); err != nil {
+			return err
+		}
+		if ready != nil {
+			return ready()
+		}
+		return nil
+	})
 }
 
 // HTTP work must finish before application and SQLite ownership is released.

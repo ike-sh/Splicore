@@ -31,6 +31,9 @@ type Info struct {
 	BuildTime      string `json:"build_time"`
 	GoVersion      string `json:"go_version"`
 	Platform       string `json:"platform"`
+	GOOS           string `json:"goos"`
+	GOARCH         string `json:"goarch"`
+	CGOEnabled     string `json:"cgo_enabled"`
 	UpstreamTag    string `json:"upstream_tag"`
 	UpstreamCommit string `json:"upstream_commit"`
 	Channel        string `json:"channel"`
@@ -42,9 +45,16 @@ type Info struct {
 func Current() Info {
 	i := Info{Product: "Splicore", Version: ProductVersion, Commit: Commit, Dirty: Dirty == "true", BuildTime: BuildTime, GoVersion: runtime.Version(), Platform: runtime.GOOS + "/" + runtime.GOARCH, UpstreamTag: "v1.14.1", UpstreamCommit: "1ac1a339cb1223e9c70eae14c44411c75033c02d", Channel: "development", APIVersion: APIVersion}
 	i.SourceDigest, i.BuildTags = SourceDigest, BuildTags
+	i.GOOS, i.GOARCH, i.CGOEnabled = runtime.GOOS, runtime.GOARCH, "unknown"
 	if build, ok := debug.ReadBuildInfo(); ok {
 		for _, s := range build.Settings {
 			switch s.Key {
+			case "CGO_ENABLED":
+				i.CGOEnabled = s.Value
+			case "-tags":
+				if i.BuildTags == "" {
+					i.BuildTags = s.Value
+				}
 			case "vcs.revision":
 				if i.Commit == "" {
 					i.Commit = s.Value

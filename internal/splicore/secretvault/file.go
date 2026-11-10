@@ -13,16 +13,10 @@ import (
 
 // InitFile is explicit provisioning, never a fallback for lost keys.
 func InitFile(path string) error {
-	if runtime.GOOS != "linux" {
-		return identity.Err(identity.NotImplemented, "production key provisioning requires Linux permissions")
-	}
 	if !filepath.IsAbs(path) {
 		return identity.Err(identity.Invalid, "key path must be absolute")
 	}
-	if e := os.MkdirAll(filepath.Dir(path), 0700); e != nil {
-		return identity.Err(identity.Unavailable, "key directory unavailable")
-	}
-	if e := checkKeyDirectory(filepath.Dir(path)); e != nil {
+	if e := prepareKeyDirectory(filepath.Dir(path)); e != nil {
 		return e
 	}
 	var b [32]byte
@@ -33,17 +27,33 @@ func InitFile(path string) error {
 	if e != nil {
 		return identity.Err(identity.Unavailable, "key file already exists or cannot be created")
 	}
-	defer f.Close()
+	complete := false
+	defer func() {
+		_ = f.Close()
+		if !complete {
+			_ = os.Remove(path)
+		}
+	}()
 	defer clear(b[:])
+	if e = checkKeyPath(path, false); e != nil {
+		return e
+	}
+	if e = checkOpenedKey(f); e != nil {
+		return e
+	}
 	if _, e = f.Write(b[:]); e == nil {
 		e = f.Sync()
 	}
 	if e != nil {
 		return identity.Err(identity.Unavailable, "key file write failed")
 	}
+	complete = true
 	return nil
 }
 func checkKeyDirectory(path string) error {
+	if e := checkKeyPath(path, true); e != nil {
+		return e
+	}
 	resolved, e := filepath.EvalSymlinks(path)
 	if e != nil || resolved != filepath.Clean(path) {
 		return identity.Err(identity.Invalid, "key directory must not use symlinks")
@@ -68,6 +78,9 @@ func LoadFile(path string) (*Vault, error) {
 	if e = keyOwner(info); e != nil {
 		return nil, e
 	}
+	if e = checkKeyPath(path, false); e != nil {
+		return nil, e
+	}
 	f, e := os.Open(path)
 	if e != nil {
 		return nil, identity.Err(identity.Unavailable, "key file unavailable")
@@ -78,6 +91,9 @@ func LoadFile(path string) (*Vault, error) {
 		return nil, identity.Err(identity.Invalid, "key file changed while opening")
 	}
 	if e = keyOwner(current); e != nil {
+		return nil, e
+	}
+	if e = checkOpenedKey(f); e != nil {
 		return nil, e
 	}
 	b, e := io.ReadAll(io.LimitReader(f, 33))

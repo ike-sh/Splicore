@@ -78,3 +78,18 @@ unchanged; individual dependency terms remain applicable.
 | modernc.org/sqlite | v1.59.0 | [AUTHORS](licenses/third-party/modernc.org/sqlite/v1.59.0/AUTHORS), [LICENSE](licenses/third-party/modernc.org/sqlite/v1.59.0/LICENSE), [LICENSE-SQLITE](licenses/third-party/modernc.org/sqlite/v1.59.0/LICENSE-SQLITE), [LICENSE-SQLITE_VEC](licenses/third-party/modernc.org/sqlite/v1.59.0/LICENSE-SQLITE_VEC) |
 | modernc.org/strutil | v1.2.1 | [AUTHORS](licenses/third-party/modernc.org/strutil/v1.2.1/AUTHORS), [LICENSE](licenses/third-party/modernc.org/strutil/v1.2.1/LICENSE) |
 | modernc.org/token | v1.1.0 | [LICENSE](licenses/third-party/modernc.org/token/v1.1.0/LICENSE) |
+
+## Windows local control transport
+
+- `github.com/Microsoft/go-winio v0.6.4`: MIT; [verbatim license](licenses/third-party/github.com/Microsoft/go-winio/v0.6.4/LICENSE). Used as an embedded Go named-pipe library, not an external executable.
+
+The Windows control transport requires these Go module graph updates; existing
+license inventories are retained alongside the new pinned versions:
+
+- `golang.org/x/crypto v0.57.0`: [license](licenses/third-party/golang.org/x/crypto/v0.57.0/LICENSE).
+- `golang.org/x/sys v0.49.0`: [license](licenses/third-party/golang.org/x/sys/v0.49.0/LICENSE).
+- `golang.org/x/mod v0.41.0`: [license](licenses/third-party/golang.org/x/mod/v0.41.0/LICENSE).
+- `golang.org/x/net v0.59.0`: [license](licenses/third-party/golang.org/x/net/v0.59.0/LICENSE).
+- `golang.org/x/sync v0.23.0`: [license](licenses/third-party/golang.org/x/sync/v0.23.0/LICENSE).
+- `golang.org/x/text v0.42.0`: [license](licenses/third-party/golang.org/x/text/v0.42.0/LICENSE).
+- `golang.org/x/tools v0.50.0`: [license](licenses/third-party/golang.org/x/tools/v0.50.0/LICENSE).

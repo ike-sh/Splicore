@@ -33,26 +33,17 @@ type peerConn struct {
 type localListener struct{ *net.UnixListener }
 
 func Listen(path string) (net.Listener, error) {
-	if !filepath.IsAbs(path) {
-		return nil, identity.Err(identity.Invalid, "socket path must be absolute")
+	if err := CheckControlPath(path); err != nil {
+		return nil, err
 	}
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, identity.Err(identity.Unavailable, "cannot create control directory")
 	}
-	resolved, err := filepath.EvalSymlinks(dir)
-	if err != nil || resolved != filepath.Clean(dir) {
-		return nil, identity.Err(identity.Invalid, "unsafe control directory path")
+	if err := CheckControlPath(path); err != nil {
+		return nil, err
 	}
-	info, err := os.Lstat(dir)
-	if err != nil || !info.IsDir() || info.Mode().Perm()&0o077 != 0 {
-		return nil, identity.Err(identity.Invalid, "control directory must have mode 0700")
-	}
-	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok || stat.Uid != uint32(os.Geteuid()) {
-		return nil, identity.Err(identity.Invalid, "control directory owner mismatch")
-	}
-	if _, err = os.Lstat(path); !os.IsNotExist(err) {
+	if _, err := os.Lstat(path); !os.IsNotExist(err) {
 		return nil, identity.Err(identity.Unavailable, "control socket already exists; operator review required")
 	}
 	l, err := net.ListenUnix("unix", &net.UnixAddr{Name: path, Net: "unix"})
@@ -94,3 +85,38 @@ func ConnContext(ctx context.Context, conn net.Conn) context.Context {
 	return ctx
 }
 func ProductionSupported() bool { return true }
+
+// CheckControlPath checks path/permissions without creating or binding anything.
+func CheckControlPath(path string) error {
+	if !filepath.IsAbs(path) || len(path) >= len(unix.RawSockaddrUnix{}.Path) {
+		return identity.Err(identity.Invalid, "control socket path must be absolute and fit the Unix socket limit")
+	}
+	dir := filepath.Dir(path)
+	existing := dir
+	for {
+		_, err := os.Lstat(existing)
+		if err == nil {
+			break
+		}
+		if !os.IsNotExist(err) {
+			return identity.Err(identity.Unavailable, "cannot inspect control directory")
+		}
+		existing = filepath.Dir(existing)
+	}
+	resolved, err := filepath.EvalSymlinks(existing)
+	if err != nil || resolved != filepath.Clean(existing) {
+		return identity.Err(identity.Invalid, "unsafe control directory path")
+	}
+	if existing != dir {
+		return nil
+	}
+	info, err := os.Lstat(dir)
+	if err != nil || !info.IsDir() || info.Mode().Perm()&0077 != 0 {
+		return identity.Err(identity.Invalid, "control directory must have mode 0700")
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok || stat.Uid != uint32(os.Geteuid()) {
+		return identity.Err(identity.Invalid, "control directory owner mismatch")
+	}
+	return nil
+}

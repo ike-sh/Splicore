@@ -24,9 +24,19 @@ type Dependencies struct {
 	Build   version.Info
 	Queries application.Queries
 	Serve   func(context.Context, config.Config) error
+	Check   func(context.Context, config.Config) error
 }
 
 func Run(ctx context.Context, args []string, out, errOut io.Writer, deps Dependencies) int {
+	if len(args) == 2 && (args[1] == "--help" || args[1] == "-h") {
+		return help([]string{"help", args[0]}, out, errOut)
+	}
+	if len(args) == 0 || args[0] == "help" || args[0] == "--help" || args[0] == "-h" {
+		return help(args, out, errOut)
+	}
+	if args[0] == "check" {
+		return check(ctx, args[1:], out, errOut, deps)
+	}
 	if len(args) > 0 && (args[0] == "provider" || args[0] == "ruleset-provider" || args[0] == "node" && len(args) > 1 && (args[1] == "import" || args[1] == "import-uri" || args[1] == "export" || args[1] == "batch" || args[1] == "apply")) {
 		return managementCLI(ctx, args, out, errOut, deps)
 	}
@@ -45,10 +55,6 @@ func Run(ctx context.Context, args []string, out, errOut io.Writer, deps Depende
 	if len(args) > 0 && (args[0] == "inbound" || args[0] == "key") {
 		return inboundCLI(ctx, args, out, errOut, deps)
 	}
-	if len(args) == 0 {
-		_, _ = fmt.Fprintln(out, "Splicore foundation: version | status | doctor | capabilities | validate <file> | run --config <file>")
-		return 0
-	}
 	if args[0] == "version" {
 		if len(args) == 2 && args[1] == "--json" {
 			return outputJSON(out, deps.Build)
@@ -63,7 +69,7 @@ func Run(ctx context.Context, args []string, out, errOut io.Writer, deps Depende
 			return failure(errOut, identity.Err(identity.Invalid, "validate requires one bootstrap file"))
 		}
 		if _, err := readConfig(args[1]); err != nil {
-			return failure(errOut, err)
+			return configurationFailure(errOut, err)
 		}
 		_, _ = fmt.Fprintln(out, "valid bootstrap schema 1")
 		return 0
@@ -79,16 +85,28 @@ func Run(ctx context.Context, args []string, out, errOut io.Writer, deps Depende
 		var err error
 		c, err = readConfig(*path)
 		if err != nil {
-			return failure(errOut, err)
+			return configurationFailure(errOut, err)
 		}
 	}
 	if args[0] == "run" {
 		if *path == "" || deps.Serve == nil {
-			return failure(errOut, identity.Err(identity.Invalid, "run requires explicit --config bootstrap file"))
+			return configurationFailure(errOut, identity.Err(identity.Invalid, "run requires explicit --config bootstrap file"))
 		}
 		if err := deps.Serve(ctx, c); err != nil {
+			return configurationFailure(errOut, err)
+		}
+		return 0
+	}
+	if args[0] == "stop" {
+		if *path == "" {
+			return configurationFailure(errOut, identity.Err(identity.Invalid, "stop requires explicit --config bootstrap file"))
+		}
+		client := transport.UnixClient(c.API.UnixSocket)
+		defer client.Close()
+		if err := client.Shutdown(ctx); err != nil {
 			return failure(errOut, err)
 		}
+		_, _ = fmt.Fprintln(out, "shutdown requested")
 		return 0
 	}
 	queries := deps.Queries
@@ -136,6 +154,14 @@ func printVersion(out io.Writer, v version.Info) int {
 	if err != nil {
 		return 1
 	}
+	features := v.BuildTags
+	if features == "" {
+		features = "default"
+	}
+	_, err = fmt.Fprintf(out, "CGO: %s\nBuild Features: %s\n", v.CGOEnabled, features)
+	if err != nil {
+		return 1
+	}
 	return 0
 }
 
@@ -162,7 +188,7 @@ func offlineDoctor(ctx context.Context, out io.Writer, c config.Config, v versio
 		d.Checks = append(d.Checks, application.Check{Name: "database", Status: "info", Detail: "file exists; offline integrity not inspected"})
 	}
 	if q == nil {
-		d.Checks = append(d.Checks, application.Check{Name: "api_transport", Status: "not_implemented", Detail: "Linux UDS production transport; Windows httptest only"})
+		d.Checks = append(d.Checks, application.Check{Name: "api_transport", Status: "not_implemented", Detail: "production local control unavailable on this platform"})
 		return outputJSON(out, d)
 	}
 	system, err := q.System(ctx)

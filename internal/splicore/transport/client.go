@@ -23,9 +23,34 @@ type Client struct {
 
 func UnixClient(path string) *Client {
 	t := &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-		return (&net.Dialer{Timeout: 3 * time.Second}).DialContext(ctx, "unix", path)
+		ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		defer cancel()
+		return dialControl(ctx, path)
 	}}
 	return &Client{http: &http.Client{Transport: t, Timeout: 30 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, origin: "http://localhost"}
+}
+
+// Shutdown requests bounded orderly shutdown through the protected local channel.
+func (c *Client) Shutdown(ctx context.Context) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.origin+"/api/v1/runtime/shutdown", nil)
+	if err != nil {
+		return err
+	}
+	response, err := c.http.Do(req)
+	if err != nil {
+		return identity.Err(identity.Unavailable, "control transport unavailable")
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK || response.Header.Get("Content-Type") != "application/json" {
+		return identity.Err(identity.Unavailable, "shutdown request rejected")
+	}
+	var result struct {
+		Shutdown bool `json:"shutdown"`
+	}
+	if json.NewDecoder(io.LimitReader(response.Body, 128)).Decode(&result) != nil || !result.Shutdown {
+		return identity.Err(identity.Unavailable, "invalid shutdown response")
+	}
+	return nil
 }
 
 // TestClient is only for explicitly owned httptest transports; no production TCP listener.

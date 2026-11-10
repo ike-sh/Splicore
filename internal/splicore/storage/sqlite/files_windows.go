@@ -2,24 +2,15 @@ package sqlite
 
 import (
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	"github.com/ike-sh/Splicore/internal/splicore/privatefs"
 
 	"golang.org/x/sys/windows"
 )
 
-// Windows Foundation is a development target. Production DACL provisioning is deferred.
 func privateDirectory(path string) error {
-	if err := os.MkdirAll(path, 0o700); err != nil {
-		return identity.Err(identity.Unavailable, "cannot create state directory")
-	}
-	resolved, err := filepath.EvalSymlinks(path)
-	if err != nil || !strings.EqualFold(resolved, filepath.Clean(path)) {
-		return identity.Err(identity.Invalid, "state directory must not use reparse points")
-	}
-	return nil
+	return privatefs.EnsureDirectory(path)
 }
 
 func safeFile(path string) error {
@@ -30,7 +21,7 @@ func safeFile(path string) error {
 	if err != nil || !info.Mode().IsRegular() {
 		return identity.Err(identity.Invalid, "unsafe database file type")
 	}
-	return nil
+	return privatefs.CheckFile(path)
 }
 
 func lockFile(f *os.File) error {
