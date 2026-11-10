@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
@@ -132,7 +133,7 @@ func (s *Service) CloseRuntime(ctx context.Context) error {
 	var err error = clientErr
 	for id, h := range r.handles {
 		if e := h.Close(ctx); e != nil {
-			err = e
+			err = errors.Join(err, e)
 		}
 		delete(r.handles, id)
 	}

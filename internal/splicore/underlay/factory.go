@@ -409,7 +409,10 @@ func (d *Dialer) LookupNetIP(ctx context.Context, network, host string) ([]netip
 	if d.f.required.Load() > 0 && !d.f.backend.Capabilities().SystemResolver {
 		return nil, unsafe("system resolver cannot guarantee bypass; configure explicit bootstrap DNS")
 	}
-	return d.Resolver().LookupNetIP(ctx, network, host)
+	r := d.Resolver()
+	owner := ownResolver(r)
+	defer owner.Close()
+	return r.LookupNetIP(ctx, network, host)
 }
 func (d *Dialer) LookupIP(ctx context.Context, network, host string) ([]net.IP, error) {
 	if d.f.required.Load() == 0 {
