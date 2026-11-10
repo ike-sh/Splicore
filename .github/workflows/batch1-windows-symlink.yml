@@ -1,0 +1,103 @@
+name: Batch 1 Windows Symlink
+
+on:
+  push:
+    branches:
+      - codex/main-backport-batch1-20261109
+      - codex/main-backport-nonwal-20261110
+
+permissions:
+  contents: read
+
+jobs:
+  windows-symlink:
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      CGO_ENABLED: '0'
+      GOFLAGS: -mod=readonly
+      CI: 'true'
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          persist-credentials: false
+      - name: Set up repository Go version
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Verify candidate identity
+        run: |
+          $head = git rev-parse HEAD
+          if ($LASTEXITCODE -ne 0 -or $head -ne $env:GITHUB_SHA) {
+            throw "Checkout SHA does not match push SHA: $head / $env:GITHUB_SHA"
+          }
+          if ((go env GOOS) -ne 'windows') { throw 'Native Windows Go is required' }
+          go version
+          if ($LASTEXITCODE -ne 0) { throw 'go version failed' }
+          Write-Output "Tested SHA: $head"
+          Write-Output "Runner: $env:RUNNER_OS / $env:ImageOS / $env:ImageVersion"
+          Write-Output 'Build tags: default (no extra tags)'
+      - name: Run and verify real symlink security and protected underlay
+        run: |
+          $shared = 'github.com/ike-sh/Splicore/internal/splicore/streamtransport/hysteria'
+          $native = 'github.com/ike-sh/Splicore/internal/splicore/engine/native'
+          $boundary = 'TestRootFileTraversalAndHTTPHTTPSProxyBoundaries'
+          $parents = @(
+            'TestMasqueradeSymlinkEnvironmentPolicy',
+            $boundary,
+            'TestMasqueradeProtectedDialAndNoDefault',
+            'TestMasqueradeFailClosedAndInitializationRollback',
+            'TestMasqueradeDialCancellationDeadlineAndClose',
+            'TestMasqueradeTLSCancellationAndVerification',
+            'TestMasqueradeConcurrentRequestsAndRedirect'
+          )
+          $nativeTest = 'TestNativeHysteriaMasqueradeProtectedUnderlay'
+          $regex = '^(' + (($parents + $nativeTest) -join '|') + ')$'
+          $log = Join-Path $env:RUNNER_TEMP 'batch1-hysteria.jsonl'
+          Write-Output "go test -json -count=1 -timeout=90s -run=$regex ./internal/splicore/streamtransport/hysteria ./internal/splicore/engine/native"
+          go test -json -count=1 -timeout=90s "-run=$regex" ./internal/splicore/streamtransport/hysteria ./internal/splicore/engine/native |
+            Tee-Object -FilePath $log
+          $testExit = $LASTEXITCODE
+          $events = @(Get-Content -LiteralPath $log | ForEach-Object { $_ | ConvertFrom-Json })
+          if ($testExit -ne 0) { throw "go test failed: exit $testExit; raw JSON is above" }
+          if (@($events | Where-Object { $_.Action -in @('skip', 'fail') }).Count -ne 0) {
+            throw 'Skipped or failed tests cannot qualify this candidate'
+          }
+          $required = @($parents | ForEach-Object { "$shared|$_" })
+          $required += "$native|$nativeTest"
+          $required += @('file', 'file/traversal', 'file/symlink', 'proxy/http', 'proxy/http-rewrite', 'proxy/https', 'proxy/https-rewrite') |
+            ForEach-Object { "$shared|$boundary/$_" }
+          foreach ($scheme in @('http', 'https')) {
+            foreach ($hostName in @('127.0.0.1', '::1', 'hy2.synthetic.test')) {
+              $required += "$shared|TestMasqueradeProtectedDialAndNoDefault/$scheme/$hostName"
+            }
+          }
+          $required += @('http4', 'http6', 'https4', 'protected-refusal', 'dns-refusal') |
+            ForEach-Object { "$native|$nativeTest/$_" }
+          foreach ($key in $required) {
+            $package, $testName = $key -split '\|', 2
+            foreach ($action in @('run', 'pass')) {
+              $found = @($events | Where-Object { $_.Package -eq $package -and $_.Test -eq $testName -and $_.Action -eq $action })
+              if ($found.Count -ne 1) { throw "Expected exactly one $action event: $key" }
+            }
+          }
+          foreach ($package in @($shared, $native)) {
+            if (@($events | Where-Object { $_.Package -eq $package -and !$_.Test -and $_.Action -eq 'pass' }).Count -ne 1) {
+              throw "Package did not pass: $package"
+            }
+          }
+          $symlinkOutput = ($events | Where-Object { $_.Package -eq $shared -and $_.Test -eq "$boundary/file/symlink" -and $_.Action -eq 'output' } |
+            ForEach-Object { $_.Output }) -join ''
+          foreach ($proof in @('real file symlink created:', 'file boundary assertion completed: path=/escape status=', 'outside-secret=false', 'real file symlink cleanup completed')) {
+            if (!$symlinkOutput.Contains($proof)) { throw "Missing symlink evidence: $proof" }
+          }
+          Write-Output "Verified $($required.Count) required tests/subtests: RUN + PASS, zero SKIP/FAIL; real symlink creation, boundary assertions and cleanup completed."
+      - name: Compile related packages
+        run: |
+          go build ./internal/splicore/streamtransport/hysteria ./protocol/hysteria2/backend ./internal/splicore/engine/native
+          if ($LASTEXITCODE -ne 0) { throw 'Related package build failed' }
