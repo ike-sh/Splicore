@@ -51,3 +51,38 @@ func TestPrivatePathsAreCreatedRestrictedAndNeverReACLExisting(t *testing.T) {
 		t.Fatal("private directory not reusable:", err)
 	}
 }
+
+func TestPrivateFileRejectsForeignOwnerAndBroadGrants(t *testing.T) {
+	sid, err := UserSID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreign, err := windows.SecurityDescriptorFromString("O:S-1-5-32-546D:P(A;;FA;;;" + sid.String() + ")(A;;FA;;;SY)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if CheckFileDescriptor(foreign) == nil {
+		t.Fatal("foreign default owner accepted")
+	}
+	broad, err := windows.SecurityDescriptorFromString("O:" + sid.String() + "D:P(A;;FA;;;WD)(A;;FA;;;" + sid.String() + ")")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if CheckFileDescriptor(broad) == nil {
+		t.Fatal("foreign DACL grant accepted")
+	}
+	defaultOwner, err := defaultOwnerSID()
+	if err != nil {
+		t.Fatal(err)
+	}
+	owned, err := windows.SecurityDescriptorFromString("O:" + defaultOwner.String() + "D:P(A;;FA;;;" + sid.String() + ")(A;;FA;;;SY)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := CheckFileDescriptor(owned); err != nil {
+		t.Fatal("current token's exact default owner rejected:", err)
+	}
+	if !windows.EqualSid(defaultOwner, sid) && CheckDescriptor(owned) == nil {
+		t.Fatal("pipe owner authentication accepted a group owner")
+	}
+}

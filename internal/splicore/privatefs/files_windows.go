@@ -32,15 +32,56 @@ func Descriptor(inherit bool) (string, error) {
 	return "O:" + sid.String() + "D:P(A;" + flags + ";FA;;;SY)(A;" + flags + ";FA;;;" + sid.String() + ")", nil
 }
 
+func defaultOwnerSID() (*windows.SID, error) {
+	token := windows.GetCurrentProcessToken()
+	var needed uint32
+	if err := windows.GetTokenInformation(token, windows.TokenOwner, nil, 0, &needed); err != windows.ERROR_INSUFFICIENT_BUFFER {
+		return nil, identity.Err(identity.Unavailable, "cannot inspect process token owner")
+	}
+	if needed < uint32(unsafe.Sizeof(uintptr(0))) {
+		return nil, identity.Err(identity.Unavailable, "cannot inspect process token owner")
+	}
+	buffer := make([]byte, needed)
+	if err := windows.GetTokenInformation(token, windows.TokenOwner, &buffer[0], needed, &needed); err != nil {
+		return nil, err
+	}
+	// TOKEN_OWNER contains a SID pointer into this buffer; return an owned copy.
+	owner := *(**windows.SID)(unsafe.Pointer(&buffer[0]))
+	if owner == nil {
+		return nil, identity.Err(identity.Unavailable, "cannot inspect process token owner")
+	}
+	return owner.Copy()
+}
+
 // CheckDescriptor rejects null DACLs, foreign ownership, broad grants and ACE
 // types this policy cannot prove safe. SYSTEM is an OS principal, not a user group.
 func CheckDescriptor(sd *windows.SECURITY_DESCRIPTOR) error {
+	return checkDescriptor(sd, false)
+}
+
+// Windows may use a token's default owner (for example Administrators for an
+// elevated token) for files created by that process. Accept only that exact OS
+// identity in addition to its user; DACL grants remain user/SYSTEM only. Pipe
+// authentication deliberately uses CheckDescriptor's stricter user-only owner.
+func CheckFileDescriptor(sd *windows.SECURITY_DESCRIPTOR) error {
+	return checkDescriptor(sd, true)
+}
+
+func checkDescriptor(sd *windows.SECURITY_DESCRIPTOR, file bool) error {
 	sid, err := UserSID()
 	if err != nil {
 		return err
 	}
 	owner, _, err := sd.Owner()
-	if err != nil || owner == nil || !windows.EqualSid(owner, sid) {
+	if err != nil || owner == nil {
+		return identity.Err(identity.Invalid, "private file owner or permissions invalid")
+	}
+	owned := windows.EqualSid(owner, sid)
+	if !owned && file {
+		defaultOwner, err := defaultOwnerSID()
+		owned = err == nil && defaultOwner != nil && windows.EqualSid(owner, defaultOwner)
+	}
+	if !owned {
 		return identity.Err(identity.Invalid, "private file owner or permissions invalid")
 	}
 	dacl, _, err := sd.DACL()
@@ -83,7 +124,7 @@ func check(path string, directory bool) error {
 	if err != nil {
 		return err
 	}
-	return CheckDescriptor(sd)
+	return CheckFileDescriptor(sd)
 }
 
 func CheckDirectory(path string) error { return check(path, true) }

@@ -22,5 +22,5 @@ func checkOpenedKey(f *os.File) error {
 	if err != nil {
 		return err
 	}
-	return privatefs.CheckDescriptor(sd)
+	return privatefs.CheckFileDescriptor(sd)
 }

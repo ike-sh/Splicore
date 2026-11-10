@@ -54,7 +54,10 @@ $core = './build/windows-amd64/splicore.exe'
 
 Customize paths before provisioning. New state/key directories are restricted
 to the current owner and SYSTEM at creation; existing unsafe directories are
-rejected rather than having their ACLs silently changed. Use the same Core user
+rejected rather than having their ACLs silently changed. File ownership accepts
+the current user or the exact default owner supplied by its process token (an
+elevated Windows token can create group-owned files); allowed DACL grants remain
+current-user/SYSTEM only. Pipe authentication still requires the user SID. Use the same Core user
 for provisioning and operation. The `api.unix_socket` path is a stable identity
 for a local named pipe, not a filesystem socket on Windows. Native foreground
 operation does not require an administrator for ordinary high-port listeners.
