@@ -6,7 +6,7 @@ and a persistent control plane in a single Core implementation.
 
 ## Capabilities
 
-Supported protocols include Shadowsocks/SS2022, Snell, Hysteria2, TUIC, VLESS,
+Implemented experimental protocol modules include Shadowsocks/SS2022, Snell, Hysteria2, TUIC, VLESS,
 Mieru, Trojan, VMess, AnyTLS, [TrustTunnel](docs/protocol/TRUSTTUNNEL.md) and
 [NaiveProxy](docs/architecture/NAIVE.md), with local
 SOCKS5, HTTP, Mixed and TUN traffic entry.
@@ -23,7 +23,7 @@ See the [capability matrix](docs/architecture/CAPABILITY_MATRIX.md) and
 
 ## Build
 
-Go 1.26.3 or newer is required.
+Go 1.26.3 or newer is required. Release qualification uses Go 1.26.3.
 
 ```sh
 make build
@@ -39,8 +39,8 @@ Native Windows builds use PowerShell and Go; WSL is not required:
 
 Both builders use CGO_ENABLED=0 and embed source commit, time and feature tags.
 `make build-matrix` evaluates Windows/Linux amd64/arm64. Cross-compilation does
-not establish native arm64 runtime support. Build outputs remain development
-builds; this change does not publish a release.
+not establish native arm64 runtime support. Local build outputs default to development builds. Official archives embed the
+version from `distribution/RELEASE_VERSION` and their exact main release commit.
 
 ## Run the core
 
@@ -87,11 +87,48 @@ Encryption and extra transports are not restored by this runtime change.
 - [Architecture](docs/ARCHITECTURE.md)
 - [Documentation index](docs/README.md)
 
-## Releases
+## Download and qualification
 
-Official downloads and version-specific release notes are published through
-[GitHub Releases](https://github.com/ike-sh/Splicore/releases).
-Download the release archives and accompanying checksums to verify their integrity.
+[Official v0.4.0 downloads](https://github.com/ike-sh/Splicore/releases/tag/v0.4.0)
+contain one executable per platform plus licenses, examples and RUNNING.md.
+The project remains pre-1.0; a formal downloadable Release does not certify every
+implemented experimental protocol.
+
+| Platform | Build | Native runtime evidence |
+| --- | --- | --- |
+| Linux amd64 | CGO0 | Default/full tests and vet, selected-package Race, VLESS real process |
+| Windows amd64 | CGO0 | Default/full tests and vet, VLESS real process; Race NOT EXECUTED |
+| Linux arm64 | CGO0 cross-build | BUILD ONLY; no native tests |
+| Windows arm64 | CGO0 cross-build | BUILD ONLY; no native tests |
+
+Download the matching `splicore-v0.4.0-<os>-<arch>` archive and SHA256SUMS.
+Linux: `sha256sum -c SHA256SUMS`. Windows: compare
+`Get-FileHash -Algorithm SHA256 ./splicore-v0.4.0-windows-amd64.zip` with the
+published line. After unpacking, use `./splicore help` or `./splicore.exe help`,
+then follow [Linux](docs/releases/RUNNING_linux.md) or
+[Windows](docs/releases/RUNNING_windows.md) instructions. Go/WSL and a separate
+proxy core are not required to run the binary. No digital signature is claimed.
+The source archive includes vendored dependencies and offline build instructions.
+
+High-port foreground listeners need ordinary user permissions. Private state/key
+paths are required. Logs go to stderr (Linux installed services use journald).
+Optional TUN requires OS devices/drivers/privileges, including external Wintun on
+Windows; drivers are not built into the binary. `check` is a bounded static
+validation, and `stop` acknowledges a shutdown request rather than waiting for
+process completion.
+
+This is a new pre-1.0 minor line rather than a compatible v0.3.1 patch. Do not
+mix Frozen and current configurations/databases. See the
+[release notes](docs/releases/v0.4.0.md) and [changelog](CHANGELOG.md): Windows
+WireGuard Hotfix is NOT QUALIFIED; Phase37 and independent SQLite WAL/P1-B
+candidates are excluded; WSL2 UDP, historical SOCKS, Mieru throughput and broad
+protocol interoperability limits remain open. The local Windows symlink fixture
+may be skipped for Win32 1314; hosted tests do not allow that skip. ARM64 builds
+and implemented modules are not advertised as native or peer-interoperability
+certification. Historical v0.3.0 is unchanged.
+
+For security reporting and support boundaries, see [SECURITY.md](SECURITY.md).
+中文说明见 [README_CN.md](README_CN.md).
 
 ## Scope
 
