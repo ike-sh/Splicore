@@ -294,9 +294,8 @@ func sqExchangeCompatible(c net.Conn, size int) error {
 func TestSnellV5IPv6UnderlayAndUDP443(t *testing.T) {
 	for _, official := range []bool{false, true} {
 		t.Run(fmt.Sprint(official), func(t *testing.T) {
-			ctx, in, old := ownedSnell(t, 5)
+			ctx, in, old := ownedSnellAt(t, 5, "::1")
 			_ = old.Close(ctx)
-			in.Inbound.Listeners[0].Endpoint.Host = "::1"
 			if official {
 				snellV5Reference(t, in.Inbound.Listeners[0].Endpoint)
 			} else {
