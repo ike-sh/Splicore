@@ -1,4 +1,5 @@
 import unittest
+import io
 from unittest.mock import patch
 import guard
 
@@ -85,6 +86,18 @@ class GuardTests(unittest.TestCase):
             with self.subTest(branch=branch), patch('guard.git', side_effect=fake_git), patch('pathlib.Path.read_text', return_value='module github.com/ike-sh/Splicore\n'):
                 with self.assertRaisesRegex(RuntimeError, message):
                     guard.check_state()
+
+    def test_push_refs_captured_before_remote_probes(self):
+        branch = 'codex/restore-vless'
+        lines = f'refs/heads/{branch} {"a" * 40} refs/heads/main {guard.ZERO}\n'
+        def probe(_):
+            # Reproduce a child process/Windows interop consuming inherited stdin.
+            guard.sys.stdin.read()
+            return branch
+        with patch('sys.argv', ['guard.py','push','origin','https://github.com/ike-sh/Splicore.git']), patch('sys.stdin', io.StringIO(lines)), patch('guard.check_state', side_effect=probe):
+            with self.assertRaisesRegex(RuntimeError, 'Push only'):
+                guard.main()
+        guard.check_push('origin','https://github.com/ike-sh/Splicore.git',[],branch)
 
 
 if __name__ == '__main__':

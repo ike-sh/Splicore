@@ -1,10 +1,10 @@
 #!/bin/sh
 set -eu
-root=$(git rev-parse --show-toplevel)
+root=$(git rev-parse --show-toplevel </dev/null)
 for executable in python3 python py; do
     executable_path=$(command -v "$executable" 2>/dev/null || true)
     case "$executable_path" in ''|*WindowsApps*) continue ;; esac
-    if "$executable" -c 'import sys; sys.exit(sys.version_info < (3, 9))' >/dev/null 2>&1; then
+    if "$executable" -c 'import sys; sys.exit(sys.version_info < (3, 9))' </dev/null >/dev/null 2>&1; then
         exec "$executable" "$root/scripts/dev/guard.py" "$@"
     fi
 done

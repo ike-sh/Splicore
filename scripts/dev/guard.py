@@ -21,7 +21,7 @@ def require(condition, message):
 
 
 def run(*args):
-    result = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    result = subprocess.run(args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                             timeout=45, check=False)
     require(result.returncode == 0, 'Command failed: ' + ' '.join(args[:3]) +
             ' (check local tools, authentication, and connectivity)')
@@ -152,7 +152,7 @@ def scan_index():
 
 def check_push(remote, url, lines, branch):
     require(remote == 'origin' and expected_remote(url), 'Push destination must be expected origin')
-    require(lines, 'No outgoing refs received')
+    # Git can invoke pre-push for an up-to-date push with no updates.
     for line in lines:
         fields = line.split()
         require(len(fields) == 4, 'Invalid pre-push ref input')
@@ -176,11 +176,14 @@ def main():
     parser.add_argument('url', nargs='?')
     parser.add_argument('--allow-dirty', action='store_true')
     args = parser.parse_args()
+    # Capture the hook protocol before any child process (especially Windows
+    # interop/gh) can consume its pipe. Read-only probes also receive DEVNULL.
+    push_lines = sys.stdin.read().splitlines() if args.mode == 'push' else []
     branch = check_state(args.allow_dirty)
     if args.mode == 'commit':
         scan_index()
     if args.mode == 'push':
-        check_push(args.remote, args.url, sys.stdin.read().splitlines(), branch)
+        check_push(args.remote, args.url, push_lines, branch)
     print('SPLICORE_PREFLIGHT_PASS: ' + branch)
 
 
