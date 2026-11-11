@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "features": [
+    {
+      "id": "vless-encryption",
+      "source_commit": "39c91b01355c0e43d47b2459c7af629fd0c1bb1a",
+      "frozen_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "qualification": "experimental",
+      "files": [
+        "protocol/vless/encryption/handshake.go",
+        "protocol/vless/encryption/record.go",
+        "internal/splicore/protocol/vless/encryption.go",
+        "internal/splicore/cli/vlessenc.go"
+      ],
+      "tests": {
+        "protocol/vless/encryption/encryption_test.go": ["TestEncryptedStreams", "TestTicketReplayExpiryAndCacheBounds", "TestRecordIntegrityNonceAndRekey"],
+        "protocol/vless/encryption/reference_test.go": ["TestPinnedReferenceRawMatrix"],
+        "internal/splicore/engine/native/vless_encryption_test.go": ["TestVLESSEncryptionNativeSecurityVision", "TestVLESSEncryptionPinnedRuntimeInterop", "TestVLESSEncryptionRuntimeCredentialBoundaries"],
+        "cmd/splicore/runtime_test.go": ["TestRuntimeBinaryTrafficShutdownAndRestart"]
+      }
+    }
+  ]
+}

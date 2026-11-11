@@ -1,10 +1,11 @@
 name: Core runtime
 
 on:
+  workflow_call:
   pull_request:
     branches: [main]
   push:
-    branches: [codex/release-v0.3.1-runtime-20261110]
+    branches: [main, 'codex/restore-*']
 
 permissions:
   contents: read
@@ -30,6 +31,13 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
+      - name: Verify local guard behavior
+        run: python -m unittest discover -s scripts/dev -p 'test_*.py'
+      - name: Verify restored feature inventory
+        run: python scripts/dev/check-features.py
+      - name: Fetch independent pinned encryption test peer
+        shell: bash
+        run: python scripts/dev/fetch-vless-reference.py --output build/reference --github-env "$GITHUB_ENV"
       - name: Linux native core, checks and real traffic
         if: runner.os == 'Linux'
         shell: bash
@@ -41,8 +49,8 @@ jobs:
           export TMPDIR="$runtime_tmp" GOTMPDIR="$runtime_tmp"
           export SPLICORE_RUNTIME_BINARY="$GITHUB_WORKSPACE/build/linux-amd64/splicore"
           go vet -tags with_quic,with_utls,with_gvisor ./...
-          go test -count=1 -timeout=90s -tags with_quic,with_utls,with_gvisor ./...
-          CGO_ENABLED=1 go test -race -count=1 -timeout=90s -tags with_quic,with_utls,with_gvisor ./internal/splicore/... ./protocol/...
+          go test -count=1 -timeout=180s -tags with_quic,with_utls,with_gvisor ./...
+          CGO_ENABLED=1 go test -race -count=1 -timeout=180s -tags with_quic,with_utls,with_gvisor ./internal/splicore/... ./protocol/...
       - name: Windows native core, checks and real traffic
         if: runner.os == 'Windows'
         shell: pwsh

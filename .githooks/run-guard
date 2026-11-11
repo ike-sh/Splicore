@@ -1,0 +1,18 @@
+#!/bin/sh
+set -eu
+root=$(git rev-parse --show-toplevel </dev/null)
+for executable in python3 python py; do
+    executable_path=$(command -v "$executable" 2>/dev/null || true)
+    case "$executable_path" in ''|*WindowsApps*) continue ;; esac
+    if "$executable" -c 'import sys; sys.exit(sys.version_info < (3, 9))' </dev/null >/dev/null 2>&1; then
+        exec "$executable" "$root/scripts/dev/guard.py" "$@"
+    fi
+done
+# Git for Windows can share the same guard with WSL Python. Preserve stdin for
+# pre-push's outgoing refs and prevent MSYS from rewriting Git/WSL arguments.
+if command -v wsl.exe >/dev/null 2>&1 && command -v cygpath >/dev/null 2>&1; then
+    windows_root=$(cygpath -w "$root")
+    exec env MSYS2_ARG_CONV_EXCL='*' wsl.exe --cd "$windows_root" --exec python3 scripts/dev/guard.py "$@"
+fi
+echo 'Splicore guards require Python 3.9+ (native, or through WSL with Git for Windows).' >&2
+exit 1

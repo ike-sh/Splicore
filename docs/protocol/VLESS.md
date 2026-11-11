@@ -9,10 +9,10 @@ transport and flow remain separate. The sole runtime engine is `native`.
 | Flow | Raw TCP | WebSocket / HTTPUpgrade / gRPC | Payload |
 | --- | --- | --- | --- |
 | `none` | Plain, explicit CA TLS, REALITY | Plain or explicit CA TLS | TCP and existing XUDP |
-| `xtls-rprx-vision` | TLS 1.3 or REALITY | Rejected | TCP only |
+| `xtls-rprx-vision` | TLS 1.3, REALITY, or enabled VLESS Encryption | Rejected | TCP only |
 
 REALITY requires `with_utls`. Unknown flows, the outbound-only historical
-`xtls-rprx-vision-udp443` alias, Vision without security, and Vision over HTTP
+`xtls-rprx-vision-udp443` alias, Vision without TLS/REALITY or enabled encryption, and Vision over HTTP
 transports reject before runtime construction. A wire request must match the
 configured flow and an admitted UUID. There is no flow downgrade.
 
@@ -70,17 +70,22 @@ state and synchronized TLS detection preserve full duplex operation. Security
 reads stop at record boundaries; owned plaintext is drained before direct copying.
 The implementation accesses no private TLS buffers with reflection or unsafe.
 
-Outbound order is VLESS → optional Vision → transport → TLS/REALITY →
+Outbound order is VLESS → optional Vision → optional VLESS Encryption →
+transport → TLS/REALITY →
 [FinalMask TCP chain](../architecture/FINALMASK.md) → native socket. Direct Vision
 copies retain the entire mask underlay. First configured mask is innermost.
 Static TLS verifies explicit trust and SNI. REALITY authentication uses the
 existing admitted uTLS library; its default current TLS key shares are preserved.
-This TLS key exchange is independent of VLESSENC, which is unsupported.
+This TLS key exchange is independent of [VLESS Encryption](VLESS_ENCRYPTION.md).
+Encryption uses its own inbound-owned secret credential and public client
+projection; Sudoku remains an independent obfuscation layer.
 
 ## Lifecycle and diagnostics
 
 Users are immutable per runtime generation. Handshakes are bounded to five
-seconds. REALITY starts with a two-second target reachability probe; this proves
+seconds for plain VLESS. Enabled encryption uses a bounded padding-aware
+admission budget of at most 35 seconds, honoring earlier caller/transport limits.
+REALITY starts with a two-second target reachability probe; this proves
 reachability rather than target TLS compatibility. Shutdown cancels admission,
 closes unauthenticated and authenticated connections, interrupts mask delays and
 joins owned workers. TCP EOF and both half-closes preserve opposite-direction
@@ -96,7 +101,9 @@ Sudoku passwords select an obfuscation table, not authentication credentials.
 
 The bounded plain/REALITY URI dialect preserves Vision's explicit flow and rejects
 unrepresentable TLS CA trust and mask settings. Flow-none Mihomo/sing-box
-exports retain their supported profiles; Vision JSON projections are rejected.
+exports retain their supported profiles. Enabled encryption, including Vision,
+exports only to the pinned Xray 26.10.21 JSON target; unrepresentable URI and
+other client targets fail closed. Plain Vision retains its existing URI limits.
 Exporters reject masks rather than producing an unmasked node. Splicore has no
 full Xray server configuration importer. `engine_options`, Xray runtime records
 and legacy `finalmask` annotations are rejected.

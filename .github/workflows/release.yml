@@ -9,6 +9,9 @@ on:
     paths:
       - '.github/workflows/release.yml'
       - 'scripts/release.py'
+      - 'scripts/dev/check-features.py'
+      - 'scripts/dev/fetch-vless-reference.py'
+      - 'distribution/feature-gates.json'
       - 'distribution/RELEASE_VERSION'
       - 'docs/releases/**'
       - 'licenses/GPL-3.0.txt'
@@ -98,6 +101,10 @@ jobs:
       - name: Build exact release core and inspect format
         shell: bash
         run: python scripts/release.py build --target '${{ matrix.target }}'
+      - name: Fetch pinned independent encryption test peer
+        if: matrix.native
+        shell: bash
+        run: python scripts/dev/fetch-vless-reference.py --output build/reference --github-env "$GITHUB_ENV"
       - name: Native default/full builds, vet, tests and Linux race
         if: matrix.native
         shell: bash

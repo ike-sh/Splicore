@@ -19,6 +19,7 @@ Usage:
   splicore capabilities --config <file>    Query compiled protocol capabilities
   splicore doctor [--config <bootstrap>]   Passive diagnostics
   splicore key init --file <master.key>    Provision a new private vault key
+  splicore vlessenc [--auth x25519|mlkem768] Generate VLESS Encryption key pair
 
 Managed resources (use --config for the local control endpoint):
   inbound validate|plan|apply --protocol <name> --file <document> [--plan <plan>]
@@ -48,7 +49,7 @@ func help(args []string, out, errOut io.Writer) int {
 	}
 	if len(args) == 2 {
 		switch args[1] {
-		case "version", "check", "validate", "run", "stop", "status", "doctor", "capabilities", "key", "inbound", "node", "outbound", "local-inbound", "local-binding", "route", "client", "network", "route-rule", "rule-set", "policy", "dns", "tun", "provider", "ruleset-provider", "service", "state", "package", "support-bundle":
+		case "version", "check", "validate", "run", "stop", "status", "doctor", "capabilities", "key", "vlessenc", "inbound", "node", "outbound", "local-inbound", "local-binding", "route", "client", "network", "route-rule", "rule-set", "policy", "dns", "tun", "provider", "ruleset-provider", "service", "state", "package", "support-bundle":
 		default:
 			_, _ = fmt.Fprintln(errOut, "unknown help topic; use splicore help")
 			return 1

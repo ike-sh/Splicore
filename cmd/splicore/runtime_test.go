@@ -19,13 +19,31 @@ import (
 
 	"github.com/gofrs/uuid/v5"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	maskcfg "github.com/ike-sh/Splicore/internal/splicore/domain/finalmask"
+	"github.com/ike-sh/Splicore/internal/splicore/finalmask"
 	"github.com/ike-sh/Splicore/internal/splicore/transport"
 	"github.com/ike-sh/Splicore/protocol/vless/backend"
+	"github.com/ike-sh/Splicore/protocol/vless/encryption"
 )
 
 // This test must execute a separately built product binary. It does not replace
 // Serve, storage, the control channel, or the proxy with a test implementation.
 func TestRuntimeBinaryTrafficShutdownAndRestart(t *testing.T) {
+	for _, encrypted := range []bool{false, true} {
+		for _, masked := range []bool{false, true} {
+			name := "plain"
+			if encrypted {
+				name = "encrypted"
+			}
+			if masked {
+				name += "-native-sudoku"
+			}
+			t.Run(name, func(t *testing.T) { runtimeBinaryTraffic(t, masked, encrypted) })
+		}
+	}
+}
+
+func runtimeBinaryTraffic(t *testing.T, masked, encrypted bool) {
 	binary := os.Getenv("SPLICORE_RUNTIME_BINARY")
 	if binary == "" {
 		t.Skip("set SPLICORE_RUNTIME_BINARY to the native built core to run process qualification")
@@ -39,6 +57,20 @@ func TestRuntimeBinaryTrafficShutdownAndRestart(t *testing.T) {
 	bootstrap := filepath.Join(dir, "bootstrap.yaml")
 	key := filepath.Join(dir, "keys", "master.key")
 	control := filepath.Join(dir, "ctl", "core.sock")
+	if runtime.GOOS != "windows" {
+		// Subtest names can exceed sockaddr_un's path bound. Keep the real
+		// control socket in a separate, short, private temporary directory.
+		controlRoot, err := os.MkdirTemp(os.TempDir(), "sp-ctl-")
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			if err := os.RemoveAll(controlRoot); err != nil {
+				t.Error(err)
+			}
+		})
+		control = filepath.Join(controlRoot, "core.sock")
+	}
 	state := filepath.Join(dir, "state")
 	config := fmt.Sprintf("schema: 1\nstate_directory: %s\nkey_file: %s\napi:\n  unix_socket: %s\n", filepath.ToSlash(state), filepath.ToSlash(key), filepath.ToSlash(control))
 	if err := os.WriteFile(bootstrap, []byte(config), 0600); err != nil {
@@ -100,6 +132,29 @@ func TestRuntimeBinaryTrafficShutdownAndRestart(t *testing.T) {
 	user := "c60224f4-8ee9-4f3e-a605-5af746b89fe8"
 	document := filepath.Join(dir, "vless.json")
 	draft := fmt.Sprintf(`{"schema":1,"name":"runtime-e2e","listener":{"host":"127.0.0.1","port":%d},"display_endpoint":{"host":"127.0.0.1","port":%d},"settings":{"security":"none","flow":"none","transport":"tcp","packet_encoding":"xudp"},"users":[{"account_name":"runtime-user","uuid":"%s"}]}`, proxyPort, proxyPort, user)
+	var encryptionConfig *encryption.Config
+	var serverDecryption string
+	if encrypted {
+		var public string
+		serverDecryption, public, err = encryption.Generate("mlkem768", "random", "0rtt", "600s", "100-35-35")
+		if err != nil {
+			t.Fatal(err)
+		}
+		encryptionConfig, err = encryption.ParseClient(public)
+		if err != nil {
+			t.Fatal(err)
+		}
+		draft = strings.Replace(draft, `"users":`, `"server_secret":{"decryption":"`+serverDecryption+`"},"users":`, 1)
+	}
+	var mask *maskcfg.Config
+	if masked {
+		rawMask := `{"tcp":[{"type":"sudoku","settings":{"password":"synthetic-native-table","ascii":"prefer_entropy","paddingMin":10,"paddingMax":40}}]}`
+		mask = new(maskcfg.Config)
+		if err := json.Unmarshal([]byte(rawMask), mask); err != nil {
+			t.Fatal(err)
+		}
+		draft = strings.Replace(draft, `"packet_encoding":"xudp"`, `"packet_encoding":"xudp","stream_transport":{"kind":"tcp","final_mask":`+rawMask+`}`, 1)
+	}
 	if err := os.WriteFile(document, []byte(draft), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -168,11 +223,28 @@ func TestRuntimeBinaryTrafficShutdownAndRestart(t *testing.T) {
 			runCLI("inbound", "apply", "--config", bootstrap, "--protocol", "vless", "--file", document, "--plan", planPath)
 		}
 		runCLI("check", "--config", bootstrap)
+		var encryptionClient *encryption.Client
+		if encrypted {
+			encryptionClient, err = encryption.NewClient(encryptionConfig)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
 		raw, err := (&net.Dialer{}).DialContext(ctx, "tcp4", proxyAddress)
 		if err != nil {
 			t.Fatal("real VLESS listener unavailable:", err)
 		}
-		_ = raw.SetDeadline(time.Now().Add(3 * time.Second))
+		raw, err = finalmask.Wrap(raw, mask, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = raw.SetDeadline(time.Now().Add(5 * time.Second))
+		if encrypted {
+			raw, err = encryptionClient.Handshake(ctx, raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
 		id, _ := uuid.FromString(user)
 		host, portText, _ := net.SplitHostPort(echo.Addr().String())
 		port, _ := strconv.Atoi(portText)
@@ -196,7 +268,17 @@ func TestRuntimeBinaryTrafficShutdownAndRestart(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		_ = unauthenticated.SetDeadline(time.Now().Add(time.Second))
+		unauthenticated, err = finalmask.Wrap(unauthenticated, mask, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = unauthenticated.SetDeadline(time.Now().Add(3 * time.Second))
+		if encrypted {
+			unauthenticated, err = encryptionClient.Handshake(ctx, unauthenticated)
+			if err != nil {
+				t.Fatal("resumed channel before UUID rejection:", err)
+			}
+		}
 		wrongID := [16]byte(id)
 		wrongID[0] ^= 0x55
 		denied, err := backend.Client(ctx, unauthenticated, wrongID, access.Endpoint{Host: host, Port: uint16(port)}, false)
@@ -243,6 +325,23 @@ func TestRuntimeBinaryTrafficShutdownAndRestart(t *testing.T) {
 			t.Fatal("shutdown retained listener:", err)
 		}
 		probe.Close()
+		if encrypted {
+			// The live production store must never persist the decryption string
+			// in plaintext, including rollback journals or WAL sidecars.
+			files, err := os.ReadDir(state)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, file := range files {
+				if file.IsDir() {
+					continue
+				}
+				data, err := os.ReadFile(filepath.Join(state, file.Name()))
+				if err != nil || bytes.Contains(data, []byte(serverDecryption)) {
+					t.Fatal("state contains plaintext decryption material or is unreadable")
+				}
+			}
+		}
 		log.Close()
 		data, _ := os.ReadFile(logPath)
 		if !bytes.Contains(data, []byte("Splicore ready")) {
