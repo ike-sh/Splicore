@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.5.0
+
+Adds native VLESS Encryption to the v0.4.0 single-binary mainline through PR #6.
+
+- Hybrid ML-KEM-768/X25519 handshakes, AES-GCM/ChaCha20-Poly1305 records,
+  native/xorpub/random modes, and bounded 1-RTT/0-RTT ticket/replay handling.
+- Encrypted inbound-owned decryption credentials, public client projections,
+  offline `vlessenc` key generation and fail-closed pinned Xray JSON export.
+- Native TLS/REALITY and Vision composition, plain/encrypted/Sudoku process
+  regressions, and independent official Xray-core v26.10.21 peer tests.
+- Canonical-checkout preflight, versioned local hooks, one-main development
+  policy, and feature-presence/native interoperability release gates.
+
+Windows/Linux amd64 are natively qualified within the documented scope; both
+ARM64 targets remain BUILD ONLY. Android/v2rayNG device testing and Windows
+Race are NOT EXECUTED. Other historical gaps remain deferred, and the Windows
+WireGuard Hotfix remains NOT QUALIFIED. See [release notes](docs/releases/v0.5.0.md).
+
 ## v0.4.0
 
 First downloadable binary release of the current native foreground core. This

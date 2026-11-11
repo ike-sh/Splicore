@@ -56,7 +56,8 @@ A new database has no proxy listeners. Use `examples/vless-loopback.json` with
 the documented inbound check/plan/apply commands to create a loopback-only
 VLESS listener. Write plan JSON as UTF-8 without BOM (PowerShell 7 defaults to
 this); for Windows PowerShell 5 use WriteAllText with UTF8Encoding(false).
-Configure verified TLS/REALITY before remote deployment. `check` is static
+Select verified TLS/REALITY or explicitly configured VLESS Encryption before
+remote deployment. `check` is static
 validation, not a guarantee of port availability or every client credential.
 
 CGO is disabled. Normal Windows OS DLLs are used. Optional TUN requires an
@@ -66,9 +67,16 @@ backup remain unavailable. The Windows WireGuard hotfix remains NOT QUALIFIED.
 Historical SOCKS UDP and Mieru throughput qualifications remain open; the local
 symlink privilege exception does not establish symlink safety on every host.
 
-This v0.4.0 line is not a drop-in v0.3.0 Frozen upgrade. WireGuard endpoints,
-ShadowQUIC, VLESS Encryption, XHTTP H3 and additional generic stream carriers are
-not restored. Phase37 and unadmitted SQLite WAL candidates remain excluded.
+This v0.5.0 line is not a drop-in v0.3.0 Frozen upgrade. WireGuard endpoints,
+ShadowQUIC, XHTTP H3 and additional generic stream carriers remain pending.
+Native VLESS Encryption is restored, with ML-KEM-768/X25519 handshakes and
+AES-GCM/ChaCha records. Generate keys with `splicore vlessenc` (use `.exe` on
+Windows), set inbound `server_secret.decryption` and public client
+`options.data.encryption`, and follow the tagged
+[VLESS Encryption configuration](https://github.com/ike-sh/Splicore/blob/v0.5.0/docs/protocol/VLESS_ENCRYPTION.md).
+Generator output contains private key material; store it privately. Sudoku is
+obfuscation, not encryption. Android/v2rayNG real-device traffic is NOT EXECUTED.
+Phase37 and unadmitted SQLite WAL candidates remain excluded.
 
-Source and detailed limits: https://github.com/ike-sh/Splicore/releases/tag/v0.4.0
-and https://github.com/ike-sh/Splicore/tree/v0.4.0/docs
+Source and detailed limits: https://github.com/ike-sh/Splicore/releases/tag/v0.5.0
+and https://github.com/ike-sh/Splicore/tree/v0.5.0/docs

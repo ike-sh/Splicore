@@ -58,8 +58,9 @@ To create the included loopback VLESS example while the daemon runs:
 ```
 
 The example listens only on 127.0.0.1:10810 and generates its user credential.
-Use the explicit inbound export command for a client profile. Configure verified
-TLS/REALITY before exposing a listener remotely. `check` does not reserve ports,
+Use the explicit inbound export command for a client profile. Select verified
+TLS/REALITY or explicitly configured VLESS Encryption before exposing a listener
+remotely. `check` does not reserve ports,
 probe destinations or prove all client credentials are usable.
 
 CGO is disabled. Linux ELF has no dynamic interpreter; normal kernel facilities
@@ -68,10 +69,17 @@ port-range rules need nft/CAP_NET_ADMIN. These privileged features, all-protocol
 interoperability, WSL2 large-UDP behavior and crash/power-loss recovery are outside
 this release's VLESS process qualification. No drivers are bundled.
 
-This v0.4.0 line is not a drop-in v0.3.0 Frozen upgrade. WireGuard endpoints,
-ShadowQUIC, VLESS Encryption, XHTTP H3 and additional generic stream carriers are
-not restored. Phase37 and unadmitted SQLite WAL candidates remain excluded.
+This v0.5.0 line is not a drop-in v0.3.0 Frozen upgrade. WireGuard endpoints,
+ShadowQUIC, XHTTP H3 and additional generic stream carriers remain pending.
+Native VLESS Encryption is restored, with ML-KEM-768/X25519 handshakes and
+AES-GCM/ChaCha records. Generate keys with `splicore vlessenc` (use `.exe` on
+Windows), set inbound `server_secret.decryption` and public client
+`options.data.encryption`, and follow the tagged
+[VLESS Encryption configuration](https://github.com/ike-sh/Splicore/blob/v0.5.0/docs/protocol/VLESS_ENCRYPTION.md).
+Generator output contains private key material; store it privately. Sudoku is
+obfuscation, not encryption. Android/v2rayNG real-device traffic is NOT EXECUTED.
+Phase37 and unadmitted SQLite WAL candidates remain excluded.
 Keep backups and do not mix frozen database/configuration trees.
 
-Source and detailed limits: https://github.com/ike-sh/Splicore/releases/tag/v0.4.0
-and https://github.com/ike-sh/Splicore/tree/v0.4.0/docs
+Source and detailed limits: https://github.com/ike-sh/Splicore/releases/tag/v0.5.0
+and https://github.com/ike-sh/Splicore/tree/v0.5.0/docs

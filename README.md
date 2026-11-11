@@ -75,8 +75,11 @@ facilities and privileges, including an external Wintun DLL/driver on Windows.
 Native amd64 process tests cover VLESS loopback transfer, authentication refusal,
 shutdown and restart on Windows/Linux. This is a bounded runtime qualification;
 it does not qualify every protocol, TUN, Windows service installation or arm64.
-The frozen v0.3.0 and main histories differ: frozen WireGuard, ShadowQUIC, VLESS
-Encryption and extra transports are not restored by this runtime change.
+v0.5.0 adds [native VLESS Encryption](docs/protocol/VLESS_ENCRYPTION.md) to the
+v0.4.0 baseline, with hybrid ML-KEM-768/X25519, AES-GCM/ChaCha records and
+independent official Xray v26.10.21 peer tests on both native platforms.
+Android/v2rayNG real-device traffic is NOT EXECUTED. Frozen WireGuard, ShadowQUIC,
+XHTTP H3 and generic carriers remain pending separate main-based restorations.
 
 ## Documentation
 
@@ -89,7 +92,7 @@ Encryption and extra transports are not restored by this runtime change.
 
 ## Download and qualification
 
-[Official v0.4.0 downloads](https://github.com/ike-sh/Splicore/releases/tag/v0.4.0)
+[Official v0.5.0 downloads](https://github.com/ike-sh/Splicore/releases/tag/v0.5.0)
 contain one executable per platform plus licenses, examples and RUNNING.md.
 The project remains pre-1.0; a formal downloadable Release does not certify every
 implemented experimental protocol.
@@ -101,9 +104,9 @@ implemented experimental protocol.
 | Linux arm64 | CGO0 cross-build | BUILD ONLY; no native tests |
 | Windows arm64 | CGO0 cross-build | BUILD ONLY; no native tests |
 
-Download the matching `splicore-v0.4.0-<os>-<arch>` archive and SHA256SUMS.
+Download the matching `splicore-v0.5.0-<os>-<arch>` archive and SHA256SUMS.
 Linux: `sha256sum -c SHA256SUMS`. Windows: compare
-`Get-FileHash -Algorithm SHA256 ./splicore-v0.4.0-windows-amd64.zip` with the
+`Get-FileHash -Algorithm SHA256 ./splicore-v0.5.0-windows-amd64.zip` with the
 published line. After unpacking, use `./splicore help` or `./splicore.exe help`,
 then follow [Linux](docs/releases/RUNNING_linux.md) or
 [Windows](docs/releases/RUNNING_windows.md) instructions. Go/WSL and a separate
@@ -117,15 +120,16 @@ Windows; drivers are not built into the binary. `check` is a bounded static
 validation, and `stop` acknowledges a shutdown request rather than waiting for
 process completion.
 
-This is a new pre-1.0 minor line rather than a compatible v0.3.1 patch. Do not
+This pre-1.0 minor adds protocol capability to the v0.4.0 baseline. Do not
 mix Frozen and current configurations/databases. See the
-[release notes](docs/releases/v0.4.0.md) and [changelog](CHANGELOG.md): Windows
+[release notes](docs/releases/v0.5.0.md) and [changelog](CHANGELOG.md): Windows
 WireGuard Hotfix is NOT QUALIFIED; Phase37 and independent SQLite WAL/P1-B
 candidates are excluded; WSL2 UDP, historical SOCKS, Mieru throughput and broad
 protocol interoperability limits remain open. The local Windows symlink fixture
 may be skipped for Win32 1314; hosted tests do not allow that skip. ARM64 builds
-and implemented modules are not advertised as native or peer-interoperability
-certification. Historical v0.3.0 is unchanged.
+remain BUILD ONLY. The VLESS Encryption reference matrix does not certify
+other clients or every implemented protocol. Historical v0.3.0 and v0.4.0
+remain unchanged.
 
 For security reporting and support boundaries, see [SECURITY.md](SECURITY.md).
 中文说明见 [README_CN.md](README_CN.md).
