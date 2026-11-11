@@ -111,10 +111,6 @@ func (s *Service) prepare(ctx context.Context, in ports.RuntimeIntent) (ports.Ru
 	}
 	ctx = underlay.WithFactory(ctx, s.underlay)
 	ctx = underlay.WithScope(ctx, underlay.Scope{Purpose: underlay.ServerTarget, Runtime: in.Inbound.ID, Generation: generation})
-	if in.Inbound.Protocol.Protocol == "shadowquic" && s.client != nil {
-		ctx = underlay.WithBootstrap(ctx, s.client.manager.BootstrapHost)
-		ctx = underlay.WithTargetLookup(ctx, s.client.manager.LookupHost)
-	}
 	if s.client != nil {
 		ctx = ports.WithTargetRouter(ctx, func(call context.Context, network, address string, fallback ports.TargetDialer) (net.Conn, error) {
 			return s.client.manager.DialServerTarget(call, in.Inbound.ID, network, address, fallback)

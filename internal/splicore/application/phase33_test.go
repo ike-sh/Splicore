@@ -83,7 +83,7 @@ func TestPhase33ApplicationDNSRoutingSQLite(t *testing.T) {
 				}
 				// Existing canonical Core DNS and route policy drive the actual client runtime.
 				queries := &atomic.Int64{}
-				dns := shadowQUICDNS(t, queries)
+				dns := managedDNSFixture(t, queries)
 				resolver := networkID(t)
 				config := P.Config{Servers: []P.DNSServer{{ID: resolver, Name: "Phase33 Core DNS", Type: "udp", Endpoint: dns, Detour: P.Action{Kind: P.Direct}}}, DNS: P.DNSProfile{Enabled: true, DefaultServer: resolver, BootstrapServer: resolver, Strategy: "ipv4_only", TimeoutSeconds: 2, Cache: P.DNSCachePolicy{Capacity: 4}}, Route: P.RouteProfile{Final: &P.Action{Kind: P.Outbound, ID: out}, Rules: []P.RouteRule{{ID: networkID(t), Name: "reject", Match: P.RuleMatch{Domains: []string{"blocked.test"}}, Action: P.Action{Kind: P.Reject}}, {ID: networkID(t), Name: "direct", Match: P.RuleMatch{Domains: []string{"direct.test"}}, Action: P.Action{Kind: P.Direct}}}}}
 				applyNetwork(t, s, config)

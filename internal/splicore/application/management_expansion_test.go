@@ -21,6 +21,45 @@ import (
 	"testing"
 )
 
+// Keep the original flow/enable assertions and expose a failed native dial's
+// cause in the owned test fixture, rather than losing it behind SOCKS reply 1.
+type phase14DiagnosticFactory struct {
+	ports.OutboundFactory
+	t *testing.T
+}
+
+func (f phase14DiagnosticFactory) Build(ctx context.Context, node client.RemoteNode, credential access.Credential) (ports.ClientDialer, error) {
+	d, err := f.OutboundFactory.Build(ctx, node, credential)
+	if err != nil {
+		return nil, err
+	}
+	return &phase14DiagnosticDialer{ClientDialer: d, t: f.t}, nil
+}
+
+type phase14DiagnosticDialer struct {
+	ports.ClientDialer
+	t *testing.T
+}
+
+func (d *phase14DiagnosticDialer) DialContext(ctx context.Context, target access.Endpoint) (net.Conn, error) {
+	c, err := d.ClientDialer.DialContext(ctx, target)
+	if err != nil {
+		d.t.Logf("TUIC native dial failed: type=%T cause=%v context=%v", err, err, ctx.Err())
+	}
+	return c, err
+}
+
+func (d *phase14DiagnosticDialer) ListenPacket(ctx context.Context, target access.Endpoint) (net.PacketConn, error) {
+	return d.ClientDialer.(ports.ClientPacketDialer).ListenPacket(ctx, target)
+}
+
+func (d *phase14DiagnosticDialer) SupportsNetwork(network string) bool {
+	if support, ok := d.ClientDialer.(ports.ClientNetworkSupport); ok {
+		return support.SupportsNetwork(network)
+	}
+	return network == "tcp" || network == "udp"
+}
+
 func TestPhase14ImportAllProtocolsTraffic(t *testing.T) {
 	ctx := context.Background()
 	s, store := setupProtocols(t, filepath.Join(t.TempDir(), "state", "state.db"), nil, phase8Protocols)
@@ -28,7 +67,11 @@ func TestPhase14ImportAllProtocolsTraffic(t *testing.T) {
 	cases := expansionCases(t)
 	factories := []ports.OutboundFactory{}
 	for _, c := range cases {
-		factories = append(factories, c.factory)
+		factory := c.factory
+		if c.name == "tuic" {
+			factory = phase14DiagnosticFactory{factory, t}
+		}
+		factories = append(factories, factory)
 	}
 	r, e := registry.NewOutbounds(factories...)
 	if e != nil {

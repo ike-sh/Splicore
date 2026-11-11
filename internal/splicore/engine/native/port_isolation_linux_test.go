@@ -4,7 +4,6 @@ package native
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -15,9 +14,7 @@ import (
 
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
-	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
 	"github.com/ike-sh/Splicore/internal/splicore/engine/testfixture"
-	module "github.com/ike-sh/Splicore/internal/splicore/protocol/shadowquic"
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 )
 
@@ -37,21 +34,19 @@ func TestCrossProtocolListenerSocketOwnership(t *testing.T) {
 			}
 			defer udp.Close()
 			endpoint := access.Endpoint{Host: host, Port: uint16(tcp.Addr().(*net.TCPAddr).Port)}
-			in := testfixture.MieruIntentAt(t, "udp", endpoint)
-			in.Inbound.Protocol = module.Key()
-			in.Inbound.Settings.Data, _ = json.Marshal(module.Settings{ServerName: sqName, Camouflage: access.Endpoint{Host: "127.0.0.1", Port: 9}})
-			in.Credentials[0].Payload = access.UsernamePasswordPayload{Username: secret.New(sqUser), Password: secret.New(sqPass)}
-			prepared, err := (ShadowQUICCompiler{}).Compile(ctx, in)
+			in := nativeIntent(t)
+			in.Inbound.Listeners[0].Endpoint = endpoint
+			prepared, err := (Hysteria2Compiler{}).Compile(ctx, in)
 			if err != nil {
 				t.Fatal(err)
 			}
-			quic := prepared.(*shadowQUICHandle)
-			defer quic.Close(ctx)
+			udpOwner := prepared.(*hysteria2Handle)
+			defer udpOwner.Close(ctx)
 			_ = udp.Close()
-			if err := quic.Start(ctx); err != nil {
+			if err := udpOwner.Start(ctx); err != nil {
 				t.Fatal(err)
 			}
-			quic.Activate()
+			udpOwner.Activate()
 			api := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = io.WriteString(w, "listener-health") }))
 			_ = api.Listener.Close()
 			api.Listener = tcp
@@ -81,9 +76,9 @@ func TestCrossProtocolListenerSocketOwnership(t *testing.T) {
 			checkHTTP()
 			api.Close()
 			if err := v4.Start(ctx); err != nil {
-				t.Fatal("Snell v4 TCP cannot coexist with ShadowQUIC UDP", err)
+				t.Fatal("Snell v4 TCP cannot coexist with Hysteria2 UDP", err)
 			}
-			if err := quic.Health(ctx); err != nil {
+			if err := udpOwner.Health(ctx); err != nil {
 				t.Fatal("TCP start disturbed distinct UDP owner", err)
 			}
 			_ = v4.Close(ctx)
@@ -101,17 +96,17 @@ func TestCrossProtocolListenerSocketOwnership(t *testing.T) {
 			ss := ssPrepared.(*shadowsocksHandle)
 			defer ss.Close(ctx)
 			if err := ss.Start(ctx); !errors.As(err, &domain) || domain.Code != identity.PortConflict {
-				t.Fatal("Shadowsocks UDP ignored existing ShadowQUIC owner", err)
+				t.Fatal("Shadowsocks UDP ignored existing Hysteria2 owner", err)
 			}
 			probe, err := net.Listen("tcp", address)
 			if err != nil {
 				t.Fatal("failed dual-listener attempt retained TCP", err)
 			}
 			_ = probe.Close()
-			if err := quic.Health(ctx); err != nil {
+			if err := udpOwner.Health(ctx); err != nil {
 				t.Fatal("failed sibling disturbed original UDP runtime", err)
 			}
-			_ = quic.Close(ctx)
+			_ = udpOwner.Close(ctx)
 			if err := v5.Start(ctx); err != nil {
 				t.Fatal("released exact UDP object still excludes Snell", err)
 			}
@@ -122,7 +117,7 @@ func TestCrossProtocolListenerSocketOwnership(t *testing.T) {
 			if err := ss.Health(ctx); err != nil {
 				t.Fatal(err)
 			}
-			t.Logf("address=%s http_tcp+shadowquic_udp=PASS snell_v4_tcp+shadowquic_udp=PASS udp_conflict=typed partial_tcp_rollback=PASS object_release_and_explicit_recovery=PASS", fmt.Sprint(endpoint))
+			t.Logf("address=%s http_tcp+hysteria2_udp=PASS snell_v4_tcp+hysteria2_udp=PASS udp_conflict=typed partial_tcp_rollback=PASS object_release_and_explicit_recovery=PASS", fmt.Sprint(endpoint))
 		})
 	}
 }

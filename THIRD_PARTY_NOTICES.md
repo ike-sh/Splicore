@@ -107,6 +107,15 @@ The convergence candidate retains the existing dependency versions and adds the 
 - `github.com/mdlayher/genetlink v1.3.2`: [LICENSE.md](licenses/third-party/github.com/mdlayher/genetlink/v1.3.2/LICENSE.md).
 - `github.com/mdlayher/netlink v1.7.3-0.20250113171957-fbb4dce95f42`: [LICENSE.md](licenses/third-party/github.com/mdlayher/netlink/v1.7.3-0.20250113171957-fbb4dce95f42/LICENSE.md).
 - `github.com/mdlayher/socket v0.5.1`: [LICENSE.md](licenses/third-party/github.com/mdlayher/socket/v0.5.1/LICENSE.md).
+- `golang.zx2c4.com/wireguard v0.0.0-20261024220952-b3bc704ef0ee`: [COPYRIGHT](licenses/third-party/golang.zx2c4.com/wireguard/v0.0.0-20261024220952-b3bc704ef0ee/COPYRIGHT), [LICENSE](licenses/third-party/golang.zx2c4.com/wireguard/v0.0.0-20261024220952-b3bc704ef0ee/LICENSE).
+- `golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10`: [LICENSE.md](licenses/third-party/golang.zx2c4.com/wireguard/wgctrl/v0.0.0-20241231184526-a9ab2273dd10/LICENSE.md).
+
+## Archived candidate license copies
+
+These verbatim license copies document the isolated ShadowQUIC/JLS candidate.
+Its implementation and dependencies are excluded from the v0.6.1 production
+module graph; retaining license evidence does not advertise protocol support.
+
 - `github.com/metacubex/cpu v0.1.0`: [LICENSE](licenses/third-party/github.com/metacubex/cpu/v0.1.0/LICENSE).
 - `github.com/metacubex/hkdf v0.1.0`: [LICENSE](licenses/third-party/github.com/metacubex/hkdf/v0.1.0/LICENSE).
 - `github.com/metacubex/hpke v0.1.0`: [LICENSE](licenses/third-party/github.com/metacubex/hpke/v0.1.0/LICENSE).
@@ -114,5 +123,3 @@ The convergence candidate retains the existing dependency versions and adds the 
 - `github.com/metacubex/randv2 v0.2.0`: [LICENSE](licenses/third-party/github.com/metacubex/randv2/v0.2.0/LICENSE).
 - `github.com/metacubex/jls-quic-go v0.0.0-20260727080412-732f2fc9a34d`: [LICENSE](licenses/third-party/github.com/metacubex/jls-quic-go/v0.0.0-20260727080412-732f2fc9a34d/LICENSE).
 - `github.com/metacubex/jls-tls v0.0.0-20260723084315-67adc0e2f796`: [LICENSE](licenses/third-party/github.com/metacubex/jls-tls/v0.0.0-20260723084315-67adc0e2f796/LICENSE).
-- `golang.zx2c4.com/wireguard v0.0.0-20261024220952-b3bc704ef0ee`: [COPYRIGHT](licenses/third-party/golang.zx2c4.com/wireguard/v0.0.0-20261024220952-b3bc704ef0ee/COPYRIGHT), [LICENSE](licenses/third-party/golang.zx2c4.com/wireguard/v0.0.0-20261024220952-b3bc704ef0ee/LICENSE).
-- `golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10`: [LICENSE.md](licenses/third-party/golang.zx2c4.com/wireguard/wgctrl/v0.0.0-20241231184526-a9ab2273dd10/LICENSE.md).

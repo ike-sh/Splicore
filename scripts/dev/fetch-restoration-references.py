@@ -12,10 +12,6 @@ import urllib.request
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
-SHADOW = {
-    'Linux': ('shadowquic-x86_64-linux', 'f35e6ab3d8dafb46d8f3efecb3805bf8a1a2c33fb27967aeaaa13e877bf86bc5'),
-    'Windows': ('shadowquic-x86_64-windows.exe', '5656ada0f81e96f30cf2c5311d988bc386123999496bcaa8b08f3cd04173736f'),
-}
 
 
 def sha(data):
@@ -50,14 +46,9 @@ def main():
     if args.github_env:
         command += ['--github-env', str(args.github_env)]
     subprocess.run(command, check=True)
-    name, expected = SHADOW[platform.system()]
-    url = 'https://github.com/spongebob888/shadowquic/releases/download/v0.4.7/' + name
-    shadow = fetch(root / name, url, expected)
-    env = {'SPLICORE_SHADOWQUIC_REFERENCE': str(shadow), 'SPLICORE_SHADOWQUIC_EVIDENCE': str(root / 'shadowquic-evidence'),
-           'SPLICORE_PHASE33_PEER_LOGS': str(root / 'h3-evidence'), 'SPLICORE_PHASE34_PEER_LOGS': str(root / 'wg-evidence')}
-    manifest = {'shadowquic': {'version': 'v0.4.7', 'url': url, 'binary_sha256': expected}}
+    env = {'SPLICORE_PHASE33_PEER_LOGS': str(root / 'h3-evidence'), 'SPLICORE_PHASE34_PEER_LOGS': str(root / 'wg-evidence')}
+    manifest = {'shadowquic': {'status': 'ISOLATED_NOT_QUALIFIED', 'included': False}}
     if os.name != 'nt':
-        shadow.chmod(0o755)
         url = 'https://dl.nssurge.com/snell/snell-server-v5.0.1-linux-amd64.zip'
         package = fetch(root / 'snell-v5.0.1.zip', url, '9bea1c2b9e35b73b31634856c04d18c393072b9e5dcde6a32781d8b8f908c539')
         with zipfile.ZipFile(package) as archive:
@@ -78,7 +69,7 @@ def main():
     subprocess.run(['go', 'build', '-mod=readonly', '-trimpath', '-o', str(peer), './scripts/dev/wireguard-peer'], cwd=ROOT, check=True)
     env['SPLICORE_PHASE34_WG_REFERENCE'] = str(peer)
     manifest['wireguard'] = {'source': 'scripts/dev/wireguard-peer', 'engine': 'golang.zx2c4.com/wireguard@v0.0.0-20261024220952-b3bc704ef0ee', 'binary_sha256': sha(peer.read_bytes()), 'test_only': True}
-    for key in ('SPLICORE_SHADOWQUIC_EVIDENCE', 'SPLICORE_PHASE33_PEER_LOGS', 'SPLICORE_PHASE34_PEER_LOGS', 'SPLICORE_SNELL_V5_EVIDENCE'):
+    for key in ('SPLICORE_PHASE33_PEER_LOGS', 'SPLICORE_PHASE34_PEER_LOGS', 'SPLICORE_SNELL_V5_EVIDENCE'):
         if key in env:
             Path(env[key]).mkdir(exist_ok=True)
     if args.github_env:

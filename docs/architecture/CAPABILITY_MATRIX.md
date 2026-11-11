@@ -7,7 +7,6 @@ identity does not imply ownership of another Core process.
 | --- | --- | --- |
 | Shadowsocks AEAD / SS2022 | TCP / UDP | Edition-specific symmetric credentials |
 | Snell v4/v5/v6 | TCP / UDP | PSK; v5 DRS and QUIC Proxy retain profile restrictions |
-| ShadowQUIC | TCP / UDP | JLS, username/password and server-name authentication; CMD3/CMD4 |
 | Standard WireGuard | TCP / UDP via endpoint | Userspace on Windows/Linux; optional privileged Linux kernel backend |
 | Hysteria2 | TCP / UDP | Specialized Hysteria transport; mandatory TLS and H3 authentication |
 | NaiveProxy | TCP | TLS H2 CONNECT or QUIC H3 CONNECT; Basic authentication |
@@ -75,3 +74,6 @@ API, VLESS loopback transfer, authentication refusal, shutdown and persisted
 listener restoration. Other protocol combinations, native Linux auto-route, real
 Windows host networking and real hardware retain their existing qualification
 limits. See [platform limits](../OPERATIONS.md).
+
+ShadowQUIC restoration is ISOLATED_NOT_QUALIFIED and excluded from v0.6.1;
+its formal v0.6.0 server-restart peer campaign failed. AWG remains retired.

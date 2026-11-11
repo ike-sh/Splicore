@@ -1,6 +1,15 @@
 # Changelog
 
-## v0.6.0
+## v0.6.1
+
+Qualified native historical convergence on v0.5.0: XHTTP H3, HTTP/H2/QUIC
+carriers, standard WireGuard, Snell v4/v5, managed routing/DNS/timestamps and
+Mieru deadline ownership. ShadowQUIC restoration is ISOLATED_NOT_QUALIFIED and
+excluded after its formal v0.6.0 peer restart campaign failed. The unpublished
+v0.6.0 tag remains immutable. AWG is retired and WAL/P1-B remains excluded.
+ARM64 remains BUILD ONLY. See [scope and qualification](docs/releases/v0.6.1.md).
+
+## v0.6.0 — unpublished candidate
 
 Restores native XHTTP H3, HTTP/H2/QUIC carriers, ShadowQUIC, standard WireGuard,
 Snell v4/v5 DRS/QUIC and managed routing/DNS/timestamp behavior on the v0.5.0 line.

@@ -21,11 +21,6 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/mdlayher/genetlink v1.3.2 // indirect
 	github.com/mdlayher/socket v0.5.1 // indirect
-	github.com/metacubex/cpu v0.1.0 // indirect
-	github.com/metacubex/hkdf v0.1.0 // indirect
-	github.com/metacubex/hpke v0.1.0 // indirect
-	github.com/metacubex/mlkem v0.1.0 // indirect
-	github.com/metacubex/randv2 v0.2.0 // indirect
 )
 
 require (
@@ -68,8 +63,6 @@ require (
 // Native historical protocol/endpoint dependencies; no AmneziaWG runtime.
 require (
 	github.com/google/nftables v0.3.0
-	github.com/metacubex/jls-quic-go v0.0.0-20260727080412-732f2fc9a34d
-	github.com/metacubex/jls-tls v0.0.0-20260723084315-67adc0e2f796
 	golang.zx2c4.com/wireguard v0.0.0-20261024220952-b3bc704ef0ee
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10
 )

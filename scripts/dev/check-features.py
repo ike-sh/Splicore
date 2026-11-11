@@ -28,6 +28,11 @@ def check(root, verbose=True):
     for name in ('internal/splicore/amneziawgendpoint', 'third_party/amneziawg-go'):
         if (root / name).exists():
             raise RuntimeError('Retired AmneziaWG implementation was reintroduced: ' + name)
+    for row in rows:
+        if row['status'] == 'ISOLATED_NOT_QUALIFIED':
+            for name in row.get('historical_paths', []):
+                if (root / name).exists():
+                    raise RuntimeError('Unqualified implementation was reintroduced: ' + name)
     module = (root / 'go.mod').read_text(encoding='utf-8')
     if re.search(r'^\s*(?:require\s+|replace\s+)?github\.com/(?:amnezia-vpn/|xtls/xray-core)', module, re.I | re.M):
         raise RuntimeError('Retired/external core production dependency was reintroduced')

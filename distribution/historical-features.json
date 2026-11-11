@@ -16,6 +16,11 @@
       "feature": "historical-windows-wireguard-hotfix-campaign",
       "status": "ISOLATED_NOT_QUALIFIED",
       "reason": "Old campaign remains historically NOT QUALIFIED. The minimal typed WSAEMSGSIZE correction is separately requalified by native receive/error-semantics, malformed recovery, independent-peer, lifecycle and full release gates."
+    },
+    {
+      "feature": "shadowquic-restoration",
+      "status": "ISOLATED_NOT_QUALIFIED",
+      "reason": "Formal v0.6.0 Linux independent-peer reconnect failed. Complete implementation/test source preserved at immutable v0.6.0 commit c1083c39ba68e2638105b056979caaa047600935; excluded from v0.6.1."
     }
   ],
   "features": [
@@ -176,39 +181,42 @@
       "id": 13,
       "feature": "ShadowQUIC canonical/JLS",
       "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
-      "files": [
+      "files": [],
+      "disposition": "archived",
+      "qualification": "Native official-peer server-restart/reconnect qualification failed in the formal v0.6.0 Linux campaign; local targeted PASS does not replace that result. Entire restored ShadowQUIC implementation and tests are excluded from production and preserved in the verified v0.6.0 candidate bundle and immutable failed tag. No ShadowQUIC support is advertised.",
+      "status": "ISOLATED_NOT_QUALIFIED",
+      "historical_paths": [
         "internal/splicore/protocol/shadowquic/creation.go",
         "internal/splicore/protocol/shadowquic/shadowquic.go"
-      ],
-      "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
-      "status": "RESTORED_AND_VERIFIED"
+      ]
     },
     {
       "id": 14,
       "feature": "ShadowQUIC sessions/UDP",
       "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
-      "files": [
+      "files": [],
+      "disposition": "archived",
+      "qualification": "Native official-peer server-restart/reconnect qualification failed in the formal v0.6.0 Linux campaign; local targeted PASS does not replace that result. Entire restored ShadowQUIC implementation and tests are excluded from production and preserved in the verified v0.6.0 candidate bundle and immutable failed tag. No ShadowQUIC support is advertised.",
+      "status": "ISOLATED_NOT_QUALIFIED",
+      "historical_paths": [
         "protocol/shadowquic/session/config.go",
         "protocol/shadowquic/session/packet.go",
         "protocol/shadowquic/session/quic.go",
         "protocol/shadowquic/session/stream.go"
-      ],
-      "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
-      "status": "RESTORED_AND_VERIFIED"
+      ]
     },
     {
       "id": 15,
       "feature": "ShadowQUIC native client/server",
       "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
-      "files": [
+      "files": [],
+      "disposition": "archived",
+      "qualification": "Native official-peer server-restart/reconnect qualification failed in the formal v0.6.0 Linux campaign; local targeted PASS does not replace that result. Entire restored ShadowQUIC implementation and tests are excluded from production and preserved in the verified v0.6.0 candidate bundle and immutable failed tag. No ShadowQUIC support is advertised.",
+      "status": "ISOLATED_NOT_QUALIFIED",
+      "historical_paths": [
         "internal/splicore/engine/native/shadowquic.go",
         "internal/splicore/engine/native/shadowquic_outbound.go"
-      ],
-      "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
-      "status": "RESTORED_AND_VERIFIED"
+      ]
     },
     {
       "id": 16,
@@ -840,5 +848,5 @@
   ],
   "delivery_status": "QUALIFICATION_GATED",
   "qualification_note": "Feature statuses describe the reviewed native implementation and its applicable test scope. Publication additionally requires exact-source hosted default/full native builds, vet/tests, full Linux Race and the behavior policy. The published Release manifest is authoritative for executed and NOT EXECUTED identities; source presence alone never qualifies a feature.",
-  "release": "v0.6.0"
+  "release": "v0.6.1"
 }
