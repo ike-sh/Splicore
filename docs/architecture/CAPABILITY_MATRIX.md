@@ -7,7 +7,7 @@ identity does not imply ownership of another Core process.
 | --- | --- | --- |
 | Shadowsocks AEAD / SS2022 | TCP / UDP | Edition-specific symmetric credentials |
 | Snell v4/v5/v6 | TCP / UDP | PSK; v5 DRS and QUIC Proxy retain profile restrictions |
-| Standard WireGuard | TCP / UDP via endpoint | Userspace on Windows/Linux; optional privileged Linux kernel backend |
+| Standard WireGuard | TCP / UDP via endpoint | Userspace on Windows/Linux; Linux kernel restoration ISOLATED_NOT_QUALIFIED |
 | Hysteria2 | TCP / UDP | Specialized Hysteria transport; mandatory TLS and H3 authentication |
 | NaiveProxy | TCP | TLS H2 CONNECT or QUIC H3 CONNECT; Basic authentication |
 | TrustTunnel base | TCP / UDP | Authenticated TLS HTTP/2 or HTTP/3; experimental |

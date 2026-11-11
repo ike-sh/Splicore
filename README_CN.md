@@ -57,7 +57,9 @@ Android/v2rayNG 实机测试 NOT EXECUTED。其他协议不因 Release 自动获
 
 v0.6.1 在 v0.5.0 基线上恢复标准 WireGuard endpoint、XHTTP H3、
 Generic HTTP/H2/QUIC、Snell v4/v5 DRS/QUIC 和受管路由/DNS；完整范围见版本化 61 项清单。
-ShadowQUIC 恢复未通过正式重连资格，标记 ISOLATED_NOT_QUALIFIED，本版不包含该协议。
+ShadowQUIC 恢复未通过正式重连资格，本版不包含该协议。Linux kernel WireGuard
+恢复也因并发新建 IPv6 UDP 场景重复失败而隔离；两项均为 ISOLATED_NOT_QUALIFIED。
+标准 WireGuard 保留 userspace，显式 kernel 请求返回 KERNEL_NOT_QUALIFIED，auto 报告 userspace 回退。
 v0.6.0 Tag 保留为未发布候选，不覆盖；正式范围以 v0.6.1 为准。
 AmneziaWG/Phase37 明确废弃。WAL/P1-B 候选不准入；标准 WireGuard 与 AWG 分开。
 Windows WG 接收修复仅丢弃已被 Winsock 消耗的 WSAEMSGSIZE 数据报，其余错误保持原语义，

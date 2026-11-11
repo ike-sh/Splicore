@@ -21,6 +21,11 @@
       "feature": "shadowquic-restoration",
       "status": "ISOLATED_NOT_QUALIFIED",
       "reason": "Formal v0.6.0 Linux independent-peer reconnect failed. Complete implementation/test source preserved at immutable v0.6.0 commit c1083c39ba68e2638105b056979caaa047600935; excluded from v0.6.1."
+    },
+    {
+      "feature": "wireguard-linux-kernel-backend",
+      "status": "ISOLATED_NOT_QUALIFIED",
+      "reason": "Repeated hosted original 100 sequential plus 20 concurrent churn campaign failed its fresh IPv6 UDP exchange. Kernel-only code/tests archived at immutable v0.6.0; standard userspace WireGuard remains admitted."
     }
   ],
   "features": [
@@ -238,9 +243,8 @@
       "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
       "files": [
         "internal/splicore/wireguardendpoint/backend.go",
-        "internal/splicore/wireguardendpoint/backend_linux.go",
-        "internal/splicore/wireguardendpoint/backend_other.go",
-        "internal/splicore/wireguardendpoint/bind.go"
+        "internal/splicore/wireguardendpoint/bind.go",
+        "internal/splicore/wireguardendpoint/backend_unqualified.go"
       ],
       "disposition": "restored",
       "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
@@ -250,15 +254,18 @@
       "id": 18,
       "feature": "WireGuard Linux kernel fast path",
       "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
-      "files": [
+      "files": [],
+      "disposition": "archived",
+      "qualification": "Repeated hosted full-suite TestPhase36KernelChurn100 concurrent fresh IPv6 UDP timeout; root cause not established. Kernel-specific implementation and tests are preserved at immutable v0.6.0 in an independently verified bundle and excluded from v0.6.1. Explicit kernel activation returns KERNEL_NOT_QUALIFIED; auto selects the admitted userspace backend and reports that reason. Shared validation, DNS ordering, fatal-error and rollback fallback assertions remain.",
+      "status": "ISOLATED_NOT_QUALIFIED",
+      "historical_paths": [
         "internal/splicore/wireguardendpoint/backend_linux.go",
         "internal/splicore/wireguardendpoint/cleanup_linux.go",
         "internal/splicore/wireguardendpoint/ingress_linux.go",
-        "internal/splicore/wireguardendpoint/namespace_linux.go"
-      ],
-      "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY. Linux native owned-namespace kernel path; Windows userspace is separate. External wg/NFT oracle campaign is NOT EXECUTED.",
-      "status": "RESTORED_AND_VERIFIED"
+        "internal/splicore/wireguardendpoint/namespace_linux.go",
+        "internal/splicore/wireguardendpoint/scope_linux.go",
+        "internal/splicore/wireguardendpoint/socket_linux.go"
+      ]
     },
     {
       "id": 19,

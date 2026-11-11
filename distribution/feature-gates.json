@@ -108,6 +108,12 @@
         ],
         "internal/splicore/wireguardendpoint/xray_test.go": [
           "TestXrayWireGuardInterop"
+        ],
+        "internal/splicore/wireguardendpoint/backend_policy_test.go": [
+          "TestExcludedKernelActivationAndAutoUserspaceTraffic",
+          "TestPhase36BackendValidation",
+          "TestPhase36CoreDNSBeforeSelection",
+          "TestPhase36FixFallbackMatrix"
         ]
       }
     },

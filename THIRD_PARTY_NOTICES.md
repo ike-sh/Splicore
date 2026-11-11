@@ -103,18 +103,20 @@ license inventories are retained alongside the new pinned versions:
 
 The convergence candidate retains the existing dependency versions and adds the following pinned independent libraries. Complete upstream license, copyright and authors files are retained verbatim under `licenses/third-party`. These libraries run in process; reference executables are test tools only. No AmneziaWG implementation or dependency is added.
 
-- `github.com/google/nftables v0.3.0`: [LICENSE](licenses/third-party/github.com/google/nftables/v0.3.0/LICENSE).
-- `github.com/mdlayher/genetlink v1.3.2`: [LICENSE.md](licenses/third-party/github.com/mdlayher/genetlink/v1.3.2/LICENSE.md).
-- `github.com/mdlayher/netlink v1.7.3-0.20250113171957-fbb4dce95f42`: [LICENSE.md](licenses/third-party/github.com/mdlayher/netlink/v1.7.3-0.20250113171957-fbb4dce95f42/LICENSE.md).
-- `github.com/mdlayher/socket v0.5.1`: [LICENSE.md](licenses/third-party/github.com/mdlayher/socket/v0.5.1/LICENSE.md).
 - `golang.zx2c4.com/wireguard v0.0.0-20261024220952-b3bc704ef0ee`: [COPYRIGHT](licenses/third-party/golang.zx2c4.com/wireguard/v0.0.0-20261024220952-b3bc704ef0ee/COPYRIGHT), [LICENSE](licenses/third-party/golang.zx2c4.com/wireguard/v0.0.0-20261024220952-b3bc704ef0ee/LICENSE).
 - `golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10`: [LICENSE.md](licenses/third-party/golang.zx2c4.com/wireguard/wgctrl/v0.0.0-20241231184526-a9ab2273dd10/LICENSE.md).
 
 ## Archived candidate license copies
 
-These verbatim license copies document the isolated ShadowQUIC/JLS candidate.
-Its implementation and dependencies are excluded from the v0.6.1 production
-module graph; retaining license evidence does not advertise protocol support.
+These verbatim license copies document the isolated ShadowQUIC/JLS and Linux
+kernel WireGuard candidates. Their implementation-specific dependencies are
+excluded from the v0.6.1 production module graph; retaining license evidence
+does not advertise protocol or backend support.
+
+- `github.com/google/nftables v0.3.0`: [LICENSE](licenses/third-party/github.com/google/nftables/v0.3.0/LICENSE).
+- `github.com/mdlayher/genetlink v1.3.2`: [LICENSE.md](licenses/third-party/github.com/mdlayher/genetlink/v1.3.2/LICENSE.md).
+- `github.com/mdlayher/netlink v1.7.3-0.20250113171957-fbb4dce95f42`: [LICENSE.md](licenses/third-party/github.com/mdlayher/netlink/v1.7.3-0.20250113171957-fbb4dce95f42/LICENSE.md).
+- `github.com/mdlayher/socket v0.5.1`: [LICENSE.md](licenses/third-party/github.com/mdlayher/socket/v0.5.1/LICENSE.md).
 
 - `github.com/metacubex/cpu v0.1.0`: [LICENSE](licenses/third-party/github.com/metacubex/cpu/v0.1.0/LICENSE).
 - `github.com/metacubex/hkdf v0.1.0`: [LICENSE](licenses/third-party/github.com/metacubex/hkdf/v0.1.0/LICENSE).

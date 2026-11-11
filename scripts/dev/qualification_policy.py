@@ -30,8 +30,6 @@ def validate(root, result, target, profile):
                     continue
                 required.update(str(PurePosixPath(path).parent / name) for name in names)
         required.add('internal/splicore/engine/native/TestSnellV5IPv6UnderlayAndUDP443/false')
-        if target.startswith('linux'):
-            required.add('internal/splicore/wireguardendpoint/TestPhase36KernelTraffic')
     if os.environ.get('GITHUB_ACTIONS'):
         required.add('internal/splicore/streamtransport/hysteria/TestRootFileTraversalAndHTTPHTTPSProxyBoundaries/file/symlink')
     missing = sorted(name for name in required if tests.get(name) != 'pass')

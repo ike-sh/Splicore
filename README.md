@@ -80,7 +80,9 @@ v0.4.0 baseline, with hybrid ML-KEM-768/X25519, AES-GCM/ChaCha records and
 independent official Xray v26.10.21 peer tests on both native platforms.
 Android/v2rayNG real-device traffic is NOT EXECUTED. v0.6.1 restores standard WireGuard, XHTTP H3 and generic
 carriers with the scope recorded in the [release notes](docs/releases/v0.6.1.md).
-ShadowQUIC restoration is ISOLATED_NOT_QUALIFIED and is excluded from this release.
+ShadowQUIC and Linux kernel WireGuard restorations are ISOLATED_NOT_QUALIFIED
+and excluded from this release. Standard WireGuard uses the userspace backend;
+explicit kernel activation is rejected and auto reports its userspace fallback.
 AmneziaWG is retired; standard WireGuard remains separate.
 The unpublished v0.6.0 tag failed qualification and remains unchanged.
 
