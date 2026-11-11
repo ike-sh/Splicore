@@ -21,6 +21,7 @@ import (
 const MaxHeaders = 16 << 10
 
 type Config struct {
+	H3          *H3               `json:"h3,omitempty"`
 	Hysteria    *Hysteria         `json:"hysteria,omitempty"`
 	MKCP        *MKCP             `json:"mkcp,omitempty"`
 	XHTTP       *XHTTP            `json:"xhttp,omitempty"`
@@ -40,7 +41,7 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 	if len(b) > 16384 || jsonstrict.Decode(b, &fields) != nil || fields == nil {
 		return bad()
 	}
-	allowed := map[string]bool{"kind": true, "path": true, "host": true, "headers": true, "service_name": true, "final_mask": true, "xhttp": true, "mkcp": true, "hysteria": true}
+	allowed := map[string]bool{"kind": true, "path": true, "host": true, "headers": true, "service_name": true, "final_mask": true, "xhttp": true, "mkcp": true, "hysteria": true, "h3": true}
 	for k, v := range fields {
 		if !allowed[k] || bytes.Equal(bytes.TrimSpace(v), []byte("null")) {
 			return bad()
@@ -64,7 +65,7 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 	// preserve its typed unsupported_transport issue. Compile validation still
 	// rejects it; it can never silently select raw TCP.
 	switch c.Kind {
-	case "tcp", "udp", "quic", "ws", "httpupgrade", "grpc", "xhttp", "mkcp", "hysteria":
+	case "tcp", "udp", "quic", "ws", "httpupgrade", "grpc", "xhttp", "mkcp", "hysteria", "http", "h2", "quic-stream":
 		return c.Validate()
 	default:
 		if len(c.Kind) > 64 {
@@ -73,7 +74,12 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 		return nil
 	}
 }
+
 func (c Config) Clone() Config {
+	if c.H3 != nil {
+		h := *c.H3
+		c.H3 = &h
+	}
 	if c.Hysteria != nil {
 		h := c.Hysteria.Clone()
 		c.Hysteria = &h
@@ -126,6 +132,7 @@ func ValidateMember(b []byte) error {
 	}
 	return nil
 }
+
 func (c Config) ValidateALPN(alpn []string) error {
 	if c.Type() == "hysteria" {
 		if len(alpn) == 0 || len(alpn) == 1 && alpn[0] == "h3" {
@@ -134,6 +141,9 @@ func (c Config) ValidateALPN(alpn []string) error {
 		return bad()
 	}
 	if c.Type() == "xhttp" {
+		if c.XHTTPH3(alpn) {
+			return nil
+		}
 		if len(alpn) == 0 {
 			return nil
 		}
@@ -148,7 +158,10 @@ func (c Config) ValidateALPN(alpn []string) error {
 		return nil
 	}
 	want := "http/1.1"
-	if c.Type() == "grpc" {
+	if c.Type() == "quic-stream" {
+		want = GenericQUICALPN
+	}
+	if c.Type() == "grpc" || c.Type() == "h2" {
 		want = "h2"
 	}
 	if len(alpn) != 1 || alpn[0] != want {
@@ -156,6 +169,7 @@ func (c Config) ValidateALPN(alpn []string) error {
 	}
 	return nil
 }
+
 func (c Config) ValidateServer() error {
 	if c.Type() == "xhttp" {
 		if c.Validate() != nil {
@@ -182,22 +196,29 @@ func (c Config) Type() string {
 	}
 	return c.Kind
 }
+
 func (c Config) HTTPPath() string {
 	if c.Path == "" {
 		return "/"
 	}
 	return c.Path
 }
+
 func (c Config) Service() string {
 	if c.ServiceName == "" {
 		return "GunService"
 	}
 	return c.ServiceName
 }
+
 func bad() error {
 	return identity.Err(identity.Invalid, "invalid or unsupported shared transport settings")
 }
+
 func (c Config) Validate() error {
+	if c.H3 != nil && (c.Type() != "xhttp" || c.H3.Validate() != nil) {
+		return bad()
+	}
 	if c.Hysteria != nil && c.Type() != "hysteria" {
 		return bad()
 	}
@@ -223,13 +244,16 @@ func (c Config) Validate() error {
 		return nil
 	case "xhttp":
 		return c.validateXHTTP()
-	case "tcp", "udp", "quic":
+	case "tcp", "udp", "quic", "quic-stream":
 		if c.Path != "" || c.Host != "" || len(c.Headers) > 0 || c.ServiceName != "" {
 			return bad()
 		}
 		return nil
-	case "ws", "httpupgrade", "grpc":
+	case "ws", "httpupgrade", "grpc", "http", "h2":
 	default:
+		return bad()
+	}
+	if c.NativeStream() && !validNativeHTTPPath(c.HTTPPath()) {
 		return bad()
 	}
 	if len(c.Host) > 255 || strings.IndexFunc(c.Host, unicode.IsSpace) >= 0 || strings.ContainsAny(c.Host, "/\\?#@") || strings.IndexFunc(c.Host, unicode.IsControl) >= 0 {
@@ -267,6 +291,9 @@ func (c Config) Validate() error {
 		if strings.HasPrefix(lower, "sec-websocket-") || strings.HasPrefix(lower, "grpc-") {
 			return bad()
 		}
+		if c.NativeStream() && (lower == "content-type" || lower == "content-encoding" || lower == "accept-encoding" || lower == "expect" || lower == "forwarded" || strings.HasPrefix(lower, "x-forwarded-") || lower == "x-real-ip") {
+			return bad()
+		}
 		switch lower {
 		case "host", "connection", "upgrade", "content-length", "transfer-encoding", "authorization", "proxy-authorization", "cookie", "te", "trailer":
 			return bad()
@@ -291,6 +318,12 @@ func (c Config) ValidatePair(protocol, security string) error {
 	}
 	if c.Type() == "hysteria" {
 		if protocol == "hysteria2" && security == "tls" {
+			return nil
+		}
+		return bad()
+	}
+	if c.NativeStream() {
+		if security == "tls" && (protocol == "vless" || protocol == "vmess" || protocol == "trojan") {
 			return nil
 		}
 		return bad()

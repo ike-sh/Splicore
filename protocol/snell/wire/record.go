@@ -56,6 +56,7 @@ func (s *cryptoState) initialize(k *Key, salt []byte) error {
 	s.aead, err = cipher.NewGCM(block)
 	return err
 }
+
 func (s *cryptoState) advance() error {
 	for i := range s.nonce {
 		s.nonce[i]++
@@ -65,6 +66,7 @@ func (s *cryptoState) advance() error {
 	}
 	return ErrExhausted
 }
+
 func exactWrite(w io.Writer, p []byte) error {
 	for len(p) > 0 {
 		n, err := w.Write(p)
@@ -81,6 +83,7 @@ func exactWrite(w io.Writer, p []byte) error {
 	}
 	return nil
 }
+
 func readBytes(r io.Reader, n int) ([]byte, error) {
 	p := make([]byte, n)
 	_, err := io.ReadFull(r, p)
@@ -199,10 +202,10 @@ type Encoder struct {
 	output io.Writer
 	key    *Key
 	cryptoState
-	failed                         error
-	firstPadding                   int
-	last                           int64
-	budget, batchBudget, batchLeft int
+	failed       error
+	firstPadding int
+	last         int64
+	budget       int
 }
 
 func NewEncoder(w io.Writer, k *Key) *Encoder { return &Encoder{output: w, key: k} }
@@ -233,6 +236,7 @@ func (w *Encoder) initializeWriter() error {
 	}
 	return exactWrite(w.output, block)
 }
+
 func (w *Encoder) limit(now int64) int {
 	shape := w.key.shape
 	if shape != nil {
@@ -264,6 +268,7 @@ func (w *Encoder) limit(now int64) int {
 	w.last = now
 	return size
 }
+
 func (w *Encoder) emit(payload []byte) error {
 	if len(payload) > 65535 {
 		return ErrFrame
@@ -331,27 +336,30 @@ func (w *Encoder) Record(p []byte) (err error) {
 		return w.failed
 	}
 	defer func() {
-		if err != nil && !errors.Is(err,ErrFrame) {
+		if err != nil && !errors.Is(err, ErrFrame) {
 			w.failed = err
 		}
 	}()
 	maximum := 65535
-	if w.key.shape == nil { maximum = 16383 }
+	if w.key.shape == nil {
+		maximum = 16383
+	}
 	if len(p) > maximum {
 		return ErrFrame
 	}
 	if err = w.initializeWriter(); err != nil {
 		return err
 	}
-	oldBudget,oldLast := w.budget,w.last
+	oldBudget, oldLast := w.budget, w.last
 	limit := w.limit(time.Now().Unix())
-	if w.key.shape == nil && len(p)>limit {
-		w.budget,w.last = oldBudget,oldLast
+	if w.key.shape == nil && len(p) > limit {
+		w.budget, w.last = oldBudget, oldLast
 		return ErrFrame
 	}
-	if w.key.version == 5 { w.batchLeft = 0 }
+
 	return w.emit(p)
 }
+
 func (w *Encoder) Write(p []byte) (n int, err error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -371,27 +379,17 @@ func (w *Encoder) Write(p []byte) (n int, err error) {
 	}
 	now := time.Now().Unix()
 	callBudget := 0
-	if w.key.version == 4 {
+	if w.key.version == 4 || w.key.version == 5 {
 		callBudget = w.limit(now)
 	}
 	for len(p) > 0 {
 		size := callBudget
 		if w.key.shape != nil {
 			size = w.limit(now)
-		} else if w.key.version == 5 {
-			if w.batchLeft == 0 || now-w.last >= 31 {
-				w.batchBudget = w.limit(now)
-				w.batchLeft = 192 * 1024
-			}
-			size = min(w.batchBudget, w.batchLeft)
-			w.last = now
 		}
 		size = min(size, len(p))
 		if err = w.emit(p[:size]); err != nil {
 			return n, err
-		}
-		if w.key.version == 5 {
-			w.batchLeft -= size
 		}
 		n += size
 		p = p[size:]
@@ -404,11 +402,13 @@ func classicSwap(a, b []byte) {
 		a[i], b[i] = b[i], a[i]
 	}
 }
+
 func random31() (int, error) {
 	var b [4]byte
 	_, err := io.ReadFull(rand.Reader, b[:])
 	return int(binary.LittleEndian.Uint32(b[:]) & 0x7fffffff), err
 }
+
 func densityPadding(p, ciphertext []byte) error {
 	if len(p) == 0 {
 		return nil

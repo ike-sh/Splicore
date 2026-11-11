@@ -12,7 +12,7 @@ unchanged; individual dependency terms remain applicable.
 | github.com/apernet/quic-go | v0.63.1-0.20261004180939-a10df75c260c | [LICENSE](licenses/third-party/github.com/apernet/quic-go/v0.63.1-0.20261004180939-a10df75c260c/LICENSE) |
 | github.com/cespare/xxhash/v2 | v2.3.0 | [LICENSE.txt](licenses/third-party/github.com/cespare/xxhash/v2/v2.3.0/LICENSE.txt) |
 | github.com/dustin/go-humanize | v1.0.1 | [LICENSE](licenses/third-party/github.com/dustin/go-humanize/v1.0.1/LICENSE) |
-| github.com/enfein/mieru/v3 | v3.38.0 | [LICENSE](licenses/third-party/github.com/enfein/mieru/v3/v3.38.0/LICENSE) |
+| github.com/enfein/mieru/v3 | v3.39.0 | [LICENSE](licenses/third-party/github.com/enfein/mieru/v3/v3.39.0/LICENSE) |
 | github.com/go-logr/logr | v1.4.3 | [LICENSE](licenses/third-party/github.com/go-logr/logr/v1.4.3/LICENSE) |
 | github.com/go-logr/stdr | v1.2.2 | [LICENSE](licenses/third-party/github.com/go-logr/stdr/v1.2.2/LICENSE) |
 | github.com/gofrs/uuid/v5 | v5.5.1 | [LICENSE](licenses/third-party/github.com/gofrs/uuid/v5/v5.5.1/LICENSE) |
@@ -98,3 +98,21 @@ license inventories are retained alongside the new pinned versions:
 - `golang.org/x/sync v0.23.0`: [license](licenses/third-party/golang.org/x/sync/v0.23.0/LICENSE).
 - `golang.org/x/text v0.42.0`: [license](licenses/third-party/golang.org/x/text/v0.42.0/LICENSE).
 - `golang.org/x/tools v0.50.0`: [license](licenses/third-party/golang.org/x/tools/v0.50.0/LICENSE).
+
+## Restored native protocol and endpoint dependencies
+
+The convergence candidate retains the existing dependency versions and adds the following pinned independent libraries. Complete upstream license, copyright and authors files are retained verbatim under `licenses/third-party`. These libraries run in process; reference executables are test tools only. No AmneziaWG implementation or dependency is added.
+
+- `github.com/google/nftables v0.3.0`: [LICENSE](licenses/third-party/github.com/google/nftables/v0.3.0/LICENSE).
+- `github.com/mdlayher/genetlink v1.3.2`: [LICENSE.md](licenses/third-party/github.com/mdlayher/genetlink/v1.3.2/LICENSE.md).
+- `github.com/mdlayher/netlink v1.7.3-0.20250113171957-fbb4dce95f42`: [LICENSE.md](licenses/third-party/github.com/mdlayher/netlink/v1.7.3-0.20250113171957-fbb4dce95f42/LICENSE.md).
+- `github.com/mdlayher/socket v0.5.1`: [LICENSE.md](licenses/third-party/github.com/mdlayher/socket/v0.5.1/LICENSE.md).
+- `github.com/metacubex/cpu v0.1.0`: [LICENSE](licenses/third-party/github.com/metacubex/cpu/v0.1.0/LICENSE).
+- `github.com/metacubex/hkdf v0.1.0`: [LICENSE](licenses/third-party/github.com/metacubex/hkdf/v0.1.0/LICENSE).
+- `github.com/metacubex/hpke v0.1.0`: [LICENSE](licenses/third-party/github.com/metacubex/hpke/v0.1.0/LICENSE).
+- `github.com/metacubex/mlkem v0.1.0`: [LICENSE](licenses/third-party/github.com/metacubex/mlkem/v0.1.0/LICENSE).
+- `github.com/metacubex/randv2 v0.2.0`: [LICENSE](licenses/third-party/github.com/metacubex/randv2/v0.2.0/LICENSE).
+- `github.com/metacubex/jls-quic-go v0.0.0-20260727080412-732f2fc9a34d`: [LICENSE](licenses/third-party/github.com/metacubex/jls-quic-go/v0.0.0-20260727080412-732f2fc9a34d/LICENSE).
+- `github.com/metacubex/jls-tls v0.0.0-20260723084315-67adc0e2f796`: [LICENSE](licenses/third-party/github.com/metacubex/jls-tls/v0.0.0-20260723084315-67adc0e2f796/LICENSE).
+- `golang.zx2c4.com/wireguard v0.0.0-20261024220952-b3bc704ef0ee`: [COPYRIGHT](licenses/third-party/golang.zx2c4.com/wireguard/v0.0.0-20261024220952-b3bc704ef0ee/COPYRIGHT), [LICENSE](licenses/third-party/golang.zx2c4.com/wireguard/v0.0.0-20261024220952-b3bc704ef0ee/LICENSE).
+- `golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10`: [LICENSE.md](licenses/third-party/golang.zx2c4.com/wireguard/wgctrl/v0.0.0-20241231184526-a9ab2273dd10/LICENSE.md).

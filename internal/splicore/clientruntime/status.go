@@ -1,12 +1,13 @@
 package clientruntime
 
 import (
+	"sort"
+
 	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/hostnetwork"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
-	"sort"
 )
 
 type Observation struct {
@@ -22,13 +23,15 @@ type OutboundHealth struct {
 	Stats      TrafficStats `json:"stats"`
 }
 type SessionView struct {
-	AccountID  identity.ID  `json:"account_id,omitempty"`
-	ID         identity.ID  `json:"id"`
-	InboundID  identity.ID  `json:"local_inbound_id"`
-	OutboundID identity.ID  `json:"outbound_id,omitempty"`
-	NodeID     identity.ID  `json:"node_id,omitempty"`
-	Kind       string       `json:"kind"`
-	Stats      TrafficStats `json:"stats"`
+	EndpointTag   string       `json:"endpoint_tag,omitempty"`
+	PeerPublicKey string       `json:"peer_public_key,omitempty"`
+	AccountID     identity.ID  `json:"account_id,omitempty"`
+	ID            identity.ID  `json:"id"`
+	InboundID     identity.ID  `json:"local_inbound_id"`
+	OutboundID    identity.ID  `json:"outbound_id,omitempty"`
+	NodeID        identity.ID  `json:"node_id,omitempty"`
+	Kind          string       `json:"kind"`
+	Stats         TrafficStats `json:"stats"`
 }
 type Status struct {
 	TunnelGuards     []TunnelObservation        `json:"tunnel_guards,omitempty"`
@@ -74,6 +77,9 @@ func (m *Manager) Status(state client.ProfileState, capabilities []ports.Outboun
 	if !m.closed && m.current.Load() != nil && state.Enabled {
 		out.Health = "healthy"
 		for _, i := range state.LocalInbounds {
+			if i.Kind == "endpoint" {
+				continue
+			}
 			l := m.listeners[i.ID]
 			if l == nil || !l.ready.Load() {
 				out.Health = "degraded"
@@ -129,7 +135,7 @@ func (m *Manager) Status(state client.ProfileState, capabilities []ports.Outboun
 		out.Nodes = append(out.Nodes, v)
 	}
 	for _, s := range m.sessions {
-		out.Sessions = append(out.Sessions, SessionView{AccountID: s.account, ID: s.id, InboundID: s.inbound, OutboundID: s.outbound, NodeID: s.node, Kind: s.kind, Stats: s.stats.stats()})
+		out.Sessions = append(out.Sessions, SessionView{EndpointTag: s.endpointTag, PeerPublicKey: s.peerPublicKey, AccountID: s.account, ID: s.id, InboundID: s.inbound, OutboundID: s.outbound, NodeID: s.node, Kind: s.kind, Stats: s.stats.stats()})
 	}
 	for id, c := range m.accountStats {
 		out.Accounts = append(out.Accounts, Observation{ID: id, Stats: c.stats()})

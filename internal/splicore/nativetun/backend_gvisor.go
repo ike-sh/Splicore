@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"sync"
 
+	"github.com/ike-sh/Splicore/internal/splicore/engine/clientio"
 	"gvisor.dev/gvisor/pkg/buffer"
 	"gvisor.dev/gvisor/pkg/tcpip"
 	"gvisor.dev/gvisor/pkg/tcpip/adapters/gonet"
@@ -23,8 +24,10 @@ import (
 	"gvisor.dev/gvisor/pkg/waiter"
 )
 
-const Included = true
-const flowLimit = 4096
+const (
+	Included  = true
+	flowLimit = 4096
+)
 
 type flowKey struct {
 	protocol tcpip.TransportProtocolNumber
@@ -32,6 +35,7 @@ type flowKey struct {
 }
 
 type gvisorBackend struct {
+	outbound *clientio.Owner
 	runtime  *Runtime
 	stack    *stack.Stack
 	link     *packetLink
@@ -43,7 +47,7 @@ type gvisorBackend struct {
 }
 
 func startBackend(r *Runtime) (backend, error) {
-	b := &gvisorBackend{runtime: r, active: make(map[flowKey]net.Conn)}
+	b := &gvisorBackend{outbound: clientio.New(), runtime: r, active: make(map[flowKey]net.Conn)}
 	b.stack = stack.New(stack.Options{
 		NetworkProtocols:   []stack.NetworkProtocolFactory{ipv4.NewProtocol, ipv6.NewProtocol},
 		TransportProtocols: []stack.TransportProtocolFactory{tcp.NewProtocol, udp.NewProtocol, icmp.NewProtocol4, icmp.NewProtocol6},
@@ -237,6 +241,7 @@ func (b *gvisorBackend) fail(err error) {
 }
 
 func (b *gvisorBackend) close() {
+	b.outbound.Close()
 	b.mu.Lock()
 	b.stopping = true
 	connections := make([]net.Conn, 0, len(b.active))
@@ -309,6 +314,7 @@ func (l *packetLink) readPacket(ctx context.Context) []byte {
 		return nil
 	}
 }
+
 func (l *packetLink) Close() {
 	l.queueMu.Lock()
 	l.closed = true

@@ -63,7 +63,7 @@ func (c VLESSCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (por
 		return nil, err
 	}
 	ctx, cancel := context.WithCancel(context.WithoutCancel(ctx))
-	h := &vlessHandle{flow: s.Flow, ctx: ctx, cancel: cancel, endpoint: in.Inbound.Listeners[0].Endpoint, protected: dialer, total: &traffic.Counter{}, users: map[string]*traffic.Counter{}, uuids: map[[16]byte]string{}, connections: map[net.Conn]bool{}, done: make(chan struct{})}
+	h := &vlessHandle{flow: s.Flow, ctx: ctx, cancel: cancel, endpoint: in.Inbound.Listeners[0].Endpoint, protected: ports.RoutedTargetDialer(ctx, dialer), total: &traffic.Counter{}, users: map[string]*traffic.Counter{}, uuids: map[[16]byte]string{}, connections: map[net.Conn]bool{}, done: make(chan struct{})}
 	cfg, err := module.DecryptionConfig(s, in.ServerCredentials)
 	if err != nil {
 		cancel()
@@ -97,7 +97,7 @@ func (c VLESSCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (por
 			cancel()
 			return nil, identity.Err(identity.Invalid, "invalid VLESS TLS snapshot")
 		}
-		tc := &tls.Config{Certificates: []tls.Certificate{pair}, MinVersion: tls.VersionTLS13}
+		tc := &tls.Config{Certificates: []tls.Certificate{pair}, MinVersion: tls.VersionTLS13, NextProtos: append([]string(nil), s.ALPN...)}
 		h.transportTLS = tc
 		h.handshake = func(ctx context.Context, c net.Conn) (net.Conn, error) {
 			tlsConn := tls.Server(c, tc)
@@ -138,7 +138,7 @@ type vlessHandle struct {
 	ctx               context.Context
 	cancel            context.CancelFunc
 	endpoint          access.Endpoint
-	protected         *underlay.Dialer
+	protected         ports.TargetDialer
 	handshake         func(context.Context, net.Conn) (net.Conn, error)
 	targetProbe       func(context.Context) error
 	listener          net.Listener
@@ -169,7 +169,7 @@ func (h *vlessHandle) Start(ctx context.Context) error {
 			return identity.Err(identity.Unavailable, "REALITY target is unavailable")
 		}
 	}
-	l, err := shared.ListenCarrier(ctx, net.JoinHostPort(h.endpoint.Host, portString(h.endpoint.Port)), h.transport)
+	l, err := shared.ListenCarrier(ctx, net.JoinHostPort(h.endpoint.Host, portString(h.endpoint.Port)), h.transport, transportALPN(h.transportTLS))
 	if err != nil {
 		if addressInUse(err) {
 			return identity.Err(identity.PortConflict, h.transport.Carrier()+" listener port is already in use")

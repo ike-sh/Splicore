@@ -5,17 +5,6 @@ import (
 	"bufio"
 	"context"
 	"errors"
-	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
-	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
-	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
-	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
-	"github.com/ike-sh/Splicore/internal/splicore/networkruntime"
-	"github.com/ike-sh/Splicore/internal/splicore/ports"
-	httpproxy "github.com/ike-sh/Splicore/internal/splicore/protocol/http"
-	"github.com/ike-sh/Splicore/internal/splicore/protocol/socks"
-	"github.com/ike-sh/Splicore/internal/splicore/protocol/socks5"
-	"github.com/ike-sh/Splicore/internal/splicore/registry"
-	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"io"
 	"net"
 	"reflect"
@@ -23,6 +12,19 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
+	"github.com/ike-sh/Splicore/internal/splicore/engine/clientio"
+	"github.com/ike-sh/Splicore/internal/splicore/networkruntime"
+	"github.com/ike-sh/Splicore/internal/splicore/ports"
+	httpproxy "github.com/ike-sh/Splicore/internal/splicore/protocol/http"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/socks"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/socks5"
+	"github.com/ike-sh/Splicore/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 )
 
 type counter struct {
@@ -37,8 +39,10 @@ type passiveHealth struct {
 	at        time.Time
 }
 
-var succeededHealth = &passiveHealth{available: true}
-var failedHealth = &passiveHealth{lastError: "outbound_connection_failed"}
+var (
+	succeededHealth = &passiveHealth{available: true}
+	failedHealth    = &passiveHealth{lastError: "outbound_connection_failed"}
+)
 
 func (c *counter) stats() TrafficStats {
 	return TrafficStats{Errors: c.errors.Load(), Stats: ports.Stats{Upload: c.upload.Load(), Download: c.download.Load(), Sessions: c.total.Load(), Active: c.active.Load()}, UDPAssociations: c.udpTotal.Load(), UDPActive: c.udpActive.Load(), PacketsUpload: c.packetsUp.Load(), PacketsDownload: c.packetsDown.Load()}
@@ -95,23 +99,26 @@ type localListener struct {
 	done   chan struct{}
 }
 type session struct {
-	account                 identity.ID
-	id                      identity.ID
-	inbound, outbound, node identity.ID
-	packetLocal             io.Closer
-	local                   net.Conn
-	remote                  net.Conn       // assigned only while holding Manager.mu
-	packet                  net.PacketConn // assigned only while holding Manager.mu
-	kind                    string
-	dialer                  ports.ClientDialer
-	cancel                  context.CancelFunc
-	stats                   counter
+	endpointTag, peerPublicKey string
+	account                    identity.ID
+	id                         identity.ID
+	inbound, outbound, node    identity.ID
+	packetLocal                io.Closer
+	local                      net.Conn
+	remote                     net.Conn       // assigned only while holding Manager.mu
+	packet                     net.PacketConn // assigned only while holding Manager.mu
+	kind                       string
+	dialer                     ports.ClientDialer
+	cancel                     context.CancelFunc
+	stats                      counter
 }
 type Manager struct {
-	accountLookup func(context.Context, identity.ID) (access.Account, error)
-	accountStats  map[identity.ID]*counter
-	underlay      *underlay.Factory
-	host          *hostController
+	targetOwner    *clientio.Owner
+	endpointLookup func(string) (ports.ClientDialer, error)
+	accountLookup  func(context.Context, identity.ID) (access.Account, error)
+	accountStats   map[identity.ID]*counter
+	underlay       *underlay.Factory
+	host           *hostController
 	// routeMu protects acquiring a generation reference versus retirement, never payload I/O.
 	routeMu                      sync.RWMutex
 	current                      atomic.Pointer[snapshot]
@@ -130,7 +137,7 @@ type Manager struct {
 
 func New() *Manager { return NewWithUnderlay(underlay.New()) }
 func NewWithUnderlay(f *underlay.Factory) *Manager {
-	return &Manager{underlay: f, listeners: map[identity.ID]*localListener{}, networkOwners: map[*networkruntime.Engine]bool{}, sessions: map[identity.ID]*session{}, inStats: map[identity.ID]*counter{}, outStats: map[identity.ID]*counter{}, nodeStats: map[identity.ID]*counter{}, changed: make(chan struct{}), udpIdle: 2 * time.Minute}
+	return &Manager{targetOwner: clientio.New(), underlay: f, listeners: map[identity.ID]*localListener{}, networkOwners: map[*networkruntime.Engine]bool{}, sessions: map[identity.ID]*session{}, inStats: map[identity.ID]*counter{}, outStats: map[identity.ID]*counter{}, nodeStats: map[identity.ID]*counter{}, changed: make(chan struct{}), udpIdle: 2 * time.Minute}
 }
 
 type Prepared struct {
@@ -185,7 +192,7 @@ func Validate(state client.ProfileState, credentials map[identity.ID]access.Cred
 		}
 	}
 	for _, o := range state.Outbounds {
-		if o.Kind == "direct" {
+		if o.Kind == "direct" || o.Kind == "endpoint" {
 			continue
 		}
 		f, err := registry.Get(nodes[*o.NodeID].Protocol.Protocol, o.Engine)
@@ -199,9 +206,11 @@ func Validate(state client.ProfileState, credentials map[identity.ID]access.Cred
 	}
 	return nil
 }
+
 func (m *Manager) Prepare(ctx context.Context, state client.ProfileState, credentials map[identity.ID]access.Credential, registry *registry.Outbounds) (p *Prepared, err error) {
 	return m.PrepareWithRestart(ctx, state, credentials, registry, false)
 }
+
 func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileState, credentials map[identity.ID]access.Credential, registry *registry.Outbounds, restart bool) (p *Prepared, err error) {
 	m.mu.Lock()
 	closed, base := m.closed, m.current.Load()
@@ -309,7 +318,7 @@ func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileSt
 		}
 		key := effectiveKey(o, n)
 		buildNode := n
-		if o.Kind != "direct" {
+		if o.Kind == "proxy" {
 			ips, resolveErr := resolveNode(ctx, bootstrap, n.Endpoint.Host, required || state.Network.DNS.Enabled)
 			if resolveErr != nil {
 				return p, resolveErr
@@ -331,13 +340,22 @@ func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileSt
 			}
 		}
 		var d ports.ClientDialer
-		if o.Kind == "direct" {
+		switch o.Kind {
+		case "endpoint":
+			if m.endpointLookup == nil {
+				return p, identity.Err(identity.Unavailable, "network endpoint registry unavailable")
+			}
+			d, err = m.endpointLookup(o.EndpointTag)
+			if err != nil {
+				return p, err
+			}
+		case "direct":
 			protected, buildErr := m.underlay.New(underlay.Scope{Purpose: underlay.DirectEgress, Runtime: o.ID, Generation: s.underlay.ID})
 			if buildErr != nil {
 				return p, buildErr
 			}
 			d = directDialer{protected: protected}
-		} else {
+		default:
 			n := buildNode
 			f, _ := registry.Get(n.Protocol.Protocol, o.Engine)
 			buildCtx := underlay.WithScope(ctx, underlay.Scope{Purpose: underlay.ProxyUnderlay, Runtime: o.ID, Generation: s.underlay.ID})
@@ -384,7 +402,7 @@ func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileSt
 			p.listeners[i.ID] = old
 			continue
 		}
-		if i.Kind == "tun" {
+		if i.Kind == "tun" || i.Kind == "endpoint" {
 			continue
 		}
 		var l net.Listener
@@ -408,6 +426,7 @@ func (m *Manager) PrepareWithRestart(ctx context.Context, state client.ProfileSt
 	}
 	return p, nil
 }
+
 func (p *Prepared) Abort() error {
 	if p == nil {
 		return nil
@@ -505,6 +524,7 @@ func (p *Prepared) Activate() error {
 	}
 	return hostErr
 }
+
 func (m *Manager) acquire() *snapshot {
 	m.routeMu.RLock()
 	s := m.current.Load()
@@ -514,6 +534,7 @@ func (m *Manager) acquire() *snapshot {
 	m.routeMu.RUnlock()
 	return s
 }
+
 func (m *Manager) accept(l *localListener) {
 	defer m.wg.Done()
 	defer close(l.done)
@@ -546,6 +567,7 @@ func (m *Manager) accept(l *localListener) {
 		go m.serve(ctx, s, l.spec.Kind)
 	}
 }
+
 func (m *Manager) closeSession(s *session) {
 	s.cancel()
 	if s.local != nil {
@@ -565,6 +587,7 @@ func (m *Manager) closeSession(s *session) {
 		_ = packet.Close()
 	}
 }
+
 func (m *Manager) serve(ctx context.Context, s *session, kind string) {
 	defer m.wg.Done()
 	var gen *snapshot
@@ -608,6 +631,7 @@ func (m *Manager) serve(ctx context.Context, s *session, kind string) {
 	}
 	m.serveSOCKS(ctx, s, reader, gen)
 }
+
 func (m *Manager) serveSOCKS(ctx context.Context, s *session, reader *bufio.Reader, gen *snapshot) {
 	if err := socks5.AcceptAuthWithVerifier(reader, s.local, m.proxyVerifier(s, gen)); err != nil {
 		m.proxyFailure(s, gen)
@@ -775,6 +799,7 @@ func (d directDialer) DialContext(ctx context.Context, e access.Endpoint) (net.C
 }
 func (directDialer) Close() error { return nil }
 func (m *Manager) Close(ctx context.Context) error {
+	m.targetOwner.Close()
 	m.mu.Lock()
 	if !m.closed {
 		m.closed = true

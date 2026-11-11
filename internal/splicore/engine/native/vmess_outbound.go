@@ -3,6 +3,9 @@ package native
 import (
 	"context"
 	"crypto/tls"
+	"net"
+	"time"
+
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
 	"github.com/ike-sh/Splicore/internal/splicore/engine/clientconfig"
@@ -13,8 +16,6 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"github.com/ike-sh/Splicore/protocol/vmess/backend"
 	"github.com/ike-sh/Splicore/protocol/vmess/wire"
-	"net"
-	"time"
 )
 
 type VMessOutboundFactory struct{}
@@ -22,9 +23,11 @@ type VMessOutboundFactory struct{}
 func (VMessOutboundFactory) Capability() ports.OutboundCapability {
 	return clientconfig.Capability("vmess", true, false, true)
 }
+
 func (VMessOutboundFactory) Validate(n client.RemoteNode, c access.Credential) error {
 	return module.ValidateClientNode(n, c)
 }
+
 func (f VMessOutboundFactory) Build(ctx context.Context, n client.RemoteNode, c access.Credential) (ports.ClientDialer, error) {
 	if err := f.Validate(n, c); err != nil {
 		return nil, err
@@ -43,7 +46,7 @@ func (f VMessOutboundFactory) Build(ctx context.Context, n client.RemoteNode, c 
 	}
 	opts, _ := module.DecodeClientOptions(n.Options.Data)
 	security, _ := module.Security(opts.Security)
-	transport, err := sharedClient(d.DialContext, n, tc)
+	transport, err := sharedClient(ctx, d.DialContext, n, tc)
 	if err != nil {
 		return nil, err
 	}
@@ -119,6 +122,7 @@ func (d *vmessDialer) open(ctx context.Context, dst access.Endpoint, packet bool
 	success = true
 	return stream, nil
 }
+
 func (d *vmessDialer) DialContext(ctx context.Context, dst access.Endpoint) (net.Conn, error) {
 	ctx, done, err := d.owner.Begin(ctx)
 	if err != nil {
@@ -131,6 +135,7 @@ func (d *vmessDialer) DialContext(ctx context.Context, dst access.Endpoint) (net
 	}
 	return d.owner.Conn(c)
 }
+
 func (d *vmessDialer) ListenPacket(ctx context.Context, dst access.Endpoint) (net.PacketConn, error) {
 	if !d.udp {
 		return nil, module.Unsupported("VMess UDP disabled")
@@ -146,6 +151,7 @@ func (d *vmessDialer) ListenPacket(ctx context.Context, dst access.Endpoint) (ne
 	}
 	return d.owner.Packet(backend.NewPacket(context.Background(), c, dst))
 }
+
 func (d *vmessDialer) Close() error {
 	d.owner.Close()
 	if d.transport != nil {

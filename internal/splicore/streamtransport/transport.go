@@ -21,9 +21,11 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/streamtransport/mkcp"
 )
 
-const ChunkSize = 32 << 10
-const MaxMessage = 1 << 20
-const HandshakeTimeout = 5 * time.Second
+const (
+	ChunkSize        = 32 << 10
+	MaxMessage       = 1 << 20
+	HandshakeTimeout = 5 * time.Second
+)
 
 type DialFunc func(context.Context, string, string) (net.Conn, error)
 
@@ -42,6 +44,7 @@ func tlsConfig(c *tls.Config, kind string) *tls.Config {
 	}
 	return c
 }
+
 func Dial(ctx context.Context, dial DialFunc, address string, c cfg.Config, tc *tls.Config) (net.Conn, error) {
 	if c.Type() == "hysteria" {
 		return nil, errors.New("Hysteria requires its specialized authenticated stream/datagram transport")
@@ -81,11 +84,17 @@ func Dial(ctx context.Context, dial DialFunc, address string, c cfg.Config, tc *
 		raw.SetDeadline(time.Time{})
 		return secured, nil
 	}
+	if c.NativeStream() {
+		if c.Type() == "quic-stream" {
+			return nil, errors.New("generic QUIC requires an approved packet socket")
+		}
+		return dialSingleClient(ctx, dial, address, c, tc)
+	}
 	if c.Type() == "grpc" {
 		return dialGRPC(ctx, dial, address, c, tlsConfig(tc, "grpc"))
 	}
 	if c.Type() == "xhttp" {
-		return dialXHTTP(ctx, dial, address, c, tc)
+		return dialSingleClient(ctx, dial, address, c, tc)
 	}
 	if c.Type() == "ws" {
 		admissionCtx := ctx
@@ -229,6 +238,7 @@ func validUpgradeResponse(resp *http.Response) bool {
 	}
 	return true
 }
+
 func token(value, want string) bool {
 	for _, t := range strings.Split(value, ",") {
 		if strings.EqualFold(strings.TrimSpace(t), want) {

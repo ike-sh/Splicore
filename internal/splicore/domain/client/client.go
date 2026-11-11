@@ -3,21 +3,24 @@ package client
 
 import (
 	"encoding/json"
+	"net/netip"
+
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/provider"
 	streamcfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
-	"net/netip"
 )
 
 const Direct identity.ID = "direct"
 
-type Transport = streamcfg.Config
-type Security struct {
-	Kind string           `json:"kind"`
-	TLS  access.ClientTLS `json:"tls"`
-}
+type (
+	Transport = streamcfg.Config
+	Security  struct {
+		Kind string           `json:"kind"`
+		TLS  access.ClientTLS `json:"tls"`
+	}
+)
 
 // Options are bounded and adapter-validated. Secrets have a separate reference.
 type Options struct {
@@ -70,10 +73,10 @@ func (n RemoteNode) Validate() error {
 	if err := n.Endpoint.Validate(); err != nil {
 		return err
 	}
-	if n.Transport.Kind == "" || n.Transport.ValidateClient() != nil || n.Transport.ValidateALPN(n.Security.TLS.ALPN) != nil || n.Security.TLS.Validate(n.Security.Kind) != nil || n.Options.Schema != 1 || len(n.Options.Data) > 16384 || !json.Valid(n.Options.Data) {
+	if n.Transport.Kind == "" || n.Transport.ValidateClient() != nil || n.Transport.ValidateSecurity(n.Security.Kind, n.Security.TLS.ALPN) != nil || n.Security.TLS.Validate(n.Security.Kind) != nil || n.Options.Schema != 1 || len(n.Options.Data) > 16384 || !json.Valid(n.Options.Data) {
 		return invalid()
 	}
-	if n.Transport.Kind == "hysteria" && n.Transport.ValidatePair(n.Protocol.Protocol, n.Security.Kind) != nil {
+	if (n.Transport.Kind == "hysteria" || n.Transport.NativeStream()) && n.Transport.ValidatePair(n.Protocol.Protocol, n.Security.Kind) != nil {
 		return invalid()
 	}
 	var object map[string]json.RawMessage
@@ -84,12 +87,13 @@ func (n RemoteNode) Validate() error {
 }
 
 type Outbound struct {
-	ProviderID identity.ID  `json:"provider_id,omitempty"`
-	ID         identity.ID  `json:"id"`
-	Name       string       `json:"name"`
-	Kind       string       `json:"kind"`
-	NodeID     *identity.ID `json:"node_id,omitempty"`
-	Engine     string       `json:"engine,omitempty"`
+	EndpointTag string       `json:"endpoint_tag,omitempty"`
+	ProviderID  identity.ID  `json:"provider_id,omitempty"`
+	ID          identity.ID  `json:"id"`
+	Name        string       `json:"name"`
+	Kind        string       `json:"kind"`
+	NodeID      *identity.ID `json:"node_id,omitempty"`
+	Engine      string       `json:"engine,omitempty"`
 }
 
 func (o Outbound) Validate() error {
@@ -97,6 +101,15 @@ func (o Outbound) Validate() error {
 		return invalid()
 	}
 	if !identity.Label(o.Name, 128) {
+		return invalid()
+	}
+	if o.Kind == "endpoint" {
+		if o.ID == Direct || o.ID.Validate() != nil || !identity.Label(o.EndpointTag, 64) || o.NodeID != nil || o.Engine != "" || o.ProviderID != "" {
+			return invalid()
+		}
+		return nil
+	}
+	if o.EndpointTag != "" {
 		return invalid()
 	}
 	if o.Kind == "direct" {
@@ -112,6 +125,7 @@ func (o Outbound) Validate() error {
 }
 
 type LocalInbound struct {
+	EndpointTag      string           `json:"endpoint_tag,omitempty"`
 	Tunnel           *TunnelSettings  `json:"tunnel,omitempty"`
 	Sniffing         *SniffingPolicy  `json:"sniffing,omitempty"`
 	AllowLAN         bool             `json:"allow_lan,omitempty"`
@@ -130,6 +144,15 @@ func (i LocalInbound) Validate() error {
 		return invalid()
 	}
 	if i.SelectedOutbound != "" && ValidateOutboundID(i.SelectedOutbound) != nil {
+		return invalid()
+	}
+	if i.Kind == "endpoint" {
+		if !identity.Label(i.EndpointTag, 64) || i.Listen != (access.Endpoint{}) || i.Auth || i.AllowLAN || len(i.Bindings) > 0 || i.TUN != nil || i.Tunnel != nil || i.Sniffing != nil {
+			return invalid()
+		}
+		return nil
+	}
+	if i.EndpointTag != "" {
 		return invalid()
 	}
 	if i.Kind == "tunnel" {
@@ -170,14 +193,16 @@ func (i LocalInbound) Validate() error {
 	}
 	return nil
 }
+
 func (i *LocalInbound) Defaults() {
-	if i.Kind != "tun" && i.Listen.Host == "" {
+	if i.Kind != "tun" && i.Kind != "endpoint" && i.Listen.Host == "" {
 		i.Listen.Host = "127.0.0.1"
 	}
 	if i.Kind == "" {
 		i.Kind = "socks5"
 	}
 }
+
 func ValidateOutboundID(id identity.ID) error {
 	if id == Direct {
 		return nil
@@ -202,6 +227,7 @@ type ProfileState struct {
 func Empty() ProfileState {
 	return ProfileState{Nodes: []RemoteNode{}, Outbounds: []Outbound{{ID: Direct, Name: "DIRECT", Kind: "direct"}}, LocalInbounds: []LocalInbound{}, Route: Route{DefaultOutbound: Direct}, Enabled: true}
 }
+
 func (s ProfileState) Validate() error {
 	if s.Management.Validate() != nil {
 		return invalid()
@@ -252,15 +278,22 @@ func (s ProfileState) Validate() error {
 	ids := map[identity.ID]bool{}
 	listeners := map[access.Endpoint]bool{}
 	tunNames := map[string]bool{}
+	endpointTags := map[string]bool{}
 	bindings := map[identity.ID]bool{}
 	for _, i := range s.LocalInbounds {
 		if err := i.Validate(); err != nil {
 			return err
 		}
-		if ids[i.ID] || i.Kind != "tun" && listeners[i.Listen] || i.SelectedOutbound != "" && !out[i.SelectedOutbound] {
+		if ids[i.ID] || i.Kind != "tun" && i.Kind != "endpoint" && listeners[i.Listen] || i.SelectedOutbound != "" && !out[i.SelectedOutbound] {
 			return invalid()
 		}
 		ids[i.ID] = true
+		if i.Kind == "endpoint" {
+			if endpointTags[i.EndpointTag] {
+				return invalid()
+			}
+			endpointTags[i.EndpointTag] = true
+		}
 		for _, b := range i.Bindings {
 			if bindings[b.ID] {
 				return invalid()
@@ -275,7 +308,7 @@ func (s ProfileState) Validate() error {
 			if i.TUN.DNSHijack && !s.Network.DNS.Enabled {
 				return identity.Err(identity.Invalid, "DNS interception requires managed DNS")
 			}
-		} else {
+		} else if i.Kind != "endpoint" {
 			listeners[i.Listen] = true
 		}
 	}

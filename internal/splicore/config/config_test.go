@@ -13,7 +13,7 @@ func TestBootstrapStrictConfiguration(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, content := range map[string]string{
-		"unknown":   base + "wireguard_endpoints: []\n",
+		"unknown":   base + "amneziawg_endpoints: []\n",
 		"duplicate": base + "schema: 1\n",
 		"multiple":  base + "---\nschema: 1\n",
 		"relative":  strings.Replace(base, dir+"/state", "relative", 1),

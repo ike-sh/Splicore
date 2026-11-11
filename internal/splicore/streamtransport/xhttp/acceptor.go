@@ -65,21 +65,22 @@ func (address) Network() string  { return "xhttp" }
 func (a address) String() string { return string(a) }
 
 type Listener struct {
-	base        net.Listener
-	config      cfg.Config
-	ctx         context.Context
-	cancel      context.CancelFunc
-	server      *http.Server
-	mu          sync.Mutex
-	closed      bool
-	sessions    map[string]*session
-	connections map[net.Conn]bool
-	queue       chan net.Conn
-	pending     int
-	receiving   int
-	workers     sync.WaitGroup
-	once        sync.Once
-	entropy     io.Reader
+	base         net.Listener
+	config       cfg.Config
+	ctx          context.Context
+	cancel       context.CancelFunc
+	server       *http.Server
+	carrierClose func()
+	mu           sync.Mutex
+	closed       bool
+	sessions     map[string]*session
+	connections  map[net.Conn]bool
+	queue        chan net.Conn
+	pending      int
+	receiving    int
+	workers      sync.WaitGroup
+	once         sync.Once
+	entropy      io.Reader
 }
 type session struct {
 	owner                 *Listener
@@ -103,6 +104,9 @@ func NewListener(base net.Listener, c cfg.Config, tc *tls.Config, handshake Hand
 		return nil, errEnvelope
 	}
 	if tc != nil && c.ValidateALPN(tc.NextProtos) != nil {
+		return nil, errEnvelope
+	}
+	if tc != nil && c.XHTTPH3(tc.NextProtos) {
 		return nil, errEnvelope
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -226,11 +230,19 @@ func (l *Listener) Close() error {
 		}
 		l.mu.Unlock()
 		l.cancel()
-		l.base.Close()
+		if l.carrierClose == nil {
+			l.base.Close()
+		}
 		for _, s := range sessions {
 			s.close()
 		}
 		l.server.Close()
+		if l.carrierClose != nil {
+			l.carrierClose()
+			// Packet carriers borrow the UDP socket. Finish protocol close while
+			// it is writable, then release the application-owned socket.
+			l.base.Close()
+		}
 		for _, s := range sockets {
 			s.Close()
 		}
