@@ -13,6 +13,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"runtime/pprof"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -610,12 +612,13 @@ func TestPhase20HTTPMetadataLifecycleChurn(t *testing.T) {
 		clientApply(t, s, application.ClientMutation{Resource: "runtime", Action: "stop"})
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		err := s.WaitClientIdle(ctx)
-		cancel()
 		if err != nil {
+			cancel()
 			t.Fatal(err)
 		}
 		end := phase20Sample(s)
 		if cycle == 0 {
+			cancel()
 			baseline = end
 			continue
 		}
@@ -626,7 +629,26 @@ func TestPhase20HTTPMetadataLifecycleChurn(t *testing.T) {
 			t.Logf("prior descriptor cleanup lowered FD baseline %d -> %d", baseline.FDs, end.FDs)
 			baseline.FDs = end.FDs
 		}
+		// Session removal closes the sockets. net/http's transport workers and
+		// the owned origin can still be returning from those closed sockets.
+		// Observe the same resource limits within the existing cleanup deadline;
+		// a worker which survives that deadline still fails every original check.
+		initial := end
+		for (end.FDs != baseline.FDs || end.Sessions != 0 || end.Goroutines > baseline.Goroutines+1) && ctx.Err() == nil {
+			runtime.Gosched()
+			end = phase20Sample(s)
+			if end.FDs < baseline.FDs {
+				baseline.FDs = end.FDs
+			}
+		}
+		cancel()
+		if initial != end {
+			t.Logf("HTTP closed-worker observation: initial=%+v settled=%+v", initial, end)
+		}
 		if end.FDs != baseline.FDs || end.Sessions != 0 || end.Goroutines > baseline.Goroutines+1 {
+			var stacks bytes.Buffer
+			_ = pprof.Lookup("goroutine").WriteTo(&stacks, 2)
+			t.Logf("HTTP churn failure goroutines:\n%s", stacks.String())
 			t.Fatalf("HTTP churn residue start=%+v end=%+v", baseline, end)
 		}
 	}
