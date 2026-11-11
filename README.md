@@ -7,7 +7,7 @@ and a persistent control plane in a single Core implementation.
 ## Capabilities
 
 Implemented experimental protocol modules include Shadowsocks/SS2022, Snell, Hysteria2, TUIC, VLESS,
-Mieru, Trojan, VMess, AnyTLS, ShadowQUIC, standard WireGuard endpoints, [TrustTunnel](docs/protocol/TRUSTTUNNEL.md) and
+Mieru, Trojan, VMess, AnyTLS, standard WireGuard endpoints, [TrustTunnel](docs/protocol/TRUSTTUNNEL.md) and
 [NaiveProxy](docs/architecture/NAIVE.md), with local
 SOCKS5, HTTP, Mixed and TUN traffic entry.
 Shared stream transports include raw TCP, WebSocket, HTTPUpgrade, gRPC,
@@ -78,9 +78,13 @@ it does not qualify every protocol, TUN, Windows service installation or arm64.
 v0.5.0 adds [native VLESS Encryption](docs/protocol/VLESS_ENCRYPTION.md) to the
 v0.4.0 baseline, with hybrid ML-KEM-768/X25519, AES-GCM/ChaCha records and
 independent official Xray v26.10.21 peer tests on both native platforms.
-Android/v2rayNG real-device traffic is NOT EXECUTED. v0.6.0 restores standard WireGuard, ShadowQUIC, XHTTP H3 and generic
-carriers with the scope recorded in the [release notes](docs/releases/v0.6.0.md).
+Android/v2rayNG real-device traffic is NOT EXECUTED. v0.6.1 restores standard WireGuard, XHTTP H3 and generic
+carriers with the scope recorded in the [release notes](docs/releases/v0.6.1.md).
+ShadowQUIC and Linux kernel WireGuard restorations are ISOLATED_NOT_QUALIFIED
+and excluded from this release. Standard WireGuard uses the userspace backend;
+explicit kernel activation is rejected and auto reports its userspace fallback.
 AmneziaWG is retired; standard WireGuard remains separate.
+The unpublished v0.6.0 tag failed qualification and remains unchanged.
 
 ## Documentation
 
@@ -93,7 +97,7 @@ AmneziaWG is retired; standard WireGuard remains separate.
 
 ## Download and qualification
 
-[Official v0.6.0 downloads](https://github.com/ike-sh/Splicore/releases/tag/v0.6.0)
+[Official v0.6.1 downloads](https://github.com/ike-sh/Splicore/releases/tag/v0.6.1)
 contain one executable per platform plus licenses, examples and RUNNING.md.
 The project remains pre-1.0; a formal downloadable Release does not certify every
 implemented experimental protocol.
@@ -105,9 +109,9 @@ implemented experimental protocol.
 | Linux arm64 | CGO0 cross-build | BUILD ONLY; no native tests |
 | Windows arm64 | CGO0 cross-build | BUILD ONLY; no native tests |
 
-Download the matching `splicore-v0.6.0-<os>-<arch>` archive and SHA256SUMS.
+Download the matching `splicore-v0.6.1-<os>-<arch>` archive and SHA256SUMS.
 Linux: `sha256sum -c SHA256SUMS`. Windows: compare
-`Get-FileHash -Algorithm SHA256 ./splicore-v0.6.0-windows-amd64.zip` with the
+`Get-FileHash -Algorithm SHA256 ./splicore-v0.6.1-windows-amd64.zip` with the
 published line. After unpacking, use `./splicore help` or `./splicore.exe help`,
 then follow [Linux](docs/releases/RUNNING_linux.md) or
 [Windows](docs/releases/RUNNING_windows.md) instructions. Go/WSL and a separate
@@ -123,7 +127,7 @@ process completion.
 
 This pre-1.0 minor adds historical native capability to the v0.5.0 baseline. Do not
 mix Frozen and current configurations/databases. See the
-[release notes](docs/releases/v0.6.0.md) and [changelog](CHANGELOG.md): the typed
+[release notes](docs/releases/v0.6.1.md) and [changelog](CHANGELOG.md): the typed
 Windows WireGuard receive correction requires fresh native qualification;
 AmneziaWG is retired and independent SQLite WAL/P1-B candidates are excluded; WSL2 UDP, historical SOCKS, Mieru throughput and broad
 protocol interoperability limits remain open. The local Windows symlink fixture

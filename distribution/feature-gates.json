@@ -81,27 +81,6 @@
       }
     },
     {
-      "id": "shadowquic",
-      "frozen_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
-      "source_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
-      "qualification": "experimental; native qualification required",
-      "files": [
-        "protocol/shadowquic/session/quic.go",
-        "protocol/shadowquic/session/unistream.go",
-        "internal/splicore/protocol/shadowquic/shadowquic.go",
-        "internal/splicore/engine/native/shadowquic.go"
-      ],
-      "tests": {
-        "protocol/shadowquic/session/session_test.go": [
-          "TestSessionTCPMultiplexHalfCloseAndReconnect",
-          "TestSessionAuthenticationAndTimeout"
-        ],
-        "internal/splicore/engine/native/shadowquic_interop_test.go": [
-          "TestShadowQUICPinnedReference"
-        ]
-      }
-    },
-    {
       "id": "standard-wireguard",
       "frozen_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
       "source_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
@@ -129,6 +108,12 @@
         ],
         "internal/splicore/wireguardendpoint/xray_test.go": [
           "TestXrayWireGuardInterop"
+        ],
+        "internal/splicore/wireguardendpoint/backend_policy_test.go": [
+          "TestExcludedKernelActivationAndAutoUserspaceTraffic",
+          "TestPhase36BackendValidation",
+          "TestPhase36CoreDNSBeforeSelection",
+          "TestPhase36FixFallbackMatrix"
         ]
       }
     },

@@ -6,7 +6,6 @@ require (
 	github.com/Microsoft/go-winio v0.6.4
 	github.com/gofrs/uuid/v5 v5.5.1
 	github.com/gorilla/websocket v1.5.3
-	github.com/mdlayher/netlink v1.7.3-0.20250113171957-fbb4dce95f42
 	github.com/metacubex/utls v1.8.7
 	github.com/miekg/dns v1.1.72
 	golang.org/x/crypto v0.57.0
@@ -18,19 +17,8 @@ require (
 )
 
 require (
-	github.com/google/go-cmp v0.7.0 // indirect
-	github.com/mdlayher/genetlink v1.3.2 // indirect
-	github.com/mdlayher/socket v0.5.1 // indirect
-	github.com/metacubex/cpu v0.1.0 // indirect
-	github.com/metacubex/hkdf v0.1.0 // indirect
-	github.com/metacubex/hpke v0.1.0 // indirect
-	github.com/metacubex/mlkem v0.1.0 // indirect
-	github.com/metacubex/randv2 v0.2.0 // indirect
-)
-
-require (
 	github.com/refraction-networking/utls v1.8.2 // indirect
-	github.com/vishvananda/netns v0.0.5
+	github.com/vishvananda/netns v0.0.5 // indirect
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect
 	golang.org/x/mod v0.41.0 // indirect
 	golang.org/x/net v0.59.0
@@ -67,9 +55,6 @@ require (
 
 // Native historical protocol/endpoint dependencies; no AmneziaWG runtime.
 require (
-	github.com/google/nftables v0.3.0
-	github.com/metacubex/jls-quic-go v0.0.0-20260727080412-732f2fc9a34d
-	github.com/metacubex/jls-tls v0.0.0-20260723084315-67adc0e2f796
 	golang.zx2c4.com/wireguard v0.0.0-20261024220952-b3bc704ef0ee
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10
 )

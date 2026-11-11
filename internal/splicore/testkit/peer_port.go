@@ -3,6 +3,7 @@ package testkit
 import (
 	"crypto/rand"
 	"fmt"
+	"io"
 	"math/big"
 	"net"
 	"os"
@@ -22,7 +23,10 @@ func PeerPort(t *testing.T, network string) int {
 
 func PeerPortAt(t *testing.T, network, host string) int {
 	t.Helper()
-	if network != "tcp" && network != "udp" {
+	networks := []string{network}
+	if network == "tcp+udp" {
+		networks = []string{"tcp", "udp"}
+	} else if network != "tcp" && network != "udp" {
 		t.Fatal("unsupported peer network", network)
 	}
 	dir := filepath.Join(os.TempDir(), "splicore-peer-leases")
@@ -35,36 +39,63 @@ func PeerPortAt(t *testing.T, network, host string) int {
 			t.Fatal(err)
 		}
 		port := 12000 + int(value.Int64())
-		lease := filepath.Join(dir, network+"-"+strconv.Itoa(port))
-		file, err := os.OpenFile(lease, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-		if os.IsExist(err) {
+		var leases []string
+		var sockets []io.Closer
+		release := func() {
+			for _, socket := range sockets {
+				_ = socket.Close()
+			}
+			sockets = nil
+			for _, lease := range leases {
+				_ = os.Remove(lease)
+			}
+		}
+		usable := true
+		for _, kind := range networks {
+			lease := filepath.Join(dir, kind+"-"+strconv.Itoa(port))
+			file, err := os.OpenFile(lease, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+			if err != nil {
+				release()
+				if !os.IsExist(err) {
+					t.Fatal(err)
+				}
+				usable = false
+				break
+			}
+			_ = file.Close()
+			leases = append(leases, lease)
+		}
+		if !usable {
 			continue
 		}
-		if err != nil {
-			t.Fatal(err)
-		}
-		_ = file.Close()
 		address := net.JoinHostPort(host, strconv.Itoa(port))
 		family := "6"
 		if net.ParseIP(host).To4() != nil {
 			family = "4"
 		}
-		if network == "tcp" {
-			listener, err := net.Listen(network+family, address)
-			if err != nil {
-				_ = os.Remove(lease)
-				continue
+		for _, kind := range networks {
+			var socket io.Closer
+			if kind == "tcp" {
+				socket, err = net.Listen(kind+family, address)
+			} else {
+				socket, err = net.ListenPacket(kind+family, address)
 			}
-			_ = listener.Close()
-		} else {
-			packet, err := net.ListenPacket(network+family, address)
 			if err != nil {
-				_ = os.Remove(lease)
-				continue
+				t.Logf("peer port rejected network=%s address=%s cause=%T %v", kind, address, err, err)
+				release()
+				usable = false
+				break
 			}
-			_ = packet.Close()
+			sockets = append(sockets, socket)
 		}
-		t.Cleanup(func() { _ = os.Remove(lease) })
+		if !usable {
+			continue
+		}
+		for _, socket := range sockets {
+			_ = socket.Close()
+		}
+		sockets = nil
+		t.Cleanup(release)
 		t.Logf("external peer lease network=%s address=%s", network, address)
 		return port
 	}

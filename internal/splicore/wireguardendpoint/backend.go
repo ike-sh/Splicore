@@ -16,6 +16,7 @@ const (
 	Supported               Availability = "SUPPORTED"
 	UnsupportedPlatform     Availability = "UNSUPPORTED_PLATFORM"
 	KernelUnavailable       Availability = "WIREGUARD_KERNEL_UNAVAILABLE"
+	KernelNotQualified      Availability = "KERNEL_NOT_QUALIFIED"
 	InsufficientPrivilege   Availability = "INSUFFICIENT_PRIVILEGE"
 	NetNSUnavailable        Availability = "NETNS_UNAVAILABLE"
 	NetlinkUnavailable      Availability = "NETLINK_UNAVAILABLE"
@@ -47,7 +48,7 @@ func fallbackEligible(err error) bool {
 	walkBackendErrors(err, func(e *BackendError) {
 		found = true
 		switch e.Class {
-		case UnsupportedPlatform, KernelUnavailable, InsufficientPrivilege, NetNSUnavailable, NetlinkUnavailable, NetfilterUnavailable:
+		case UnsupportedPlatform, KernelUnavailable, KernelNotQualified, InsufficientPrivilege, NetNSUnavailable, NetlinkUnavailable, NetfilterUnavailable:
 		default:
 			eligible = false
 		}

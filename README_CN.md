@@ -6,10 +6,10 @@ sing-box 或 Mihomo 代理核心进程，也不提供桌面 UI。
 
 ## 下载和验证
 
-[正式 v0.6.0 下载](https://github.com/ike-sh/Splicore/releases/tag/v0.6.0)。
+[正式 v0.6.1 下载](https://github.com/ike-sh/Splicore/releases/tag/v0.6.1)。
 按平台选择 zip / tar.gz，另下载 SHA256SUMS。Linux 使用
 `sha256sum -c SHA256SUMS`；Windows 使用
-`Get-FileHash -Algorithm SHA256 ./splicore-v0.6.0-windows-amd64.zip` 与公开值核对。
+`Get-FileHash -Algorithm SHA256 ./splicore-v0.6.1-windows-amd64.zip` 与公开值核对。
 解压后只有一个主程序 `splicore` / `splicore.exe`，以及许可证、示例、RUNNING.md
 和内部文件校验清单。运行不需要 Go 或 WSL。提供 SHA256，没有声称数字签名。
 
@@ -55,8 +55,12 @@ XHTTP H1/H2、modern mKCP 等传输。参见[能力矩阵](docs/architecture/CAP
 Windows/Linux amd64 均执行官方 Xray v26.10.21 独立对端的双向真实互通；
 Android/v2rayNG 实机测试 NOT EXECUTED。其他协议不因 Release 自动获得额外资格。
 
-v0.6.0 在 v0.5.0 基线上恢复标准 WireGuard endpoint、ShadowQUIC、XHTTP H3、
+v0.6.1 在 v0.5.0 基线上恢复标准 WireGuard endpoint、XHTTP H3、
 Generic HTTP/H2/QUIC、Snell v4/v5 DRS/QUIC 和受管路由/DNS；完整范围见版本化 61 项清单。
+ShadowQUIC 恢复未通过正式重连资格，本版不包含该协议。Linux kernel WireGuard
+恢复也因并发新建 IPv6 UDP 场景重复失败而隔离；两项均为 ISOLATED_NOT_QUALIFIED。
+标准 WireGuard 保留 userspace，显式 kernel 请求返回 KERNEL_NOT_QUALIFIED，auto 报告 userspace 回退。
+v0.6.0 Tag 保留为未发布候选，不覆盖；正式范围以 v0.6.1 为准。
 AmneziaWG/Phase37 明确废弃。WAL/P1-B 候选不准入；标准 WireGuard 与 AWG 分开。
 Windows WG 接收修复仅丢弃已被 Winsock 消耗的 WSAEMSGSIZE 数据报，其余错误保持原语义，
 要求新的原生互通、重复畸形包恢复和完整 Release 门禁，旧 Hotfix 报告结论不被改写。
@@ -74,7 +78,7 @@ Windows Race 未执行，ARM64 仅交叉编译；
 CGO=0；官方构建从最终 main 的精确 Tag Commit 注入版本、提交和时间。
 对应源码归档含 vendor 依赖及无需 Git/下载依赖的构建说明。
 
-完整边界见 [Release Notes](docs/releases/v0.6.0.md)、[CHANGELOG](CHANGELOG.md)、
+完整边界见 [Release Notes](docs/releases/v0.6.1.md)、[CHANGELOG](CHANGELOG.md)、
 [CLI](docs/CLI.md)、[配置](docs/CONFIGURATION.md)、[安全政策](SECURITY.md)。
 原始 [LICENSE](LICENSE)、[GPL 全文](licenses/GPL-3.0.txt)、[NOTICE](NOTICE.md)
 和[第三方许可](THIRD_PARTY_NOTICES.md) 均保留。Splicore 不隶属或获得 SagerNet 背书。

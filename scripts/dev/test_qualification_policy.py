@@ -42,5 +42,5 @@ class QualificationTests(unittest.TestCase):
         self.assertEqual(len(result['required_passed']), len(BASE))
 
     def test_missing_restored_interop_rejects_full_profile(self):
-        with self.assertRaisesRegex(RuntimeError, 'TestShadowQUICPinnedReference'):
+        with self.assertRaisesRegex(RuntimeError, 'TestPhase33PinnedProtocols'):
             validate(ROOT, {'tests': dict.fromkeys(BASE, 'pass')}, 'windows-amd64', 'full')

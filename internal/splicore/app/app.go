@@ -76,7 +76,7 @@ func ServeWithReady(ctx context.Context, c config.Config, ready func() error) (e
 	if err != nil {
 		return err
 	}
-	outbounds, err := registry.NewOutbounds(native.SnellOutboundFactory{}, native.Hysteria2OutboundFactory{}, native.TUICOutboundFactory{}, native.VLESSOutboundFactory{}, native.MieruOutboundFactory{}, native.ShadowsocksOutboundFactory{}, native.TrojanOutboundFactory{}, native.VMessOutboundFactory{}, native.AnyTLSOutboundFactory{}, native.SOCKS5OutboundFactory{}, native.HTTPOutboundFactory{}, native.NaiveOutboundFactory{}, native.TrustTunnelOutboundFactory{}, native.ShadowQUICOutboundFactory{})
+	outbounds, err := registry.NewOutbounds(native.SnellOutboundFactory{}, native.Hysteria2OutboundFactory{}, native.TUICOutboundFactory{}, native.VLESSOutboundFactory{}, native.MieruOutboundFactory{}, native.ShadowsocksOutboundFactory{}, native.TrojanOutboundFactory{}, native.VMessOutboundFactory{}, native.AnyTLSOutboundFactory{}, native.SOCKS5OutboundFactory{}, native.HTTPOutboundFactory{}, native.NaiveOutboundFactory{}, native.TrustTunnelOutboundFactory{})
 	if err != nil {
 		return err
 	}

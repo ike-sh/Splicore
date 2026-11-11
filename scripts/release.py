@@ -204,7 +204,7 @@ def run_logged(args, env, directory, name):
 
 def qualify(out, target):
     require(target == native_target(), "qualification must run natively")
-    for name in ("SPLICORE_VLESS_ENCRYPTION_REFERENCE", "SPLICORE_XHTTP_H3_REFERENCE", "SPLICORE_SHADOWQUIC_REFERENCE", "SPLICORE_PHASE34_WG_REFERENCE", "SPLICORE_PHASE34_XRAY_REFERENCE"):
+    for name in ("SPLICORE_VLESS_ENCRYPTION_REFERENCE", "SPLICORE_XHTTP_H3_REFERENCE", "SPLICORE_PHASE34_WG_REFERENCE", "SPLICORE_PHASE34_XRAY_REFERENCE"):
         require(Path(os.environ.get(name, "")).is_file(), "qualification requires pinned independent peers; use scripts/dev/fetch-restoration-references.py: " + name)
     require(not target.startswith("linux") or os.environ.get("SPLICORE_PRIVATE_NETNS") == "1", "Linux qualification requires scripts/dev/isolated-linux.py")
     meta = json.loads((out / target / "build.json").read_text())
