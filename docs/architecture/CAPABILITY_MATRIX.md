@@ -6,7 +6,9 @@ identity does not imply ownership of another Core process.
 | Protocol/profile | Server and client payload | Security/transport |
 | --- | --- | --- |
 | Shadowsocks AEAD / SS2022 | TCP / UDP | Edition-specific symmetric credentials |
-| Snell v5/v6 | TCP / UDP | PSK; v5 uses the v4 compatibility adapter |
+| Snell v4/v5/v6 | TCP / UDP | PSK; v5 DRS and QUIC Proxy retain profile restrictions |
+| ShadowQUIC | TCP / UDP | JLS, username/password and server-name authentication; CMD3/CMD4 |
+| Standard WireGuard | TCP / UDP via endpoint | Userspace on Windows/Linux; optional privileged Linux kernel backend |
 | Hysteria2 | TCP / UDP | Specialized Hysteria transport; mandatory TLS and H3 authentication |
 | NaiveProxy | TCP | TLS H2 CONNECT or QUIC H3 CONNECT; Basic authentication |
 | TrustTunnel base | TCP / UDP | Authenticated TLS HTTP/2 or HTTP/3; experimental |
@@ -32,7 +34,7 @@ entry for REALITY protected destinations, bounded visible TLS SNI inspection,
 route-only admission, fixed configured targets and Core DNS resolution.
 They do not terminate TLS or provide a general UDP firewall.
 
-Raw TCP/TLS, WebSocket, HTTPUpgrade, gRPC, XHTTP and modern mKCP streams are available to
+Raw TCP/TLS, WebSocket, HTTPUpgrade, gRPC, XHTTP H1/H2/H3, generic HTTP/H2/QUIC and modern mKCP streams are available to
 VMess/VLESS/Trojan under their profile limits. Other protocols retain their own
 transport and reject these stream wrappers. REALITY requires `with_utls`;
 native TUN requires `with_gvisor`. The recommended distribution profile includes
@@ -50,8 +52,9 @@ file and HTTP/HTTPS proxy masquerade. BBR equivalence and performance are not ce
 Salamander, Gecko (experimental), and fixed or randomized UDP port hopping
 are supported. Linux server UDP port ranges use nftables and require `nft`
 and `CAP_NET_ADMIN`.
-Hysteria v1, generic QUIC transport and arbitrary VLESS/VMess/Trojan over
-Hysteria are not supported. XHTTP HTTP/3 is not implemented.
+Hysteria v1 and arbitrary VLESS/VMess/Trojan over Hysteria are not supported.
+Generic QUIC stream carriers and XHTTP HTTP/3 are separate transports and require
+`with_quic`. AmneziaWG/Phase37 is intentionally retired.
 
 VLESS Vision requires raw TLS 1.3, REALITY, or enabled
 [VLESS Encryption](../protocol/VLESS_ENCRYPTION.md), and rejects HTTP stream wrappers.

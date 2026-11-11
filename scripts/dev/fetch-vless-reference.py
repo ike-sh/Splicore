@@ -44,7 +44,8 @@ def main():
         binary.chmod(0o755)
     if args.github_env:
         with args.github_env.open('a', encoding='utf-8') as env:
-            env.write(f'SPLICORE_VLESS_ENCRYPTION_REFERENCE={binary}\n')
+            for name in ('SPLICORE_VLESS_ENCRYPTION_REFERENCE', 'SPLICORE_XHTTP_H3_REFERENCE', 'SPLICORE_PHASE34_XRAY_REFERENCE'):
+                env.write(f'{name}={binary}\n')
     print(f'Test-only Xray {RELEASE}; archive sha256={expected}; binary={binary}')
 
 

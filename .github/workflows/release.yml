@@ -11,7 +11,13 @@ on:
       - 'scripts/release.py'
       - 'scripts/dev/check-features.py'
       - 'scripts/dev/fetch-vless-reference.py'
+      - 'scripts/dev/fetch-restoration-references.py'
+      - 'scripts/dev/isolated-linux.py'
+      - 'scripts/dev/qualification_policy.py'
+      - 'scripts/dev/wireguard-peer/**'
       - 'distribution/feature-gates.json'
+      - 'distribution/historical-features.json'
+      - 'distribution/qualification-profile.json'
       - 'distribution/RELEASE_VERSION'
       - 'docs/releases/**'
       - 'licenses/GPL-3.0.txt'
@@ -31,6 +37,8 @@ env:
   GOTELEMETRY: 'off'
   CGO_ENABLED: '0'
   GOFLAGS: -mod=readonly
+  PYTHONDONTWRITEBYTECODE: '1'
+  GOMAXPROCS: '4'
 
 jobs:
   prepare:
@@ -87,7 +95,7 @@ jobs:
             os: ubuntu-24.04
             native: false
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
@@ -101,14 +109,19 @@ jobs:
       - name: Build exact release core and inspect format
         shell: bash
         run: python scripts/release.py build --target '${{ matrix.target }}'
-      - name: Fetch pinned independent encryption test peer
+      - name: Fetch pinned independent protocol test peers
         if: matrix.native
         shell: bash
-        run: python scripts/dev/fetch-vless-reference.py --output build/reference --github-env "$GITHUB_ENV"
+        run: python scripts/dev/fetch-restoration-references.py --output build/reference --github-env "$GITHUB_ENV"
       - name: Native default/full builds, vet, tests and Linux race
         if: matrix.native
         shell: bash
-        run: python scripts/release.py qualify --target '${{ matrix.target }}'
+        run: |
+          if [[ '${{ runner.os }}' == Linux ]]; then
+            python scripts/dev/isolated-linux.py -- python scripts/release.py qualify --target '${{ matrix.target }}'
+          else
+            python scripts/release.py qualify --target '${{ matrix.target }}'
+          fi
       - name: Package the qualified target
         shell: bash
         run: python scripts/release.py package --target '${{ matrix.target }}'

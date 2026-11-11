@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.6.0
+
+Restores native XHTTP H3, HTTP/H2/QUIC carriers, ShadowQUIC, standard WireGuard,
+Snell v4/v5 DRS/QUIC and managed routing/DNS/timestamp behavior on the v0.5.0 line.
+Includes typed Windows UDP truncation recovery, Mieru deadline adaptation and
+strict independent-peer, lifecycle, native platform and full Linux Race gates.
+AmneziaWG is retired; WAL/P1-B remains excluded. ARM64 remains BUILD ONLY.
+See [scope and qualification limits](docs/releases/v0.6.0.md).
+
 ## v0.5.0
 
 Adds native VLESS Encryption to the v0.4.0 single-binary mainline through PR #6.
