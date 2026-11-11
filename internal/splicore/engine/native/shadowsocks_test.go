@@ -21,12 +21,16 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/engine/testfixture"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	ss "github.com/ike-sh/Splicore/internal/splicore/protocol/shadowsocks"
+	"github.com/ike-sh/Splicore/internal/splicore/testkit"
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 )
 
 func shadowsocksIntent(t *testing.T, method string, multi bool) ports.RuntimeIntent {
 	t.Helper()
-	in := mieruIntent(t, "tcp")
+	// Shadowsocks binds TCP and UDP on the same port. A successful TCP-only
+	// ephemeral probe does not establish that Windows permits that UDP port.
+	port := testkit.PeerPortAt(t, "tcp+udp", "127.0.0.1")
+	in := testfixture.MieruIntentAt(t, "tcp", access.Endpoint{Host: "127.0.0.1", Port: uint16(port)})
 	return shadowsocksIntentFrom(t, method, multi, in)
 }
 
