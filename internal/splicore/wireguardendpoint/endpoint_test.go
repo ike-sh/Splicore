@@ -147,7 +147,7 @@ func transferUDP(t *testing.T, e *Endpoint, ip string, size int) {
 	got := make([]byte, size+1)
 	n, source, err := c.ReadFrom(got)
 	if err != nil || !bytes.Equal(got[:n], payload) || source.String() != destination.String() {
-		t.Fatalf("UDP bytes=%d source=%v err=%v", n, source, err)
+		t.Fatalf("UDP bytes=%d source=%v err=%v endpoint=%+v", n, source, err, e.Status())
 	}
 }
 

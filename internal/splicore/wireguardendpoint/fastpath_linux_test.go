@@ -323,10 +323,14 @@ func TestPhase36KernelChurn100(t *testing.T) {
 	for range 4 {
 		wg.Go(func() {
 			for range 5 {
-				a, b := fastPair(t, E.Kernel, E.Kernel, false, "127.0.0.1")
-				transferUDP(t, a, "fd36::2", 64)
-				closedStatus(t, a)
-				closedStatus(t, b)
+				func() {
+					a, b := fastPair(t, E.Kernel, E.Kernel, false, "127.0.0.1")
+					// FailNow exits this worker; release its owned endpoints before
+					// the parent measures resources, including on diagnostic failure.
+					defer closedStatus(t, a)
+					defer closedStatus(t, b)
+					transferUDP(t, a, "fd36::2", 64)
+				}()
 			}
 		})
 	}

@@ -305,11 +305,29 @@ func TestPhase34WireGuardToProxyAndServerToEndpoint(t *testing.T) {
 			if outboundSessions(t, s, proxy) < before+1 {
 				t.Fatal("WireGuard TCP ingress bypassed selected proxy")
 			}
-			observed, _ := s.ClientStatus(ctx)
 			udpObserved := false
-			for _, out := range observed.Outbounds {
-				if out.ID == proxy && out.Stats.UDPAssociations > 0 && out.Stats.PacketsUpload > 0 && out.Stats.PacketsDownload > 0 {
-					udpObserved = true
+			// Receiving the datagram can precede the relay's successful-write
+			// counter update. Wait for that explicit asynchronous observation.
+			tick := time.NewTicker(time.Millisecond)
+			defer tick.Stop()
+			observedBy := time.NewTimer(3 * time.Second)
+			defer observedBy.Stop()
+		observeUDP:
+			for {
+				observed, err := s.ClientStatus(ctx)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, out := range observed.Outbounds {
+					if out.ID == proxy && out.Stats.UDPAssociations > 0 && out.Stats.PacketsUpload > 0 && out.Stats.PacketsDownload > 0 {
+						udpObserved = true
+						break observeUDP
+					}
+				}
+				select {
+				case <-tick.C:
+				case <-observedBy.C:
+					break observeUDP
 				}
 			}
 			if !udpObserved {

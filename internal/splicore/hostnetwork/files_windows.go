@@ -3,8 +3,7 @@ package hostnetwork
 import (
 	"os"
 	"path/filepath"
-	"regexp"
-	"strings"
+	"unsafe"
 
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"golang.org/x/sys/windows"
@@ -27,28 +26,29 @@ func privatePath(path string) error {
 	if err != nil {
 		return err
 	}
+	return checkRecoveryDescriptor(sd, user.User.Sid)
+}
+
+// Compare binary identities: Windows can render a user's SID as an SDDL alias
+// (for example LA for the local Administrator). Formatting is not authority.
+func checkRecoveryDescriptor(sd *windows.SECURITY_DESCRIPTOR, user *windows.SID) error {
 	owner, _, err := sd.Owner()
-	if err != nil || owner == nil || owner.String() != user.User.Sid.String() {
+	if err != nil || owner == nil || !windows.EqualSid(owner, user) {
 		return identity.Err(identity.Invalid, "network recovery owner invalid")
 	}
 	dacl, _, err := sd.DACL()
-	if err != nil || dacl == nil {
+	if err != nil || dacl == nil || dacl.AceCount == 0 {
 		return identity.Err(identity.Invalid, "network recovery DACL missing")
 	}
-	sddl := sd.String()
-	start := strings.Index(sddl, "D:")
-	if start < 0 {
-		return identity.Err(identity.Invalid, "network recovery DACL invalid")
-	}
-	part := sddl[start+2:]
-	if end := strings.Index(part, "S:"); end >= 0 {
-		part = part[:end]
-	}
-	ace := regexp.MustCompile(`\(A;[A-Z]*;(?:FA|0x1f01ff);;;(?:SY|` + regexp.QuoteMeta(user.User.Sid.String()) + `)\)`)
-	grants := ace.FindAllString(part, -1)
-	remaining := ace.ReplaceAllString(part, "")
-	if len(grants) < 1 || strings.Trim(remaining, "PAI") != "" {
-		return identity.Err(identity.Invalid, "network recovery permissions too broad")
+	for index := uint32(0); index < uint32(dacl.AceCount); index++ {
+		var ace *windows.ACCESS_ALLOWED_ACE
+		if windows.GetAce(dacl, index, &ace) != nil || ace.Header.AceType != windows.ACCESS_ALLOWED_ACE_TYPE || ace.Mask != 0x001f01ff {
+			return identity.Err(identity.Invalid, "network recovery permissions too broad")
+		}
+		grantee := (*windows.SID)(unsafe.Pointer(&ace.SidStart))
+		if !windows.EqualSid(grantee, user) && !grantee.IsWellKnown(windows.WinLocalSystemSid) {
+			return identity.Err(identity.Invalid, "network recovery permissions too broad")
+		}
 	}
 	return nil
 }

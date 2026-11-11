@@ -13,7 +13,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -24,6 +23,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/engine/testfixture"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	sm "github.com/ike-sh/Splicore/internal/splicore/protocol/snell"
+	"github.com/ike-sh/Splicore/internal/splicore/testkit"
 	"github.com/ike-sh/Splicore/protocol/snell/wire"
 )
 
@@ -60,7 +60,7 @@ func snellV5Reference(t *testing.T, endpoint access.Endpoint) {
 	if root == "" {
 		root = t.TempDir()
 	}
-	root = filepath.Join(root, strings.ReplaceAll(t.Name(), "/", "-"))
+	root = filepath.Join(root, testkit.EvidenceName(t.Name()))
 	if err = os.MkdirAll(root, 0o700); err != nil {
 		t.Fatal(err)
 	}

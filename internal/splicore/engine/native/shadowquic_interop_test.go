@@ -31,8 +31,21 @@ import (
 	tls "github.com/metacubex/jls-tls"
 )
 
+// One goroutine owns Cmd.Wait. Reconnect tests and cleanup join that same
+// result rather than racing a second Wait against the startup monitor.
+type sqReferenceProcess struct {
+	*exec.Cmd
+	done chan struct{}
+	err  error
+}
+
+func (p *sqReferenceProcess) Wait() error {
+	<-p.done
+	return p.err
+}
+
 // The pinned peer is only a qualification tool. No production path executes it.
-func sqReference(t *testing.T, config string, port int, network string) *exec.Cmd {
+func sqReference(t *testing.T, config string, port int, network string) *sqReferenceProcess {
 	t.Helper()
 	bin := os.Getenv("SPLICORE_SHADOWQUIC_REFERENCE")
 	root := os.Getenv("SPLICORE_SHADOWQUIC_EVIDENCE")
@@ -65,15 +78,14 @@ func sqReference(t *testing.T, config string, port int, network string) *exec.Cm
 		log.Close()
 		t.Fatal(e)
 	}
-	done := make(chan struct{})
-	var waitErr error
-	go func() { waitErr = cmd.Wait(); close(done) }()
-	t.Cleanup(func() { _ = cmd.Process.Kill(); <-done; _ = log.Close() })
+	process := &sqReferenceProcess{Cmd: cmd, done: make(chan struct{})}
+	go func() { process.err = cmd.Wait(); close(process.done) }()
+	t.Cleanup(func() { _ = cmd.Process.Kill(); _ = process.Wait(); _ = log.Close() })
 	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); {
 		select {
-		case <-done:
+		case <-process.done:
 			data, _ := os.ReadFile(filepath.Join(root, testkit.EvidenceName(t.Name())+"-reference.log"))
-			t.Fatalf("reference exited before ready: port=%d error=%v log=%s", port, waitErr, data)
+			t.Fatalf("reference exited before ready: port=%d error=%v log=%s", port, process.err, data)
 		default:
 		}
 		var c io.Closer
@@ -83,7 +95,7 @@ func sqReference(t *testing.T, config string, port int, network string) *exec.Cm
 			c, e = net.Listen(network, fmt.Sprintf("127.0.0.1:%d", port))
 		}
 		if e != nil && addressInUse(e) {
-			return cmd
+			return process
 		}
 		c.Close()
 		time.Sleep(20 * time.Millisecond)
@@ -245,7 +257,7 @@ func TestShadowQUICPinnedReference(t *testing.T) {
 				t.Run(direction, func(t *testing.T) {
 					var dial func(context.Context, access.Endpoint) (net.Conn, error)
 					var packet func(context.Context, access.Endpoint) (net.PacketConn, error)
-					var refProcess *exec.Cmd
+					var refProcess *sqReferenceProcess
 					var refConfig string
 					var h *shadowQUICHandle
 					var in ports.RuntimeIntent
