@@ -11,7 +11,8 @@ import sys
 
 REPOSITORY = 'ike-sh/Splicore'
 PINNED = {'v0.3.0': 'e42c6e995d000205ba7c1c316eda1a0e95ef8297',
-          'v0.4.0': 'cbac3fd1fcfdc76166513cdaa2d4f113497682cb'}
+          'v0.4.0': 'cbac3fd1fcfdc76166513cdaa2d4f113497682cb',
+          'v0.5.0': '70b09da7d2758e19ba03df9ff9b9e541a669fa29'}
 ZERO = '0' * 40
 
 
@@ -78,13 +79,12 @@ def pending_prs(branch):
     prs = json.loads(run(gh, 'pr', 'list', '--repo', REPOSITORY, '--state', 'open',
                         '--limit', '100', '--json', 'number,headRefName,baseRefName,title'))
     for pr in prs:
-        restoration = re.search(r'restor|converg|恢复|收敛', pr['headRefName'] + ' ' + pr['title'], re.I)
-        require(not (pr['baseRefName'] == 'main' and restoration and pr['headRefName'] != branch),
-                'Another restoration PR is pending: #' + str(pr['number']))
+        require(not (pr['baseRefName'] == 'main' and pr['headRefName'] != branch),
+                'Another main integration PR is pending: #' + str(pr['number']))
     require(len(prs) < 100, 'PR inventory is truncated; review it before development')
 
 
-def check_state(allow_dirty=False):
+def check_state(allow_dirty=False, verify_main=False):
     root = git('rev-parse', '--show-toplevel')
     canonical = git('config', '--local', '--get', 'splicore.canonicalRoot')
     require(canonical and path_identity(root) == path_identity(canonical),
@@ -96,12 +96,15 @@ def check_state(allow_dirty=False):
         urls = git('remote', 'get-url', *direction, '--all', 'origin').splitlines()
         require(len(urls) == 1 and expected_remote(urls[0]), 'Unexpected origin URL')
     branch = git('symbolic-ref', '--quiet', '--short', 'HEAD')
-    require(feature_branch(branch), 'Use a short-lived codex/ branch from origin/main; main/tags/releases are read-only')
+    require(branch == 'main' if verify_main else feature_branch(branch),
+            'Use a short-lived codex/ branch from origin/main; --verify-main is read-only main verification')
     remote_main = git('ls-remote', '--heads', 'origin', 'refs/heads/main').split()
     require(len(remote_main) == 2 and remote_main[0] == git('rev-parse', 'origin/main'),
             'origin/main is stale; fetch origin before development')
     require(git('merge-base', 'HEAD', 'origin/main') == git('rev-parse', 'origin/main'),
             'Branch must contain current origin/main; do not stack historical branches')
+    if verify_main:
+        require(git('rev-parse', 'HEAD') == git('rev-parse', 'origin/main'), 'main must exactly match origin/main')
     # Reject grafting/merging an alternate history into the feature range.
     require(not git('rev-list', '--merges', 'origin/main..HEAD'),
             'Feature history contains a merge; use a direct main-based feature branch')
@@ -133,7 +136,9 @@ def check_blob(path, data):
             'Environment credentials cannot be committed: ' + path)
     require(name not in {'convergence_master_tracker.md', 'frozen_main_feature_matrix.csv',
                         'local_development_guardrails.md', 'current_feature_implementation.md',
-                        'pr_delivery_report.md'}, 'Private convergence report: ' + path)
+                        'pr_delivery_report.md', 'final_feature_matrix.csv',
+                        'final_branch_cleanup.md', 'final_delivery_report.md'},
+            'Private convergence report: ' + path)
     require(len(data) <= 10 * 1024 * 1024, 'Unexpected large file: ' + path)
     fixture = '/testdata/' in '/' + path or name.endswith(('_test.go', '_test.py')) or name.startswith('test_')
     if not fixture:
@@ -175,11 +180,13 @@ def main():
     parser.add_argument('remote', nargs='?')
     parser.add_argument('url', nargs='?')
     parser.add_argument('--allow-dirty', action='store_true')
+    parser.add_argument('--verify-main', action='store_true')
     args = parser.parse_args()
+    require(not args.verify_main or args.mode == 'start', '--verify-main cannot authorize commit or push hooks')
     # Capture the hook protocol before any child process (especially Windows
     # interop/gh) can consume its pipe. Read-only probes also receive DEVNULL.
     push_lines = sys.stdin.read().splitlines() if args.mode == 'push' else []
-    branch = check_state(args.allow_dirty)
+    branch = check_state(args.allow_dirty, verify_main=True) if args.verify_main else check_state(args.allow_dirty)
     if args.mode == 'commit':
         scan_index()
     if args.mode == 'push':

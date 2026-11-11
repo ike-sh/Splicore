@@ -13,10 +13,211 @@
         "internal/splicore/cli/vlessenc.go"
       ],
       "tests": {
-        "protocol/vless/encryption/encryption_test.go": ["TestEncryptedStreams", "TestTicketReplayExpiryAndCacheBounds", "TestRecordIntegrityNonceAndRekey"],
-        "protocol/vless/encryption/reference_test.go": ["TestPinnedReferenceRawMatrix"],
-        "internal/splicore/engine/native/vless_encryption_test.go": ["TestVLESSEncryptionNativeSecurityVision", "TestVLESSEncryptionPinnedRuntimeInterop", "TestVLESSEncryptionRuntimeCredentialBoundaries"],
-        "cmd/splicore/runtime_test.go": ["TestRuntimeBinaryTrafficShutdownAndRestart"]
+        "protocol/vless/encryption/encryption_test.go": [
+          "TestEncryptedStreams",
+          "TestTicketReplayExpiryAndCacheBounds",
+          "TestRecordIntegrityNonceAndRekey"
+        ],
+        "protocol/vless/encryption/reference_test.go": [
+          "TestPinnedReferenceRawMatrix"
+        ],
+        "internal/splicore/engine/native/vless_encryption_test.go": [
+          "TestVLESSEncryptionNativeSecurityVision",
+          "TestVLESSEncryptionPinnedRuntimeInterop",
+          "TestVLESSEncryptionRuntimeCredentialBoundaries"
+        ],
+        "cmd/splicore/runtime_test.go": [
+          "TestRuntimeBinaryTrafficShutdownAndRestart"
+        ]
+      }
+    },
+    {
+      "id": "native-stream-carriers",
+      "frozen_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "source_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "qualification": "experimental; native qualification required",
+      "files": [
+        "internal/splicore/streamtransport/native_http.go",
+        "internal/splicore/streamtransport/native_quic.go",
+        "internal/splicore/domain/streamtransport/native.go"
+      ],
+      "tests": {
+        "internal/splicore/streamtransport/native_http_test.go": [
+          "TestPhase31HTTPDuplex",
+          "TestPhase31HTTPNegativeTLSAndPath",
+          "TestPhase31StandardHTTPPeers"
+        ],
+        "internal/splicore/streamtransport/native_quic_peer_test.go": [
+          "TestPhase31AlternativeQUICPeer"
+        ],
+        "internal/splicore/streamtransport/native_quic_close_test.go": [
+          "TestPhase31QUICBlockedWriteFullClose",
+          "TestPhase31QUICShutdownBlockedChildren"
+        ]
+      }
+    },
+    {
+      "id": "xhttp-http3",
+      "frozen_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "source_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "qualification": "experimental; native qualification required",
+      "files": [
+        "internal/splicore/streamtransport/xhttp/h3.go",
+        "internal/splicore/streamtransport/xhttp/h3_body.go",
+        "internal/splicore/streamtransport/xhttp/h3_cache.go",
+        "internal/splicore/domain/streamtransport/xhttp_h3.go"
+      ],
+      "tests": {
+        "internal/splicore/engine/native/phase33_test.go": [
+          "TestPhase33NativeProtocols",
+          "TestPhase33PinnedProtocols",
+          "TestPhase33PinnedEncryption",
+          "TestPhase33PinnedVision"
+        ],
+        "internal/splicore/streamtransport/xhttp/h3_body_test.go": [
+          "TestXHTTPH3StreamBodyPartialSendNotReplayed",
+          "TestXHTTPH3StreamBodyReplayOracleNegativeControl"
+        ]
+      }
+    },
+    {
+      "id": "shadowquic",
+      "frozen_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "source_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "qualification": "experimental; native qualification required",
+      "files": [
+        "protocol/shadowquic/session/quic.go",
+        "protocol/shadowquic/session/unistream.go",
+        "internal/splicore/protocol/shadowquic/shadowquic.go",
+        "internal/splicore/engine/native/shadowquic.go"
+      ],
+      "tests": {
+        "protocol/shadowquic/session/session_test.go": [
+          "TestSessionTCPMultiplexHalfCloseAndReconnect",
+          "TestSessionAuthenticationAndTimeout"
+        ],
+        "internal/splicore/engine/native/shadowquic_interop_test.go": [
+          "TestShadowQUICPinnedReference"
+        ]
+      }
+    },
+    {
+      "id": "standard-wireguard",
+      "frozen_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "source_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "qualification": "experimental; native qualification required",
+      "files": [
+        "internal/splicore/wireguardendpoint/endpoint.go",
+        "internal/splicore/domain/endpoint/wireguard.go",
+        "internal/splicore/application/wireguard.go",
+        "internal/splicore/cli/wireguard.go"
+      ],
+      "tests": {
+        "internal/splicore/wireguardendpoint/interop_test.go": [
+          "TestOfficialWireGuardInterop",
+          "TestOfficialWireGuardDisallowedSource"
+        ],
+        "internal/splicore/wireguardendpoint/lifecycle_test.go": [
+          "TestWireGuardLifecycleChurn100",
+          "TestWireGuardWrongCredentials"
+        ],
+        "internal/splicore/cli/wireguard_test.go": [
+          "TestWireGuardAPITransportCLI"
+        ],
+        "internal/splicore/wireguardendpoint/roaming_test.go": [
+          "TestWireGuardRoamingTamperReplayAndMalformed"
+        ],
+        "internal/splicore/wireguardendpoint/xray_test.go": [
+          "TestXrayWireGuardInterop"
+        ]
+      }
+    },
+    {
+      "id": "managed-timestamp-invariants",
+      "frozen_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "source_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "qualification": "experimental; native qualification required",
+      "files": [
+        "internal/splicore/storage/sqlite/timestamps.go"
+      ],
+      "tests": {
+        "internal/splicore/storage/sqlite/bindings_clock_test.go": [
+          "TestBindingEnabledClockRollbackPreservesCommittedStamp",
+          "TestBindingEnabledClockRollbackRejectsCorruptStamp"
+        ],
+        "internal/splicore/storage/sqlite/credential_clock_test.go": [
+          "TestCredentialRotationClockRollbackPreservesCommittedStamps",
+          "TestCredentialRotationSQLFailureRollsBackRelatedRows"
+        ]
+      }
+    },
+    {
+      "id": "snell-v5-quic",
+      "frozen_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "source_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "qualification": "experimental; native qualification required",
+      "files": [
+        "internal/splicore/engine/native/snell_v5_packet.go",
+        "internal/splicore/engine/native/snell_quic.go",
+        "protocol/snell/wire/quic_proxy.go"
+      ],
+      "tests": {
+        "protocol/snell/wire/quic_proxy_test.go": [
+          "TestSnellV5OfficialDRSTransitions"
+        ],
+        "internal/splicore/engine/native/snell_v5_test.go": [
+          "TestSnellV5NativeAndOfficial",
+          "TestSnellV5RecordTraffic"
+        ]
+      }
+    },
+    {
+      "id": "mieru-deadline-contract",
+      "frozen_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "source_commit": "f16067799b07945614f2dffcb8fdc8275dc8ac07",
+      "qualification": "experimental; native qualification required",
+      "files": [
+        "protocol/mieru/backend/mieru_read.go"
+      ],
+      "tests": {
+        "protocol/mieru/backend/mieru_deadline_test.go": [
+          "TestMieruReadDeadlineContract",
+          "TestMieruReadConnBufferOwnershipAndJoin"
+        ]
+      }
+    },
+    {
+      "id": "windows-wireguard-receive",
+      "source_commit": "ade432c36a42fb35658d97d9103767c7aaeb93a0",
+      "qualification": "native Windows required; typed truncation recovery only",
+      "files": [
+        "internal/splicore/wireguardendpoint/bind_receive_windows.go",
+        "internal/splicore/wireguardendpoint/bind_receive_other.go"
+      ],
+      "tests": {
+        "internal/splicore/wireguardendpoint/bind_receive_windows_test.go": [
+          "TestWindowsUDPReceiveErrorSemantics",
+          "TestWindowsWireGuardOversizedReceiveRecovery"
+        ],
+        "internal/splicore/wireguardendpoint/udp_environment_windows_test.go": [
+          "TestWindowsUDPTruncationEnvironment"
+        ]
+      }
+    },
+    {
+      "id": "naive-h3-lifecycle",
+      "source_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "qualification": "native H3 lifecycle and isolated ownership",
+      "files": [
+        "protocol/naive/backend/stream.go"
+      ],
+      "tests": {
+        "protocol/naive/backend/h3_ownership_test.go": [
+          "TestNaiveH3UploadEOFOwnership",
+          "TestNaiveH3IdleAdmissionMultiplexReuse",
+          "TestNaiveH3ActiveAndTargetFailureCleanup",
+          "TestNaiveH3RejectedBeforeTargetOwnership"
+        ]
       }
     }
   ]

@@ -11,8 +11,11 @@
 - Do not merge PRs or change repository protection without explicit authorization.
   Local hooks supplement, and cannot replace, GitHub branch protection.
 - Use the maintainer-designated canonical checkout and auxiliary workspace. Do
-  not clone another project checkout or create worktrees. Preserve historical
-  branches, user changes, and existing worktree registrations.
+  not clone another project checkout or create worktrees. Preserve user changes,
+  immutable release tags, historical evidence, and existing worktree registrations.
+  After integration, safely delete completed temporary branches. Before retiring
+  an unmerged historical branch, preserve valuable non-retired work in a verified,
+  SHA256-recorded Git bundle and record its original ref and commit.
 - Run `scripts/dev/preflight.sh` (WSL/Git Bash) or
   `scripts/dev/preflight.ps1` (Windows) before development. Install the versioned
   hooks as described in `docs/DEVELOPMENT.md`. Inspect and preserve existing
@@ -26,6 +29,12 @@
   Linux/Windows, lifecycle, negative security, and independent interoperability
   gates. Cross-compilation is build evidence only. Report unavailable tests as
   NOT EXECUTED; do not weaken assertions or permissions to obtain a pass.
-- Keep Phase37, WAL candidate work, and unqualified Windows WireGuard hotfixes
-  out of feature restoration PRs. WireGuard hotfix qualification remains
-  NOT QUALIFIED until independently accepted.
+- AmneziaWG / Phase37 is retired and must not be restored or advertised. Standard
+  WireGuard is separate. Keep WAL/P1-B candidate work and unqualified Windows
+  WireGuard changes out of production. A Windows receive correction requires
+  fresh independent/native, malformed-input recovery and full release gates;
+  historical targeted Hotfix results never substitute for that qualification.
+- Review the complete versioned historical feature inventory before release.
+  A release never substitutes for checking historical feature gaps. Keep one main
+  integration PR at a time; all formal development starts from main and returns to
+  main after integration. Unmerged branches are never formal release baselines.
