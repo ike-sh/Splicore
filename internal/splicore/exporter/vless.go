@@ -3,6 +3,7 @@ package exporter
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/ike-sh/Splicore/internal/splicore/clientprofile"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
@@ -50,10 +51,26 @@ func vlessProfile(p clientprofile.Profile) (access.UUIDPayload, module.ClientOpt
 	}
 	return credential, o, nil
 }
+
 func (e VLESS) Export(_ context.Context, p clientprofile.Profile, t ports.ExportTarget) ([]byte, error) {
 	credential, o, err := vlessProfile(p)
 	if err != nil || t.Format != e.Target {
 		return nil, unsupported()
+	}
+	if o.Encryption != "" && o.Encryption != "none" {
+		if e.Target != ports.Xray || t.ClientVersion != "26.10.21" {
+			return nil, unsupported()
+		}
+		stream := xraySecurity(string(o.Security), p.TLS)
+		user := map[string]any{"id": credential.UUID.Reveal(), "encryption": o.Encryption}
+		if o.Flow == module.Vision {
+			user["flow"] = string(o.Flow)
+		}
+		node := map[string]any{"tag": "splicore-" + string(p.ID), "protocol": "vless", "settings": map[string]any{"vnext": []any{map[string]any{"address": p.Endpoint.Host, "port": p.Endpoint.Port, "users": []any{user}}}}, "streamSettings": stream}
+		if err := streamProjection(p, e.Target, node); err != nil {
+			return nil, err
+		}
+		return json.Marshal(node)
 	}
 	if o.Flow == module.Vision && e.Target != ports.URI {
 		return nil, unsupported()
@@ -73,7 +90,8 @@ func (e VLESS) Export(_ context.Context, p clientprofile.Profile, t ports.Export
 			stream = xraySecurity(string(o.Security), p.TLS)
 		}
 		node := map[string]any{"tag": name, "protocol": "vless", "settings": map[string]any{"vnext": []any{
-			map[string]any{"address": p.Endpoint.Host, "port": p.Endpoint.Port, "users": []any{map[string]any{"id": credential.UUID.Reveal(), "encryption": "none"}}}}}, "streamSettings": stream}
+			map[string]any{"address": p.Endpoint.Host, "port": p.Endpoint.Port, "users": []any{map[string]any{"id": credential.UUID.Reveal(), "encryption": "none"}}},
+		}}, "streamSettings": stream}
 		if err := streamProjection(p, e.Target, node); err != nil {
 			return nil, err
 		}
@@ -128,9 +146,17 @@ func (e VLESS) Export(_ context.Context, p clientprofile.Profile, t ports.Export
 		return nil, unsupported()
 	}
 }
+
 func (e VLESS) Describe(p clientprofile.Profile) (ports.ExportDescription, error) {
-	if _, o, err := vlessProfile(p); err != nil || o.Flow == module.Vision && e.Target != ports.URI {
+	if _, o, err := vlessProfile(p); err != nil || (o.Encryption == "" || o.Encryption == "none") && o.Flow == module.Vision && e.Target != ports.URI {
 		return ports.ExportDescription{}, unsupported()
+	}
+	o, _ := module.DecodeClientOptions(p.Options.Data)
+	if o.Encryption != "" && o.Encryption != "none" {
+		if e.Target != ports.Xray {
+			return ports.ExportDescription{}, unsupported()
+		}
+		return ports.ExportDescription{Compatibility: "VLESS Encryption; Xray 26.10.21", ContentShape: "xray-outbound"}, nil
 	}
 	shape := "sing-box-outbound"
 	switch e.Target {

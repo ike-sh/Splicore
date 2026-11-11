@@ -20,6 +20,7 @@ splicore client status --config /etc/splicore/splicore.yaml
 | Group | Purpose |
 | --- | --- |
 | `inbound`, `key` | Server resource creation, planning, application and explicit exports |
+| `vlessenc` | Explicit offline VLESS Encryption private/public key generation |
 | `node`, `outbound`, `local-inbound`, `local-binding`, `route` | Typed client resources and route intent |
 | `client` | Client status, validation, planning, application, start/stop/restart |
 | `network`, `route-rule`, `rule-set`, `policy`, `dns`, `tun` | Network graph, selectors, DNS and local TUN intent |
@@ -62,6 +63,11 @@ as the account that will run the Core. Parent directories must be private and
 owned by that account. The command refuses to overwrite an existing key. Set
 the bootstrap `key_file` to that path; startup loads it without creating a key.
 Preserve the original key with the database during backup or recovery.
+
+`splicore vlessenc --auth mlkem768 --mode random --handshake 0rtt --ticket 600s`
+explicitly outputs private server `decryption` and public client `encryption`
+strings. Store this output privately. See [VLESS Encryption](protocol/VLESS_ENCRYPTION.md)
+for the canonical inbound and client settings. It does not need a daemon.
 
 ## Offline checks and foreground lifecycle
 

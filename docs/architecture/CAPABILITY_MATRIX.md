@@ -11,8 +11,8 @@ identity does not imply ownership of another Core process.
 | NaiveProxy | TCP | TLS H2 CONNECT or QUIC H3 CONNECT; Basic authentication |
 | TrustTunnel base | TCP / UDP | Authenticated TLS HTTP/2 or HTTP/3; experimental |
 | TUIC v5 | TCP / UDP | QUIC/TLS and UUID/password |
-| VLESS flow-none | TCP / XUDP | Plain/TLS; supported raw REALITY |
-| VLESS Vision | TCP only | Raw TLS 1.3 or REALITY |
+| VLESS flow-none | TCP / XUDP | Plain/TLS/REALITY; optional native VLESS Encryption |
+| VLESS Vision | TCP only | Raw TLS 1.3, REALITY, or enabled VLESS Encryption |
 | AnyTLS v2/v1 | TCP / UoT2 | Mandatory TLS/password; TCP session reuse |
 | Mieru | TCP / UDP | Embedded TCP/UDP library transport |
 | Trojan standard | TCP / UDP | TLS/password |
@@ -53,7 +53,8 @@ and `CAP_NET_ADMIN`.
 Hysteria v1, generic QUIC transport and arbitrary VLESS/VMess/Trojan over
 Hysteria are not supported. XHTTP HTTP/3 is not implemented.
 
-VLESS Vision requires raw TLS 1.3 or REALITY and rejects HTTP stream wrappers.
+VLESS Vision requires raw TLS 1.3, REALITY, or enabled
+[VLESS Encryption](../protocol/VLESS_ENCRYPTION.md), and rejects HTTP stream wrappers.
 VLESS raw TCP also admits a [FinalMask](FINALMASK.md) chain containing
 header-custom, fragment or Sudoku. The first configured mask is innermost.
 [Vision combinations](../protocol/VLESS.md) and [AnyTLS options](ANYTLS.md)

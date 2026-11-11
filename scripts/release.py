@@ -53,6 +53,9 @@ def save(path, value):
 
 
 def identity():
+    import runpy
+    # Source presence complements the native regression/interop release gates.
+    runpy.run_path(str(ROOT / 'scripts/dev/check-features.py'))['check'](ROOT, verbose=False)
     version = (ROOT / "distribution/RELEASE_VERSION").read_text().strip()
     require(re.fullmatch(r"v0\.[1-9][0-9]*\.[0-9]+", version), "invalid pre-1.0 release version")
     require(not command(["git", "status", "--porcelain"]), "release source must be clean")
@@ -200,6 +203,8 @@ def run_logged(args, env, directory, name):
 
 def qualify(out, target):
     require(target == native_target(), "qualification must run natively")
+    peer = os.environ.get("SPLICORE_VLESS_ENCRYPTION_REFERENCE", "")
+    require(peer and Path(peer).is_file(), "qualification requires the pinned independent encryption test peer; use scripts/dev/fetch-vless-reference.py")
     meta = json.loads((out / target / "build.json").read_text())
     require(meta["commit"] == identity()["commit"], "qualification source differs from build")
     binary = out / target / ("splicore.exe" if target.startswith("windows") else "splicore")
@@ -227,20 +232,25 @@ def qualify(out, target):
             for action in ("build", "vet", "test"):
                 args = ["go", action, "-mod=readonly"]
                 if action == "test":
-                    args += ["-json", "-count=1", "-timeout=90s"]
+                    args += ["-json", "-count=1", "-timeout=180s"]
                 result = run_logged(args + tags + ["./..."], env, directory, profile + "-" + action)
                 if action == "test":
                     required = ["cmd/splicore/TestRuntimeBinaryTrafficShutdownAndRestart",
                                 "internal/splicore/clientruntime/TestProviderFetchProtectedHTTPAndHTTPS",
                                 "internal/splicore/streamtransport/hysteria/TestMasqueradeProtectedDialAndNoDefault",
-                                "internal/splicore/storage/sqlite/TestInspectIsReadOnly"]
+                                "internal/splicore/storage/sqlite/TestInspectIsReadOnly",
+                                "protocol/vless/encryption/TestEncryptedStreams",
+                                "protocol/vless/encryption/TestPinnedReferenceRawMatrix"]
+                    if tags:
+                        required += ["internal/splicore/engine/native/TestVLESSEncryptionPinnedRuntimeInterop",
+                                     "internal/splicore/engine/native/TestVLESSEncryptionRuntimeCredentialBoundaries"]
                     require(all(result["tests"].get("github.com/ike-sh/Splicore/" + name) == "pass" for name in required), "required behavior test missing or skipped")
                     if os.environ.get("GITHUB_ACTIONS"):
                         require(not result["test_counts"].get("parent_skip") and not result["test_counts"].get("subtest_skip"), "hosted qualification must not skip tests")
                 summary[profile + "-" + action] = result
         if target.startswith("linux"):
             env["CGO_ENABLED"] = "1"
-            summary["race"] = run_logged(["go", "test", "-race", "-json", "-count=1", "-timeout=90s", "-tags=" + TAGS,
+            summary["race"] = run_logged(["go", "test", "-race", "-json", "-count=1", "-timeout=180s", "-tags=" + TAGS,
                                           "./internal/splicore/...", "./protocol/..."], env, directory, "race")
         else:
             summary["race"] = dict(result="NOT_EXECUTED", reason="Windows race is outside this release qualification; no configured native C toolchain")

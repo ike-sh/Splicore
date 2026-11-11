@@ -2,12 +2,14 @@ package vless
 
 import (
 	"encoding/json"
+	"strings"
+
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/creation"
-	"strings"
+	"github.com/ike-sh/Splicore/protocol/vless/encryption"
 )
 
 func (Module) DecodeCreation(b json.RawMessage) (ports.CreationDraft, error) {
@@ -32,6 +34,33 @@ func (Module) DecodeCreation(b json.RawMessage) (ports.CreationDraft, error) {
 	if creation.Decode(b, &w) != nil || creation.ValidateEnvelope(w.Schema, w.Name, w.Listener, w.Display, w.PolicyMode, len(w.Users)) != nil {
 		return d, creation.Invalid()
 	}
+	var serverSecret struct {
+		PrivateKey json.RawMessage `json:"private_key"`
+		Decryption json.RawMessage `json:"decryption"`
+	}
+	if len(w.ServerSecret) != 0 && (string(w.ServerSecret) == "null" || creation.Decode(w.ServerSecret, &serverSecret) != nil) {
+		return d, invalid()
+	}
+	// Project the public channel configuration before validating flow/security.
+	// This also permits Vision with outer none when only the inbound secret was supplied.
+	if len(serverSecret.Decryption) != 0 {
+		value, e := creation.RawField(serverSecret.Decryption)
+		if e != nil {
+			return d, invalid()
+		}
+		cfg, e := encryption.ParseServer(value)
+		if e != nil || cfg == nil {
+			return d, invalid()
+		}
+		var fields map[string]json.RawMessage
+		if creation.Decode(w.Settings, &fields) != nil || fields == nil || encryptionMember(w.Settings) != nil {
+			return d, invalid()
+		}
+		if _, present := fields["encryption"]; !present {
+			fields["encryption"], _ = json.Marshal(cfg.ClientString(true))
+			w.Settings, _ = json.Marshal(fields)
+		}
+	}
 	s, err := decode(w.Settings, false)
 	if err != nil {
 		return d, err
@@ -39,14 +68,29 @@ func (Module) DecodeCreation(b json.RawMessage) (ports.CreationDraft, error) {
 	if s.Security == Reality && !RealityCompiled {
 		return d, identity.Err(identity.NotImplemented, "REALITY requires with_utls")
 	}
-	var serverSecret struct {
-		PrivateKey json.RawMessage `json:"private_key"`
-	}
-	if len(w.ServerSecret) != 0 && (string(w.ServerSecret) == "null" || creation.Decode(w.ServerSecret, &serverSecret) != nil) {
+	if s.Security != Reality && len(serverSecret.PrivateKey) != 0 {
 		return d, invalid()
 	}
-	if s.Security != Reality && len(w.ServerSecret) != 0 {
+	if len(serverSecret.Decryption) != 0 {
+		value, e := creation.RawField(serverSecret.Decryption)
+		if e != nil {
+			return d, invalid()
+		}
+		cfg, e := encryption.ParseServer(value)
+		if e != nil || cfg == nil {
+			return d, invalid()
+		}
+		projected := cfg.ClientString(true)
+		if s.Encryption != "" && s.Encryption != projected {
+			return d, invalid()
+		}
+		s.Encryption = projected
+		d.ServerPayloads = append(d.ServerPayloads, access.PrivateKeyPayload{Algorithm: "vless-encryption", Material: secret.New(value)})
+	} else if s.Encryption != "" && s.Encryption != "none" {
 		return d, invalid()
+	}
+	if err := validateSettings(s, false); err != nil {
+		return d, err
 	}
 	if s.Security == Reality {
 		material := ""
@@ -66,7 +110,7 @@ func (Module) DecodeCreation(b json.RawMessage) (ports.CreationDraft, error) {
 		} else if s.Reality.PublicKey != "" {
 			return d, invalid()
 		}
-		d.ServerPayloads = []access.Payload{p}
+		d.ServerPayloads = append(d.ServerPayloads, p)
 	}
 	if len(w.TransportSecret) != 0 {
 		return d, identity.Err(identity.UnsupportedEngineFeature, "transport masks are outside Splicore runtime")
@@ -95,6 +139,7 @@ func (Module) DecodeCreation(b json.RawMessage) (ports.CreationDraft, error) {
 	}
 	return d, nil
 }
+
 func (Module) GenerateCreationCredential(p access.Payload) (access.Payload, error) {
 	v, ok := p.(access.UUIDPayload)
 	if !ok {
@@ -112,6 +157,7 @@ func (Module) GenerateCreationCredential(p access.Payload) (access.Payload, erro
 	}
 	return v, nil
 }
+
 func (Module) MaterializeCreation(d ports.CreationDraft) (ports.CreationDraft, error) {
 	s, err := decode(d.Settings, false)
 	if err != nil {
@@ -120,10 +166,17 @@ func (Module) MaterializeCreation(d ports.CreationDraft) (ports.CreationDraft, e
 	if s.Security != Reality {
 		return d, nil
 	}
-	if len(d.ServerPayloads) != 1 {
+	if len(d.ServerPayloads) < 1 || len(d.ServerPayloads) > 2 {
 		return d, invalid()
 	}
-	p, ok := d.ServerPayloads[0].(access.PrivateKeyPayload)
+	index := 0
+	if first, ok := d.ServerPayloads[0].(access.PrivateKeyPayload); ok && first.Algorithm == "vless-encryption" {
+		index = 1
+	}
+	if index >= len(d.ServerPayloads) {
+		return d, invalid()
+	}
+	p, ok := d.ServerPayloads[index].(access.PrivateKeyPayload)
 	if !ok {
 		return d, invalid()
 	}
@@ -138,6 +191,6 @@ func (Module) MaterializeCreation(d ports.CreationDraft) (ports.CreationDraft, e
 	}
 	s.Reality.PublicKey = pub
 	d.Settings, _ = json.Marshal(s)
-	d.ServerPayloads = []access.Payload{p}
+	d.ServerPayloads[index] = p
 	return d, nil
 }
