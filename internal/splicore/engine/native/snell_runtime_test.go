@@ -16,13 +16,26 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/engine/testfixture"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	sm "github.com/ike-sh/Splicore/internal/splicore/protocol/snell"
+	"github.com/ike-sh/Splicore/internal/splicore/testkit"
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"github.com/ike-sh/Splicore/protocol/snell/wire"
 )
 
 func ownedSnell(t *testing.T, version int, httpMode ...bool) (context.Context, ports.RuntimeIntent, ports.RuntimeHandle) {
 	t.Helper()
-	in := testfixture.MieruIntent(t, "tcp")
+	return ownedSnellAt(t, version, "127.0.0.1", httpMode...)
+}
+
+func ownedSnellAt(t *testing.T, version int, host string, httpMode ...bool) (context.Context, ports.RuntimeIntent, ports.RuntimeHandle) {
+	t.Helper()
+	// v5 starts TCP and QUIC/UDP on the same configured port. A TCP-only
+	// ephemeral probe does not establish permission to bind UDP on Windows.
+	network := "tcp"
+	if version == 5 {
+		network = "tcp+udp"
+	}
+	port := testkit.PeerPortAt(t, network, host)
+	in := testfixture.MieruIntentAt(t, "tcp", access.Endpoint{Host: host, Port: uint16(port)})
 	in.Inbound.Protocol = sm.Key(version)
 	in.Inbound.Settings.Data = []byte(fmt.Sprintf(`{"version":%d}`, version))
 	if len(httpMode) > 0 && httpMode[0] {

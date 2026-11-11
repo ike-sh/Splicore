@@ -67,7 +67,10 @@ func (m *Manager) serveUDP(ctx context.Context, s *session, reader io.Reader, re
 		_ = relay.Close()
 		return
 	}
-	stop := context.AfterFunc(ctx, func() { _ = relay.Close(); _ = s.local.Close() })
+	// Join a cancellation close already in flight before this session retires.
+	// A concurrent second net.Conn.Close may return while the first still owns
+	// the OS handle; the existing flow helper waits for that first owner.
+	stop := m.closeFlowOnCancel(ctx, s)
 	defer stop()
 	flows := map[access.Endpoint]*udpFlow{}
 	type flowSelection struct {

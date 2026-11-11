@@ -26,6 +26,9 @@
           "TestVLESSEncryptionPinnedRuntimeInterop",
           "TestVLESSEncryptionRuntimeCredentialBoundaries"
         ],
+        "internal/splicore/engine/native/phase22_peer_test.go": [
+          "TestPhasePeerRejectsOccupiedListener"
+        ],
         "cmd/splicore/runtime_test.go": [
           "TestRuntimeBinaryTrafficShutdownAndRestart"
         ]
@@ -202,6 +205,22 @@
           "TestNaiveH3IdleAdmissionMultiplexReuse",
           "TestNaiveH3ActiveAndTargetFailureCleanup",
           "TestNaiveH3RejectedBeforeTargetOwnership"
+        ]
+      }
+    },
+    {
+      "id": "core-network-lifecycle",
+      "source_commit": "7b6eb4baaed12b6c7d97b6c52efd50e318764f95",
+      "qualification": "native default/full and complete Linux Race; original resource and rebind assertions retained",
+      "files": [
+        "internal/splicore/clientruntime/udp.go"
+      ],
+      "tests": {
+        "internal/splicore/clientruntime/hardening_stability_test.go": [
+          "TestPhase15OwnedNetworkLifecycle10x"
+        ],
+        "internal/splicore/clientruntime/udp_cancel_join_test.go": [
+          "TestPhase15UDPCancellationCloseJoin"
         ]
       }
     }

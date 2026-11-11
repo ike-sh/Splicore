@@ -6,6 +6,8 @@ from qualification_policy import validate
 
 ROOT = Path(__file__).resolve().parents[2]
 BASE = [
+    'internal/splicore/clientruntime/TestPhase15OwnedNetworkLifecycle10x',
+    'internal/splicore/clientruntime/TestPhase15UDPCancellationCloseJoin',
     'cmd/splicore/TestRuntimeBinaryTrafficShutdownAndRestart',
     'internal/splicore/clientruntime/TestProviderFetchProtectedHTTPAndHTTPS',
     'internal/splicore/streamtransport/hysteria/TestMasqueradeProtectedDialAndNoDefault',

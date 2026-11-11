@@ -59,6 +59,17 @@ func phaseProfiles() []phaseProfile {
 }
 func phaseFixture(t *testing.T, p phaseProfile) (ports.RuntimeIntent, client.RemoteNode, access.Credential) {
 	in, n, c := sharedIntent(t, "vless", "ws", p.security != vl.Plain)
+	// External peers cannot inherit a :0 socket. Keep this server endpoint
+	// outside ephemeral client ranges and distinct from the peer's SOCKS lease.
+	// Some callers subsequently select an actual UDP transport on the same port.
+	port := uint16(testkit.PeerPort(t, "tcp+udp"))
+	for i := range in.Inbound.Listeners {
+		in.Inbound.Listeners[i].Endpoint.Port = port
+	}
+	for i := range in.Inbound.DisplayEndpoints {
+		in.Inbound.DisplayEndpoints[i].Endpoint.Port = port
+	}
+	n.Endpoint = in.Inbound.Listeners[0].Endpoint
 	var s vl.Settings
 	json.Unmarshal(in.Inbound.Settings.Data, &s)
 	s.Security = p.security
@@ -142,18 +153,47 @@ func phasePeer(t *testing.T, root, binary, name string, config any, endpoint acc
 		if err != nil {
 			t.Error("record reference process exit", err)
 		}
+		if t.Failed() {
+			data, err := os.ReadFile(log.Name())
+			if err != nil {
+				t.Error("read failed reference log", err)
+			} else {
+				t.Logf("failed reference endpoint=%s:%d exit=%d log:\n%s", endpoint.Host, endpoint.Port, cmd.ProcessState.ExitCode(), data)
+			}
+		}
 	})
 	until := time.Now().Add(5 * time.Second)
 	for time.Now().Before(until) {
-		c, e := net.DialTimeout("tcp", net.JoinHostPort(endpoint.Host, portString(endpoint.Port)), 30*time.Millisecond)
-		if e == nil {
-			c.Close()
-			return
-		}
 		select {
 		case <-done:
 			t.Fatal("Xray rejected profile", waitError)
 		default:
+		}
+		// A connect alone can reach an unrelated listener while this child is
+		// still starting (or rejecting a bind conflict). The pinned peer emits
+		// its own startup marker only after successfully starting its inbounds.
+		data, err := os.ReadFile(log.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		started := false
+		for _, line := range bytes.Split(data, []byte{'\n'}) {
+			if bytes.Contains(line, []byte("core: Xray ")) && bytes.HasSuffix(bytes.TrimSpace(line), []byte(" started")) {
+				started = true
+				break
+			}
+		}
+		if started {
+			c, e := net.DialTimeout("tcp", net.JoinHostPort(endpoint.Host, portString(endpoint.Port)), 30*time.Millisecond)
+			if e == nil {
+				c.Close()
+				select {
+				case <-done:
+					t.Fatal("Xray rejected profile", waitError)
+				default:
+					return
+				}
+			}
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
@@ -256,12 +296,8 @@ func TestPhase22XrayInterop(t *testing.T) {
 					t.Skip("official v26.9.9 REALITY constructor panics on innermost fragment; raw failing evidence retained externally")
 				}
 				in, n, cred := phaseFixture(t, p)
-				reserve, e := net.Listen("tcp", "127.0.0.1:0")
-				if e != nil {
-					t.Fatal(e)
-				}
-				socks := netaddrEndpoint(reserve.Addr())
-				reserve.Close()
+				socks := access.Endpoint{Host: "127.0.0.1", Port: uint16(testkit.PeerPort(t, "tcp"))}
+				var e error
 				var d ports.ClientDialer
 				if direction == "splicore-server" {
 					h := sharedPrepare(t, ctx, "vless", in)

@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/sys/unix"
+
 	ss "github.com/ike-sh/Splicore/internal/splicore/protocol/shadowsocks"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/shadowsocks/wire"
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
@@ -79,6 +81,7 @@ func TestShadowsocksAbuseAndUDPChurnResources(t *testing.T) {
 			}
 		}
 		pc.Close()
+		ssWaitAbuseQueueDrain(t, h)
 		for range 128 {
 			raw, e := net.Dial("tcp", address)
 			if e != nil {
@@ -87,6 +90,7 @@ func TestShadowsocksAbuseAndUDPChurnResources(t *testing.T) {
 			raw.Write(make([]byte, 128))
 			raw.Close()
 		}
+		ssWaitAbuseQueueDrain(t, h)
 		// Authenticated churn, independent source/session IDs, real routing sockets.
 		keys, e := wire.Keys(method, ss.Material(in.Credentials[0].Payload))
 		if e != nil {
@@ -96,7 +100,7 @@ func TestShadowsocksAbuseAndUDPChurnResources(t *testing.T) {
 			keys = append([]*wire.Key{h.identity}, keys...)
 		}
 		for cycle := range 4 {
-			for range 64 {
+			for association := range 64 {
 				raw, e := net.Dial("udp", address)
 				if e != nil {
 					t.Fatal(e)
@@ -116,6 +120,7 @@ func TestShadowsocksAbuseAndUDPChurnResources(t *testing.T) {
 				reply := make([]byte, 65535)
 				n, e := raw.Read(reply)
 				if e != nil {
+					t.Logf("method=%s cycle=%d association=%d running=%t stats=%+v", method, cycle, association, h.running.Load(), h.Stats())
 					t.Fatal(e)
 				}
 				p, e := wire.DecodePacket([]*wire.Key{keys[len(keys)-1]}, nil, reply[:n], true, session, wire.NewSaltCache(4, time.Minute), time.Now())
@@ -168,4 +173,43 @@ func TestShadowsocksAbuseAndUDPChurnResources(t *testing.T) {
 		}
 	}
 	t.Logf("malformed UDP=4000 malformed/auth-failure TCP=256 authenticated UDP associations=512 start FD=%d goroutines=%d peak FD=%d goroutines=%d end FD=%d goroutines=%d", baseFD, baseGo, peakFD, peakGo, ssFDs(t), runtime.NumGoroutine())
+}
+
+func ssWaitAbuseQueueDrain(t *testing.T, h *shadowsocksHandle) {
+	t.Helper()
+	// A UDP flood can fill the kernel receive queue. A single recovery datagram
+	// sent into that queue may be dropped before the native decoder sees it.
+	// Observe the abuse phase draining before measuring authenticated recovery;
+	// never consume packets here or resend a failed authenticated payload.
+	raw, err := h.packet.(*net.UDPConn).SyscallConn()
+	if err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(3 * time.Second)
+	observed := 0
+	for {
+		pending := 0
+		if err := raw.Control(func(fd uintptr) {
+			pending, err = unix.IoctlGetInt(int(fd), unix.TIOCINQ)
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !h.running.Load() {
+			t.Fatal("UDP receiver exited during malformed-input recovery")
+		}
+		if pending == 0 {
+			t.Logf("malformed UDP receive queue drained; observed_pending_size=%d", observed)
+			return
+		}
+		observed = pending
+		if time.Now().After(deadline) {
+			t.Fatalf("malformed UDP receive queue did not drain: next_datagram=%d", pending)
+		}
+		// Every injected malformed datagram has a nonzero length, so TIOCINQ=0
+		// unambiguously observes an empty queue. Yield to its sole native reader.
+		runtime.Gosched()
+	}
 }

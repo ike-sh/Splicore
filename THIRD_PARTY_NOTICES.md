@@ -110,7 +110,7 @@ The convergence candidate retains the existing dependency versions and adds the 
 
 These verbatim license copies document the isolated ShadowQUIC/JLS and Linux
 kernel WireGuard candidates. Their implementation-specific dependencies are
-excluded from the v0.6.1 production module graph; retaining license evidence
+excluded from the v0.6.2 production module graph; retaining license evidence
 does not advertise protocol or backend support.
 
 - `github.com/google/nftables v0.3.0`: [LICENSE](licenses/third-party/github.com/google/nftables/v0.3.0/LICENSE).

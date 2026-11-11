@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"net"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -39,16 +38,12 @@ func TestPhase32PinnedSecurityVisionInterop(t *testing.T) {
 						options, _ := vl.DecodeClientOptions(n.Options.Data)
 						options.Encryption = public
 						n.Options.Data, _ = json.Marshal(options)
-						reserve, e := net.Listen("tcp", "127.0.0.1:0")
-						if e != nil {
-							t.Fatal(e)
-						}
-						socks := netaddrEndpoint(reserve.Addr())
-						reserve.Close()
+						socks := access.Endpoint{Host: "127.0.0.1", Port: uint16(testkit.PeerPort(t, "tcp"))}
+						var e error
 						root := t.TempDir()
 						if evidence := os.Getenv("SPLICORE_PHASE32_PEER_LOGS"); evidence != "" {
-							root = filepath.Join(evidence, strings.ReplaceAll(t.Name(), "/", "-"))
-							if e := os.MkdirAll(root, 0o700); e != nil {
+							root, e = os.MkdirTemp(evidence, testkit.EvidenceName(t.Name())+"-")
+							if e != nil {
 								t.Fatal(e)
 							}
 						}
@@ -160,16 +155,12 @@ func TestPhase32PinnedTransportInterop(t *testing.T) {
 				options, _ := vl.DecodeClientOptions(n.Options.Data)
 				options.Encryption = public
 				n.Options.Data, _ = json.Marshal(options)
-				reserve, e := net.Listen("tcp", "127.0.0.1:0")
-				if e != nil {
-					t.Fatal(e)
-				}
-				socks := netaddrEndpoint(reserve.Addr())
-				reserve.Close()
+				socks := access.Endpoint{Host: "127.0.0.1", Port: uint16(testkit.PeerPort(t, "tcp"))}
+				var e error
 				root := t.TempDir()
 				if evidence := os.Getenv("SPLICORE_PHASE32_PEER_LOGS"); evidence != "" {
-					root = filepath.Join(evidence, strings.ReplaceAll(t.Name(), "/", "-"))
-					if e = os.MkdirAll(root, 0o700); e != nil {
+					root, e = os.MkdirTemp(evidence, testkit.EvidenceName(t.Name())+"-")
+					if e != nil {
 						t.Fatal(e)
 					}
 				}
