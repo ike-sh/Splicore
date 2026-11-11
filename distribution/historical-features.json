@@ -855,5 +855,5 @@
   ],
   "delivery_status": "QUALIFICATION_GATED",
   "qualification_note": "Feature statuses describe the reviewed native implementation and its applicable test scope. Publication additionally requires exact-source hosted default/full native builds, vet/tests, full Linux Race and the behavior policy. The published Release manifest is authoritative for executed and NOT EXECUTED identities; source presence alone never qualifies a feature.",
-  "release": "v0.6.1"
+  "release": "v0.6.2"
 }

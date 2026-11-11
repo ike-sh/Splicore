@@ -10,6 +10,8 @@ def validate(root, result, target, profile):
     tests = {name.removeprefix(PREFIX): action for name, action in result['tests'].items()}
     policy = json.loads((root / 'distribution/qualification-profile.json').read_text())
     required = {
+        'internal/splicore/clientruntime/TestPhase15OwnedNetworkLifecycle10x',
+        'internal/splicore/clientruntime/TestPhase15UDPCancellationCloseJoin',
         'internal/splicore/clientruntime/TestProviderFetchProtectedHTTPAndHTTPS',
         'internal/splicore/streamtransport/hysteria/TestMasqueradeProtectedDialAndNoDefault',
         'internal/splicore/storage/sqlite/TestInspectIsReadOnly',

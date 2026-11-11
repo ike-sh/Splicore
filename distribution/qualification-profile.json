@@ -9,7 +9,7 @@
     "internal/splicore/engine/native/TestNativeHysteriaPinnedReferences": "Optional historical external-oracle campaign; not part of the restored feature qualification; NOT EXECUTED",
     "internal/splicore/engine/native/TestMKCPPinnedXrayInterop": "Optional historical external-oracle campaign; not part of the restored feature qualification; NOT EXECUTED",
     "internal/splicore/engine/native/TestPhase22XrayInterop": "Optional historical external-oracle campaign; not part of the restored feature qualification; NOT EXECUTED",
-    "internal/splicore/streamtransport/hysteria/packet/TestNFTRangeIsolatedKernelLifecycle": "Supplementary external Linux wg/NFT oracle is opt-in; required in-process native kernel and official userspace peer gates are separate",
+    "internal/splicore/streamtransport/hysteria/packet/TestNFTRangeIsolatedKernelLifecycle": "Supplementary external Linux wg/NFT oracle is opt-in. Linux kernel WireGuard restoration is excluded; required official userspace peer gates remain separate.",
     "internal/splicore/application/TestPhase20HTTPCurlChunkedFixInterop": "Optional historical external-oracle campaign; not part of the restored feature qualification; NOT EXECUTED",
     "internal/splicore/application/TestPhase20CurlInboundInterop": "Optional historical external-oracle campaign; not part of the restored feature qualification; NOT EXECUTED",
     "internal/splicore/engine/native/TestPhase35PinnedH3TranslationAndSplit": "Optional historical external-oracle campaign; not part of the restored feature qualification; NOT EXECUTED",

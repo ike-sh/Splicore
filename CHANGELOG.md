@@ -1,6 +1,15 @@
 # Changelog
 
-## v0.6.1
+## v0.6.2
+
+Qualified convergence scope with UDP session cancellation joining its in-flight
+socket-close callback before retirement. Preserve the original immediate rebind,
+five-second shutdown deadline and all traffic/resource assertions; require a
+deterministic blocked-close ownership regression on both native profiles.
+v0.6.0 and v0.6.1 tags stay immutable and unpublished. Scope and exclusions remain
+explicit in [the release notes](docs/releases/v0.6.2.md).
+
+## v0.6.1 — unpublished candidate
 
 Qualified native historical convergence on v0.5.0: XHTTP H3, HTTP/H2/QUIC
 carriers, standard WireGuard, Snell v4/v5, managed routing/DNS/timestamps and
