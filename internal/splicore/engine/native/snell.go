@@ -31,6 +31,7 @@ func (SnellCompiler) Supports(in ports.RuntimeIntent) error {
 	_, e = (module.Module{Version: s.Version}).BuildRuntime(context.Background(), in)
 	return e
 }
+
 func (f SnellCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (ports.PreparedRuntime, error) {
 	if e := f.Supports(in); e != nil {
 		return nil, e
@@ -45,7 +46,7 @@ func (f SnellCompiler) Compile(ctx context.Context, in ports.RuntimeIntent) (por
 		return nil, e
 	}
 	owned, cancel := context.WithCancel(context.WithoutCancel(ctx))
-	return &Handle{ctx: owned, cancel: cancel, protected: d, key: k, obfsHTTP: s.ObfsMode == "http", endpoint: in.Inbound.Listeners[0].Endpoint, total: &traffic.Counter{}, connections: map[net.Conn]bool{}, done: make(chan struct{})}, nil
+	return &Handle{ctx: owned, cancel: cancel, protected: d, key: k, version: s.Version, obfsHTTP: s.ObfsMode == "http", endpoint: in.Inbound.Listeners[0].Endpoint, total: &traffic.Counter{}, connections: map[net.Conn]bool{}, done: make(chan struct{})}, nil
 }
 
 // Handle owns listening, accepted and target sockets through shutdown join.
@@ -56,6 +57,8 @@ type Handle struct {
 	cancel            context.CancelFunc
 	protected         *underlay.Dialer
 	key               *wire.Key
+	version           int
+	quicProxy         *snellQUICProxy
 	obfsHTTP          bool
 	endpoint          access.Endpoint
 	listener          net.Listener
@@ -71,8 +74,11 @@ func portString(p uint16) string { return strconv.Itoa(int(p)) }
 func (h *Handle) Start(ctx context.Context) error {
 	h.lifecycle.Lock()
 	defer h.lifecycle.Unlock()
-	if h.closed || ctx.Err() != nil {
-		return identity.Err(identity.Unavailable, "Snell runtime closed or canceled")
+	if h.closed {
+		return snellListenError("Snell runtime closed", net.ErrClosed)
+	}
+	if err := ctx.Err(); err != nil {
+		return snellListenError("Snell start canceled", err)
 	}
 	if h.started {
 		return nil
@@ -80,10 +86,15 @@ func (h *Handle) Start(ctx context.Context) error {
 	lc := net.ListenConfig{}
 	l, e := lc.Listen(ctx, "tcp", net.JoinHostPort(h.endpoint.Host, portString(h.endpoint.Port)))
 	if e != nil {
-		if addressInUse(e) {
-			return identity.Err(identity.PortConflict, "listener port is already in use")
+		return snellListenError("Snell listener start failed", e)
+	}
+	if h.version == 5 {
+		p, err := lc.ListenPacket(ctx, "udp", net.JoinHostPort(h.endpoint.Host, portString(h.endpoint.Port)))
+		if err != nil {
+			_ = l.Close()
+			return snellListenError("Snell QUIC listener start failed", err)
 		}
-		return identity.Err(identity.Unavailable, "Snell listener start failed")
+		h.quicProxy = newSnellQUICProxy(p, h.key, h.protected, h.total, h.admitted.Load)
 	}
 	h.listener = l
 	h.started = true
@@ -92,6 +103,7 @@ func (h *Handle) Start(ctx context.Context) error {
 	go h.accept()
 	return nil
 }
+
 func (h *Handle) Activate() {
 	h.lifecycle.Lock()
 	defer h.lifecycle.Unlock()
@@ -99,6 +111,7 @@ func (h *Handle) Activate() {
 		h.admitted.Store(true)
 	}
 }
+
 func (h *Handle) Health(ctx context.Context) error {
 	if ctx.Err() != nil || !h.running.Load() {
 		return identity.Err(identity.Unavailable, "Snell listener is not healthy")
@@ -116,6 +129,9 @@ func (h *Handle) Close(ctx context.Context) error {
 		h.admitted.Store(false)
 		h.running.Store(false)
 		h.cancel()
+		if h.quicProxy != nil {
+			h.quicProxy.Close()
+		}
 		if h.listener != nil {
 			_ = h.listener.Close()
 		}
@@ -138,6 +154,7 @@ func (h *Handle) Close(ctx context.Context) error {
 		return identity.Err(identity.Unavailable, "Snell shutdown timed out")
 	}
 }
+
 func (h *Handle) accept() {
 	defer h.wg.Done()
 	defer h.running.Store(false)
@@ -158,6 +175,7 @@ func (h *Handle) accept() {
 		go h.serve(c)
 	}
 }
+
 func (h *Handle) addTarget(c net.Conn) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -204,6 +222,7 @@ func (h *Handle) serve(raw net.Conn) {
 		return h.serveUDP(packet)
 	})
 }
+
 func (h *Handle) serveUDP(packet net.PacketConn) error {
 	defer packet.Close()
 	release := traffic.Open(false, h.total)

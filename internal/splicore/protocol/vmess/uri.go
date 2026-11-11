@@ -4,15 +4,16 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
+	"unicode"
+	"unicode/utf8"
+
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
 	streamcfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/jsonstrict"
-	"strconv"
-	"strings"
-	"unicode"
-	"unicode/utf8"
 )
 
 type URI struct {
@@ -46,6 +47,7 @@ func scalar(b json.RawMessage, required bool) (string, error) {
 	}
 	return string(b), nil
 }
+
 func ParseURI(raw string) (URI, error) {
 	var v URI
 	if len(raw) > 4096 || !strings.HasPrefix(raw, "vmess://") || !utf8.ValidString(raw) || strings.IndexFunc(raw, unicode.IsControl) >= 0 {
@@ -117,7 +119,7 @@ func ParseURI(raw string) (URI, error) {
 		transport.ServiceName = w.Path
 		transport.Path = ""
 	}
-	if transport.Type() == "xhttp" || transport.Type() == "mkcp" || transport.Validate() != nil || w.Type != "" && w.Type != "none" && !(transport.Kind == "grpc" && w.Type == "gun") || w.FP != "" {
+	if transport.NativeStream() || transport.Type() == "xhttp" || transport.Type() == "mkcp" || transport.Validate() != nil || w.Type != "" && w.Type != "none" && !(transport.Kind == "grpc" && w.Type == "gun") || w.FP != "" {
 		return v, Unsupported("unsupported_transport")
 	}
 	port, e := scalar(w.Port, true)
@@ -178,6 +180,7 @@ func ParseURI(raw string) (URI, error) {
 	}
 	return v, nil
 }
+
 func EncodeURI(v URI) (string, error) {
 	if v.Endpoint.Validate() != nil || (access.UUIDPayload{UUID: v.UUID}).Validate() != nil || !identity.Label(v.Name, 128) {
 		return "", invalid()
@@ -186,7 +189,7 @@ func EncodeURI(v URI) (string, error) {
 		return "", err
 	}
 	w := map[string]any{"v": "2", "ps": v.Name, "add": v.Endpoint.Host, "port": strconv.Itoa(int(v.Endpoint.Port)), "id": v.UUID.Reveal(), "aid": "0", "scy": v.Security, "net": "tcp", "type": "none", "host": "", "path": "", "tls": ""}
-	if v.Transport.Type() == "xhttp" || v.Transport.Type() == "mkcp" || v.Transport.Validate() != nil || len(v.Transport.Headers) > 0 {
+	if v.Transport.NativeStream() || v.Transport.Type() == "xhttp" || v.Transport.Type() == "mkcp" || v.Transport.Validate() != nil || len(v.Transport.Headers) > 0 {
 		return "", Unsupported("unsupported_transport")
 	}
 	w["net"] = v.Transport.Type()

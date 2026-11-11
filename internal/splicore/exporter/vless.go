@@ -40,7 +40,7 @@ func vlessProfile(p clientprofile.Profile) (access.UUIDPayload, module.ClientOpt
 			return credential, o, unsupported()
 		}
 	}
-	if p.Transport.FinalMask != nil || o.Flow == module.Vision && p.Transport.Type() != "tcp" {
+	if p.Transport.FinalMask != nil || o.Flow == module.Vision && p.Transport.Type() != "tcp" && !(p.Transport.XHTTPH3(p.TLS.ALPN) && o.Encryption != "" && o.Encryption != "none") {
 		return credential, o, unsupported()
 	}
 	if o.Security != module.Plain {
@@ -79,7 +79,12 @@ func (e VLESS) Export(_ context.Context, p clientprofile.Profile, t ports.Export
 	switch e.Target {
 	case ports.Xray:
 		if p.Transport.Type() == "xhttp" || p.Transport.Type() == "mkcp" {
-			if t.ClientVersion != "26.10.10" || o.Flow != module.NoFlow {
+			version := "26.10.10"
+			if p.Transport.XHTTPH3(p.TLS.ALPN) {
+				version = "26.10.21"
+			}
+			currentXHTTP := p.Transport.Type() == "xhttp" && t.ClientVersion == "26.10.21"
+			if t.ClientVersion != version && !currentXHTTP || o.Flow != module.NoFlow {
 				return nil, unsupported()
 			}
 		} else if t.ClientVersion != "26.3.27" || o.Security != module.Plain {
@@ -161,6 +166,9 @@ func (e VLESS) Describe(p clientprofile.Profile) (ports.ExportDescription, error
 	shape := "sing-box-outbound"
 	switch e.Target {
 	case ports.Xray:
+		if p.Transport.XHTTPH3(p.TLS.ALPN) {
+			return ports.ExportDescription{Compatibility: "VLESS over XHTTP H3; Xray 26.10.21; verified TLS; ALPN h3", ContentShape: "xray-outbound"}, nil
+		}
 		if p.Transport.Type() == "xhttp" {
 			return ports.ExportDescription{Compatibility: "VLESS over XHTTP; Xray 26.10.10; explicit transport/security settings", ContentShape: "xray-outbound"}, nil
 		}

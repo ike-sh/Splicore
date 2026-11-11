@@ -33,6 +33,12 @@ func (t ClientTLS) Validate(kind string) error {
 			return bad()
 		}
 	}
+	if kind == "jls" {
+		if t.Trust != "jls" || t.CACertificate != "" || t.RealityPublicKey != "" || t.RealityShortID != "" || len(t.ALPN) != 1 || t.ALPN[0] != "h3" {
+			return bad()
+		}
+		return nil
+	}
 	if kind == "reality" {
 		if (t.Trust != "" && t.Trust != "reality") || t.CACertificate != "" || len(t.RealityPublicKey) > 64 || len(t.RealityShortID) > 16 {
 			return bad()

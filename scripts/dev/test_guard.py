@@ -5,6 +5,13 @@ import guard
 
 
 class GuardTests(unittest.TestCase):
+    def test_main_verification_cannot_enable_commit_or_push(self):
+        for mode in ('commit', 'push'):
+            with self.subTest(mode=mode), patch('sys.argv', ['guard', mode, '--verify-main']), patch('guard.check_state') as state:
+                with self.assertRaisesRegex(RuntimeError, 'cannot authorize'):
+                    guard.main()
+                state.assert_not_called()
+
     def test_windows_wsl_and_case(self):
         with patch('guard.shutil.which', return_value=None):
             self.assertEqual(guard.path_identity('D:\\Code\\Splicore'),
@@ -69,6 +76,12 @@ class GuardTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, '#7'):
                 guard.pending_prs('codex/restore-vless')
             guard.pending_prs('codex/restore-other')
+
+    def test_pending_main_pr_without_restoration_keyword(self):
+        with patch('guard.shutil.which', return_value='gh'), patch('guard.run', return_value='[{"number":8,"headRefName":"codex/transport","baseRefName":"main","title":"Native transport"}]'):
+            with self.assertRaisesRegex(RuntimeError, '#8'):
+                guard.pending_prs('codex/final-main-convergence')
+            guard.pending_prs('codex/transport')
 
     def test_wrong_branch_and_outdated_base(self):
         def fake_git(*args):

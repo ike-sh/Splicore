@@ -1,4 +1,4 @@
-param([switch]$AllowDirty)
+param([switch]$AllowDirty,[switch]$VerifyMain)
 $ErrorActionPreference = 'Stop'
 function Invoke-GuardProcess([string]$Executable, [string[]]$Arguments) {
     $start = New-Object System.Diagnostics.ProcessStartInfo
@@ -28,6 +28,7 @@ foreach ($candidate in @('python3', 'python', 'py')) {
     if ($executable -and $executable.Source -notmatch 'WindowsApps') {
         $guardArguments = @((Join-Path $PSScriptRoot 'guard.py'), 'start')
         if ($AllowDirty) { $guardArguments += '--allow-dirty' }
+        if ($VerifyMain) { $guardArguments += '--verify-main' }
         Write-Output (Invoke-GuardProcess $executable.Source $guardArguments)
         exit $script:guardExitCode
     }
@@ -42,6 +43,7 @@ if ($wsl) {
     if ($script:guardExitCode -ne 0) { throw 'Cannot map the current directory to WSL' }
     $wslArguments = @('--cd', $linuxDirectory.Trim(), '--exec', 'python3', ($linuxRoot.Trim() + '/scripts/dev/guard.py'), 'start')
     if ($AllowDirty) { $wslArguments += '--allow-dirty' }
+    if ($VerifyMain) { $wslArguments += '--verify-main' }
     Write-Output (Invoke-GuardProcess $wsl.Source $wslArguments)
     exit $script:guardExitCode
 }

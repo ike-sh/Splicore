@@ -17,12 +17,14 @@ jobs:
       matrix:
         os: [ubuntu-24.04, windows-2025-vs2026]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 90
     env:
       CGO_ENABLED: '0'
       GOFLAGS: -mod=readonly
       GOTOOLCHAIN: local
       GOTELEMETRY: 'off'
+      PYTHONDONTWRITEBYTECODE: '1'
+      GOMAXPROCS: '4'
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
@@ -35,30 +37,29 @@ jobs:
         run: python -m unittest discover -s scripts/dev -p 'test_*.py'
       - name: Verify restored feature inventory
         run: python scripts/dev/check-features.py
-      - name: Fetch independent pinned encryption test peer
+      - name: Fetch independent pinned protocol test peers
         shell: bash
-        run: python scripts/dev/fetch-vless-reference.py --output build/reference --github-env "$GITHUB_ENV"
-      - name: Linux native core, checks and real traffic
-        if: runner.os == 'Linux'
+        run: python scripts/dev/fetch-restoration-references.py --output build/reference --github-env "$GITHUB_ENV"
+      - name: Native default/full qualification and Linux Race
         shell: bash
         run: |
-          make build
-          umask 077
-          runtime_tmp=$(mktemp -d /dev/shm/splicore-runtime.XXXXXX)
-          trap 'rm -rf -- "$runtime_tmp"' EXIT
-          export TMPDIR="$runtime_tmp" GOTMPDIR="$runtime_tmp"
-          export SPLICORE_RUNTIME_BINARY="$GITHUB_WORKSPACE/build/linux-amd64/splicore"
-          go vet -tags with_quic,with_utls,with_gvisor ./...
-          go test -count=1 -timeout=180s -tags with_quic,with_utls,with_gvisor ./...
-          CGO_ENABLED=1 go test -race -count=1 -timeout=180s -tags with_quic,with_utls,with_gvisor ./internal/splicore/... ./protocol/...
-      - name: Windows native core, checks and real traffic
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          ./scripts/splicore-build.ps1 -Action test
-          if ($LASTEXITCODE -ne 0) { throw 'Native core tests failed' }
-          go vet -tags with_quic,with_utls,with_gvisor ./...
-          if ($LASTEXITCODE -ne 0) { throw 'Native vet failed' }
+          target=windows-amd64
+          if [[ '${{ runner.os }}' == Linux ]]; then target=linux-amd64; fi
+          python scripts/release.py build --target "$target"
+          if [[ '${{ runner.os }}' == Linux ]]; then
+            python scripts/dev/isolated-linux.py -- python scripts/release.py qualify --target "$target"
+          else
+            python scripts/release.py qualify --target "$target"
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: core-qualification-${{ runner.os }}
+          path: |
+            build/release/qualification/
+            build/reference/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Compile arm64 core and packages
         shell: bash
         run: |

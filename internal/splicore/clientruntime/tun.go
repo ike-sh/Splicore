@@ -16,6 +16,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/engine/netaddr"
 	"github.com/ike-sh/Splicore/internal/splicore/hostnetwork"
 	"github.com/ike-sh/Splicore/internal/splicore/nativetun"
+	"github.com/ike-sh/Splicore/internal/splicore/wireguardendpoint"
 )
 
 type tunIngress struct {
@@ -35,6 +36,7 @@ func newTUNIngress(m *Manager, spec client.LocalInbound, gen *snapshot) *tunIngr
 	ctx, cancel := context.WithCancel(context.Background())
 	return &tunIngress{manager: m, spec: spec, ctx: ctx, cancel: cancel, staged: gen}
 }
+
 func (h *tunIngress) start(device nativetun.Device) error {
 	h.mu.Lock()
 	if h.stopped || h.stack != nil {
@@ -54,6 +56,7 @@ func (h *tunIngress) start(device nativetun.Device) error {
 	h.mu.Unlock()
 	return stack.Start()
 }
+
 func (h *tunIngress) stop() {
 	h.mu.Lock()
 	if h.stopped {
@@ -85,6 +88,7 @@ func (h *tunIngress) stopError() error {
 	defer h.mu.RUnlock()
 	return h.stopErr
 }
+
 func (h *tunIngress) running() bool {
 	h.mu.RLock()
 	stack := h.stack
@@ -104,6 +108,7 @@ func (h *tunIngress) acquire() *snapshot {
 	}
 	return h.manager.acquire()
 }
+
 func (m *Manager) registerFlow(parent context.Context, inbound identity.ID, c net.Conn, packet io.Closer) (context.Context, *session) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -116,6 +121,10 @@ func (m *Manager) registerFlow(parent context.Context, inbound identity.ID, c ne
 	}
 	ctx, cancel := context.WithCancel(parent)
 	s := &session{id: id, inbound: inbound, local: c, packetLocal: packet, cancel: cancel}
+	if peer, ok := wireguardendpoint.PeerIdentity(ctx); ok {
+		s.endpointTag = peer.EndpointTag
+		s.peerPublicKey = peer.PeerPublicKey
+	}
 	if c != nil {
 		s.kind = "tcp"
 	} else if packet != nil {
@@ -127,6 +136,7 @@ func (m *Manager) registerFlow(parent context.Context, inbound identity.ID, c ne
 	m.wg.Add(1)
 	return ctx, s
 }
+
 func (m *Manager) finishFlow(s *session, gen *snapshot) {
 	m.closeSession(s)
 	gen.release()
@@ -152,6 +162,7 @@ func (m *Manager) closeFlowOnCancel(ctx context.Context, s *session) func() {
 		}
 	}
 }
+
 func (h *tunIngress) TCP(ctx context.Context, c net.Conn, source, destination netip.AddrPort) {
 	gen := h.acquire()
 	if gen == nil {
@@ -167,14 +178,15 @@ func (h *tunIngress) TCP(ctx context.Context, c net.Conn, source, destination ne
 	defer h.manager.finishFlow(s, gen)
 	defer h.manager.closeFlowOnCancel(flowCtx, s)()
 	target := access.Endpoint{Host: destination.Addr().String(), Port: destination.Port()}
-	if destination.Port() == 53 && h.spec.TUN.DNSHijack {
+	if destination.Port() == 53 && h.spec.TUN != nil && h.spec.TUN.DNSHijack {
 		h.serveDNSStream(flowCtx, c, gen)
 		return
 	}
 	h.manager.serveStream(flowCtx, s, gen, target, c, func(byte) {}, func() error { return nil })
 }
+
 func (h *tunIngress) UDP(ctx context.Context, c net.Conn, source, destination netip.AddrPort) {
-	if destination.Port() == 53 && h.spec.TUN.DNSHijack {
+	if destination.Port() == 53 && h.spec.TUN != nil && h.spec.TUN.DNSHijack {
 		h.serveDNSPacket(ctx, c)
 		return
 	}
@@ -193,6 +205,7 @@ func (h *tunIngress) UDP(ctx context.Context, c net.Conn, source, destination ne
 	defer h.manager.closeFlowOnCancel(flowCtx, s)()
 	h.servePacket(flowCtx, s, gen, c, destination)
 }
+
 func (h *tunIngress) servePacket(ctx context.Context, s *session, gen *snapshot, local net.Conn, destination netip.AddrPort) {
 	target := access.Endpoint{Host: destination.Addr().String(), Port: destination.Port()}
 	decision, resolved, err := selectRoute(ctx, gen, s.inbound, target, "udp", map[identity.ID]P.Action{})
@@ -274,6 +287,7 @@ func (h *tunIngress) servePacket(ctx context.Context, s *session, gen *snapshot,
 		}
 	}
 }
+
 func (h *tunIngress) serveDNSPacket(ctx context.Context, c net.Conn) {
 	payload := make([]byte, 65535)
 	for {
@@ -308,6 +322,7 @@ func (h *tunIngress) serveDNSPacket(ctx context.Context, c net.Conn) {
 		}
 	}
 }
+
 func (h *tunIngress) serveDNSStream(ctx context.Context, c net.Conn, gen *snapshot) {
 	var header [2]byte
 	for {

@@ -9,6 +9,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	"github.com/ike-sh/Splicore/internal/splicore/registry"
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
+	"net"
 	"sync"
 	"time"
 )
@@ -110,6 +111,15 @@ func (s *Service) prepare(ctx context.Context, in ports.RuntimeIntent) (ports.Ru
 	}
 	ctx = underlay.WithFactory(ctx, s.underlay)
 	ctx = underlay.WithScope(ctx, underlay.Scope{Purpose: underlay.ServerTarget, Runtime: in.Inbound.ID, Generation: generation})
+	if in.Inbound.Protocol.Protocol == "shadowquic" && s.client != nil {
+		ctx = underlay.WithBootstrap(ctx, s.client.manager.BootstrapHost)
+		ctx = underlay.WithTargetLookup(ctx, s.client.manager.LookupHost)
+	}
+	if s.client != nil {
+		ctx = ports.WithTargetRouter(ctx, func(call context.Context, network, address string, fallback ports.TargetDialer) (net.Conn, error) {
+			return s.client.manager.DialServerTarget(call, in.Inbound.ID, network, address, fallback)
+		})
+	}
 	prepared, e := eng.Compile(ctx, in)
 	if e != nil {
 		return nil, e
@@ -122,7 +132,7 @@ func (s *Service) prepare(ctx context.Context, in ports.RuntimeIntent) (ports.Ru
 	return h, nil
 }
 func (s *Service) CloseRuntime(ctx context.Context) error {
-	clientErr := s.CloseClientRuntime(ctx)
+	clientErr := errors.Join(s.CloseWireGuardEndpoints(ctx), s.CloseClientRuntime(ctx))
 	if s.runtime == nil {
 		return clientErr
 	}

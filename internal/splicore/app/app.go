@@ -76,9 +76,15 @@ func ServeWithReady(ctx context.Context, c config.Config, ready func() error) (e
 	if err != nil {
 		return err
 	}
-	outbounds, err := registry.NewOutbounds(native.SnellOutboundFactory{}, native.Hysteria2OutboundFactory{}, native.TUICOutboundFactory{}, native.VLESSOutboundFactory{}, native.MieruOutboundFactory{}, native.ShadowsocksOutboundFactory{}, native.TrojanOutboundFactory{}, native.VMessOutboundFactory{}, native.AnyTLSOutboundFactory{}, native.SOCKS5OutboundFactory{}, native.HTTPOutboundFactory{}, native.NaiveOutboundFactory{}, native.TrustTunnelOutboundFactory{})
+	outbounds, err := registry.NewOutbounds(native.SnellOutboundFactory{}, native.Hysteria2OutboundFactory{}, native.TUICOutboundFactory{}, native.VLESSOutboundFactory{}, native.MieruOutboundFactory{}, native.ShadowsocksOutboundFactory{}, native.TrojanOutboundFactory{}, native.VMessOutboundFactory{}, native.AnyTLSOutboundFactory{}, native.SOCKS5OutboundFactory{}, native.HTTPOutboundFactory{}, native.NaiveOutboundFactory{}, native.TrustTunnelOutboundFactory{}, native.ShadowQUICOutboundFactory{})
 	if err != nil {
 		return err
+	}
+	defer func() { err = errors.Join(err, service.CloseWireGuardEndpoints(context.Background())) }()
+	for _, endpoint := range c.WireGuardEndpoints {
+		if _, err = service.CreateWireGuardEndpoint(ctx, endpoint); err != nil {
+			return err
+		}
 	}
 	if err = service.EnableRuntimeWithClient(ctx, outbounds, filepath.Join(c.StateDirectory, "host-network")); err != nil {
 		return err
@@ -88,6 +94,11 @@ func ServeWithReady(ctx context.Context, c config.Config, ready func() error) (e
 		defer cancel()
 		err = errors.Join(err, service.CloseRuntime(shutdown))
 	}()
+	for _, endpoint := range c.WireGuardEndpoints {
+		if _, err = service.StartWireGuardEndpoint(ctx, endpoint.Tag); err != nil {
+			return err
+		}
+	}
 	if err = service.StartManagement(ctx); err != nil {
 		return err
 	}

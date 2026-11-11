@@ -3,7 +3,6 @@ package native
 import (
 	"context"
 	"crypto/tls"
-	shared "github.com/ike-sh/Splicore/internal/splicore/streamtransport"
 	"net"
 	"sync"
 	"time"
@@ -15,6 +14,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/engine/clientio"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	module "github.com/ike-sh/Splicore/internal/splicore/protocol/trojan"
+	shared "github.com/ike-sh/Splicore/internal/splicore/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"github.com/ike-sh/Splicore/protocol/trojan/backend"
 	"github.com/ike-sh/Splicore/protocol/trojan/wire"
@@ -25,9 +25,11 @@ type TrojanOutboundFactory struct{}
 func (TrojanOutboundFactory) Capability() ports.OutboundCapability {
 	return clientconfig.Capability("trojan", true, false, true)
 }
+
 func (TrojanOutboundFactory) Validate(n client.RemoteNode, c access.Credential) error {
 	return module.ValidateClientNode(n, c)
 }
+
 func (f TrojanOutboundFactory) Build(ctx context.Context, n client.RemoteNode, c access.Credential) (ports.ClientDialer, error) {
 	if err := f.Validate(n, c); err != nil {
 		return nil, err
@@ -42,7 +44,7 @@ func (f TrojanOutboundFactory) Build(ctx context.Context, n client.RemoteNode, c
 		return nil, err
 	}
 	o, _ := module.DecodeClientOptions(n.Options.Data)
-	transport, err := sharedClient(d.DialContext, n, t)
+	transport, err := sharedClient(ctx, d.DialContext, n, t)
 	if err != nil {
 		return nil, err
 	}
@@ -104,6 +106,7 @@ func (d *trojanDialer) open(ctx context.Context, dst access.Endpoint, command by
 	success = true
 	return c, nil
 }
+
 func (d *trojanDialer) DialContext(ctx context.Context, dst access.Endpoint) (net.Conn, error) {
 	ctx, done, err := d.owner.Begin(ctx)
 	if err != nil {
@@ -116,6 +119,7 @@ func (d *trojanDialer) DialContext(ctx context.Context, dst access.Endpoint) (ne
 	}
 	return d.owner.Conn(c)
 }
+
 func (d *trojanDialer) ListenPacket(ctx context.Context, dst access.Endpoint) (net.PacketConn, error) {
 	if !d.udp {
 		return nil, identity.Err(identity.NotImplemented, "Trojan UDP is disabled")
@@ -131,6 +135,7 @@ func (d *trojanDialer) ListenPacket(ctx context.Context, dst access.Endpoint) (n
 	}
 	return d.owner.Packet(backend.NewPacket(context.Background(), c))
 }
+
 func (d *trojanDialer) Close() error {
 	d.once.Do(func() {
 		d.owner.Close()

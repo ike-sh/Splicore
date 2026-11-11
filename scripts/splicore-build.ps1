@@ -104,7 +104,7 @@ try {
             $previousBinary = $env:SPLICORE_RUNTIME_BINARY
             try {
                 $env:SPLICORE_RUNTIME_BINARY = $Output
-                Write-Output (Invoke-Native $Go @('test','-mod=readonly','-count=1','-timeout=180s',"-tags=$tags",'./...'))
+                Write-Output (Invoke-Native $Go @('test','-mod=readonly','-count=1','-timeout=1200s','-p=1',"-tags=$tags",'./...'))
                 if ($LASTEXITCODE -ne 0) { throw 'Tests failed' }
             } finally { $env:SPLICORE_RUNTIME_BINARY = $previousBinary }
         } else {

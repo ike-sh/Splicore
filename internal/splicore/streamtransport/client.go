@@ -11,17 +11,34 @@ import (
 
 // Client owns reusable HTTP transport resources for one configured outbound.
 // Protocol framing stays above this interface and approved sockets stay below.
-type Client struct{ impl *xhttp.Client }
-type ClientSecurity = xhttp.Security
-type SecurityResolver = xhttp.Resolver
+type streamClient interface {
+	DialContext(context.Context) (net.Conn, error)
+	Close() error
+}
+type (
+	Client           struct{ impl streamClient }
+	ClientSecurity   = xhttp.Security
+	SecurityResolver = xhttp.Resolver
+)
 
 func NewClient(dial DialFunc, target string, c cfg.Config, security ClientSecurity, resolve SecurityResolver) (*Client, error) {
+	if c.Type() == "http" || c.Type() == "h2" {
+		if security.Reality || security.Handshake != nil {
+			return nil, errNativeConfig
+		}
+		impl, err := newHTTPClient(dial, target, c, security.TLS)
+		if err != nil {
+			return nil, err
+		}
+		return &Client{impl: impl}, nil
+	}
 	impl, e := xhttp.NewClient(xhttp.DialFunc(dial), target, c, security, resolve)
 	if e != nil {
 		return nil, e
 	}
 	return &Client{impl: impl}, nil
 }
+
 func (c *Client) DialContext(ctx context.Context) (net.Conn, error) { return c.impl.DialContext(ctx) }
 func (c *Client) Close() error                                      { return c.impl.Close() }
 
@@ -30,7 +47,8 @@ func (c *Client) Close() error                                      { return c.i
 func WrapSecureListener(base net.Listener, c cfg.Config, handshake func(context.Context, net.Conn) (net.Conn, error)) (net.Listener, error) {
 	return xhttp.NewListener(base, c, nil, handshake)
 }
-func dialXHTTP(ctx context.Context, dial DialFunc, target string, c cfg.Config, tc *tls.Config) (net.Conn, error) {
+
+func dialSingleClient(ctx context.Context, dial DialFunc, target string, c cfg.Config, tc *tls.Config) (net.Conn, error) {
 	client, e := NewClient(dial, target, c, ClientSecurity{TLS: tc}, nil)
 	if e != nil {
 		return nil, e

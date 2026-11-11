@@ -437,7 +437,7 @@ func (x XHTTP) Validate() error {
 	}
 	if x.Download != nil {
 		d := x.Download
-		if n.Mode == "stream-one" || d.Endpoint.Validate() != nil || d.Transport.Type() != "xhttp" || d.Transport.XHTTP != nil && d.Transport.XHTTP.Download != nil || d.Transport.ValidateClient() != nil || d.TLS.Validate(d.Security) != nil || d.Transport.ValidateALPN(d.TLS.ALPN) != nil {
+		if n.Mode == "stream-one" || d.Endpoint.Validate() != nil || d.Transport.Type() != "xhttp" || d.Transport.XHTTP != nil && d.Transport.XHTTP.Download != nil || d.Transport.ValidateClient() != nil || d.TLS.Validate(d.Security) != nil || d.Transport.ValidateSecurity(d.Security, d.TLS.ALPN) != nil {
 			return bad()
 		}
 		if v := d.Transport.XHTTP; v != nil && (v.Mode != "" && v.Mode != "auto" || v.NoGRPC || v.PacketBytes != (Range{}) || v.Interval != (Range{}) || v.Chunk != (Range{}) || v.SessionTable != "" || v.SessionLength != (Range{})) {

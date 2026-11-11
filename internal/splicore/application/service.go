@@ -8,9 +8,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ike-sh/Splicore/internal/splicore/clientruntime"
@@ -18,7 +18,9 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	"github.com/ike-sh/Splicore/internal/splicore/registry"
+	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"github.com/ike-sh/Splicore/internal/splicore/version"
+	"github.com/ike-sh/Splicore/internal/splicore/wireguardendpoint"
 )
 
 type System struct {
@@ -81,6 +83,7 @@ type Features struct {
 	SupportedFlows      []string       `json:"supported_flows,omitempty"`
 	SupportedTransports []string       `json:"supported_transports,omitempty"`
 }
+
 // QualifiedClient preserves a declared client/version compatibility pair.
 // Evidence is a public informational string, empty when none is published.
 type QualifiedClient struct {
@@ -117,21 +120,26 @@ type Queries interface {
 	Capabilities(context.Context, string, int) (CapabilityPage, error)
 }
 type Service struct {
-	underlay    *underlay.Factory
-	client      *clientState
-	runtime     *runtimeState
-	repo        ports.Repository
-	protocols   *registry.Protocols
-	engines     *registry.Engines
-	exporters   *registry.Exporters
-	instance    identity.ID
-	build       version.Info
-	fingerprint string
+	endpointOperation sync.Mutex
+	endpointMu        sync.Mutex
+	endpoints         map[string]*wireguardendpoint.Endpoint
+	endpointsClosed   bool
+	underlay          *underlay.Factory
+	client            *clientState
+	runtime           *runtimeState
+	repo              ports.Repository
+	protocols         *registry.Protocols
+	engines           *registry.Engines
+	exporters         *registry.Exporters
+	instance          identity.ID
+	build             version.Info
+	fingerprint       string
 }
 
 func New(repo ports.Repository, p *registry.Protocols, e *registry.Engines, x *registry.Exporters, build version.Info) (*Service, error) {
 	return NewWithUnderlay(repo, p, e, x, build, underlay.New())
 }
+
 func NewWithUnderlay(repo ports.Repository, p *registry.Protocols, e *registry.Engines, x *registry.Exporters, build version.Info, f *underlay.Factory) (*Service, error) {
 	if _, err := f.New(underlay.Scope{Purpose: underlay.ServerTarget}); err != nil {
 		return nil, err
@@ -201,6 +209,7 @@ func engineStatus(e ports.Engine) ports.EngineStatus {
 	m := e.Metadata()
 	return ports.EngineStatus{Engine: m.ID, Available: m.Availability == ports.Compiled && m.RuntimeImplemented}
 }
+
 func (s *Service) engineStatuses() []ports.EngineStatus {
 	result := []ports.EngineStatus{}
 	for _, id := range s.engines.Keys() {

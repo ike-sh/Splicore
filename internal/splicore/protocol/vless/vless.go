@@ -22,7 +22,7 @@ func (m Module) Metadata() ports.ProtocolMetadata {
 
 func (m Module) Capabilities(c ports.CapabilityContext) ports.Capabilities {
 	available := (c.Engine == "" || c.Engine == "native") && m.Metadata().Availability == ports.Compiled
-	kinds := []string{"tcp", "ws", "httpupgrade", "grpc", "xhttp", "mkcp"}
+	kinds := []string{"tcp", "ws", "httpupgrade", "grpc", "xhttp", "mkcp", "http", "h2", "quic-stream"}
 	if m.Security == Reality {
 		kinds = []string{"tcp", "xhttp"}
 	}
@@ -50,7 +50,7 @@ func (m Module) ValidateInbound(i access.Inbound) error {
 	}
 	carrier := "tcp"
 	if s.Stream != nil {
-		carrier = s.Stream.Carrier()
+		carrier = s.Stream.Carrier(s.ALPN)
 	}
 	if i.Protocol != Key(m.Security) || s.Security != m.Security || !i.Enabled || len(i.Listeners) != 1 || i.Listeners[0].Transport != carrier || len(i.DisplayEndpoints) != 1 {
 		return invalid()
@@ -140,7 +140,7 @@ func (m Module) BuildClientProfile(_ context.Context, b ports.AuthorizedBinding)
 	p := clientprofile.Profile{ID: b.Binding.ID, Schema: 1, Protocol: Key(s.Security), Endpoint: b.Inbound.DisplayEndpoints[0].Endpoint, Credentials: b.Credential.Payload, Transport: clientprofile.Transport{Kind: "tcp"}, UDPPayload: true, Options: access.Settings{Schema: 1, Data: clientOptions(s)}, Metadata: identity.Metadata{}}
 	p.UDPPayload = s.Flow != Vision
 	if s.Security == TLS {
-		p.TLS = clientprofile.TLS{Enabled: true, ServerName: s.TLS.ServerName, Trust: "explicit_ca", CACertificate: s.TLS.CACertificate}
+		p.TLS = clientprofile.TLS{Enabled: true, ServerName: s.TLS.ServerName, Trust: "explicit_ca", CACertificate: s.TLS.CACertificate, ALPN: append([]string(nil), s.ALPN...)}
 	}
 	if s.Security == Reality {
 		p.TLS = clientprofile.TLS{Enabled: true, ServerName: s.Reality.ServerName, Trust: "reality", RealityPublicKey: string(s.Reality.PublicKey), RealityShortID: string(s.Reality.ShortIDs[0])}

@@ -143,7 +143,7 @@ func (o *mieruOutbound) dial(ctx context.Context, network string, e access.Endpo
 		}
 		return nil, err
 	}
-	return o.d.owner.Conn(c)
+	return o.d.owner.Conn(newMieruReadConn(c))
 }
 func (o *mieruOutbound) DialContext(ctx context.Context, e access.Endpoint) (net.Conn, error) {
 	return o.dial(ctx, "tcp", e)

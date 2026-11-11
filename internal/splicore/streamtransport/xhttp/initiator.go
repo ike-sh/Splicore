@@ -19,31 +19,40 @@ import (
 	"golang.org/x/net/http2"
 )
 
-type DialFunc func(context.Context, string, string) (net.Conn, error)
-type Security struct {
-	TLS        *tls.Config
-	Handshake  Handshake
-	ServerName string
-	Reality    bool
-}
-type Resolver func(cfg.Download) (Security, error)
-type Client struct {
-	dial       DialFunc
-	config     cfg.Config
-	security   Security
-	target     string
-	pool       *connectionPool
-	downstream *Client
-	ctx        context.Context
-	cancel     context.CancelFunc
-	mu         sync.Mutex
-	sessions   map[*clientSession]bool
-	identities map[string]*clientSession
-	entropy    io.Reader
-	workers    sync.WaitGroup
-	closed     bool
-	once       sync.Once
-}
+type (
+	DialFunc     func(context.Context, string, string) (net.Conn, error)
+	PacketSocket = func(context.Context) (net.PacketConn, net.Addr, error)
+	Security     struct {
+		H3           *cfg.H3
+		TLS          *tls.Config
+		Handshake    Handshake
+		ServerName   string
+		Reality      bool
+		PacketSocket PacketSocket
+	}
+)
+
+type (
+	Resolver func(cfg.Download) (Security, error)
+	Client   struct {
+		dial       DialFunc
+		config     cfg.Config
+		security   Security
+		target     string
+		pool       *connectionPool
+		downstream *Client
+		ctx        context.Context
+		cancel     context.CancelFunc
+		mu         sync.Mutex
+		sessions   map[*clientSession]bool
+		identities map[string]*clientSession
+		entropy    io.Reader
+		workers    sync.WaitGroup
+		closed     bool
+		once       sync.Once
+	}
+)
+
 type connectionPool struct {
 	owner                          *Client
 	mu                             sync.Mutex
@@ -65,7 +74,7 @@ type clientSession struct {
 	id               string
 	client           *Client
 	ctx              context.Context
-	cancel           context.CancelFunc
+	cancel           context.CancelCauseFunc
 	app, bridge      net.Conn
 	upload, download *httpEntry
 	once             sync.Once
@@ -78,7 +87,13 @@ func NewClient(dial DialFunc, target string, c cfg.Config, security Security, re
 	if dial == nil || c.Type() != "xhttp" || c.ValidateClient() != nil {
 		return nil, errEnvelope
 	}
+	if c.H3 != nil && (security.TLS == nil || !c.XHTTPH3(security.TLS.NextProtos)) {
+		return nil, errEnvelope
+	}
 	if security.TLS != nil && c.ValidateALPN(security.TLS.NextProtos) != nil {
+		return nil, errEnvelope
+	}
+	if security.TLS != nil && c.XHTTPH3(security.TLS.NextProtos) && (security.Reality || security.Handshake != nil || security.PacketSocket == nil || !h3Compiled) {
 		return nil, errEnvelope
 	}
 	if c.XHTTP != nil {
@@ -90,8 +105,10 @@ func NewClient(dial DialFunc, target string, c cfg.Config, security Security, re
 	if options(c).SelectMode(security.Reality) == "stream-one" && httpVersion(security) == 1 {
 		return nil, errors.New("XHTTP stream-one requires HTTP/2")
 	}
+	cloned := c.Clone()
+	security.H3 = cloned.H3
 	ctx, cancel := context.WithCancel(context.Background())
-	cl := &Client{dial: dial, target: target, config: c.Clone(), security: security, ctx: ctx, cancel: cancel, sessions: map[*clientSession]bool{}, identities: map[string]*clientSession{}, entropy: rand.Reader}
+	cl := &Client{dial: dial, target: target, config: cloned, security: security, ctx: ctx, cancel: cancel, sessions: map[*clientSession]bool{}, identities: map[string]*clientSession{}, entropy: rand.Reader}
 	x := options(c)
 	m := x.XMUX
 	mc, e := m.MaxConnections.Pick(rand.Reader)
@@ -123,6 +140,7 @@ func NewClient(dial DialFunc, target string, c cfg.Config, security Security, re
 	}
 	return cl, nil
 }
+
 func httpVersion(s Security) int {
 	if s.Reality {
 		return 2
@@ -133,8 +151,12 @@ func httpVersion(s Security) int {
 	if s.TLS != nil && len(s.TLS.NextProtos) == 1 && s.TLS.NextProtos[0] == "http/1.1" {
 		return 1
 	}
+	if s.TLS != nil && len(s.TLS.NextProtos) == 1 && s.TLS.NextProtos[0] == "h3" {
+		return 3
+	}
 	return 2
 }
+
 func (c *Client) URL() *url.URL {
 	scheme := "http"
 	if c.security.TLS != nil || c.security.Handshake != nil {
@@ -156,6 +178,7 @@ func (c *Client) URL() *url.URL {
 	path, query := c.config.XHTTPPath()
 	return &url.URL{Scheme: scheme, Host: host, Path: path, RawQuery: query}
 }
+
 func (p *connectionPool) lease() (*httpEntry, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -165,6 +188,9 @@ func (p *connectionPool) lease() (*httpEntry, error) {
 	current := p.entries[:0]
 	var best *httpEntry
 	for _, e := range p.entries {
+		if t, ok := e.transport.(interface{ failed() bool }); ok && t.failed() {
+			e.retired = true
+		}
 		if !e.expires.IsZero() && time.Now().After(e.expires) || e.reuseLimit > 0 && e.reuse >= e.reuseLimit || e.requestLimit > 0 && e.requests >= e.requestLimit {
 			e.retired = true
 		}
@@ -193,14 +219,19 @@ func (p *connectionPool) lease() (*httpEntry, error) {
 	best.reuse++
 	return best, nil
 }
+
 func (p *connectionPool) release(e *httpEntry) {
 	p.mu.Lock()
 	e.active--
+	if t, ok := e.transport.(interface{ failed() bool }); ok && t.failed() {
+		e.retired = true
+	}
 	if e.retired && e.active == 0 {
 		e.close()
 	}
 	p.mu.Unlock()
 }
+
 func (p *connectionPool) close() {
 	p.mu.Lock()
 	p.closed = true
@@ -210,6 +241,7 @@ func (p *connectionPool) close() {
 	p.entries = nil
 	p.mu.Unlock()
 }
+
 func (p *connectionPool) newEntry() (*httpEntry, error) {
 	m := options(p.owner.config).XMUX
 	r, e := m.Reuse.Pick(rand.Reader)
@@ -230,7 +262,9 @@ func (p *connectionPool) newEntry() (*httpEntry, error) {
 	}
 	dial := func(ctx context.Context, _, _ string) (net.Conn, error) { return entry.connect(ctx, false) }
 	secured := func(ctx context.Context, _, _ string) (net.Conn, error) { return entry.connect(ctx, true) }
-	if httpVersion(p.owner.security) == 2 {
+	if httpVersion(p.owner.security) == 3 {
+		entry.transport = newH3Transport(p.owner.security, m.KeepAlive)
+	} else if httpVersion(p.owner.security) == 2 {
 		keep := time.Duration(m.KeepAlive) * time.Second
 		if keep == 0 {
 			keep = 45 * time.Second
@@ -258,6 +292,7 @@ func (c *ownedSocket) Close() error {
 	c.once.Do(func() { c.entry.mu.Lock(); delete(c.entry.sockets, c); c.entry.mu.Unlock() })
 	return e
 }
+
 func (e *httpEntry) connect(ctx context.Context, secured bool) (net.Conn, error) {
 	admission, stop := context.WithTimeout(ctx, cfg.XHTTPLegAdmissionTimeout)
 	defer stop()
@@ -317,7 +352,11 @@ func (e *httpEntry) connect(ctx context.Context, secured bool) (net.Conn, error)
 	ok = true
 	return c, nil
 }
+
 func (e *httpEntry) close() {
+	if v, ok := e.transport.(io.Closer); ok {
+		_ = v.Close()
+	}
 	if v, ok := e.transport.(interface{ CloseIdleConnections() }); ok {
 		v.CloseIdleConnections()
 	}
@@ -336,6 +375,7 @@ func (e *httpEntry) close() {
 		s.Close()
 	}
 }
+
 func (e *httpEntry) request(r *http.Request) (*http.Response, error) {
 	e.pool.mu.Lock()
 	e.requests++
@@ -350,7 +390,18 @@ func (e *httpEntry) request(r *http.Request) (*http.Response, error) {
 	}
 	return resp, err
 }
-func (s *clientSession) close() { s.once.Do(func() { s.cancel(); s.app.Close(); s.bridge.Close() }) }
+
+type sessionFailureKey struct{}
+
+func (s *clientSession) close() { s.fail(net.ErrClosed) }
+func (s *clientSession) fail(err error) {
+	s.once.Do(func() { s.cancel(err); s.app.Close(); s.bridge.Close() })
+}
+
+func (s *clientSession) request(e *httpEntry, r *http.Request) (*http.Response, error) {
+	return e.request(r.WithContext(context.WithValue(r.Context(), sessionFailureKey{}, s.fail)))
+}
+
 func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	upload, e := c.pool.lease()
 	if e != nil {
@@ -368,7 +419,7 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 			return nil, e
 		}
 	}
-	life, cancel := context.WithCancel(c.ctx)
+	life, cancel := context.WithCancelCause(c.ctx)
 	a, b := net.Pipe()
 	s := &clientSession{client: c, ctx: life, cancel: cancel, app: a, bridge: b, upload: upload, download: download, joined: make(chan struct{}), ready: make(chan error, 1)}
 	mode := options(c.config).SelectMode(c.security.Reality)
@@ -382,6 +433,7 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 		return nil, e
 	}
 	sid := s.id
+	stopTerminal := context.AfterFunc(s.ctx, s.close)
 	s.workers.Add(1)
 	go func() {
 		defer s.workers.Done()
@@ -393,6 +445,7 @@ func (c *Client) DialContext(ctx context.Context) (net.Conn, error) {
 	}()
 	go func() {
 		defer c.workers.Done()
+		defer stopTerminal()
 		s.workers.Wait()
 		s.close()
 		s.upload.pool.release(s.upload)
@@ -468,6 +521,7 @@ func (c *Client) reserveSession(s *clientSession, mode string) error {
 	c.workers.Add(1)
 	return nil
 }
+
 func (s *clientSession) run(mode, sid string, down *Client) {
 	defer s.close()
 	if mode == "packet-up" {
@@ -475,7 +529,10 @@ func (s *clientSession) run(mode, sid string, down *Client) {
 		go func() { defer s.workers.Done(); s.packets(sid) }()
 	} else {
 		pr, pw := io.Pipe()
-		stop := context.AfterFunc(s.ctx, func() { pr.Close(); pw.Close() })
+		stop := context.AfterFunc(s.ctx, func() {
+			_ = pr.CloseWithError(context.Cause(s.ctx))
+			_ = pw.CloseWithError(context.Cause(s.ctx))
+		})
 		defer stop()
 		s.workers.Add(1)
 		go func() {
@@ -489,7 +546,7 @@ func (s *clientSession) run(mode, sid string, down *Client) {
 			return
 		}
 		if mode == "stream-one" {
-			resp, e := s.upload.request(r)
+			resp, e := s.request(s.upload, r)
 			s.ready <- e
 			if e != nil {
 				return
@@ -502,7 +559,7 @@ func (s *clientSession) run(mode, sid string, down *Client) {
 		go func() {
 			defer s.workers.Done()
 			defer s.close()
-			resp, e := s.upload.request(r)
+			resp, e := s.request(s.upload, r)
 			if e != nil {
 				return
 			}
@@ -515,7 +572,7 @@ func (s *clientSession) run(mode, sid string, down *Client) {
 		s.ready <- e
 		return
 	}
-	resp, e := s.download.request(r)
+	resp, e := s.request(s.download, r)
 	s.ready <- e
 	if e != nil {
 		return
@@ -523,6 +580,7 @@ func (s *clientSession) run(mode, sid string, down *Client) {
 	defer resp.Body.Close()
 	_, _ = io.CopyBuffer(s.bridge, resp.Body, make([]byte, 32<<10))
 }
+
 func (s *clientSession) packets(sid string) {
 	defer s.close()
 	x := options(s.client.config)
@@ -590,7 +648,7 @@ func (s *clientSession) packets(sid string) {
 			}
 		}
 		lastRequest = time.Now()
-		resp, e := s.upload.request(r)
+		resp, e := s.request(s.upload, r)
 		if e != nil {
 			return
 		}
@@ -602,6 +660,7 @@ func (s *clientSession) packets(sid string) {
 		seq++
 	}
 }
+
 func (c *Client) Close() error {
 	c.once.Do(func() {
 		c.mu.Lock()

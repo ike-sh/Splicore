@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	streamcfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
 	"runtime"
 	"strings"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
+	streamcfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
 	"github.com/ike-sh/Splicore/internal/splicore/jsonstrict"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/creation"
@@ -26,6 +26,7 @@ type Module struct{}
 func Key() access.ProtocolKey {
 	return access.ProtocolKey{Protocol: "vmess", WireVersion: "aead", FeatureProfile: "base"}
 }
+
 func invalid() error {
 	return identity.Err(identity.Invalid, "invalid modern VMess settings or credential")
 }
@@ -61,6 +62,7 @@ func Security(name string) (byte, error) {
 		return 0, Unsupported("unsupported_security")
 	}
 }
+
 func ResolvedSecurity(name string) string {
 	v, err := Security(name)
 	if err != nil {
@@ -75,6 +77,7 @@ func ResolvedSecurity(name string) string {
 		return "none"
 	}
 }
+
 func noNull(b []byte) bool {
 	var fields map[string]json.RawMessage
 	if json.Unmarshal(b, &fields) != nil || fields == nil {
@@ -87,6 +90,7 @@ func noNull(b []byte) bool {
 	}
 	return true
 }
+
 func Decode(b []byte) (Settings, error) {
 	var s Settings
 	original := b
@@ -115,7 +119,7 @@ func Decode(b []byte) (Settings, error) {
 	if s.AlterID != 0 {
 		return s, Unsupported("unsupported_legacy_vmess")
 	}
-	if s.Stream != nil && (s.Stream.ValidatePair("vmess", s.Security) != nil || s.Stream.ValidateServer() != nil || s.Stream.ValidateALPN(s.ALPN) != nil) {
+	if s.Stream != nil && (s.Stream.ValidatePair("vmess", s.Security) != nil || s.Stream.ValidateServer() != nil || s.Stream.ValidateSecurity(s.Security, s.ALPN) != nil) {
 		return s, Unsupported("unsupported_transport")
 	}
 	if s.Transport != "tcp" {
@@ -174,16 +178,20 @@ func DecodeClientOptions(b []byte) (ClientOptions, error) {
 	}
 	return ClientOptions{Security: v.Security, UDP: creation.Enabled(v.UDP)}, nil
 }
+
 func CommandKey(p access.UUIDPayload) wire.Key {
 	id, _ := uuid.FromString(p.UUID.Reveal())
 	return wire.CommandKey([16]byte(id))
 }
+
 func (Module) Metadata() ports.ProtocolMetadata {
 	return ports.ProtocolMetadata{Roles: ports.Roles{Inbound: true, Outbound: true}, Key: Key(), ABI: 1, CredentialKinds: []access.CredentialKind{access.UUID}, Availability: ports.Compiled, Qualification: "experimental", Provenance: "Splicore-owned modern VMess AEAD; alterId=0; TCP/standard bound UDP; raw TCP/shared TLS; legacy/mux/extensions deferred"}
 }
+
 func (Module) Capabilities(ports.CapabilityContext) ports.Capabilities {
-	return ports.Capabilities{Transport: ports.TransportCapabilities{Kinds: []string{"tcp", "ws", "httpupgrade", "grpc", "xhttp", "mkcp"}, TCP: true, UDPTransport: true, UDPPayload: true, IPv4: true, IPv6: true, DomainEndpoint: true}, Identity: ports.IdentityCapabilities{MultiUserNative: true, PerUserStats: true, AttributedPayload: ports.Native, NativeStats: ports.Native, StatsUnits: "authenticated payload bytes; routed sessions; runtime generation"}, Security: ports.SecurityCapabilities{TLS: true}, Policy: ports.PolicyCapabilities{Quota: ports.Unsupported, SpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported}, Mutation: ports.MutationCapabilities{Users: ports.Restart, Listener: ports.MutationUnavailable}, Clients: []ports.ClientCompatibility{{Format: ports.SingBox, Client: "sing-box", Version: "1.14.2", Evidence: ""}, {Format: ports.Mihomo, Client: "mihomo", Version: "1.19.32", Evidence: ""}, {Format: ports.URI, Client: "uri", Evidence: ""}}}
+	return ports.Capabilities{Transport: ports.TransportCapabilities{Kinds: []string{"tcp", "ws", "httpupgrade", "grpc", "xhttp", "mkcp", "http", "h2", "quic-stream"}, TCP: true, UDPTransport: true, UDPPayload: true, IPv4: true, IPv6: true, DomainEndpoint: true}, Identity: ports.IdentityCapabilities{MultiUserNative: true, PerUserStats: true, AttributedPayload: ports.Native, NativeStats: ports.Native, StatsUnits: "authenticated payload bytes; routed sessions; runtime generation"}, Security: ports.SecurityCapabilities{TLS: true}, Policy: ports.PolicyCapabilities{Quota: ports.Unsupported, SpeedLimit: ports.Unsupported, MaxSessions: ports.Unsupported}, Mutation: ports.MutationCapabilities{Users: ports.Restart, Listener: ports.MutationUnavailable}, Clients: []ports.ClientCompatibility{{Format: ports.SingBox, Client: "sing-box", Version: "1.14.2", Evidence: ""}, {Format: ports.Mihomo, Client: "mihomo", Version: "1.19.32", Evidence: ""}, {Format: ports.URI, Client: "uri", Evidence: ""}}}
 }
+
 func (Module) ValidateInbound(i access.Inbound) error {
 	if i.Validate() != nil || i.Protocol != Key() || i.Engine != "native" || !i.Enabled || len(i.Listeners) != 1 || len(i.DisplayEndpoints) != 1 {
 		return invalid()
@@ -194,13 +202,14 @@ func (Module) ValidateInbound(i access.Inbound) error {
 	}
 	carrier := "tcp"
 	if s.Stream != nil {
-		carrier = s.Stream.Carrier()
+		carrier = s.Stream.Carrier(s.ALPN)
 	}
 	if i.Listeners[0].Transport != carrier {
 		return invalid()
 	}
 	return nil
 }
+
 func (Module) ValidateCredential(c access.Credential) error {
 	p, ok := c.Payload.(access.UUIDPayload)
 	if !ok || c.Validate() != nil || c.Kind != access.UUID || c.State != "active" || p.Validate() != nil {
@@ -208,6 +217,7 @@ func (Module) ValidateCredential(c access.Credential) error {
 	}
 	return nil
 }
+
 func (m Module) BuildRuntime(_ context.Context, in ports.RuntimeIntent) (ports.RuntimeIntent, error) {
 	if err := m.ValidateInbound(in.Inbound); err != nil {
 		return in, err
@@ -229,6 +239,7 @@ func (m Module) BuildRuntime(_ context.Context, in ports.RuntimeIntent) (ports.R
 	}
 	return in, nil
 }
+
 func (m Module) BuildClientProfile(ctx context.Context, b ports.AuthorizedBinding) (clientprofile.Profile, error) {
 	if _, err := m.BuildRuntime(ctx, ports.RuntimeIntent{Inbound: b.Inbound, Bindings: []access.Binding{b.Binding}, Credentials: []access.Credential{b.Credential}}); err != nil {
 		return clientprofile.Profile{}, err
@@ -244,6 +255,7 @@ func (m Module) BuildClientProfile(ctx context.Context, b ports.AuthorizedBindin
 	}
 	return p, p.Validate()
 }
+
 func ValidateClientNode(n client.RemoteNode, c access.Credential) error {
 	if n.Protocol == Key() && n.Transport.ValidatePair("vmess", n.Security.Kind) != nil {
 		return Unsupported("unsupported_transport")

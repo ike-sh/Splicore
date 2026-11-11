@@ -31,8 +31,9 @@ func (w *writer) RotateBindingCredential(b access.Binding, c access.Credential, 
 	var owner identity.ID
 	var kind access.CredentialKind
 	var revision identity.Revision
+	var created, updated string
 	var refs int
-	if err := w.tx.QueryRowContext(w.ctx, "SELECT account_id,kind,revision FROM credentials WHERE id=?", c.ID).Scan(&owner, &kind, &revision); err != nil {
+	if err := w.tx.QueryRowContext(w.ctx, "SELECT account_id,kind,revision,created_at,updated_at FROM credentials WHERE id=?", c.ID).Scan(&owner, &kind, &revision, &created, &updated); err != nil {
 		return storageError(err)
 	}
 	if owner != b.AccountID || kind != c.Kind || revision != c.Revision {
@@ -43,6 +44,14 @@ func (w *writer) RotateBindingCredential(b access.Binding, c access.Credential, 
 	}
 	if refs != 1 {
 		return identity.Err(identity.Conflict, "credential has other references")
+	}
+	credentialStamp, err := storedStamp(revision, created, updated, "credential")
+	if err != nil {
+		return err
+	}
+	bindingStamp, err := w.bindingUpdateStamp(b.ID, expected)
+	if err != nil {
+		return err
 	}
 	if w.options.Cipher == nil {
 		return identity.Err(identity.Unavailable, "credential key unavailable")
@@ -60,10 +69,12 @@ func (w *writer) RotateBindingCredential(b access.Binding, c access.Credential, 
 	if err != nil {
 		return err
 	}
-	if err = w.exec("UPDATE credentials SET ciphertext=?,key_id=?,revision=?,updated_at=? WHERE id=?", data, w.options.Cipher.KeyID(), next, utc(time.Now()), c.ID); err != nil {
+	// One effective time covers both rows in this logical rotation.
+	now := updateTime(time.Now(), credentialStamp, bindingStamp)
+	if err = w.exec("UPDATE credentials SET ciphertext=?,key_id=?,revision=?,updated_at=? WHERE id=?", data, w.options.Cipher.KeyID(), next, utc(now), c.ID); err != nil {
 		return err
 	}
-	return w.SetBindingEnabled(b.ID, b.Enabled, expected)
+	return w.setBindingEnabled(b.ID, b.Enabled, bindingStamp, now)
 }
 
 func (w *writer) DeleteBindingUser(b access.Binding, expected identity.Revision) error {

@@ -3,11 +3,13 @@ package networkpolicy
 
 import (
 	"encoding/json"
-	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
-	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"net/netip"
 	"net/url"
 	"strings"
+
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	E "github.com/ike-sh/Splicore/internal/splicore/domain/endpoint"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 )
 
 type ActionKind string
@@ -47,6 +49,9 @@ type PortRange struct {
 	End   uint16 `json:"end"`
 }
 type RuleMatch struct {
+	ServerInbounds []identity.ID `json:"server_inbounds,omitempty"`
+	EndpointTags   []string      `json:"endpoint_tags,omitempty"`
+	PeerPublicKeys []string      `json:"peer_public_keys,omitempty"`
 	SniffedDomains []string      `json:"sniffed_domains,omitempty"`
 	Domains        []string      `json:"domains,omitempty"`
 	Suffixes       []string      `json:"domain_suffixes,omitempty"`
@@ -161,6 +166,7 @@ func (c Config) Clone() Config {
 	_ = json.Unmarshal(b, &copy)
 	return copy
 }
+
 func Domain(s string) (string, error) {
 	s = strings.ToLower(strings.TrimSuffix(s, "."))
 	if len(s) < 1 || len(s) > 253 || netipMustAddr(s) {
@@ -189,6 +195,7 @@ func label(id identity.ID, name string) error {
 	}
 	return nil
 }
+
 func (p Probe) Validate() error {
 	u, err := url.Parse(p.URL)
 	if err != nil || len(p.URL) > 2048 || u.Hostname() == "" || u.User != nil || u.Fragment != "" || (u.Scheme != "http" && u.Scheme != "https") || p.IntervalSeconds < 1 || p.IntervalSeconds > 86400 || p.TimeoutSeconds < 1 || p.TimeoutSeconds > 10 || p.ExpectedStatus < 100 || p.ExpectedStatus > 599 {
@@ -206,6 +213,7 @@ func (p Probe) Validate() error {
 	}
 	return nil
 }
+
 func (c Config) Validate(out, in map[identity.ID]bool) error {
 	if document, err := json.Marshal(c); err != nil || len(document) > 2<<20 {
 		return invalid("canonical network configuration exceeds document limit")
@@ -244,7 +252,22 @@ func (c Config) Validate(out, in map[identity.ID]bool) error {
 	}
 	var match func(RuleMatch, bool) error
 	match = func(m RuleMatch, dnsOnly bool) error {
-		size := len(m.SniffedDomains) + len(m.Domains) + len(m.Suffixes) + len(m.Keywords) + len(m.CIDRs) + len(m.Ports) + len(m.LocalInbounds) + len(m.RuleSets)
+		for _, tag := range m.EndpointTags {
+			if !identity.Label(tag, 64) {
+				return invalid("invalid network endpoint tag")
+			}
+		}
+		for _, key := range m.PeerPublicKeys {
+			if _, err := E.DecodeKey(key); err != nil {
+				return invalid("invalid WireGuard peer public key")
+			}
+		}
+		for _, id := range m.ServerInbounds {
+			if id.Validate() != nil {
+				return invalid("invalid server inbound identity")
+			}
+		}
+		size := len(m.ServerInbounds) + len(m.EndpointTags) + len(m.PeerPublicKeys) + len(m.SniffedDomains) + len(m.Domains) + len(m.Suffixes) + len(m.Keywords) + len(m.CIDRs) + len(m.Ports) + len(m.LocalInbounds) + len(m.RuleSets)
 		if size > 256 || len(m.Networks) > 2 {
 			return invalid("rule match exceeds limits")
 		}
@@ -288,7 +311,7 @@ func (c Config) Validate(out, in map[identity.ID]bool) error {
 				return invalid("missing ruleset")
 			}
 		}
-		if dnsOnly && (len(m.SniffedDomains)+len(m.CIDRs)+len(m.Ports)+len(m.Networks)+len(m.LocalInbounds) > 0) {
+		if dnsOnly && (len(m.ServerInbounds)+len(m.EndpointTags)+len(m.PeerPublicKeys)+len(m.SniffedDomains)+len(m.CIDRs)+len(m.Ports)+len(m.Networks)+len(m.LocalInbounds) > 0) {
 			return invalid("DNS rules require domain-only matches")
 		}
 		return nil

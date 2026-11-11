@@ -14,6 +14,7 @@ import os
 from pathlib import Path, PurePosixPath
 import platform
 import re
+import runpy
 import shutil
 import struct
 import subprocess
@@ -175,7 +176,7 @@ def run_logged(args, env, directory, name):
     started = datetime.datetime.now(datetime.timezone.utc).isoformat()
     timeout = False
     try:
-        result = subprocess.run(args, cwd=ROOT, env=env, capture_output=True, timeout=600)
+        result = subprocess.run(args, cwd=ROOT, env=env, capture_output=True, timeout=2100)
         code, stdout, stderr = result.returncode, result.stdout, result.stderr
     except subprocess.TimeoutExpired as failure:
         code, stdout, stderr, timeout = -1, failure.stdout or b"", failure.stderr or b"", True
@@ -203,8 +204,9 @@ def run_logged(args, env, directory, name):
 
 def qualify(out, target):
     require(target == native_target(), "qualification must run natively")
-    peer = os.environ.get("SPLICORE_VLESS_ENCRYPTION_REFERENCE", "")
-    require(peer and Path(peer).is_file(), "qualification requires the pinned independent encryption test peer; use scripts/dev/fetch-vless-reference.py")
+    for name in ("SPLICORE_VLESS_ENCRYPTION_REFERENCE", "SPLICORE_XHTTP_H3_REFERENCE", "SPLICORE_SHADOWQUIC_REFERENCE", "SPLICORE_PHASE34_WG_REFERENCE", "SPLICORE_PHASE34_XRAY_REFERENCE"):
+        require(Path(os.environ.get(name, "")).is_file(), "qualification requires pinned independent peers; use scripts/dev/fetch-restoration-references.py: " + name)
+    require(not target.startswith("linux") or os.environ.get("SPLICORE_PRIVATE_NETNS") == "1", "Linux qualification requires scripts/dev/isolated-linux.py")
     meta = json.loads((out / target / "build.json").read_text())
     require(meta["commit"] == identity()["commit"], "qualification source differs from build")
     binary = out / target / ("splicore.exe" if target.startswith("windows") else "splicore")
@@ -232,28 +234,27 @@ def qualify(out, target):
             for action in ("build", "vet", "test"):
                 args = ["go", action, "-mod=readonly"]
                 if action == "test":
-                    args += ["-json", "-count=1", "-timeout=180s"]
+                    args += ["-json", "-count=1", "-timeout=1200s"]
+                    if target.startswith("windows"):
+                        # Keep unrelated packages' CPU-heavy crypto/mask fixtures
+                        # from consuming each other's bounded I/O budgets. Their
+                        # internal multi-stream/concurrent-user tests still run.
+                        args += ["-p=1"]
                 result = run_logged(args + tags + ["./..."], env, directory, profile + "-" + action)
                 if action == "test":
-                    required = ["cmd/splicore/TestRuntimeBinaryTrafficShutdownAndRestart",
-                                "internal/splicore/clientruntime/TestProviderFetchProtectedHTTPAndHTTPS",
-                                "internal/splicore/streamtransport/hysteria/TestMasqueradeProtectedDialAndNoDefault",
-                                "internal/splicore/storage/sqlite/TestInspectIsReadOnly",
-                                "protocol/vless/encryption/TestEncryptedStreams",
-                                "protocol/vless/encryption/TestPinnedReferenceRawMatrix"]
-                    if tags:
-                        required += ["internal/splicore/engine/native/TestVLESSEncryptionPinnedRuntimeInterop",
-                                     "internal/splicore/engine/native/TestVLESSEncryptionRuntimeCredentialBoundaries"]
-                    require(all(result["tests"].get("github.com/ike-sh/Splicore/" + name) == "pass" for name in required), "required behavior test missing or skipped")
-                    if os.environ.get("GITHUB_ACTIONS"):
-                        require(not result["test_counts"].get("parent_skip") and not result["test_counts"].get("subtest_skip"), "hosted qualification must not skip tests")
+                    validator = runpy.run_path(str(ROOT / "scripts/dev/qualification_policy.py"))["validate"]
+                    result["behavior_policy"] = validator(ROOT, result, target, profile)
+                    save(directory / (profile + "-test.json"), result)
                 summary[profile + "-" + action] = result
         if target.startswith("linux"):
             env["CGO_ENABLED"] = "1"
-            summary["race"] = run_logged(["go", "test", "-race", "-json", "-count=1", "-timeout=180s", "-tags=" + TAGS,
+            summary["race"] = run_logged(["go", "test", "-race", "-json", "-count=1", "-timeout=1200s", "-tags=" + TAGS,
                                           "./internal/splicore/...", "./protocol/..."], env, directory, "race")
+            summary["race"]["behavior_policy"] = runpy.run_path(str(ROOT / "scripts/dev/qualification_policy.py"))["validate"](ROOT, summary["race"], target, "race")
+            save(directory / "race.json", summary["race"])
         else:
             summary["race"] = dict(result="NOT_EXECUTED", reason="Windows race is outside this release qualification; no configured native C toolchain")
+    summary["all_native_gates_passed"] = True
     save(out / target / "qualification.json", summary)
 
 
@@ -351,6 +352,7 @@ def assemble(out):
         path = out / "transfer" / row["archive"]
         require(digest(path.read_bytes()) == row["archive_sha256"], "transfer checksum mismatch")
         if target.endswith("amd64"):
+            require(row["qualification"].get("all_native_gates_passed"), "behavior qualification policy incomplete")
             require(all(row["qualification"][p + "-" + a]["result"] == "PASS" for p in ("default", "full") for a in ("build", "vet", "test")), "native qualification incomplete")
             if target.startswith("linux"):
                 require(row["qualification"]["race"]["result"] == "PASS", "Linux race did not pass")

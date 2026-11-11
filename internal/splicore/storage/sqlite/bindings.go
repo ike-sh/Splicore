@@ -42,19 +42,33 @@ func (s *Store) Bindings(ctx context.Context, id identity.ID) ([]access.Binding,
 	return out, storageError(rows.Err())
 }
 func (w *writer) SetBindingEnabled(id identity.ID, enabled bool, expected identity.Revision) error {
-	if id.Validate() != nil {
-		return identity.Err(identity.Invalid, "invalid binding ID")
-	}
-	var current identity.Revision
-	if err := w.tx.QueryRowContext(w.ctx, "SELECT revision FROM bindings WHERE id=?", id).Scan(&current); err != nil {
-		return storageError(err)
-	}
-	if current != expected {
-		return identity.RevisionConflict(current)
-	}
-	next, err := current.Next()
+	stamp, err := w.bindingUpdateStamp(id, expected)
 	if err != nil {
 		return err
 	}
-	return w.exec("UPDATE bindings SET enabled=?,revision=?,updated_at=? WHERE id=?", enabled, next, utc(time.Now()), id)
+	now := time.Now().UTC()
+	return w.setBindingEnabled(id, enabled, stamp, updateTime(now, stamp))
+}
+
+func (w *writer) bindingUpdateStamp(id identity.ID, expected identity.Revision) (identity.Stamp, error) {
+	if id.Validate() != nil {
+		return identity.Stamp{}, identity.Err(identity.Invalid, "invalid binding ID")
+	}
+	var current identity.Revision
+	var created, updated string
+	if err := w.tx.QueryRowContext(w.ctx, "SELECT revision,created_at,updated_at FROM bindings WHERE id=?", id).Scan(&current, &created, &updated); err != nil {
+		return identity.Stamp{}, storageError(err)
+	}
+	if current != expected {
+		return identity.Stamp{}, identity.RevisionConflict(current)
+	}
+	return storedStamp(current, created, updated, "binding")
+}
+
+func (w *writer) setBindingEnabled(id identity.ID, enabled bool, stamp identity.Stamp, updated time.Time) error {
+	next, err := stamp.Revision.Next()
+	if err != nil {
+		return err
+	}
+	return w.exec("UPDATE bindings SET enabled=?,revision=?,updated_at=? WHERE id=?", enabled, next, utc(updated), id)
 }

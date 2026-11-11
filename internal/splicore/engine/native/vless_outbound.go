@@ -51,7 +51,7 @@ func (f VLESSOutboundFactory) Build(ctx context.Context, n client.RemoteNode, c 
 		}
 	}
 	options, _ := module.DecodeClientOptions(n.Options.Data)
-	transport, err := sharedClient(d.DialContext, n, tc)
+	transport, err := sharedClient(ctx, d.DialContext, n, tc)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func (d *vlessDialer) open(ctx context.Context, dst access.Endpoint, packet bool
 		}
 	}()
 
-	if d.flow == module.Vision {
+	if d.flow == module.Vision && d.transport == nil {
 		if d.tls != nil || d.node.Security.Kind == "reality" {
 			c = vision.LimitRecords(admission)
 		}

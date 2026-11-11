@@ -1,0 +1,844 @@
+{
+  "schema": 1,
+  "baseline": "v0.5.0",
+  "frozen_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+  "retired": [
+    "amneziawg",
+    "external-xray-runtime"
+  ],
+  "excluded_candidates": [
+    {
+      "feature": "sqlite-wal-p1b",
+      "status": "ISOLATED_NOT_QUALIFIED",
+      "reason": "Experimental architecture candidate is excluded; original commits preserved in the verified non-AWG historical bundle. Current encrypted SQLite schema 8 is retained."
+    },
+    {
+      "feature": "historical-windows-wireguard-hotfix-campaign",
+      "status": "ISOLATED_NOT_QUALIFIED",
+      "reason": "Old campaign remains historically NOT QUALIFIED. The minimal typed WSAEMSGSIZE correction is separately requalified by native receive/error-semantics, malformed recovery, independent-peer, lifecycle and full release gates."
+    }
+  ],
+  "features": [
+    {
+      "id": 1,
+      "feature": "VLESS Encryption wire/ML-KEM/X25519",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "protocol/vless/encryption/config.go",
+        "protocol/vless/encryption/crypto.go",
+        "protocol/vless/encryption/direct.go",
+        "protocol/vless/encryption/handshake.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 2,
+      "feature": "VLESS Encryption canonical/runtime/vault",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/protocol/vless/client_node.go",
+        "internal/splicore/protocol/vless/creation.go",
+        "internal/splicore/protocol/vless/encryption.go",
+        "internal/splicore/protocol/vless/settings.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 3,
+      "feature": "VLESS Encryption CLI/key export",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/cli/vlessenc.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 4,
+      "feature": "VLESS native server/client lifecycle",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/engine/native/vless.go",
+        "internal/splicore/engine/native/vless_outbound.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 5,
+      "feature": "VLESS export profiles",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/exporter/vless.go",
+        "internal/splicore/exporter/vless_uri.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 6,
+      "feature": "XHTTP H3 config/ALPN",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/domain/streamtransport/xhttp_h3.go",
+        "internal/splicore/domain/streamtransport/xhttp_h3_options.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "RESTORED_AND_VERIFIED"
+    },
+    {
+      "id": 7,
+      "feature": "XHTTP H3 carrier/cache/retry",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/streamtransport/xhttp/h3.go",
+        "internal/splicore/streamtransport/xhttp/h3_body.go",
+        "internal/splicore/streamtransport/xhttp/h3_cache.go",
+        "internal/splicore/streamtransport/xhttp/h3_stub.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "RESTORED_AND_VERIFIED"
+    },
+    {
+      "id": 8,
+      "feature": "XHTTP H1/H2 modes",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/streamtransport/xhttp/acceptor.go",
+        "internal/splicore/streamtransport/xhttp/admission.go",
+        "internal/splicore/streamtransport/xhttp/envelope.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 9,
+      "feature": "Generic HTTP/H2 carrier",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/streamtransport/native_http.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "RESTORED_AND_VERIFIED"
+    },
+    {
+      "id": 10,
+      "feature": "Generic QUIC carrier",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/streamtransport/native_quic.go",
+        "internal/splicore/streamtransport/native_quic_stub.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "RESTORED_AND_VERIFIED"
+    },
+    {
+      "id": 11,
+      "feature": "Shared transport config/native dispatch",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/domain/streamtransport/config.go",
+        "internal/splicore/domain/streamtransport/hysteria.go",
+        "internal/splicore/domain/streamtransport/hysteria_udp.go",
+        "internal/splicore/domain/streamtransport/mkcp.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 12,
+      "feature": "Shared transport listener/client/carrier",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/streamtransport/admission.go",
+        "internal/splicore/streamtransport/carrier.go",
+        "internal/splicore/streamtransport/client.go",
+        "internal/splicore/streamtransport/deadline.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 13,
+      "feature": "ShadowQUIC canonical/JLS",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/protocol/shadowquic/creation.go",
+        "internal/splicore/protocol/shadowquic/shadowquic.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "RESTORED_AND_VERIFIED"
+    },
+    {
+      "id": 14,
+      "feature": "ShadowQUIC sessions/UDP",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "protocol/shadowquic/session/config.go",
+        "protocol/shadowquic/session/packet.go",
+        "protocol/shadowquic/session/quic.go",
+        "protocol/shadowquic/session/stream.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "RESTORED_AND_VERIFIED"
+    },
+    {
+      "id": 15,
+      "feature": "ShadowQUIC native client/server",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/engine/native/shadowquic.go",
+        "internal/splicore/engine/native/shadowquic_outbound.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "RESTORED_AND_VERIFIED"
+    },
+    {
+      "id": 16,
+      "feature": "WireGuard endpoint model/API/CLI",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/api/wireguard.go",
+        "internal/splicore/application/wireguard.go",
+        "internal/splicore/cli/wireguard.go",
+        "internal/splicore/domain/endpoint/wireguard.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "RESTORED_AND_VERIFIED"
+    },
+    {
+      "id": 17,
+      "feature": "WireGuard userspace endpoint",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/wireguardendpoint/backend.go",
+        "internal/splicore/wireguardendpoint/backend_linux.go",
+        "internal/splicore/wireguardendpoint/backend_other.go",
+        "internal/splicore/wireguardendpoint/bind.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "RESTORED_AND_VERIFIED"
+    },
+    {
+      "id": 18,
+      "feature": "WireGuard Linux kernel fast path",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/wireguardendpoint/backend_linux.go",
+        "internal/splicore/wireguardendpoint/cleanup_linux.go",
+        "internal/splicore/wireguardendpoint/ingress_linux.go",
+        "internal/splicore/wireguardendpoint/namespace_linux.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY. Linux native owned-namespace kernel path; Windows userspace is separate. External wg/NFT oracle campaign is NOT EXECUTED.",
+      "status": "RESTORED_AND_VERIFIED"
+    },
+    {
+      "id": 19,
+      "feature": "WireGuard Windows endpoint and typed oversized-datagram receive recovery",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/wireguardendpoint/bind.go",
+        "internal/splicore/wireguardendpoint/bind_receive_windows.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY. Fresh typed WSAEMSGSIZE 10040 recovery on the same Windows receive worker; all other socket errors retain their semantics. Old Hotfix campaign remains NOT QUALIFIED.",
+      "status": "RESTORED_AND_VERIFIED",
+      "additional_sources": [
+        "ade432c36a42fb35658d97d9103767c7aaeb93a0"
+      ]
+    },
+    {
+      "id": 20,
+      "feature": "WireGuard ingress/runtime/outbound",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/clientruntime/capability.go",
+        "internal/splicore/clientruntime/endpoint.go",
+        "internal/splicore/clientruntime/runtime.go",
+        "internal/splicore/clientruntime/status.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "RESTORED_AND_VERIFIED"
+    },
+    {
+      "id": 21,
+      "feature": "Native TUN stack outbound dial",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/nativetun/backend_gvisor.go",
+        "internal/splicore/nativetun/backend_stub.go",
+        "internal/splicore/nativetun/dial.go",
+        "internal/splicore/nativetun/dial_gvisor.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY. In-memory native TUN stack dialing and ownership tested. Windows Wintun/hardware networking is NOT EXECUTED.",
+      "status": "RESTORED_AND_VERIFIED"
+    },
+    {
+      "id": 22,
+      "feature": "Server inbound routing scope",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/clientruntime/target.go",
+        "internal/splicore/domain/networkpolicy/model.go",
+        "internal/splicore/networkruntime/match.go",
+        "internal/splicore/ports/target.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "RESTORED_AND_VERIFIED"
+    },
+    {
+      "id": 23,
+      "feature": "Managed server DNS/bootstrap",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/clientruntime/network.go",
+        "internal/splicore/engine/native/phase31_dns.go",
+        "internal/splicore/underlay/bootstrap.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "RESTORED_AND_VERIFIED"
+    },
+    {
+      "id": 24,
+      "feature": "Managed storage timestamp invariants",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/storage/sqlite/bindings.go",
+        "internal/splicore/storage/sqlite/timestamps.go",
+        "internal/splicore/storage/sqlite/users.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "RESTORED_AND_VERIFIED"
+    },
+    {
+      "id": 25,
+      "feature": "Snell v4",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/protocol/snell/creation.go",
+        "internal/splicore/protocol/snell/options.go",
+        "internal/splicore/protocol/snell/snell.go",
+        "protocol/snell/wire/command.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "RESTORED_AND_VERIFIED"
+    },
+    {
+      "id": 26,
+      "feature": "Snell v5.0.1 DRS/QUIC Proxy",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/engine/native/snell.go",
+        "internal/splicore/engine/native/snell_listener_error.go",
+        "internal/splicore/engine/native/snell_outbound.go",
+        "internal/splicore/engine/native/snell_pool.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY. Official Snell v5.0.1 peer is Linux-only; native Windows protocol coverage is separate.",
+      "status": "RESTORED_AND_VERIFIED"
+    },
+    {
+      "id": 27,
+      "feature": "Snell v6/reuse/HTTP obfs",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/engine/native/snell.go",
+        "internal/splicore/engine/native/snell_listener_error.go",
+        "internal/splicore/engine/native/snell_outbound.go",
+        "internal/splicore/engine/native/snell_pool.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "RESTORED_AND_VERIFIED"
+    },
+    {
+      "id": 28,
+      "feature": "Shadowsocks AEAD/SS2022",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/engine/native/shadowsocks.go",
+        "internal/splicore/engine/native/shadowsocks_outbound.go",
+        "internal/splicore/engine/native/shadowsocks_udp.go",
+        "internal/splicore/protocol/shadowsocks/creation.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 29,
+      "feature": "Trojan standard TCP/UDP",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/engine/native/trojan.go",
+        "internal/splicore/engine/native/trojan_outbound.go",
+        "internal/splicore/protocol/trojan/creation.go",
+        "internal/splicore/protocol/trojan/trojan.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 30,
+      "feature": "VMess AEAD TCP/UDP",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/engine/native/vmess.go",
+        "internal/splicore/engine/native/vmess_outbound.go",
+        "internal/splicore/protocol/vmess/creation.go",
+        "internal/splicore/protocol/vmess/json.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 31,
+      "feature": "Hysteria2",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/engine/native/hysteria2.go",
+        "internal/splicore/engine/native/hysteria2_outbound.go",
+        "internal/splicore/protocol/hysteria2/creation.go",
+        "internal/splicore/protocol/hysteria2/hysteria2.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 32,
+      "feature": "Hysteria transport/obfs/hopping/congestion",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/quiccongestion/controller.go",
+        "internal/splicore/streamtransport/hysteria/client.go",
+        "internal/splicore/streamtransport/hysteria/config.go",
+        "internal/splicore/streamtransport/hysteria/congestion.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 33,
+      "feature": "TUIC v5",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/engine/native/tuic.go",
+        "internal/splicore/engine/native/tuic_outbound.go",
+        "internal/splicore/protocol/tuic/creation.go",
+        "internal/splicore/protocol/tuic/tuic.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 34,
+      "feature": "AnyTLS v1/v2 UoT2",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/engine/native/anytls.go",
+        "internal/splicore/engine/native/anytls_outbound.go",
+        "internal/splicore/protocol/anytls/anytls.go",
+        "internal/splicore/protocol/anytls/creation.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 35,
+      "feature": "NaiveProxy H2/H3",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/engine/native/naive.go",
+        "internal/splicore/engine/native/naive_outbound.go",
+        "internal/splicore/protocol/naive/creation.go",
+        "internal/splicore/protocol/naive/naive.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY. Native H2/H3 ownership, half-close, active close, idle expiry and bounded worker join regressions; no arbitrary sleep or per-operation deadline relaxation.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 36,
+      "feature": "Mieru TCP/UDP embedded",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/engine/native/mieru.go",
+        "internal/splicore/protocol/mieru/creation.go",
+        "internal/splicore/protocol/mieru/mieru.go",
+        "protocol/mieru/backend/meter.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY. Mieru SDK v3.39.0 with attributable deadline/reader-ownership adaptation from f16067799b07945614f2dffcb8fdc8275dc8ac07.",
+      "status": "RESTORED_AND_VERIFIED",
+      "additional_sources": [
+        "f16067799b07945614f2dffcb8fdc8275dc8ac07"
+      ]
+    },
+    {
+      "id": 37,
+      "feature": "TrustTunnel H2/H3/local guards",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/engine/native/trusttunnel.go",
+        "internal/splicore/engine/native/trusttunnel_icmp.go",
+        "internal/splicore/engine/native/trusttunnel_outbound.go",
+        "internal/splicore/protocol/trusttunnel/creation.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 38,
+      "feature": "REALITY server/client/names/guard",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/clientruntime/tunnel.go",
+        "internal/splicore/engine/sniff/tls.go",
+        "protocol/vless/backend/connection.go",
+        "protocol/vless/backend/packet.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 39,
+      "feature": "VLESS Vision direct transition",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "protocol/vless/vision/conn.go",
+        "protocol/vless/vision/security.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 40,
+      "feature": "FinalMask/header/fragment/Sudoku",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/domain/finalmask/config.go",
+        "internal/splicore/finalmask/chain.go",
+        "internal/splicore/finalmask/header.go",
+        "internal/splicore/finalmask/sudoku.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 41,
+      "feature": "Modern mKCP",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/streamtransport/mkcp/conn.go",
+        "internal/splicore/streamtransport/mkcp/listener.go",
+        "internal/splicore/streamtransport/mkcp/wire.go",
+        "internal/splicore/streamtransport/mkcp/writer.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 42,
+      "feature": "TCP/WebSocket/HTTPUpgrade/gRPC",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/streamtransport/grpc.go",
+        "internal/splicore/streamtransport/grpc_tls.go",
+        "internal/splicore/streamtransport/websocket.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 43,
+      "feature": "SOCKS5/HTTP/Mixed local entry",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/clientruntime/auth.go",
+        "internal/splicore/clientruntime/http.go",
+        "internal/splicore/clientruntime/http_metadata.go",
+        "internal/splicore/clientruntime/udp.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 44,
+      "feature": "Routing/DNS/selectors/policy base",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/networkruntime/dns.go",
+        "internal/splicore/networkruntime/interception.go",
+        "internal/splicore/networkruntime/match.go",
+        "internal/splicore/networkruntime/policy.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 45,
+      "feature": "Provider fetch lifecycle",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/application/provider_refresh.go",
+        "internal/splicore/clientruntime/provider.go",
+        "internal/splicore/remotesource/fetch.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 46,
+      "feature": "Encrypted sources/import/export",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/application/management.go",
+        "internal/splicore/domain/provider/model.go",
+        "internal/splicore/exporter/anytls.go",
+        "internal/splicore/exporter/dispatch.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 47,
+      "feature": "SQLite encrypted credentials/schema8",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/storage/sqlite/bindings.go",
+        "internal/splicore/storage/sqlite/client_runtime.go",
+        "internal/splicore/storage/sqlite/credentials.go",
+        "internal/splicore/storage/sqlite/files_unix.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY. Encrypted SQLite schema 8 retained; historical WAL/P1-B candidate excluded. Linux-only production backup and fail-closed Windows behavior tested separately.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 48,
+      "feature": "Vault Windows/Linux ownership",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/secretvault/file.go",
+        "internal/splicore/secretvault/owner_linux.go",
+        "internal/splicore/secretvault/owner_other.go",
+        "internal/splicore/secretvault/vault.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 49,
+      "feature": "Daemon/app/init/check/run/stop",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "cmd/splicore/main.go",
+        "internal/splicore/app/app.go",
+        "internal/splicore/cli/cli.go",
+        "internal/splicore/cli/client.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 50,
+      "feature": "Application lifecycle/errors",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/application/lifecycle.go",
+        "internal/splicore/application/service.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 51,
+      "feature": "Host networking/TUN journaling",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/hostnetwork/capabilities.go",
+        "internal/splicore/hostnetwork/core_transitions.go",
+        "internal/splicore/hostnetwork/device_linux.go",
+        "internal/splicore/hostnetwork/devices.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY. Native in-memory/journal/security behavior; physical TUN/Wintun and broad host networking remain outside qualification.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 52,
+      "feature": "Config/registry protocol inventory",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/config/config.go",
+        "internal/splicore/config/upgrade.go",
+        "internal/splicore/registry/creation.go",
+        "internal/splicore/registry/engine_bindings.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "RESTORED_AND_VERIFIED"
+    },
+    {
+      "id": 53,
+      "feature": "Native test infrastructure/regressions",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/engine/testfixture/address.go",
+        "internal/splicore/engine/testfixture/fixtures.go",
+        "internal/splicore/engine/testfixture/socks_packet.go",
+        "internal/splicore/registry/testfixture/foundation.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "RESTORED_AND_VERIFIED"
+    },
+    {
+      "id": 54,
+      "feature": "Distribution/build/version",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/distribution/install_linux.go",
+        "internal/splicore/distribution/install_other.go",
+        "internal/splicore/distribution/legacy_receipt.go",
+        "internal/splicore/distribution/manifest.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 55,
+      "feature": "Retired external Xray runtime",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [],
+      "disposition": "retired",
+      "qualification": "External proxy-core runtime is retired. Native client helpers are not an external core. Xray exists only as an independent test process and is not a product dependency.",
+      "status": "INTENTIONALLY_REMOVED",
+      "historical_paths": [
+        "internal/splicore/engine/clientconfig/client.go",
+        "internal/splicore/engine/clientconfig/packet.go",
+        "internal/splicore/engine/clientconfig/tls.go",
+        "internal/splicore/engine/clientio/owner.go"
+      ]
+    },
+    {
+      "id": 56,
+      "feature": "Legacy mKCP seed/header/FinalMask mkcp-legacy",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/domain/finalmask/config.go",
+        "internal/splicore/domain/streamtransport/mkcp.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    },
+    {
+      "id": 57,
+      "feature": "Retired AmneziaWG / Phase37",
+      "historical_commit": "579d07bd1554d5ff45a43c8b96f4a2c67e637f71",
+      "files": [],
+      "disposition": "retired",
+      "qualification": "Explicitly retired by maintainer; absent from main/candidate source, dependencies, configuration and runtime. Standard WireGuard is separate. Valuable non-AWG ancestors are preserved in the verified historical bundle; WAL/P1-B exclusion is tracked separately.",
+      "status": "INTENTIONALLY_REMOVED",
+      "historical_paths": [
+        "internal/splicore/amneziawgendpoint",
+        "third_party/amneziawg-go"
+      ]
+    },
+    {
+      "id": 58,
+      "feature": "HTTP WireGuard endpoint dispatch",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/api/http.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "RESTORED_AND_VERIFIED"
+    },
+    {
+      "id": 59,
+      "feature": "Application WG / Core DNS / server target wiring",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/application/client.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "RESTORED_AND_VERIFIED"
+    },
+    {
+      "id": 60,
+      "feature": "Client profile H3 TLS validation",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/clientprofile/profile.go"
+      ],
+      "disposition": "restored",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "RESTORED_AND_VERIFIED"
+    },
+    {
+      "id": 61,
+      "feature": "Inbound VLESS Encryption key container",
+      "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
+      "files": [
+        "internal/splicore/domain/access/client_tls.go",
+        "internal/splicore/domain/access/private_key.go"
+      ],
+      "disposition": "retained",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "status": "MAIN_VERIFIED"
+    }
+  ],
+  "delivery_status": "QUALIFICATION_GATED",
+  "qualification_note": "Feature statuses describe the reviewed native implementation and its applicable test scope. Publication additionally requires exact-source hosted default/full native builds, vet/tests, full Linux Race and the behavior policy. The published Release manifest is authoritative for executed and NOT EXECUTED identities; source presence alone never qualifies a feature.",
+  "release": "v0.6.0"
+}

@@ -49,6 +49,16 @@ func WrapListener(base net.Listener, c cfg.Config, tc *tls.Config) (net.Listener
 			return nil, e
 		}
 	}
+	if c.Type() == "quic-stream" {
+		carrier, ok := base.(*quicCarrier)
+		if !ok {
+			return nil, errNativeConfig
+		}
+		return newQUICListener(carrier.packet, c, tc)
+	}
+	if c.Type() == "http" || c.Type() == "h2" {
+		return newHTTPListener(base, c, tc)
+	}
 	if c.Type() == "tcp" {
 		return base, nil
 	}
@@ -59,6 +69,13 @@ func WrapListener(base net.Listener, c cfg.Config, tc *tls.Config) (net.Listener
 		return base, nil
 	}
 	if c.Type() == "xhttp" {
+		if tc != nil && c.XHTTPH3(tc.NextProtos) {
+			carrier, ok := base.(*quicCarrier)
+			if !ok {
+				return nil, errNativeConfig
+			}
+			return xhttp.NewPacketListener(carrier.packet, c, tc)
+		}
 		return xhttp.NewListener(base, c, tc, nil)
 	}
 	if c.Type() != "ws" && c.Type() != "httpupgrade" && c.Type() != "grpc" {
@@ -189,6 +206,7 @@ func WrapListener(base net.Listener, c cfg.Config, tc *tls.Config) (net.Listener
 	}
 	return l, nil
 }
+
 func (l *listener) publish(c net.Conn) bool {
 	select {
 	case <-l.ctx.Done():
@@ -204,6 +222,7 @@ func (l *listener) publish(c net.Conn) bool {
 		return false
 	}
 }
+
 func (l *listener) Accept() (net.Conn, error) {
 	for {
 		select {
@@ -304,6 +323,7 @@ func (c *trackedConn) Close() error {
 	c.once.Do(func() { c.owner.mu.Lock(); delete(c.owner.connections, c); c.owner.mu.Unlock() })
 	return e
 }
+
 func (c *trackedConn) CloseWrite() error {
 	if v, ok := c.Conn.(interface{ CloseWrite() error }); ok {
 		return v.CloseWrite()

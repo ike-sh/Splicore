@@ -41,10 +41,14 @@ func xhttpProjection(c cfg.Config) (map[string]any, error) {
 		leg["port"] = d.Endpoint.Port
 		leg["network"] = "xhttp"
 		leg["xhttpSettings"] = next
+		if d.Transport.H3 != nil {
+			leg["finalmask"] = map[string]any{"quicParams": d.Transport.H3}
+		}
 		opts["downloadSettings"] = leg
 	}
 	return opts, nil
 }
+
 func xraySecurity(kind string, t access.ClientTLS) map[string]any {
 	s := map[string]any{"security": kind}
 	if kind == "tls" {
