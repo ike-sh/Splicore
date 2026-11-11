@@ -26,6 +26,9 @@
           "TestVLESSEncryptionPinnedRuntimeInterop",
           "TestVLESSEncryptionRuntimeCredentialBoundaries"
         ],
+        "internal/splicore/engine/native/phase22_peer_test.go": [
+          "TestPhasePeerRejectsOccupiedListener"
+        ],
         "cmd/splicore/runtime_test.go": [
           "TestRuntimeBinaryTrafficShutdownAndRestart"
         ]

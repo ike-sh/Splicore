@@ -46,7 +46,8 @@ def main():
     if args.github_env:
         command += ['--github-env', str(args.github_env)]
     subprocess.run(command, check=True)
-    env = {'SPLICORE_PHASE33_PEER_LOGS': str(root / 'h3-evidence'), 'SPLICORE_PHASE34_PEER_LOGS': str(root / 'wg-evidence')}
+    env = {'SPLICORE_PHASE32_PEER_LOGS': str(root / 'vless-encryption-evidence'),
+           'SPLICORE_PHASE33_PEER_LOGS': str(root / 'h3-evidence'), 'SPLICORE_PHASE34_PEER_LOGS': str(root / 'wg-evidence')}
     manifest = {'shadowquic': {'status': 'ISOLATED_NOT_QUALIFIED', 'included': False}}
     if os.name != 'nt':
         url = 'https://dl.nssurge.com/snell/snell-server-v5.0.1-linux-amd64.zip'
@@ -69,7 +70,7 @@ def main():
     subprocess.run(['go', 'build', '-mod=readonly', '-trimpath', '-o', str(peer), './scripts/dev/wireguard-peer'], cwd=ROOT, check=True)
     env['SPLICORE_PHASE34_WG_REFERENCE'] = str(peer)
     manifest['wireguard'] = {'source': 'scripts/dev/wireguard-peer', 'engine': 'golang.zx2c4.com/wireguard@v0.0.0-20261024220952-b3bc704ef0ee', 'binary_sha256': sha(peer.read_bytes()), 'test_only': True}
-    for key in ('SPLICORE_PHASE33_PEER_LOGS', 'SPLICORE_PHASE34_PEER_LOGS', 'SPLICORE_SNELL_V5_EVIDENCE'):
+    for key in ('SPLICORE_PHASE32_PEER_LOGS', 'SPLICORE_PHASE33_PEER_LOGS', 'SPLICORE_PHASE34_PEER_LOGS', 'SPLICORE_SNELL_V5_EVIDENCE'):
         if key in env:
             Path(env[key]).mkdir(exist_ok=True)
     if args.github_env:

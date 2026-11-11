@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 	"io"
@@ -33,7 +34,7 @@ func phaseSOCKS(proxy, dst access.Endpoint) (net.Conn, error) {
 	}
 	var h [2]byte
 	if _, e = io.ReadFull(c, h[:]); e != nil {
-		return nil, e
+		return nil, fmt.Errorf("SOCKS greeting read: %w", e)
 	}
 	if h != [2]byte{5, 0} {
 		return nil, errors.New("SOCKS authentication rejected")
@@ -49,7 +50,7 @@ func phaseSOCKS(proxy, dst access.Endpoint) (net.Conn, error) {
 	}
 	var reply [4]byte
 	if _, e = io.ReadFull(c, reply[:]); e != nil {
-		return nil, e
+		return nil, fmt.Errorf("SOCKS CONNECT reply read: %w", e)
 	}
 	if reply[0] != 5 || reply[1] != 0 {
 		return nil, errors.New("SOCKS request rejected")
