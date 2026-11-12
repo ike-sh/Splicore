@@ -34,19 +34,18 @@ func TestDualPeerPortLifecycle(t *testing.T) {
 }
 
 func TestTCPAvailabilityDoesNotProveUDP(t *testing.T) {
-	udp, err := net.ListenPacket("udp4", "127.0.0.1:0")
+	// Own both sockets throughout the counterexample. A bare UDP :0 followed
+	// by TCP bind can instead collide with unrelated full-suite TCP clients,
+	// failing before the independence assertion is reached.
+	lease := ReserveDualPeerPort(t, "127.0.0.1")
+	client, err := net.Dial("tcp4", lease.Address())
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer udp.Close()
-	tcp, err := net.Listen("tcp4", udp.LocalAddr().String())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer tcp.Close()
-	if other, err := net.ListenPacket("udp4", tcp.Addr().String()); err == nil {
+	defer client.Close()
+	if other, err := net.ListenPacket("udp4", lease.Address()); err == nil {
 		other.Close()
 		t.Fatal("UDP conflict disappeared despite a successful TCP-only probe")
 	}
-	t.Logf("original assumption disproved with real sockets: TCP=%s succeeds while UDP is already occupied", tcp.Addr())
+	t.Logf("original assumption disproved with owned real sockets: TCP=%s connects while another UDP bind is rejected", lease.Address())
 }
