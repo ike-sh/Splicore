@@ -54,6 +54,11 @@ uses the complete group duration, including startup/probes and concurrent UDP;
 per-connection transfer goodput is also retained. These definitions must be kept
 when comparing runs.
 
+Native timers can return a zero elapsed duration for a fast transfer. Keep that
+raw sample; the corresponding per-connection throughput is `null` and recorded
+as below timer resolution in `timing_not_executed`. Never substitute a made-up
+positive duration or interpret a zero timing as a zero-cost handshake.
+
 UDP sends every sequence exactly once at the configured per-session rate. Raw
 replies retain sequence and RTT. Counts include missing/duplicate replies;
 received throughput includes a fixed two-second final settling window when
