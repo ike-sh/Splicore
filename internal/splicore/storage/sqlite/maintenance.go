@@ -75,6 +75,9 @@ func MaintenanceBackup(ctx context.Context, source, destination string) (int, er
 			os.Remove(destination)
 		}
 	}()
+	if err = ctx.Err(); err != nil {
+		return 0, fmt.Errorf("backup canceled before snapshot")
+	}
 	if _, err = db.ExecContext(ctx, "VACUUM INTO ?", destination); err != nil {
 		return 0, fmt.Errorf("SQLite snapshot failed")
 	}
