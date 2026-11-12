@@ -73,6 +73,10 @@ func p31WALSafetyBoundary(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			backupHash := sha256.Sum256(backupBytes)
+			if err = os.WriteFile(filepath.Join(os.Getenv("P3_EVIDENCE"), "boundary-"+operation+"-verified-backup.db"), backupBytes, 0600); err != nil {
+				t.Fatal(err)
+			}
 			for _, fault := range []string{"unchanged", "partial-uncommitted-tail", "truncated-committed-frame", "committed-frame-checksum", "pending-journal-commit-checksum"} {
 				t.Run(fault, func(t *testing.T) {
 					damaged := append([]byte(nil), wal...)
@@ -114,6 +118,7 @@ func p31WALSafetyBoundary(t *testing.T) {
 					if err = db.Close(); err != nil {
 						t.Fatal(err)
 					}
+					p3capture(t, filepath.Dir(nativePath), "boundary-"+prefix+"-native-recovered")
 					// The independent probe's close cannot repair the application input.
 					appWAL, err := os.ReadFile(appPath + "-wal")
 					if err != nil || sha256.Sum256(appWAL) != sha256.Sum256(damaged) {
@@ -143,6 +148,8 @@ func p31WALSafetyBoundary(t *testing.T) {
 					admissionBefore := map[string]any{}
 					if !valid {
 						admissionBefore = p31WriteAdmission(t, store, state)
+					} else {
+						admissionBefore = map[string]any{"qualification": "NOT_EXECUTED", "reason": "intact-state writes are covered by normal transactions and the verified-backup restore"}
 					}
 					// This is the same recovery entry used by the application startup.
 					// Preserve the raw input first: recovery of a pending runtime
@@ -157,6 +164,8 @@ func p31WALSafetyBoundary(t *testing.T) {
 					admissionAfter := map[string]any{}
 					if !valid {
 						admissionAfter = p31WriteAdmission(t, store, afterRecovery)
+					} else {
+						admissionAfter = admissionBefore
 					}
 					store.Close()
 					p3capture(t, appRoot, "boundary-"+prefix+"-after-application-recovery")
@@ -173,6 +182,7 @@ func p31WALSafetyBoundary(t *testing.T) {
 					}
 					added := p3account(t, restored, 2, "verified-backup-new-write")
 					restored.Close()
+					p3capture(t, restoreRoot, "boundary-"+prefix+"-after-backup-restore")
 					restored = p3open(t, restorePath)
 					p3integrity(t, restored, 3)
 					if got, err := restored.Account(ctx, added.ID); err != nil || got.Name != added.Name {
@@ -187,7 +197,7 @@ func p31WALSafetyBoundary(t *testing.T) {
 						"sqlite_structural_integrity":             map[string]any{"integrity_check": check, "foreign_key_check_rows": fkRows, "qualification": "QUALIFIED_WITH_LIMITATIONS"},
 						"acknowledged_application_data":           map[string]any{"expected_rows": 2, "native_rows": nativeRows, "actual_named_rows": acknowledged, "expected_revision": 2, "native_revision": revision, "application_state": state, "qualification": dataQualification},
 						"write_admission_before_startup_recovery": admissionBefore, "write_admission_after_startup_recovery": admissionAfter, "state_after_startup_recovery": afterRecovery,
-						"verified_backup_restore":                 map[string]any{"qualification": "QUALIFIED_WITH_LIMITATIONS", "same_acknowledged_rows": 2, "new_write_and_restart": true, "vault_key_pair_separate_evidence": "backup-vault.json", "production_windows_backup": "NOT_EXECUTED"},
+						"verified_backup_restore":                 map[string]any{"qualification": "QUALIFIED_WITH_LIMITATIONS", "same_acknowledged_rows": 2, "new_write_and_restart": true, "backup_sha256": fmt.Sprintf("%x", backupHash), "vault_key_pair_separate_evidence": "backup-vault.json", "production_windows_backup": "NOT_EXECUTED"},
 						"wal_frame_proof":                         map[string]any{"page_size": page, "frame_size": frame, "commit_frame_offsets": commits, "affected_frame_offset": affected, "affected_commit_db_pages": binary.BigEndian.Uint32(wal[affected+4 : affected+8]), "original_wal_sha256": fmt.Sprintf("%x", walHash), "damaged_wal_sha256": fmt.Sprintf("%x", sha256.Sum256(damaged))},
 						"COMMITTED_WAL_MEDIA_CORRUPTION_RECOVERY": "NOT_QUALIFIED", "note": "Structural validity, acknowledged data, write admission and backup restore are independent. Known write-admission blind spots block PR admission even if diagnostic assertions pass.",
 					})
@@ -224,14 +234,26 @@ func p31WriteAdmission(t *testing.T, s *Store, state ports.State) map[string]any
 	called := false
 	a := account(t)
 	a.Name = "damaged-copy-write-canary"
+	var before, after int
+	if err := s.db.QueryRowContext(ctx, "SELECT count(*) FROM transactions").Scan(&before); err != nil {
+		t.Fatal(err)
+	}
 	_, err := s.Transact(ctx, state.Revision, actor(t), func(w ports.Writer) error { called = true; return w.CreateAccount(a) })
+	if queryErr := s.db.QueryRowContext(ctx, "SELECT count(*) FROM transactions").Scan(&after); queryErr != nil {
+		t.Fatal(queryErr)
+	}
+	blocked := codeIs(err, identity.Unavailable) && !called
+	businessQualification := "NOT_QUALIFIED"
+	if blocked {
+		businessQualification = "QUALIFIED_WITH_LIMITATIONS"
+	}
 	qualification := "NOT_QUALIFIED"
-	if codeIs(err, identity.Unavailable) && !called {
+	if blocked && before == after {
 		qualification = "QUALIFIED_WITH_LIMITATIONS"
 	}
-	if state.PendingTransactions > 0 && qualification == "NOT_QUALIFIED" {
+	if state.PendingTransactions > 0 && !blocked {
 		t.Fatal("pending journal protection regressed", err, called)
 	}
-	t.Logf("WAL_WRITE_BOUNDARY pending=%d callback_called=%t error=%v qualification=%s", state.PendingTransactions, called, err, qualification)
-	return map[string]any{"qualification": qualification, "callback_called": called, "mutation_rejected": err != nil, "mutation_error": fmt.Sprint(err)}
+	t.Logf("WAL_WRITE_BOUNDARY pending=%d callback_called=%t journal_rows_before=%d after=%d error=%v qualification=%s", state.PendingTransactions, called, before, after, err, qualification)
+	return map[string]any{"qualification": qualification, "business_write_qualification": businessQualification, "journal_rows_before": before, "journal_rows_after": after, "callback_called": called, "mutation_rejected": err != nil, "mutation_error": fmt.Sprint(err)}
 }

@@ -88,6 +88,10 @@ business commit was lost. These observed write-admission blind spots are
 Do not infer a universal fail-closed property from the narrower generic-journal
 case. Preserve the original DB/WAL/SHM before opening diagnostic copies; no
 automatic repair, production WAL parser, new Schema or same-WAL marker is added.
+Rejecting the business callback also does not imply that SQLite is read-only:
+the generic transaction path can append a failed journal entry. The diagnostic
+records journal row counts separately and retains the verified backup file,
+its SHA256 and the native/application/backup-restored database copies.
 
 Pinned Xray's h3-only server listens on UDP. The peer fixture reserves both
 protocols at an OS-selected port on the exact IPv4/IPv6 address, then releases

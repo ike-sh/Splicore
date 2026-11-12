@@ -72,14 +72,14 @@ func ReserveDualPeerPort(t *testing.T, host string) *DualPeerPort {
 		}
 		one, port, err := bind(first, net.JoinHostPort(host, "0"))
 		if err != nil {
-			t.Logf("dual_peer_candidate attempt=%d network=%s error=%v", attempt, first, err)
+			t.Logf("dual_peer_candidate attempt=%d network=%s error=%s", attempt, first, fmtPortError(err))
 			continue
 		}
 		p.Port = port
 		p.sockets = append(p.sockets, one)
 		two, _, err := bind(second, p.Address())
 		if err != nil {
-			t.Logf("dual_peer_candidate attempt=%d first=%s address=%s network=%s error=%v", attempt, first, p.Address(), second, err)
+			t.Logf("dual_peer_candidate attempt=%d first=%s address=%s network=%s error=%s", attempt, first, p.Address(), second, fmtPortError(err))
 			p.ReleaseSockets()
 			continue
 		}

@@ -3,6 +3,7 @@ package testkit
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"os/exec"
@@ -69,7 +70,9 @@ func PeerPortEnvironment(t *testing.T) {
 
 func fmtPortError(err error) string {
 	if err != nil {
-		return err.Error()
+		var errno syscall.Errno
+		_ = errors.As(err, &errno)
+		return fmt.Sprintf("%v [errno=%d]", err, errno)
 	}
 	return ""
 }
