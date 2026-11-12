@@ -62,8 +62,9 @@ func TestPhase35PinnedH3Tuning(t *testing.T) {
 					stream := inbound["streamSettings"].(map[string]any)
 					stream["finalmask"] = map[string]any{"quicParams": n.Transport.H3}
 				}
-				phase33Peer(t, binary, peer, direction == "splicore-client")
+				endpoint := phase33Peer(t, binary, peer, direction == "splicore-client")
 				if direction == "splicore-client" {
+					n.Endpoint = endpoint
 					d := sharedBuild(t, ctx, n, credential)
 					defer d.Close()
 					sharedPayload(t, d, tcp, udp)

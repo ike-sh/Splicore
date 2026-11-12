@@ -61,6 +61,7 @@ func TestPersistenceReliability(t *testing.T) {
 	t.Run("process-crash-recovery", p3CrashRecovery)
 	t.Run("backup-vault-pair", p3BackupVaultPair)
 	t.Run("native-wal-observation", p3IndependentWALTail)
+	t.Run("committed-wal-safety-boundary", p31WALSafetyBoundary)
 }
 
 // Readers use separate physical SQLite connections while a real transaction
@@ -268,7 +269,19 @@ func p3CrashWorker(t *testing.T) {
 		})
 		t.Fatal("crash point returned", e)
 	}
-	p3account(t, s, 1, "acknowledged-after-commit")
+	if phase == "after-runtime-commit" {
+		op, err := s.BeginRuntimeOperation(context.Background(), 1, actor(t), "runtime_replace")
+		if err != nil {
+			t.Fatal(err)
+		}
+		a := account(t)
+		a.Name = "acknowledged-after-commit"
+		if err = s.CommitOperation(context.Background(), op, func(w ports.Writer) error { return w.CreateAccount(a) }); err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		p3account(t, s, 1, "acknowledged-after-commit")
+	}
 	if phase == "checkpoint-complete" {
 		var busy, log, done int
 		if e := s.db.QueryRow("PRAGMA wal_checkpoint(TRUNCATE)").Scan(&busy, &log, &done); e != nil || busy != 0 {
@@ -307,7 +320,7 @@ func p3capture(t *testing.T, root, name string) {
 }
 
 func p3CrashRecovery(t *testing.T) {
-	for _, phase := range []string{"begin", "write", "pre-commit", "after-commit", "checkpoint-complete", "normal-close"} {
+	for _, phase := range []string{"begin", "write", "pre-commit", "after-commit", "after-runtime-commit", "checkpoint-complete", "normal-close"} {
 		for _, mode := range []string{"exit", "kill"} {
 			if phase == "normal-close" && mode == "kill" {
 				continue
@@ -480,7 +493,7 @@ func p3BackupVaultPair(t *testing.T) {
 	if e != nil || got.Payload.(access.PSKPayload).Key.Reveal() != cred.Payload.(access.PSKPayload).Key.Reveal() {
 		t.Fatal("paired restore decrypt failed", e)
 	}
-	p3account(t, s, 1, "restored-write")
+	restoredAccount := p3account(t, s, 1, "restored-write")
 	p3integrity(t, s, 2)
 	s.Close()
 	s, e = Open(ctx, snapshot, opts)
@@ -489,6 +502,10 @@ func p3BackupVaultPair(t *testing.T) {
 	}
 	if _, e = s.RevealCredential(ctx, cred.ID); e != nil {
 		t.Fatal(e)
+	}
+	p3integrity(t, s, 2)
+	if got, e := s.Account(ctx, restoredAccount.ID); e != nil || got.Name != restoredAccount.Name {
+		t.Fatal("restored new write did not survive restart", e)
 	}
 	raw, e := os.ReadFile(snapshot)
 	if e != nil {

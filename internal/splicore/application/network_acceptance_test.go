@@ -86,15 +86,21 @@ func heldUDP(t *testing.T, port uint16, target access.Endpoint) net.PacketConn {
 }
 func checkUDP(t *testing.T, pc net.PacketConn, target access.Endpoint, payload string) {
 	t.Helper()
+	if err := heldUDPExchange(pc, target, payload); err != nil {
+		t.Fatal(err)
+	}
+}
+func heldUDPExchange(pc net.PacketConn, target access.Endpoint, payload string) error {
 	_ = pc.SetDeadline(time.Now().Add(5 * time.Second))
 	if _, err := pc.WriteTo([]byte(payload), netaddr.UDP(access.Endpoint{Host: target.Host, Port: target.Port})); err != nil {
-		t.Fatal(err)
+		return err
 	}
 	b := make([]byte, 65535)
 	n, _, err := pc.ReadFrom(b)
 	if err != nil || !bytes.Equal(b[:n], []byte(payload)) {
-		t.Fatal("UDP integrity/affinity", err)
+		return fmt.Errorf("UDP integrity/affinity: %v", err)
 	}
+	return nil
 }
 func TestPhase12RoutingDNSPolicyAcceptance(t *testing.T) {
 	ctx := context.Background()
@@ -104,7 +110,7 @@ func TestPhase12RoutingDNSPolicyAcceptance(t *testing.T) {
 	cases := expansionCases(t)
 	factories := []ports.OutboundFactory{}
 	for _, c := range cases {
-		factories = append(factories, c.factory)
+		factories = append(factories, routingObservedFactory{OutboundFactory: c.factory, t: t})
 	}
 	adapters, err := registry.NewOutbounds(factories...)
 	if err != nil {
@@ -302,21 +308,25 @@ func TestPhase12RoutingDNSPolicyAcceptance(t *testing.T) {
 		}
 	})
 	t.Run("G_Atomic100RulesGroupDNSOldTCPAndUDP", func(t *testing.T) {
+		routingPhase(t, s, "G/01-before-first-apply")
 		c.Route.Rules = c.Route.Rules[1:]
 		applyNetwork(t, s, c)
+		routingPhase(t, s, "G/02-after-first-apply")
 		domainTarget := tcp4
 		domainTarget.Host = "held.example.local"
-		oldTCP, err := socksConn(local, domainTarget)
+		oldTCP, _, err := routingSOCKS(t, s, local, domainTarget, socks.Connect, "G/03-first-new-TCP")
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer oldTCP.Close()
 		checkHeld(t, oldTCP, "old TCP")
+		routingPhase(t, s, "G/04-old-TCP-verified")
 		udpTarget := udp1
 		udpTarget.Host = "held.example.local"
 		oldUDP := heldUDP(t, local, udpTarget)
 		defer oldUDP.Close()
 		checkUDP(t, oldUDP, udpTarget, "old UDP")
+		routingPhase(t, s, "G/05-old-UDP-verified")
 		changed := c.Clone()
 		changed.Groups[0].Selector.Selected = members[2]
 		changed.DNSRules = append(changed.DNSRules, P.DNSRule{ID: networkID(t), Name: "changed DNS", Match: P.RuleMatch{Suffixes: []string{"example.local"}}, Server: resolverB})
@@ -327,7 +337,7 @@ func TestPhase12RoutingDNSPolicyAcceptance(t *testing.T) {
 		changed.Route.Rules = append(rules, changed.Route.Rules...)
 		// Traffic crosses the commit, then is checked after publication.
 		var wg sync.WaitGroup
-		fail := make(chan error, 1)
+		fail := make(chan error, 2)
 		wg.Go(func() {
 			for range 8 {
 				if _, err := oldTCP.Write([]byte("tick")); err != nil {
@@ -345,7 +355,17 @@ func TestPhase12RoutingDNSPolicyAcceptance(t *testing.T) {
 				}
 			}
 		})
+		wg.Go(func() {
+			for i := range 8 {
+				if err := heldUDPExchange(oldUDP, udpTarget, fmt.Sprint("during-update-", i)); err != nil {
+					fail <- fmt.Errorf("G/08 concurrent old UDP: %w", err)
+					return
+				}
+			}
+		})
+		routingPhase(t, s, "G/06-before-second-apply-concurrent-TCP")
 		applyNetwork(t, s, changed)
+		routingPhase(t, s, "G/07-after-second-apply-concurrent-TCP")
 		wg.Wait()
 		select {
 		case err := <-fail:
@@ -358,9 +378,14 @@ func TestPhase12RoutingDNSPolicyAcceptance(t *testing.T) {
 		second := udp2
 		second.Host = "new-flow.example.local"
 		checkUDP(t, oldUDP, second, "old association new flow")
+		routingPhase(t, s, "G/08-old-TCP-and-UDP-survived")
 		before := outboundSessions(t, s, members[2].ID)
-		if err := transfer(local, domainTarget, []byte("new TUIC")); err != nil {
+		fresh, _, err := routingSOCKS(t, s, local, domainTarget, socks.Connect, "G/09-new-TCP-after-update")
+		if err != nil {
 			t.Fatal(err)
+		}
+		if err := transferConnection(fresh, []byte("new TUIC")); err != nil {
+			t.Fatal("G/09 proxy established; target payload failed", err)
 		}
 		if outboundSessions(t, s, members[2].ID) != before+1 {
 			t.Fatal("new TCP did not change selector")
@@ -374,6 +399,7 @@ func TestPhase12RoutingDNSPolicyAcceptance(t *testing.T) {
 		c = changed
 	})
 	t.Run("H_ServerClientCoexistenceAndRestart", func(t *testing.T) {
+		routingPhase(t, s, "H/10-before-stop")
 		waitIdle(t, s)
 		before, _ := s.System(ctx)
 		if len(before.ServerRuntimes) != 3 {
@@ -384,13 +410,18 @@ func TestPhase12RoutingDNSPolicyAcceptance(t *testing.T) {
 		if err := s.EnableClientRuntime(ctx, adapters); err != nil {
 			t.Fatal(err)
 		}
+		routingPhase(t, s, "H/10-after-restart")
 		restored, _ := s.ClientStatus(ctx)
 		if len(restored.State.Network.Route.Rules) != 103 || restored.State.Network.Groups[0].Selector.Selected != members[2] || len(restored.State.Network.DNSRules) != 2 {
 			t.Fatal("graph recovery")
 		}
 		domainTarget := tcp4
 		domainTarget.Host = "restart.example.local"
-		if err := transfer(local, domainTarget, []byte("restart TUIC")); err != nil {
+		restarted, _, err := routingSOCKS(t, s, local, domainTarget, socks.Connect, "H/10-new-TCP-after-restart")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := transferConnection(restarted, []byte("restart TUIC")); err != nil {
 			t.Fatal(err)
 		}
 		if err := expansionUDPTraffic(local, udp1, []byte("restart UDP HY2")); err != nil {

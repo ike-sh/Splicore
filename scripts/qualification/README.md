@@ -75,6 +75,28 @@ protects fail-closed application mutation; a test PASS does not certify media
 corruption recovery. Retain the per-fault JSON classification. This is a bounded
 diagnostic, not exhaustive WAL/P1-B qualification.
 
+The committed-WAL safety-boundary diagnostic also captures real runtime-operation
+commits, verifies commit-frame offsets, and uses separate native-reader and
+application copies of each damaged input. It distinguishes structural validity,
+acknowledged business rows/revision, actual write admission before/after startup
+`RecoverPending`, and restoration from an intact, verified backup. The journal
+does not provide an independent durable oracle outside its own WAL: damage to
+the pending-journal commit can remove the symptom altogether. Runtime startup
+recovery can also retire a pending runtime operation after its acknowledged
+business commit was lost. These observed write-admission blind spots are
+`NOT_QUALIFIED` and block PR admission even when diagnostic assertions pass.
+Do not infer a universal fail-closed property from the narrower generic-journal
+case. Preserve the original DB/WAL/SHM before opening diagnostic copies; no
+automatic repair, production WAL parser, new Schema or same-WAL marker is added.
+
+Pinned Xray's h3-only server listens on UDP. The peer fixture reserves both
+protocols at an OS-selected port on the exact IPv4/IPv6 address, then releases
+the parent sockets immediately before starting the child without startup retry.
+A separate loopback-only TCP SOCKS sentinel in that child verifies TCP binding
+at the same endpoint; H3 application payload still exclusively uses the original
+QUIC profile. Windows records dynamic/excluded ranges, actual socket outcomes
+and child PID ownership; cleanup requires immediate TCP/UDP rebind.
+
 Linux production MaintenanceBackup refuses the running store, then uses
 lock-protected `VACUUM INTO` on the stopped source. A separately preserved
 synthetic Vault key must decrypt the restored snapshot, survive a new write and
