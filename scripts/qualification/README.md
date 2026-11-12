@@ -1,6 +1,11 @@
 # Persistence and native platform qualification
 
-The production SQLite and Vault implementation and its settings are unchanged.
+The test/CI deliverable changes no production SQLite or Vault policy. PR #12
+also contains separate, unqualified production storage changes from P3.2;
+neither those changes nor the P3.3 witnessed-recovery experiment inherit a
+test-tool qualification. See the
+[acknowledgement decision](../../docs/architecture/PERSISTENCE_ACKNOWLEDGEMENT.md)
+for their compatibility and trust boundaries.
 `TestPersistenceReliability` uses disposable real files, actual SQLite, actual
 transactions and independent child processes. It extends the existing rollback,
 concurrent access, schema migration, encrypted credential and lifecycle tests.
