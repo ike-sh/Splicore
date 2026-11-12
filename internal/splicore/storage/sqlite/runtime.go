@@ -76,8 +76,12 @@ func (s *Store) CommitOperation(ctx context.Context, op identity.Transaction, fn
 	if err := s.db.QueryRowContext(ctx, "SELECT count(*) FROM transactions WHERE id=? AND state='pending' AND base_revision=? AND target_revision=? AND operation IN ('snell_create','runtime_create','runtime_replace')", op.ID, op.BaseRevision, op.TargetRevision).Scan(&count); err != nil {
 		return storageError(err)
 	}
-	if count != 1 || fn == nil {
+	if fn == nil {
 		return identity.Err(identity.Invalid, "invalid pending operation")
+	}
+	if count != 1 {
+		s.recoveryRequired = true
+		return recoveryRequiredError()
 	}
 	if err := s.admit(ctx, op.BaseRevision, op.ID); err != nil {
 		return err
@@ -99,15 +103,20 @@ func (s *Store) FailOperation(ctx context.Context, op identity.Transaction) erro
 		return storageError(err)
 	}
 	if count != 1 {
-		return identity.Err(identity.Invalid, "invalid pending operation")
+		s.recoveryRequired = true
+		return recoveryRequiredError()
 	}
 	if err := s.admit(ctx, op.BaseRevision, op.ID); err != nil {
 		return err
 	}
-	_, e := s.db.ExecContext(ctx, "UPDATE transactions SET state='failed',failure_code='unavailable',updated_at=? WHERE id=? AND state='pending' AND operation IN ('snell_create','runtime_create','runtime_replace')", utc(time.Now()), op.ID)
+	result, e := s.db.ExecContext(ctx, "UPDATE transactions SET state='failed',failure_code='unavailable',updated_at=? WHERE id=? AND state='pending' AND operation IN ('snell_create','runtime_create','runtime_replace')", utc(time.Now()), op.ID)
 	if e != nil {
 		s.recoveryRequired = true
 		return storageError(e)
+	}
+	if rows, err := result.RowsAffected(); err != nil || rows != 1 {
+		s.recoveryRequired = true
+		return recoveryRequiredError()
 	}
 	s.activeRuntime = nil
 	return storageError(e)

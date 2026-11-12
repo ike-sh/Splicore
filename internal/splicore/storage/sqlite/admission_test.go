@@ -443,3 +443,21 @@ func TestLiveRuntimeSurvivesRejectedCompetitor(t *testing.T) {
 	}
 	p3integrity(t, s, 1)
 }
+
+func TestMissingOwnedJournalKeepsWriteGateClosed(t *testing.T) {
+	s, path := newStore(t)
+	ctx := context.Background()
+	op, err := s.BeginOperation(ctx, 0, actor(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.db.Exec("DELETE FROM transactions WHERE id=?", op.ID); err != nil {
+		t.Fatal(err)
+	}
+	admissionUnchanged(t, s, path, identity.Unavailable, func() error {
+		return s.CommitOperation(ctx, op, func(ports.Writer) error { t.Error("missing-journal callback executed"); return nil })
+	})
+	if _, err = s.Transact(ctx, 0, actor(t), func(ports.Writer) error { t.Error("recovery latch bypassed"); return nil }); !codeIs(err, identity.Unavailable) {
+		t.Fatal("missing owned journal permitted a subsequent mutation", err)
+	}
+}

@@ -228,9 +228,14 @@ func (s *Store) Transact(ctx context.Context, expected identity.Revision, actor 
 		// Persist failure with a bounded independent context even after caller cancellation.
 		failCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		if _, e := s.db.ExecContext(failCtx, "UPDATE transactions SET state='failed',failure_code=?,updated_at=? WHERE id=? AND state='pending'", code, utc(op.UpdatedAt), op.ID); e != nil {
+		result, e := s.db.ExecContext(failCtx, "UPDATE transactions SET state='failed',failure_code=?,updated_at=? WHERE id=? AND state='pending'", code, utc(op.UpdatedAt), op.ID)
+		if e != nil {
 			s.recoveryRequired = true
 			return op, identity.Err(identity.Unavailable, "mutation failed; journal requires recovery")
+		}
+		if rows, e := result.RowsAffected(); e != nil || rows != 1 {
+			s.recoveryRequired = true
+			return op, recoveryRequiredError()
 		}
 		return op, err
 	}
@@ -252,6 +257,10 @@ func (s *Store) admit(ctx context.Context, expected identity.Revision, pending i
 			s.recoveryRequired = true
 		}
 		return err
+	}
+	if s.activeRuntime != nil && state.PendingTransactions == 0 {
+		s.recoveryRequired = true
+		return recoveryRequiredError()
 	}
 	allowed := 0
 	if pending != "" {
@@ -315,8 +324,12 @@ func (s *Store) apply(ctx context.Context, op identity.Transaction, fn func(port
 	if _, err = tx.ExecContext(ctx, "UPDATE settings SET committed_revision=? WHERE singleton=1", op.TargetRevision); err != nil {
 		return storageError(err)
 	}
-	if _, err = tx.ExecContext(ctx, "UPDATE transactions SET state='committed',updated_at=? WHERE id=? AND state='pending'", utc(time.Now()), op.ID); err != nil {
+	journal, err := tx.ExecContext(ctx, "UPDATE transactions SET state='committed',updated_at=? WHERE id=? AND state='pending'", utc(time.Now()), op.ID)
+	if err != nil {
 		return storageError(err)
+	}
+	if rows, err := journal.RowsAffected(); err != nil || rows != 1 {
+		return identity.Err(identity.Corrupt, "pending transaction journal missing")
 	}
 	if err = tx.Commit(); err != nil {
 		s.recoveryRequired = true
