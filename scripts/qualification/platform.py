@@ -63,13 +63,16 @@ def main():
             evidence.mkdir()
             env['SPLICORE_PERSISTENCE_EVIDENCE'] = str(evidence)
             profiles = [('race', ['-race', '-tags='+release.TAGS])] if args.mode=='windows-race' else [('default', []), ('full', ['-tags='+release.TAGS])]
+            if args.mode == 'arm64' and system == 'linux':
+                profiles.append(('race', ['-race', '-tags='+release.TAGS]))
             for profile, tags in profiles:
                 if profile == 'race':
                     env['CGO_ENABLED'] = '1'
-                    compiler = env.get('CC', 'gcc')
-                    library = subprocess.check_output([compiler, '-print-file-name=libsynchronization.a'], text=True).strip()
-                    release.require(Path(library).is_file(), 'mingw-w64 v8+ runtime synchronization library required')
-                    release.save(out/'race-toolchain.json', dict(compiler=compiler, synchronization_library=library))
+                    if system == 'windows':
+                        compiler = env.get('CC', 'gcc')
+                        library = subprocess.check_output([compiler, '-print-file-name=libsynchronization.a'], text=True).strip()
+                        release.require(Path(library).is_file(), 'mingw-w64 v8+ runtime synchronization library required')
+                        release.save(out/'race-toolchain.json', dict(compiler=compiler, synchronization_library=library))
                     actions = ['test']
                 else:
                     actions = ['build', 'vet', 'test']

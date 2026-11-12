@@ -38,7 +38,8 @@ and native Windows amd64. Host architecture is checked independently of Go's
 target (Windows uses GetNativeSystemInfo); emulated amd64 on ARM64 is rejected.
 The script preserves all default/full build, vet and test scope, checks required
 behavior identities and actual CLI process traffic/restart, and records every
-allowed skip. Native ARM64 outcomes remain `QUALIFIED_WITH_LIMITATIONS` while
+allowed skip. Linux ARM64 also runs its supported native Race detector. Native
+ARM64 outcomes remain `QUALIFIED_WITH_LIMITATIONS` while
 hardware networking, missing oracle campaigns and broad physical devices are
 unqualified. BUILD PASS, native startup, native traffic and full scope are
 recorded separately. Cross-build success alone cannot pass the script.
