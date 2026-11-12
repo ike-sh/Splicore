@@ -151,7 +151,7 @@ func admissionUnchanged(t *testing.T, s *Store, path string, code identity.Code,
 	after := admissionLogicalSnapshot(t, s)
 	admissionEvidence(t, "before-call", beforeFiles, before)
 	admissionEvidence(t, "after-call", afterFiles, map[string]any{"snapshot": after, "error": fmt.Sprint(err)})
-	if !codeIs(err, code) {
+	if (code == "" && err != nil) || (code != "" && !codeIs(err, code)) {
 		t.Errorf("expected stable rejection %s, got %v", code, err)
 	}
 	if !reflect.DeepEqual(before, after) {
@@ -329,4 +329,117 @@ func TestPendingMigrationAdmissionNoSideEffects(t *testing.T) {
 	admissionUnchanged(t, s, path, identity.Unavailable, func() error {
 		return migrate(ctx, s.db, steps)
 	})
+}
+
+func TestReopenedPendingCannotBeAdopted(t *testing.T) {
+	ctx := context.Background()
+	for _, operation := range []string{"domain", "snell_create", "runtime_create", "runtime_replace"} {
+		for _, entry := range []string{"transact", "begin", "commit", "fail", "recover"} {
+			t.Run(operation+"/"+entry, func(t *testing.T) {
+				s, path := newStore(t)
+				op, err := s.BeginOperation(ctx, 0, actor(t))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if _, err = s.db.Exec("UPDATE transactions SET operation=? WHERE id=?", operation, op.ID); err != nil {
+					t.Fatal(err)
+				}
+				original := admissionLogicalSnapshot(t, s)
+				admissionEvidence(t, "before-close", admissionFiles(t, path), original)
+				if err = s.Close(); err != nil {
+					t.Fatal(err)
+				}
+				admissionEvidence(t, "after-close-before-open", admissionFiles(t, path), nil)
+				s = p3open(t, path)
+				defer s.Close()
+				admissionEvidence(t, "after-open", admissionFiles(t, path), nil)
+				called := false
+				admissionUnchanged(t, s, path, identity.Unavailable, func() error {
+					switch entry {
+					case "transact":
+						_, err = s.Transact(ctx, 0, actor(t), func(ports.Writer) error { called = true; return nil })
+					case "begin":
+						_, err = s.BeginOperation(ctx, 0, actor(t))
+					case "commit":
+						err = s.CommitOperation(ctx, op, func(ports.Writer) error { called = true; return nil })
+					case "fail":
+						err = s.FailOperation(ctx, op)
+					case "recover":
+						err = s.RecoverPending(ctx)
+					}
+					return err
+				})
+				if called {
+					t.Fatal("unowned operation ran callback")
+				}
+				if got := admissionLogicalSnapshot(t, s); !reflect.DeepEqual(got.Tables, original.Tables) {
+					t.Fatal("restart or rejection changed original rows")
+				}
+				if err = s.Close(); err != nil {
+					t.Fatal(err)
+				}
+				admissionEvidence(t, "after-rejected-close", admissionFiles(t, path), nil)
+				s = p3open(t, path)
+				defer s.Close()
+				if got := admissionLogicalSnapshot(t, s); !reflect.DeepEqual(got.Tables, original.Tables) {
+					t.Fatal("rejection not durable across restart")
+				}
+			})
+		}
+	}
+}
+
+func TestExplicitRecoveryRequiredNoSideEffects(t *testing.T) {
+	ctx := context.Background()
+	for _, entry := range []string{"transact", "begin", "commit", "fail", "recover"} {
+		t.Run(entry, func(t *testing.T) {
+			s, path := newStore(t)
+			// Represents an indeterminate prior storage outcome. The latch itself
+			// is in memory, never another assertion in the possibly damaged WAL.
+			s.write.Lock()
+			s.recoveryRequired = true
+			s.write.Unlock()
+			called := false
+			admissionUnchanged(t, s, path, identity.Unavailable, func() error {
+				switch entry {
+				case "transact":
+					_, err := s.Transact(ctx, 0, actor(t), func(ports.Writer) error { called = true; return nil })
+					return err
+				case "begin":
+					_, err := s.BeginOperation(ctx, 0, actor(t))
+					return err
+				case "commit":
+					return s.CommitOperation(ctx, identity.Transaction{}, func(ports.Writer) error { called = true; return nil })
+				case "fail":
+					return s.FailOperation(ctx, identity.Transaction{})
+				default:
+					return s.RecoverPending(ctx)
+				}
+			})
+			if called {
+				t.Fatal("recovery-required callback executed")
+			}
+		})
+	}
+}
+
+func TestLiveRuntimeSurvivesRejectedCompetitor(t *testing.T) {
+	s, path := newStore(t)
+	ctx := context.Background()
+	op, err := s.BeginOperation(ctx, 0, actor(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	admissionUnchanged(t, s, path, identity.Unavailable, func() error {
+		_, err := s.Transact(ctx, 0, actor(t), func(ports.Writer) error { t.Error("competitor callback executed"); return nil })
+		return err
+	})
+	if err = s.RecoverPending(ctx); !codeIs(err, identity.Unavailable) {
+		t.Fatal("live operation was retired", err)
+	}
+	a := account(t)
+	if err = s.CommitOperation(ctx, op, func(w ports.Writer) error { return w.CreateAccount(a) }); err != nil {
+		t.Fatal("admission rejection invalidated the live owner", err)
+	}
+	p3integrity(t, s, 1)
 }

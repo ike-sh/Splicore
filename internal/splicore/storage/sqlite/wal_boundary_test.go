@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"testing"
 
@@ -147,15 +148,29 @@ func p31WALSafetyBoundary(t *testing.T) {
 					}
 					admissionBefore := map[string]any{}
 					if !valid {
-						admissionBefore = p31WriteAdmission(t, store, state)
+						admissionBefore = p31WriteAdmission(t, store, appPath, "before-recovery", state)
 					} else {
 						admissionBefore = map[string]any{"qualification": "NOT_EXECUTED", "reason": "intact-state writes are covered by normal transactions and the verified-backup restore"}
 					}
 					// This is the same recovery entry used by the application startup.
 					// Preserve the raw input first: recovery of a pending runtime
 					// operation can erase the only surviving symptom of lost commit.
-					if err = store.RecoverPending(ctx); err != nil {
-						t.Fatal(err)
+					recoveryBefore := admissionLogicalSnapshot(t, store)
+					recoveryFiles := admissionFiles(t, appPath)
+					recoveryErr := store.RecoverPending(ctx)
+					recoveryAfterFiles := admissionFiles(t, appPath)
+					recoveryAfter := admissionLogicalSnapshot(t, store)
+					admissionEvidence(t, "recover-before-call", recoveryFiles, recoveryBefore)
+					admissionEvidence(t, "recover-after-call", recoveryAfterFiles, map[string]any{"snapshot": recoveryAfter, "error": fmt.Sprint(recoveryErr)})
+					if state.PendingTransactions > 0 {
+						if !codeIs(recoveryErr, identity.Unavailable) {
+							t.Fatal("ambiguous pending must require review", recoveryErr)
+						}
+					} else if recoveryErr != nil {
+						t.Fatal("normal committed recovery", recoveryErr)
+					}
+					if !reflect.DeepEqual(recoveryBefore, recoveryAfter) || !reflect.DeepEqual(recoveryFiles["state.db"], recoveryAfterFiles["state.db"]) || !reflect.DeepEqual(recoveryFiles["state.db-wal"], recoveryAfterFiles["state.db-wal"]) {
+						t.Fatal("startup recovery modified original rows or persistent bytes")
 					}
 					afterRecovery, err := store.State(ctx)
 					if err != nil {
@@ -163,7 +178,7 @@ func p31WALSafetyBoundary(t *testing.T) {
 					}
 					admissionAfter := map[string]any{}
 					if !valid {
-						admissionAfter = p31WriteAdmission(t, store, afterRecovery)
+						admissionAfter = p31WriteAdmission(t, store, appPath, "after-recovery", afterRecovery)
 					} else {
 						admissionAfter = admissionBefore
 					}
@@ -197,6 +212,7 @@ func p31WALSafetyBoundary(t *testing.T) {
 						"sqlite_structural_integrity":             map[string]any{"integrity_check": check, "foreign_key_check_rows": fkRows, "qualification": "QUALIFIED_WITH_LIMITATIONS"},
 						"acknowledged_application_data":           map[string]any{"expected_rows": 2, "native_rows": nativeRows, "actual_named_rows": acknowledged, "expected_revision": 2, "native_revision": revision, "application_state": state, "qualification": dataQualification},
 						"write_admission_before_startup_recovery": admissionBefore, "write_admission_after_startup_recovery": admissionAfter, "state_after_startup_recovery": afterRecovery,
+						"startup_recovery":                        map[string]any{"error": fmt.Sprint(recoveryErr), "all_rows_and_counters_unchanged": reflect.DeepEqual(recoveryBefore, recoveryAfter), "db_wal_unchanged": true, "shm_unchanged": reflect.DeepEqual(recoveryFiles["state.db-shm"], recoveryAfterFiles["state.db-shm"]), "ambiguous_pending_retired": false},
 						"verified_backup_restore":                 map[string]any{"qualification": "QUALIFIED_WITH_LIMITATIONS", "same_acknowledged_rows": 2, "new_write_and_restart": true, "backup_sha256": fmt.Sprintf("%x", backupHash), "vault_key_pair_separate_evidence": "backup-vault.json", "production_windows_backup": "NOT_EXECUTED"},
 						"wal_frame_proof":                         map[string]any{"page_size": page, "frame_size": frame, "commit_frame_offsets": commits, "affected_frame_offset": affected, "affected_commit_db_pages": binary.BigEndian.Uint32(wal[affected+4 : affected+8]), "original_wal_sha256": fmt.Sprintf("%x", walHash), "damaged_wal_sha256": fmt.Sprintf("%x", sha256.Sum256(damaged))},
 						"COMMITTED_WAL_MEDIA_CORRUPTION_RECOVERY": "NOT_QUALIFIED", "note": "Structural validity, acknowledged data, write admission and backup restore are independent. Known write-admission blind spots block PR admission even if diagnostic assertions pass.",
@@ -228,7 +244,7 @@ func p31WALCopy(t *testing.T, path string, main, wal []byte) {
 	}
 }
 
-func p31WriteAdmission(t *testing.T, s *Store, state ports.State) map[string]any {
+func p31WriteAdmission(t *testing.T, s *Store, path, stage string, state ports.State) map[string]any {
 	t.Helper()
 	ctx := context.Background()
 	called := false
@@ -238,7 +254,13 @@ func p31WriteAdmission(t *testing.T, s *Store, state ports.State) map[string]any
 	if err := s.db.QueryRowContext(ctx, "SELECT count(*) FROM transactions").Scan(&before); err != nil {
 		t.Fatal(err)
 	}
+	beforeSnapshot := admissionLogicalSnapshot(t, s)
+	beforeFiles := admissionFiles(t, path)
 	_, err := s.Transact(ctx, state.Revision, actor(t), func(w ports.Writer) error { called = true; return w.CreateAccount(a) })
+	afterFiles := admissionFiles(t, path)
+	afterSnapshot := admissionLogicalSnapshot(t, s)
+	admissionEvidence(t, stage+"-before-write", beforeFiles, beforeSnapshot)
+	admissionEvidence(t, stage+"-after-write", afterFiles, map[string]any{"snapshot": afterSnapshot, "error": fmt.Sprint(err)})
 	if queryErr := s.db.QueryRowContext(ctx, "SELECT count(*) FROM transactions").Scan(&after); queryErr != nil {
 		t.Fatal(queryErr)
 	}
@@ -248,12 +270,17 @@ func p31WriteAdmission(t *testing.T, s *Store, state ports.State) map[string]any
 		businessQualification = "QUALIFIED_WITH_LIMITATIONS"
 	}
 	qualification := "NOT_QUALIFIED"
-	if blocked && before == after {
+	rowsUnchanged := reflect.DeepEqual(beforeSnapshot, afterSnapshot)
+	persistentUnchanged := reflect.DeepEqual(beforeFiles["state.db"], afterFiles["state.db"]) && reflect.DeepEqual(beforeFiles["state.db-wal"], afterFiles["state.db-wal"])
+	if blocked && before == after && rowsUnchanged && persistentUnchanged {
 		qualification = "QUALIFIED_WITH_LIMITATIONS"
 	}
 	if state.PendingTransactions > 0 && !blocked {
 		t.Fatal("pending journal protection regressed", err, called)
 	}
+	if state.PendingTransactions > 0 && (!rowsUnchanged || !persistentUnchanged) {
+		t.Fatal("rejected damaged-copy mutation changed journal, business data, revision or DB/WAL bytes")
+	}
 	t.Logf("WAL_WRITE_BOUNDARY pending=%d callback_called=%t journal_rows_before=%d after=%d error=%v qualification=%s", state.PendingTransactions, called, before, after, err, qualification)
-	return map[string]any{"qualification": qualification, "business_write_qualification": businessQualification, "journal_rows_before": before, "journal_rows_after": after, "callback_called": called, "mutation_rejected": err != nil, "mutation_error": fmt.Sprint(err)}
+	return map[string]any{"qualification": qualification, "business_write_qualification": businessQualification, "journal_rows_before": before, "journal_rows_after": after, "callback_called": called, "mutation_rejected": err != nil, "mutation_error": fmt.Sprint(err), "all_rows_and_sqlite_counters_unchanged": rowsUnchanged, "db_wal_byte_identical": persistentUnchanged, "shm_byte_identical": reflect.DeepEqual(beforeFiles["state.db-shm"], afterFiles["state.db-shm"])}
 }

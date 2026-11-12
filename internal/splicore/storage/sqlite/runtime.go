@@ -58,11 +58,20 @@ func (s *Store) BeginRuntimeOperation(ctx context.Context, expected identity.Rev
 	if err != nil {
 		return op, storageError(err)
 	}
-	return op, storageError(tx.Commit())
+	if err = tx.Commit(); err != nil {
+		s.recoveryRequired = true
+		return op, storageError(err)
+	}
+	owned := op
+	s.activeRuntime = &owned
+	return op, nil
 }
 func (s *Store) CommitOperation(ctx context.Context, op identity.Transaction, fn func(ports.Writer) error) error {
 	s.write.Lock()
 	defer s.write.Unlock()
+	if err := s.ownsRuntime(op); err != nil {
+		return err
+	}
 	var count int
 	if err := s.db.QueryRowContext(ctx, "SELECT count(*) FROM transactions WHERE id=? AND state='pending' AND base_revision=? AND target_revision=? AND operation IN ('snell_create','runtime_create','runtime_replace')", op.ID, op.BaseRevision, op.TargetRevision).Scan(&count); err != nil {
 		return storageError(err)
@@ -73,11 +82,18 @@ func (s *Store) CommitOperation(ctx context.Context, op identity.Transaction, fn
 	if err := s.admit(ctx, op.BaseRevision, op.ID); err != nil {
 		return err
 	}
-	return s.apply(ctx, op, fn)
+	if err := s.apply(ctx, op, fn); err != nil {
+		return err
+	}
+	s.activeRuntime = nil
+	return nil
 }
 func (s *Store) FailOperation(ctx context.Context, op identity.Transaction) error {
 	s.write.Lock()
 	defer s.write.Unlock()
+	if err := s.ownsRuntime(op); err != nil {
+		return err
+	}
 	var count int
 	if err := s.db.QueryRowContext(ctx, "SELECT count(*) FROM transactions WHERE id=? AND state='pending' AND base_revision=? AND target_revision=? AND operation IN ('snell_create','runtime_create','runtime_replace')", op.ID, op.BaseRevision, op.TargetRevision).Scan(&count); err != nil {
 		return storageError(err)
@@ -89,14 +105,43 @@ func (s *Store) FailOperation(ctx context.Context, op identity.Transaction) erro
 		return err
 	}
 	_, e := s.db.ExecContext(ctx, "UPDATE transactions SET state='failed',failure_code='unavailable',updated_at=? WHERE id=? AND state='pending' AND operation IN ('snell_create','runtime_create','runtime_replace')", utc(time.Now()), op.ID)
+	if e != nil {
+		s.recoveryRequired = true
+		return storageError(e)
+	}
+	s.activeRuntime = nil
 	return storageError(e)
 }
+
+// ownsRuntime requires write. A caller cannot adopt a surviving journal from a
+// previous process and retire it through CommitOperation or FailOperation.
+func (s *Store) ownsRuntime(op identity.Transaction) error {
+	if s.recoveryRequired {
+		return recoveryRequiredError()
+	}
+	if s.activeRuntime == nil || *s.activeRuntime != op {
+		return identity.Err(identity.Invalid, "runtime operation is not owned by this store")
+	}
+	return nil
+}
+
 func (s *Store) RecoverPending(ctx context.Context) error {
 	s.write.Lock()
 	defer s.write.Unlock()
-	// Owned processes are gone at restart; committed rows reconstruct both creates and replacements.
-	_, err := s.db.ExecContext(ctx, "UPDATE transactions SET state='failed',failure_code='unavailable',updated_at=? WHERE state='pending' AND operation IN ('snell_create','runtime_create','runtime_replace')", utc(time.Now()))
-	return storageError(err)
+	state, err := s.State(ctx)
+	if err != nil {
+		return err
+	}
+	// Schema8 cannot distinguish a pre-commit process crash from a lost
+	// acknowledged commit that exposes the same pending runtime journal. No
+	// record in that WAL can prove the WAL intact. Leave ambiguous rows intact.
+	if s.recoveryRequired || state.PendingTransactions != 0 {
+		if s.activeRuntime == nil || state.PendingTransactions != 1 {
+			s.recoveryRequired = true
+		}
+		return recoveryRequiredError()
+	}
+	return nil
 }
 func (s *Store) Inbounds(ctx context.Context) ([]access.Inbound, error) {
 	s.write.Lock()

@@ -33,6 +33,10 @@ type Store struct {
 	write     sync.Mutex
 	closeOnce sync.Once
 	closeErr  error
+	// These fields require write. Ownership is deliberately process-local; an
+	// old journal in the same WAL is not proof that a lost commit never existed.
+	activeRuntime    *identity.Transaction
+	recoveryRequired bool
 }
 
 var _ ports.Repository = (*Store)(nil)
@@ -97,9 +101,11 @@ func Open(ctx context.Context, path string, opts Options) (*Store, error) {
 	if count != 1 {
 		return nil, identity.Err(identity.Corrupt, "invalid installation identity count")
 	}
-	if _, err = s.State(ctx); err != nil {
+	state, err := s.State(ctx)
+	if err != nil {
 		return nil, err
 	}
+	s.recoveryRequired = state.PendingTransactions != 0
 	for _, suffix := range []string{"", "-wal", "-shm", ".lock"} {
 		if err = safeFile(path + suffix); err != nil {
 			return nil, err
@@ -203,10 +209,16 @@ func (s *Store) Transact(ctx context.Context, expected identity.Revision, actor 
 	}
 	_, err = s.db.ExecContext(ctx, "INSERT INTO transactions(id,state,base_revision,target_revision,principal,request_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)", op.ID, op.State, expected, next, actor.Principal, actor.RequestID, utc(now), utc(now))
 	if err != nil {
+		s.recoveryRequired = true
 		return op, storageError(err)
 	}
 	err = s.apply(ctx, op, fn)
 	if err != nil {
+		if s.recoveryRequired {
+			// An uncertain storage outcome is not a business validation failure.
+			// Preserve the pending evidence instead of attempting another write.
+			return op, err
+		}
 		code := identity.Unavailable
 		var de *identity.Error
 		if errors.As(err, &de) {
@@ -217,6 +229,7 @@ func (s *Store) Transact(ctx context.Context, expected identity.Revision, actor 
 		failCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if _, e := s.db.ExecContext(failCtx, "UPDATE transactions SET state='failed',failure_code=?,updated_at=? WHERE id=? AND state='pending'", code, utc(op.UpdatedAt), op.ID); e != nil {
+			s.recoveryRequired = true
 			return op, identity.Err(identity.Unavailable, "mutation failed; journal requires recovery")
 		}
 		return op, err
@@ -229,8 +242,15 @@ func (s *Store) Transact(ctx context.Context, expected identity.Revision, actor 
 // journal; all other commands require no outstanding journal. Metadata, pending
 // state and revision come from the same SQLite read snapshot.
 func (s *Store) admit(ctx context.Context, expected identity.Revision, pending identity.ID) error {
+	if s.recoveryRequired {
+		return recoveryRequiredError()
+	}
 	state, err := s.State(ctx)
 	if err != nil {
+		var de *identity.Error
+		if errors.As(err, &de) && de.Code == identity.Corrupt {
+			s.recoveryRequired = true
+		}
 		return err
 	}
 	allowed := 0
@@ -238,25 +258,46 @@ func (s *Store) admit(ctx context.Context, expected identity.Revision, pending i
 		allowed = 1
 	}
 	if state.PendingTransactions != allowed {
-		return identity.Err(identity.Unavailable, "pending journal requires operator review before mutation")
+		// A live operation may still finish after an unrelated caller was
+		// refused admission. Unowned or additional journals are ambiguous.
+		if s.activeRuntime == nil || state.PendingTransactions != 1 {
+			s.recoveryRequired = true
+		}
+		return recoveryRequiredError()
 	}
 	if state.Revision != expected {
+		if pending != "" {
+			s.recoveryRequired = true
+		}
 		return identity.RevisionConflict(state.Revision)
 	}
 	return nil
 }
 
-func (s *Store) apply(ctx context.Context, op identity.Transaction, fn func(ports.Writer) error) error {
+func recoveryRequiredError() error {
+	return identity.Err(identity.Unavailable, "storage recovery required; preserve database, WAL and matching vault key for operator review")
+}
+
+func (s *Store) apply(ctx context.Context, op identity.Transaction, fn func(ports.Writer) error) (result error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return storageError(err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+			s.recoveryRequired = true
+		}
+		var de *identity.Error
+		if errors.As(result, &de) && de.Code == identity.Corrupt {
+			s.recoveryRequired = true
+		}
+	}()
 	var current identity.Revision
 	if err = tx.QueryRowContext(ctx, "SELECT committed_revision FROM settings WHERE singleton=1").Scan(&current); err != nil {
 		return storageError(err)
 	}
 	if current != op.BaseRevision {
+		s.recoveryRequired = true
 		return identity.RevisionConflict(current)
 	}
 	var pending int
@@ -264,7 +305,8 @@ func (s *Store) apply(ctx context.Context, op identity.Transaction, fn func(port
 		return storageError(err)
 	}
 	if pending > 0 {
-		return identity.Err(identity.Unavailable, "pending journal requires operator review before mutation")
+		s.recoveryRequired = true
+		return recoveryRequiredError()
 	}
 	w := &writer{ctx: ctx, tx: tx, options: s.options}
 	if err = fn(w); err != nil {
@@ -276,7 +318,11 @@ func (s *Store) apply(ctx context.Context, op identity.Transaction, fn func(port
 	if _, err = tx.ExecContext(ctx, "UPDATE transactions SET state='committed',updated_at=? WHERE id=? AND state='pending'", utc(time.Now()), op.ID); err != nil {
 		return storageError(err)
 	}
-	return storageError(tx.Commit())
+	if err = tx.Commit(); err != nil {
+		s.recoveryRequired = true
+		return storageError(err)
+	}
+	return nil
 }
 
 func safeCommandError(err error) error {
