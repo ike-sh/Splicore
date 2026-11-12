@@ -51,6 +51,9 @@ jobs:
           else
             python scripts/release.py qualify --target "$target"
           fi
+      - name: Instrumented native network baseline (no performance SLO)
+        shell: bash
+        run: python scripts/performance/run.py --profile ci --output "$RUNNER_TEMP/splicore-performance"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
@@ -58,6 +61,7 @@ jobs:
           path: |
             build/release/qualification/
             build/reference/
+            ${{ runner.temp }}/splicore-performance/
           if-no-files-found: warn
           retention-days: 14
       - name: Compile arm64 core and packages

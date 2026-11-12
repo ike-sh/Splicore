@@ -1,0 +1,452 @@
+{
+  "defaults": {
+    "ingress": "127.0.0.1",
+    "egress": "127.0.0.1",
+    "network": "mixed",
+    "mode": "duplex",
+    "connections": 1,
+    "bytes": 65536,
+    "packet_bytes": 1200,
+    "packets_per_second": 1000,
+    "probes": 10,
+    "timeout_seconds": 120
+  },
+  "profiles": {
+    "ci": [
+      {
+        "name": "direct",
+        "protocol": "direct",
+        "probes": 3
+      },
+      {
+        "name": "vless-tcp",
+        "protocol": "vless-tcp",
+        "probes": 3
+      },
+      {
+        "name": "snell4",
+        "protocol": "snell4",
+        "probes": 3
+      },
+      {
+        "name": "mieru-tcp",
+        "protocol": "mieru-tcp",
+        "probes": 3
+      }
+    ],
+    "baseline": [
+      {
+        "name": "direct",
+        "protocol": "direct",
+        "bytes": 1048576
+      },
+      {
+        "name": "vless-tcp",
+        "protocol": "vless-tcp",
+        "bytes": 1048576
+      },
+      {
+        "name": "vless-http",
+        "protocol": "vless-http",
+        "bytes": 1048576
+      },
+      {
+        "name": "vless-h2",
+        "protocol": "vless-h2",
+        "bytes": 1048576
+      },
+      {
+        "name": "vless-quic",
+        "protocol": "vless-quic",
+        "bytes": 1048576
+      },
+      {
+        "name": "snell4",
+        "protocol": "snell4",
+        "bytes": 1048576
+      },
+      {
+        "name": "snell5",
+        "protocol": "snell5",
+        "bytes": 1048576
+      },
+      {
+        "name": "snell6",
+        "protocol": "snell6",
+        "bytes": 1048576
+      },
+      {
+        "name": "mieru-tcp",
+        "protocol": "mieru-tcp",
+        "bytes": 1048576
+      },
+      {
+        "name": "mieru-udp",
+        "protocol": "mieru-udp",
+        "bytes": 1048576
+      }
+    ],
+    "matrix": [
+      {
+        "name": "direct-c1",
+        "protocol": "direct",
+        "connections": 1
+      },
+      {
+        "name": "direct-c10",
+        "protocol": "direct",
+        "connections": 10
+      },
+      {
+        "name": "direct-c100",
+        "protocol": "direct",
+        "connections": 100
+      },
+      {
+        "name": "direct-b1048576",
+        "protocol": "direct",
+        "bytes": 1048576,
+        "network": "tcp"
+      },
+      {
+        "name": "direct-b67108864",
+        "protocol": "direct",
+        "bytes": 67108864,
+        "network": "tcp"
+      },
+      {
+        "name": "direct-upload",
+        "protocol": "direct",
+        "mode": "upload",
+        "network": "tcp",
+        "bytes": 1048576
+      },
+      {
+        "name": "direct-download",
+        "protocol": "direct",
+        "mode": "download",
+        "network": "tcp",
+        "bytes": 1048576
+      },
+      {
+        "name": "direct-::1-::1",
+        "protocol": "direct",
+        "ingress": "::1",
+        "egress": "::1"
+      },
+      {
+        "name": "direct-udp64",
+        "protocol": "direct",
+        "network": "udp",
+        "packet_bytes": 64,
+        "bytes": 65536
+      },
+      {
+        "name": "direct-udp8192",
+        "protocol": "direct",
+        "network": "udp",
+        "packet_bytes": 8192,
+        "bytes": 65536
+      },
+      {
+        "name": "direct-udp60000",
+        "protocol": "direct",
+        "network": "udp",
+        "packet_bytes": 60000,
+        "bytes": 65536
+      },
+      {
+        "name": "vless-tcp-c1",
+        "protocol": "vless-tcp",
+        "connections": 1
+      },
+      {
+        "name": "vless-tcp-c10",
+        "protocol": "vless-tcp",
+        "connections": 10
+      },
+      {
+        "name": "vless-tcp-c100",
+        "protocol": "vless-tcp",
+        "connections": 100
+      },
+      {
+        "name": "vless-tcp-b1048576",
+        "protocol": "vless-tcp",
+        "bytes": 1048576,
+        "network": "tcp"
+      },
+      {
+        "name": "vless-tcp-b67108864",
+        "protocol": "vless-tcp",
+        "bytes": 67108864,
+        "network": "tcp"
+      },
+      {
+        "name": "vless-tcp-upload",
+        "protocol": "vless-tcp",
+        "mode": "upload",
+        "network": "tcp",
+        "bytes": 1048576
+      },
+      {
+        "name": "vless-tcp-download",
+        "protocol": "vless-tcp",
+        "mode": "download",
+        "network": "tcp",
+        "bytes": 1048576
+      },
+      {
+        "name": "vless-tcp-::1-::1",
+        "protocol": "vless-tcp",
+        "ingress": "::1",
+        "egress": "::1"
+      },
+      {
+        "name": "vless-tcp-127.0.0.1-::1",
+        "protocol": "vless-tcp",
+        "ingress": "127.0.0.1",
+        "egress": "::1"
+      },
+      {
+        "name": "vless-tcp-::1-127.0.0.1",
+        "protocol": "vless-tcp",
+        "ingress": "::1",
+        "egress": "127.0.0.1"
+      },
+      {
+        "name": "vless-tcp-udp64",
+        "protocol": "vless-tcp",
+        "network": "udp",
+        "packet_bytes": 64,
+        "bytes": 65536
+      },
+      {
+        "name": "vless-tcp-udp8192",
+        "protocol": "vless-tcp",
+        "network": "udp",
+        "packet_bytes": 8192,
+        "bytes": 65536
+      },
+      {
+        "name": "vless-tcp-udp60000",
+        "protocol": "vless-tcp",
+        "network": "udp",
+        "packet_bytes": 60000,
+        "bytes": 65536
+      },
+      {
+        "name": "snell4-c1",
+        "protocol": "snell4",
+        "connections": 1
+      },
+      {
+        "name": "snell4-c10",
+        "protocol": "snell4",
+        "connections": 10
+      },
+      {
+        "name": "snell4-c100",
+        "protocol": "snell4",
+        "connections": 100
+      },
+      {
+        "name": "snell4-b1048576",
+        "protocol": "snell4",
+        "bytes": 1048576,
+        "network": "tcp"
+      },
+      {
+        "name": "snell4-b67108864",
+        "protocol": "snell4",
+        "bytes": 67108864,
+        "network": "tcp"
+      },
+      {
+        "name": "snell4-upload",
+        "protocol": "snell4",
+        "mode": "upload",
+        "network": "tcp",
+        "bytes": 1048576
+      },
+      {
+        "name": "snell4-download",
+        "protocol": "snell4",
+        "mode": "download",
+        "network": "tcp",
+        "bytes": 1048576
+      },
+      {
+        "name": "snell4-::1-::1",
+        "protocol": "snell4",
+        "ingress": "::1",
+        "egress": "::1"
+      },
+      {
+        "name": "snell4-127.0.0.1-::1",
+        "protocol": "snell4",
+        "ingress": "127.0.0.1",
+        "egress": "::1"
+      },
+      {
+        "name": "snell4-::1-127.0.0.1",
+        "protocol": "snell4",
+        "ingress": "::1",
+        "egress": "127.0.0.1"
+      },
+      {
+        "name": "snell4-udp64",
+        "protocol": "snell4",
+        "network": "udp",
+        "packet_bytes": 64,
+        "bytes": 65536
+      },
+      {
+        "name": "snell4-udp8192",
+        "protocol": "snell4",
+        "network": "udp",
+        "packet_bytes": 8192,
+        "bytes": 65536
+      },
+      {
+        "name": "snell4-udp60000",
+        "protocol": "snell4",
+        "network": "udp",
+        "packet_bytes": 60000,
+        "bytes": 65536
+      },
+      {
+        "name": "mieru-udp-c1",
+        "protocol": "mieru-udp",
+        "connections": 1
+      },
+      {
+        "name": "mieru-udp-c10",
+        "protocol": "mieru-udp",
+        "connections": 10
+      },
+      {
+        "name": "mieru-udp-c100",
+        "protocol": "mieru-udp",
+        "connections": 100
+      },
+      {
+        "name": "mieru-udp-b1048576",
+        "protocol": "mieru-udp",
+        "bytes": 1048576,
+        "network": "tcp"
+      },
+      {
+        "name": "mieru-udp-b67108864",
+        "protocol": "mieru-udp",
+        "bytes": 67108864,
+        "network": "tcp"
+      },
+      {
+        "name": "mieru-udp-upload",
+        "protocol": "mieru-udp",
+        "mode": "upload",
+        "network": "tcp",
+        "bytes": 1048576
+      },
+      {
+        "name": "mieru-udp-download",
+        "protocol": "mieru-udp",
+        "mode": "download",
+        "network": "tcp",
+        "bytes": 1048576
+      },
+      {
+        "name": "mieru-udp-::1-::1",
+        "protocol": "mieru-udp",
+        "ingress": "::1",
+        "egress": "::1"
+      },
+      {
+        "name": "mieru-udp-127.0.0.1-::1",
+        "protocol": "mieru-udp",
+        "ingress": "127.0.0.1",
+        "egress": "::1"
+      },
+      {
+        "name": "mieru-udp-::1-127.0.0.1",
+        "protocol": "mieru-udp",
+        "ingress": "::1",
+        "egress": "127.0.0.1"
+      },
+      {
+        "name": "mieru-udp-udp64",
+        "protocol": "mieru-udp",
+        "network": "udp",
+        "packet_bytes": 64,
+        "bytes": 65536
+      },
+      {
+        "name": "mieru-udp-udp8192",
+        "protocol": "mieru-udp",
+        "network": "udp",
+        "packet_bytes": 8192,
+        "bytes": 65536
+      },
+      {
+        "name": "mieru-udp-udp60000",
+        "protocol": "mieru-udp",
+        "network": "udp",
+        "packet_bytes": 60000,
+        "bytes": 65536
+      }
+    ],
+    "soak": [
+      {
+        "name": "direct",
+        "protocol": "direct",
+        "bytes": 1048576
+      },
+      {
+        "name": "vless-tcp",
+        "protocol": "vless-tcp",
+        "bytes": 1048576
+      },
+      {
+        "name": "vless-http",
+        "protocol": "vless-http",
+        "bytes": 1048576
+      },
+      {
+        "name": "vless-h2",
+        "protocol": "vless-h2",
+        "bytes": 1048576
+      },
+      {
+        "name": "vless-quic",
+        "protocol": "vless-quic",
+        "bytes": 1048576
+      },
+      {
+        "name": "snell4",
+        "protocol": "snell4",
+        "bytes": 1048576
+      },
+      {
+        "name": "snell5",
+        "protocol": "snell5",
+        "bytes": 1048576
+      },
+      {
+        "name": "snell6",
+        "protocol": "snell6",
+        "bytes": 1048576
+      },
+      {
+        "name": "mieru-tcp",
+        "protocol": "mieru-tcp",
+        "bytes": 1048576
+      },
+      {
+        "name": "mieru-udp",
+        "protocol": "mieru-udp",
+        "bytes": 1048576
+      }
+    ]
+  }
+}

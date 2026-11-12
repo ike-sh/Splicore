@@ -1,0 +1,86 @@
+{
+  "clean": {
+    "loss_percent": 0,
+    "rtt_ms": 0,
+    "jitter_ms": 0,
+    "mtu": 1500
+  },
+  "loss1": {
+    "loss_percent": 1,
+    "rtt_ms": 0,
+    "jitter_ms": 0,
+    "mtu": 1500
+  },
+  "loss3": {
+    "loss_percent": 3,
+    "rtt_ms": 0,
+    "jitter_ms": 0,
+    "mtu": 1500
+  },
+  "loss5": {
+    "loss_percent": 5,
+    "rtt_ms": 0,
+    "jitter_ms": 0,
+    "mtu": 1500
+  },
+  "loss10": {
+    "loss_percent": 10,
+    "rtt_ms": 0,
+    "jitter_ms": 0,
+    "mtu": 1500
+  },
+  "rtt10": {
+    "loss_percent": 0,
+    "rtt_ms": 10,
+    "jitter_ms": 0,
+    "mtu": 1500
+  },
+  "rtt50": {
+    "loss_percent": 0,
+    "rtt_ms": 50,
+    "jitter_ms": 0,
+    "mtu": 1500
+  },
+  "rtt100": {
+    "loss_percent": 0,
+    "rtt_ms": 100,
+    "jitter_ms": 0,
+    "mtu": 1500
+  },
+  "rtt200": {
+    "loss_percent": 0,
+    "rtt_ms": 200,
+    "jitter_ms": 0,
+    "mtu": 1500
+  },
+  "jitter1": {
+    "loss_percent": 0,
+    "rtt_ms": 50,
+    "jitter_ms": 1,
+    "mtu": 1500
+  },
+  "jitter5": {
+    "loss_percent": 0,
+    "rtt_ms": 50,
+    "jitter_ms": 5,
+    "mtu": 1500
+  },
+  "jitter10": {
+    "loss_percent": 0,
+    "rtt_ms": 50,
+    "jitter_ms": 10,
+    "mtu": 1500
+  },
+  "mtu1280": {
+    "loss_percent": 0,
+    "rtt_ms": 0,
+    "jitter_ms": 0,
+    "mtu": 1280
+  },
+  "mtu1400": {
+    "loss_percent": 0,
+    "rtt_ms": 0,
+    "jitter_ms": 0,
+    "mtu": 1400
+  }
+}
