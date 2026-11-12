@@ -99,7 +99,7 @@ func admissionLogicalSnapshot(t *testing.T, s *Store) admissionSnapshot {
 func admissionFiles(t *testing.T, path string) map[string][]byte {
 	t.Helper()
 	out := map[string][]byte{}
-	for _, suffix := range []string{"", "-wal", "-shm", ".lock"} {
+	for _, suffix := range []string{"", "-wal", "-shm"} {
 		b, err := os.ReadFile(path + suffix)
 		if os.IsNotExist(err) {
 			continue
@@ -108,6 +108,19 @@ func admissionFiles(t *testing.T, path string) map[string][]byte {
 			t.Fatal(err)
 		}
 		out["state.db"+suffix] = b
+	}
+	// LockFileEx excludes reads of the locked byte on Windows, including an
+	// empty file read through a second handle. Keep the lock held and record
+	// metadata instead; DB/WAL/SHM are still captured byte for byte.
+	info, err := os.Lstat(path + ".lock")
+	if err == nil {
+		b, err := json.Marshal(map[string]any{"size": info.Size(), "mode": info.Mode().String(), "modified_at": info.ModTime()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		out["installation-lock-metadata.json"] = b
+	} else if !os.IsNotExist(err) {
+		t.Fatal(err)
 	}
 	return out
 }
@@ -144,8 +157,12 @@ func admissionEvidence(t *testing.T, label string, files map[string][]byte, stat
 func admissionUnchanged(t *testing.T, s *Store, path string, code identity.Code, call func() error) {
 	t.Helper()
 	before := admissionLogicalSnapshot(t, s)
+	lockBefore, err := os.Stat(path + ".lock")
+	if err != nil {
+		t.Fatal(err)
+	}
 	beforeFiles := admissionFiles(t, path)
-	err := call()
+	err = call()
 	// Capture immediately, before the post-call read queries can touch SHM.
 	afterFiles := admissionFiles(t, path)
 	after := admissionLogicalSnapshot(t, s)
@@ -157,10 +174,14 @@ func admissionUnchanged(t *testing.T, s *Store, path string, code identity.Code,
 	if !reflect.DeepEqual(before, after) {
 		t.Errorf("rejected call changed stored rows or SQLite total_changes: before=%+v after=%+v", before, after)
 	}
-	for _, name := range []string{"state.db", "state.db-wal", "state.db.lock"} {
+	for _, name := range []string{"state.db", "state.db-wal", "installation-lock-metadata.json"} {
 		if !reflect.DeepEqual(beforeFiles[name], afterFiles[name]) {
 			t.Errorf("rejected call changed persistent file %s", name)
 		}
+	}
+	lockAfter, statErr := os.Stat(path + ".lock")
+	if statErr != nil || !os.SameFile(lockBefore, lockAfter) {
+		t.Fatal("rejection replaced the installation lock", statErr)
 	}
 	// WAL-index/read marks are transient. Record any change explicitly; never
 	// hide it behind a claim that all SQLite files remain byte-identical.

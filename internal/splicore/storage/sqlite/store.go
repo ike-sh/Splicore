@@ -288,16 +288,19 @@ func recoveryRequiredError() error {
 }
 
 func (s *Store) apply(ctx context.Context, op identity.Transaction, fn func(ports.Writer) error) (result error) {
+	commandRejected := false
+	defer func() {
+		var de *identity.Error
+		if !commandRejected && errors.As(result, &de) && de.Code == identity.Corrupt {
+			s.recoveryRequired = true
+		}
+	}()
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return storageError(err)
 	}
 	defer func() {
 		if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
-			s.recoveryRequired = true
-		}
-		var de *identity.Error
-		if errors.As(result, &de) && de.Code == identity.Corrupt {
 			s.recoveryRequired = true
 		}
 	}()
@@ -319,6 +322,10 @@ func (s *Store) apply(ctx context.Context, op identity.Transaction, fn func(port
 	}
 	w := &writer{ctx: ctx, tx: tx, options: s.options}
 	if err = fn(w); err != nil {
+		// A callback can reject malformed business fields with corrupt_state.
+		// Its rolled-back command still receives the existing failure audit;
+		// it is distinct from indeterminate SQL commit/rollback failure.
+		commandRejected = true
 		return safeCommandError(err)
 	}
 	if _, err = tx.ExecContext(ctx, "UPDATE settings SET committed_revision=? WHERE singleton=1", op.TargetRevision); err != nil {
