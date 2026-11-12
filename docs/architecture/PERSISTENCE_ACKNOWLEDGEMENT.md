@@ -175,3 +175,81 @@ compatibility with automatic pending retirement remain NOT_QUALIFIED.
 - [Windows FlushFileBuffers](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-flushfilebuffers)
 - [Windows ReplaceFile](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-replacefilew)
 - [Windows MoveFileEx](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-movefileexa)
+
+## P3.3: recovery contract validation
+
+This section continues the decision above. It does not replace the production
+contract or claim that conservative refusal restored runtime availability.
+
+There are two different guarantees. With process failure alone, assuming intact
+committed storage, SQLite rolls back the open SQL transaction and the old
+runtime journal can be retired before rebuilding committed listeners. Under
+possible loss of committed WAL frames, that same visible journal is ambiguous.
+Schema8 supplies no evidence that distinguishes those histories. Keeping the
+original automatic behavior preserves process-crash availability under the first
+assumption; it does not establish the second guarantee.
+
+| Existing compatibility test | Safe subscenarios without a new authority | Ambiguous subscenario |
+| --- | --- | --- |
+| Snell concurrent revision / interrupted create | One competing revision wins; live owned operations can finish or compensate | Reopened runtime_create pending after the last confirmed configuration |
+| Hysteria2 replacement rollback / interrupted journal | Same-process storage rejection preserves bindings and rebuilds old runtime | Reopened runtime_replace pending |
+| TUIC replacement rollback / interrupted journal | Same-process storage rejection preserves bindings and rebuilds old runtime | Reopened runtime_replace pending |
+| Phase15 process runtime crash | Existing after-commit, after-activation, before-retirement and provider cuts reconstruct committed state when no pending remains | before-commit and prepare leave a runtime pending journal |
+
+All original assertions remain. A controlled test parent knows exactly where it
+killed its child; a restarted production process does not possess that external
+knowledge. No-pending reconstruction is safe under the process-only assumption,
+but still cannot attest that acknowledged media contents never disappeared.
+
+`TestIndependentAcknowledgementCrashProtocol` fills the ordering gap in the
+earlier reconciliation fixture with actual Schema8 transactions and a separate
+live witness process. The witness owns a synced append-only test log outside the
+fault image and retains a current high-water mark. It authenticates the chain,
+installation, key, epoch, sequence, operation ID and complete command digest.
+The parent must accept persistence before the child may report success. Its
+freshness is an explicit assumption supplied by the surviving parent, never
+reconstructed from the current DB or the local log's last valid prefix.
+
+The existing six logical crash positions are exercised: prepared before journal
+commit; pending before the business transaction; staged business SQL before
+commit; SQL committed with confirmation persistence failure; confirmed before
+response; response acknowledged. Retirement itself has prepared/SQL/confirmed
+ordering, including interrupted retirement confirmation. A staged record binds
+the exact pending preimage and exact candidate content, rather than revision
+alone. This is important because the existing generic callback cannot predict
+all resulting ciphertext and timestamps before it executes.
+
+Under a fresh witness, matching pending/base contents can be retired, an exact
+committed candidate can be confirmed without rerunning its callback, and a
+confirmed state can be reconstructed without changing it. The fixture asserts
+that an operation acknowledged to the parent is never cleaned as pending, even
+when the DB is replaced with its saved pending generation: the intact fresh
+confirmation makes that replacement a read-only refusal. Same-revision content
+changes, missing/corrupt records, an old authentic prefix and wrong keys are
+refused. Matching request ID/content returns the recorded terminal outcome;
+different content conflicts. This bounded prototype does not implement a full
+historical idempotency index, authenticated remote service, witness restart or
+production enrollment API. Unknown outcomes must never cause automatic replay.
+
+The coordinated-rollback counterexample remains: if both the DB and the assumed
+fresh witness are replayed to the same authentic old generation, the algorithm
+can retire an actually acknowledged operation. The test explicitly reproduces
+that unsafe result as NOT_QUALIFIED. A same-medium log cannot provide independent
+freshness. File Sync and process-crash results on Linux/Windows do not qualify
+Windows namespace durability, witness-host failure or power loss.
+
+Legacy Schema8 enrollment requires explicit approval, a separately verified
+backup/content authority, no ambiguous pending state, a matching Vault key and
+a new epoch. It can establish future evidence only. An already ambiguous legacy
+pending operation cannot be made safe merely by enrolling its present revision.
+The fixture refuses automatic enrollment; a production upgrade/downgrade and
+key-rotation protocol still requires separate qualification before integration.
+
+| Evidence available at restart | Decision |
+| --- | --- |
+| Fresh authenticated confirmation and exact contents | Reconstruct the committed generation; do not retire it |
+| Fresh prepared record and exact base/pending preimage | Retire only under the validated new contract, retaining previous confirmed data |
+| Fresh prepared record and exact staged committed candidate | Confirm the candidate; never rerun the business callback |
+| Missing/untrusted freshness, unknown phase or mismatched contents | Refuse mutation and preserve the original evidence |
+| Valid independent backup and matching key, explicit restore procedure | Restore to a separate verified generation; do not silently lower authority |
+| Acknowledged data lost without a valid backup | Data recovery remains NOT_QUALIFIED |
