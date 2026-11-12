@@ -35,7 +35,9 @@
     "internal/splicore/engine/native/TestSnellV5RealQUIC/Official_true/::1": "Official Snell v5 executable exists for Linux qualification; Windows native product paths still required",
     "internal/splicore/engine/native/TestSnellV5NativeAndOfficial/Official_true": "Official Snell v5 executable exists for Linux qualification; Windows native product paths still required",
     "internal/splicore/engine/native/TestSnellV5IPv6UnderlayAndUDP443/true": "Official Snell v5 executable exists for Linux qualification; Windows native product paths still required",
-    "internal/splicore/engine/native/TestSnellV5RecordTraffic/true": "Official Snell v5 executable exists for Linux qualification; Windows native product paths still required"
+    "internal/splicore/engine/native/TestSnellV5RecordTraffic/true": "Official Snell v5 executable exists for Linux qualification; Windows native product paths still required",
+    "internal/splicore/engine/native/TestP2NetworkBaseline": "Opt-in instrumented performance campaign; separately executed by scripts/performance/run.py. No SLO or soak qualification inferred; NOT EXECUTED in the ordinary suite",
+    "internal/splicore/wireguardendpoint/TestP2WireGuardBaseline": "Opt-in userspace WireGuard performance campaign, separately executed by scripts/performance/run.py --suite wireguard; NOT EXECUTED in ordinary suite"
   },
   "default_only": {
     "internal/splicore/protocol/vless/TestCreationSecretAndValidationBoundaries": "REALITY is excluded without with_utls",
