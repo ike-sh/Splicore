@@ -163,7 +163,7 @@ func runtimeBinaryTraffic(t *testing.T, masked, encrypted bool) {
 	if err := exec.CommandContext(ctx, binary, "check", "--config", bootstrap, "--protocol", "vless", "--file", badDocument).Run(); err == nil {
 		t.Fatal("check accepted invalid protocol port")
 	}
-	probe, err = net.Listen("tcp4", proxyAddress)
+	probe, err := net.Listen("tcp4", proxyAddress)
 	if err != nil {
 		t.Fatal("check bound a listener:", err)
 	}
