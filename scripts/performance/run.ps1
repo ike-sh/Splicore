@@ -47,7 +47,7 @@ try {
         $config=Join-Path $out ($stem+'-config.json');Save-Json $config $scenarios
         $env:SPLICORE_PERF_CONFIG=$config;$env:SPLICORE_PERF_RAW=Join-Path $out ($stem+'-raw.jsonl')
         $stamp=[DateTime]::UtcNow
-        & $binary -test.v "-test.run=^$test`$" -test.timeout=30m 2>&1 | Out-File (Join-Path $out ($stem+'-test.log')) -Encoding utf8
+        & $binary '-test.v' "-test.run=^$test`$" '-test.timeout=30m' 2>&1 | Out-File (Join-Path $out ($stem+'-test.log')) -Encoding utf8
         $code=$LASTEXITCODE
         $rows=@(Get-Content $env:SPLICORE_PERF_RAW | ForEach-Object {$_|ConvertFrom-Json})
         $runs+=@{name=$stem;exit_code=$code;elapsed_seconds=([DateTime]::UtcNow-$stamp).TotalSeconds;
