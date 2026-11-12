@@ -14,14 +14,14 @@ SPLICORE_PERSISTENCE_EVIDENCE=/external/persistence \
 # On actual Linux ARM64, populate the digest-pinned ARM64 test peers first:
 python3 scripts/dev/fetch-restoration-references.py --output /external/reference --github-env /external/peers.env
 # Import those NAME=value peer paths into the process environment, then:
-python3 scripts/dev/isolated-linux.py -- python3 scripts/qualification/platform.py --mode arm64 --output /external/native-arm64
+python3 scripts/dev/isolated-linux.py -- python3 scripts/qualification/native.py --mode arm64 --output /external/native-arm64
 
 # On actual Windows ARM64, use native ARM64 Go/Python and omit isolated-linux.py:
-python scripts/qualification/platform.py --mode arm64 --output D:/external/native-arm64
+python scripts/qualification/native.py --mode arm64 --output D:/external/native-arm64
 
 # On native Windows amd64 only, CC must name a mingw-w64 v8+ compiler:
 python scripts/qualification/fetch-windows-race-toolchain.py --output D:/external/compiler --github-env D:/external/compiler.env
-python scripts/qualification/platform.py --mode windows-race --output D:/external/windows-race
+python scripts/qualification/native.py --mode windows-race --output D:/external/windows-race
 ```
 
 Go must match `go.mod`. Import the generated compiler `CC` entry before running
