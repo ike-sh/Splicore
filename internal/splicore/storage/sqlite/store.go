@@ -196,6 +196,11 @@ func (s *Store) Transact(ctx context.Context, expected identity.Revision, actor 
 	op := identity.Transaction{ID: id, State: identity.Pending, BaseRevision: expected, TargetRevision: next, Actor: actor, CreatedAt: now, UpdatedAt: now}
 	s.write.Lock()
 	defer s.write.Unlock()
+	// Admission is read-only and serialized with every Store mutation. A
+	// rejected command must not create its own journal or run its callback.
+	if err = s.admit(ctx, expected, ""); err != nil {
+		return identity.Transaction{}, err
+	}
 	_, err = s.db.ExecContext(ctx, "INSERT INTO transactions(id,state,base_revision,target_revision,principal,request_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)", op.ID, op.State, expected, next, actor.Principal, actor.RequestID, utc(now), utc(now))
 	if err != nil {
 		return op, storageError(err)
@@ -218,6 +223,27 @@ func (s *Store) Transact(ctx context.Context, expected identity.Revision, actor 
 	}
 	_ = op.Finish(identity.Committed, time.Now(), "")
 	return op, nil
+}
+
+// admit requires s.write. A runtime operation may complete only its own pending
+// journal; all other commands require no outstanding journal. Metadata, pending
+// state and revision come from the same SQLite read snapshot.
+func (s *Store) admit(ctx context.Context, expected identity.Revision, pending identity.ID) error {
+	state, err := s.State(ctx)
+	if err != nil {
+		return err
+	}
+	allowed := 0
+	if pending != "" {
+		allowed = 1
+	}
+	if state.PendingTransactions != allowed {
+		return identity.Err(identity.Unavailable, "pending journal requires operator review before mutation")
+	}
+	if state.Revision != expected {
+		return identity.RevisionConflict(state.Revision)
+	}
+	return nil
 }
 
 func (s *Store) apply(ctx context.Context, op identity.Transaction, fn func(ports.Writer) error) error {

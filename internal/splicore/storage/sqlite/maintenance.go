@@ -41,17 +41,6 @@ func MaintenanceBackup(ctx context.Context, source, destination string) (int, er
 	if err = privateDirectory(filepath.Dir(destination)); err != nil {
 		return 0, err
 	}
-	f, err := os.OpenFile(destination, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-	if err != nil {
-		return 0, fmt.Errorf("backup destination must be new")
-	}
-	f.Close()
-	complete := false
-	defer func() {
-		if !complete {
-			os.Remove(destination)
-		}
-	}()
 	u := url.URL{Scheme: "file", Path: filepath.ToSlash(source)}
 	q := url.Values{"mode": []string{"ro"}, "_pragma": []string{"busy_timeout(5000)"}}
 	u.RawQuery = q.Encode()
@@ -71,6 +60,21 @@ func MaintenanceBackup(ctx context.Context, source, destination string) (int, er
 	if err != nil || n < 1 || n > version.DatabaseSchema {
 		return 0, fmt.Errorf("backup source schema incompatible")
 	}
+	var pending int
+	if db.QueryRowContext(ctx, "SELECT count(*) FROM transactions WHERE state='pending'").Scan(&pending) != nil || pending != 0 {
+		return 0, fmt.Errorf("backup source pending journal requires operator review")
+	}
+	f, err := os.OpenFile(destination, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+	if err != nil {
+		return 0, fmt.Errorf("backup destination must be new")
+	}
+	f.Close()
+	complete := false
+	defer func() {
+		if !complete {
+			os.Remove(destination)
+		}
+	}()
 	if _, err = db.ExecContext(ctx, "VACUUM INTO ?", destination); err != nil {
 		return 0, fmt.Errorf("SQLite snapshot failed")
 	}
