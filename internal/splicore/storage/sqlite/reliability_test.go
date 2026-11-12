@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -56,9 +57,87 @@ func TestPersistenceReliability(t *testing.T) {
 	t.Setenv("P3_EVIDENCE", evidence)
 	t.Log("process crash, not OS/power loss; artifacts:", evidence)
 	t.Run("parameters-and-reopen", p3Parameters)
+	t.Run("concurrent-readers-during-write", p3ConcurrentReadWrite)
 	t.Run("process-crash-recovery", p3CrashRecovery)
 	t.Run("backup-vault-pair", p3BackupVaultPair)
 	t.Run("native-wal-observation", p3IndependentWALTail)
+}
+
+// Readers use separate physical SQLite connections while a real transaction
+// holds an uncommitted row. WAL must expose the complete committed generation,
+// then publish the new row and revision together after Commit.
+func p3ConcurrentReadWrite(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	s := p3open(t, filepath.Join(p3root(t, "concurrent"), "state.db"))
+	defer s.Close()
+	p3account(t, s, 0, "committed-before-concurrency")
+	candidate, who := account(t), actor(t)
+	candidate.Name = "candidate-visible-only-after-commit"
+	staged, release, done := make(chan struct{}), make(chan struct{}), make(chan error, 1)
+	go func() {
+		_, err := s.Transact(ctx, 1, who, func(w ports.Writer) error {
+			if err := w.CreateAccount(candidate); err != nil {
+				return err
+			}
+			close(staged)
+			select {
+			case <-release:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		})
+		done <- err
+	}()
+	select {
+	case <-staged:
+	case err := <-done:
+		t.Fatal("writer never staged", err)
+	case <-ctx.Done():
+		t.Fatal(ctx.Err())
+	}
+	var workers sync.WaitGroup
+	errorsFound := make(chan error, 8)
+	for range 8 {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			for range 64 {
+				var revision, count int
+				if err := s.db.QueryRowContext(ctx, `SELECT (SELECT committed_revision FROM settings WHERE singleton=1), (SELECT count(*) FROM accounts)`).Scan(&revision, &count); err != nil {
+					errorsFound <- err
+					return
+				}
+				if revision != 1 || count != 1 {
+					errorsFound <- fmt.Errorf("uncommitted generation visible revision=%d accounts=%d", revision, count)
+					return
+				}
+				if _, err := s.Account(ctx, candidate.ID); !codeIs(err, identity.NotFound) {
+					errorsFound <- fmt.Errorf("uncommitted application row visible: %v", err)
+					return
+				}
+			}
+		}()
+	}
+	workers.Wait()
+	close(errorsFound)
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	for err := range errorsFound {
+		t.Error(err)
+	}
+	p3integrity(t, s, 2)
+	state, err := s.State(ctx)
+	if err != nil || state.Revision != 2 || state.PendingTransactions != 0 {
+		t.Fatal("commit publication", state, err)
+	}
+	if got, err := s.Account(ctx, candidate.ID); err != nil || got.Name != candidate.Name {
+		t.Fatal("committed candidate unavailable", err)
+	}
+	p3json(t, "concurrent-read-write", map[string]any{"readers": 8, "snapshot_checks": 512, "uncommitted_rows_visible": 0, "after_commit_revision": state.Revision, "after_commit_accounts": 2})
 }
 
 func p3root(t *testing.T, name string) string {
