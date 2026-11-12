@@ -12,6 +12,7 @@ BASE = [
     'internal/splicore/clientruntime/TestProviderFetchProtectedHTTPAndHTTPS',
     'internal/splicore/streamtransport/hysteria/TestMasqueradeProtectedDialAndNoDefault',
     'internal/splicore/storage/sqlite/TestInspectIsReadOnly',
+    'internal/splicore/storage/sqlite/TestPersistenceReliability',
     'protocol/vless/encryption/TestEncryptedStreams',
     'protocol/vless/encryption/TestPinnedReferenceRawMatrix',
 ]

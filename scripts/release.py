@@ -216,6 +216,9 @@ def qualify(out, target):
     env = goenv(target)
     env["SPLICORE_RUNTIME_BINARY"] = str(binary)
     summary = {}
+    persistence_evidence = directory / "persistence"
+    persistence_evidence.mkdir(exist_ok=True)
+    env["SPLICORE_PERSISTENCE_EVIDENCE"] = str(persistence_evidence)
     # Linux needs a private POSIX filesystem. Windows uses a canonical checkout
     # path: hosted TEMP can contain an 8.3 alias rejected by private-file policy.
     temp_parent = None
