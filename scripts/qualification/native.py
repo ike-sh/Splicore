@@ -62,6 +62,11 @@ def main():
             evidence = out/'persistence'
             evidence.mkdir()
             env['SPLICORE_PERSISTENCE_EVIDENCE'] = str(evidence)
+            # The CLI lifecycle test intentionally skips without a separately
+            # built product. Build a CGO-free native core even when the test
+            # process itself uses Race/CGO, and require all real traffic leaves.
+            release.build(out, target)
+            env['SPLICORE_RUNTIME_BINARY'] = str(out/target/('splicore.exe' if system=='windows' else 'splicore'))
             profiles = [('race', ['-race', '-tags='+release.TAGS])] if args.mode=='windows-race' else [('default', []), ('full', ['-tags='+release.TAGS])]
             if args.mode == 'arm64' and system == 'linux':
                 profiles.append(('race', ['-race', '-tags='+release.TAGS]))
@@ -89,6 +94,8 @@ def main():
                         policy = importlib.util.module_from_spec(behavior); behavior.loader.exec_module(policy)
                         result['behavior_policy'] = policy.validate(ROOT, result, target, profile)
                         release.require(result['tests'].get('github.com/ike-sh/Splicore/cmd/splicore/TestRuntimeBinaryTrafficShutdownAndRestart') == 'pass', 'native CLI process traffic/restart must execute')
+                        for leaf in ('plain', 'plain-native-sudoku', 'encrypted', 'encrypted-native-sudoku'):
+                            release.require(result['tests'].get('github.com/ike-sh/Splicore/cmd/splicore/TestRuntimeBinaryTrafficShutdownAndRestart/'+leaf) == 'pass', 'native CLI traffic leaf did not execute: '+leaf)
                         release.save(out/(profile+'-test.json'), result)
                     release.save(out/'summary.json', summary)
             summary['classification'] = 'QUALIFIED_WITH_LIMITATIONS'
