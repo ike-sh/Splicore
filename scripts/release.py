@@ -202,6 +202,25 @@ def run_logged(args, env, directory, name):
     return status
 
 
+def qualification_step(args, env, directory, name, failures, validate=None):
+    """Collect independent profiles without turning a failed gate into a pass."""
+    try:
+        result = run_logged(args, env, directory, name)
+    except RuntimeError as exc:
+        # run_logged saves the original exit/events before enforcing its gate.
+        # Infrastructure failures without that evidence still stop immediately.
+        result = json.loads((directory / (name + ".json")).read_text(encoding="utf-8"))
+        failures.append(str(exc))
+    if validate is not None:
+        try:
+            result["behavior_policy"] = validate(result)
+        except RuntimeError as exc:
+            result["behavior_policy"] = dict(result="FAIL", error=str(exc))
+            failures.append(name + ": " + str(exc))
+        save(directory / (name + ".json"), result)
+    return result
+
+
 def qualify(out, target):
     require(target == native_target(), "qualification must run natively")
     for name in ("SPLICORE_VLESS_ENCRYPTION_REFERENCE", "SPLICORE_XHTTP_H3_REFERENCE", "SPLICORE_PHASE34_WG_REFERENCE", "SPLICORE_PHASE34_XRAY_REFERENCE"):
@@ -216,9 +235,11 @@ def qualify(out, target):
     env = goenv(target)
     env["SPLICORE_RUNTIME_BINARY"] = str(binary)
     summary = {}
+    failures = []
     persistence_evidence = directory / "persistence"
     persistence_evidence.mkdir(exist_ok=True)
     env["SPLICORE_PERSISTENCE_EVIDENCE"] = str(persistence_evidence)
+    env["SPLICORE_STORAGE_SAFETY_EVIDENCE"] = str(directory / "storage-safety")
     # Linux needs a private POSIX filesystem. Windows uses a canonical checkout
     # path: hosted TEMP can contain an 8.3 alias rejected by private-file policy.
     temp_parent = None
@@ -234,6 +255,7 @@ def qualify(out, target):
         else:
             env.update(TEMP=runtime_tmp, TMP=runtime_tmp, GOTMPDIR=runtime_tmp)
         for profile, tags in (("default", []), ("full", ["-tags=" + TAGS])):
+            env["SPLICORE_STORAGE_SAFETY_EVIDENCE"] = str(directory / "storage-safety" / profile)
             for action in ("build", "vet", "test"):
                 args = ["go", action, "-mod=readonly"]
                 if action == "test":
@@ -243,22 +265,23 @@ def qualify(out, target):
                         # from consuming each other's bounded I/O budgets. Their
                         # internal multi-stream/concurrent-user tests still run.
                         args += ["-p=1"]
-                result = run_logged(args + tags + ["./..."], env, directory, profile + "-" + action)
-                if action == "test":
-                    validator = runpy.run_path(str(ROOT / "scripts/dev/qualification_policy.py"))["validate"]
-                    result["behavior_policy"] = validator(ROOT, result, target, profile)
-                    save(directory / (profile + "-test.json"), result)
+                validator = runpy.run_path(str(ROOT / "scripts/dev/qualification_policy.py"))["validate"]
+                check = (lambda result: validator(ROOT, result, target, profile)) if action == "test" else None
+                result = qualification_step(args + tags + ["./..."], env, directory, profile + "-" + action, failures, check)
                 summary[profile + "-" + action] = result
         if target.startswith("linux"):
             env["CGO_ENABLED"] = "1"
-            summary["race"] = run_logged(["go", "test", "-race", "-json", "-count=1", "-timeout=1200s", "-tags=" + TAGS,
-                                          "./internal/splicore/...", "./protocol/..."], env, directory, "race")
-            summary["race"]["behavior_policy"] = runpy.run_path(str(ROOT / "scripts/dev/qualification_policy.py"))["validate"](ROOT, summary["race"], target, "race")
-            save(directory / "race.json", summary["race"])
+            env["SPLICORE_STORAGE_SAFETY_EVIDENCE"] = str(directory / "storage-safety" / "race")
+            validator = runpy.run_path(str(ROOT / "scripts/dev/qualification_policy.py"))["validate"]
+            summary["race"] = qualification_step(["go", "test", "-race", "-json", "-count=1", "-timeout=1200s", "-tags=" + TAGS,
+                                          "./internal/splicore/...", "./protocol/..."], env, directory, "race", failures,
+                                          lambda result: validator(ROOT, result, target, "race"))
         else:
             summary["race"] = dict(result="NOT_EXECUTED", reason="Windows race is outside this release qualification; no configured native C toolchain")
-    summary["all_native_gates_passed"] = True
+    summary["failures"] = failures
+    summary["all_native_gates_passed"] = not failures
     save(out / target / "qualification.json", summary)
+    require(not failures, "native qualification failed; all profile evidence retained: " + "; ".join(failures))
 
 
 def archive_name(version, target):

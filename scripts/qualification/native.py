@@ -51,6 +51,7 @@ def main():
     temp_parent = out/'runtime'
     temp_parent.mkdir()
     summary = {'classification': 'NOT_EXECUTED', 'target': target, 'power_loss': 'NOT EXECUTED'}
+    failures = []
     try:
         with tempfile.TemporaryDirectory(prefix='sq-', dir=temp_parent if system=='windows' else None) as tmp:
             if system == 'linux':
@@ -62,6 +63,7 @@ def main():
             evidence = out/'persistence'
             evidence.mkdir()
             env['SPLICORE_PERSISTENCE_EVIDENCE'] = str(evidence)
+            env['SPLICORE_STORAGE_SAFETY_EVIDENCE'] = str(out/'storage-safety')
             # The CLI lifecycle test intentionally skips without a separately
             # built product. Build a CGO-free native core even when the test
             # process itself uses Race/CGO, and require all real traffic leaves.
@@ -71,6 +73,7 @@ def main():
             if args.mode == 'arm64' and system == 'linux':
                 profiles.append(('race', ['-race', '-tags='+release.TAGS]))
             for profile, tags in profiles:
+                env['SPLICORE_STORAGE_SAFETY_EVIDENCE'] = str(out/'storage-safety'/profile)
                 if profile == 'race':
                     env['CGO_ENABLED'] = '1'
                     if system == 'windows':
@@ -87,17 +90,20 @@ def main():
                         command += ['-json', '-count=1', '-timeout=1200s']
                         if system == 'windows':
                             command += ['-p=1']
-                    result = release.run_logged(command+['./...'], env, out, profile+'-'+action)
-                    summary[profile+'-'+action] = result
-                    if action == 'test':
+                    def validate_test(result):
                         behavior = importlib.util.spec_from_file_location('policy', ROOT/'scripts/dev/qualification_policy.py')
                         policy = importlib.util.module_from_spec(behavior); behavior.loader.exec_module(policy)
-                        result['behavior_policy'] = policy.validate(ROOT, result, target, profile)
+                        behavior_result = policy.validate(ROOT, result, target, profile)
                         release.require(result['tests'].get('github.com/ike-sh/Splicore/cmd/splicore/TestRuntimeBinaryTrafficShutdownAndRestart') == 'pass', 'native CLI process traffic/restart must execute')
                         for leaf in ('plain', 'plain-native-sudoku', 'encrypted', 'encrypted-native-sudoku'):
                             release.require(result['tests'].get('github.com/ike-sh/Splicore/cmd/splicore/TestRuntimeBinaryTrafficShutdownAndRestart/'+leaf) == 'pass', 'native CLI traffic leaf did not execute: '+leaf)
-                        release.save(out/(profile+'-test.json'), result)
+                        return behavior_result
+                    result = release.qualification_step(command+['./...'], env, out, profile+'-'+action, failures,
+                                                        validate_test if action == 'test' else None)
+                    summary[profile+'-'+action] = result
                     release.save(out/'summary.json', summary)
+            summary['failures'] = failures
+            release.require(not failures, 'native qualification failed; all profile evidence retained: '+'; '.join(failures))
             summary['classification'] = 'QUALIFIED_WITH_LIMITATIONS'
             summary['native_startup'] = 'PASS'
             summary['native_traffic'] = 'PASS'
