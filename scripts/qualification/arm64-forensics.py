@@ -8,8 +8,10 @@ import json
 import os
 from pathlib import Path
 import platform
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 
 sys.dont_write_bytecode = True
@@ -161,20 +163,23 @@ def main():
     parser.add_argument('--mode', choices=['pristine','buffered'], required=True)
     parser.add_argument('--profile', choices=['default','race'], required=True)
     parser.add_argument('--scope', choices=['whole','target'], required=True)
+    parser.add_argument('--campaign', choices=['original','path-control'], default='original')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     arch = {'aarch64':'arm64','x86_64':'amd64'}.get(platform.machine())
     assert arch and sys.platform == 'linux', 'Real native Linux host required'
     assert os.environ.get('SPLICORE_PRIVATE_NETNS') == '1'
     assert (arch == 'arm64' and args.scope == 'whole') or (arch == 'amd64' and args.scope == 'target' and args.profile == 'default')
-    rounds = 2 if arch == 'arm64' and args.profile == 'default' else 1
+    if args.campaign == 'path-control':
+        assert arch == 'arm64' and args.profile == 'default' and args.scope == 'whole'
+    rounds = 2 if arch == 'arm64' and args.profile == 'default' and args.campaign == 'original' else 1
     out = args.output.resolve()
     out.mkdir(parents=True, exist_ok=False)
     host = {'utc':datetime.datetime.now(datetime.timezone.utc).isoformat(), 'machine':platform.machine(),
             'kernel':platform.platform(), 'go':subprocess.check_output(['go','version'],text=True).strip(),
             'go_environment':json.loads(subprocess.check_output(['go','env','-json','GOOS','GOARCH','GOVERSION'])),
             'cpu_affinity':sorted(os.sched_getaffinity(0)), 'GOMAXPROCS':'4', 'mode':args.mode,
-            'profile':args.profile,'scope':args.scope,'rounds':rounds,'versions':VERSIONS,
+            'profile':args.profile,'scope':args.scope,'rounds':rounds,'versions':VERSIONS,'campaign':args.campaign,
             'runner':{k:os.environ.get(k) for k in ['ImageOS','ImageVersion','RUNNER_ARCH','RUNNER_OS','RUNNER_NAME','GITHUB_RUN_ID','GITHUB_SHA']}}
     for name in ['/etc/os-release','/proc/meminfo','/proc/self/cgroup','/sys/fs/cgroup/cpu.max','/sys/fs/cgroup/memory.max']:
         if Path(name).exists(): host[name]=Path(name).read_text()
@@ -185,7 +190,10 @@ def main():
         for version in (['M','H','F'] if number%2 else ['F','H','M']):
             case=out/f'{number:02d}-{version}';case.mkdir()
             commit=VERSIONS[version];mapping=make_overlay(commit,case,args.mode)
-            runtime=case/'runtime';runtime.mkdir(mode=0o700)
+            # Match historical native.py's short POSIX temporary root. Putting
+            # test temp roots beneath artifact paths can exceed sockaddr_un.
+            runtime=Path(tempfile.mkdtemp(prefix='p7-'))
+            assert runtime.stat().st_mode & 0o077 == 0
             env=dict(os.environ,CGO_ENABLED='0',GOTOOLCHAIN='local',GOTELEMETRY='off',GOFLAGS='-mod=readonly',GOMAXPROCS='4',
                      TMPDIR=str(runtime),GOTMPDIR=str(runtime))
             env.pop('SPLICORE_PERSISTENCE_EVIDENCE',None)
@@ -203,9 +211,12 @@ def main():
             command+=['./...' if args.scope=='whole' else './internal/splicore/application']
             save(case/'identity.json',{'fixed_commit':commit,'fixed_tree':git('rev-parse',commit+'^{tree}').decode().strip(),
                                      'command':command,'build_command':build,'binary_sha256':hashlib.sha256(binary.read_bytes()).hexdigest(),
-                                     'CGO_ENABLED':env['CGO_ENABLED'],'mode':args.mode,'round':number,
+                                     'CGO_ENABLED':env['CGO_ENABLED'],'mode':args.mode,'round':number,'runtime_root':str(runtime),
                                      'context':'Full historical package concurrency/order retained in whole mode; buffered observer is not pristine.'})
             started=time.monotonic();code=run(command,env,case,'test')
+            # Keep leftovers after the original process has completed rather
+            # than deleting a potentially useful failed-process sample.
+            shutil.move(str(runtime),str(case/'runtime-retained'))
             target=[];failed=[]
             for line in (case/'test.stdout').read_text(errors='replace').splitlines():
                 try:e=json.loads(line)

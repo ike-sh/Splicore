@@ -1,4 +1,4 @@
-name: ARM64 historical residue forensics
+name: ARM64 historical residue path control
 
 on:
   workflow_dispatch:
@@ -27,10 +27,6 @@ jobs:
         include:
           - {os: ubuntu-24.04-arm, mode: pristine, profile: default, scope: whole}
           - {os: ubuntu-24.04-arm, mode: buffered, profile: default, scope: whole}
-          - {os: ubuntu-24.04-arm, mode: pristine, profile: race, scope: whole}
-          - {os: ubuntu-24.04-arm, mode: buffered, profile: race, scope: whole}
-          - {os: ubuntu-24.04, mode: pristine, profile: default, scope: target}
-          - {os: ubuntu-24.04, mode: buffered, profile: default, scope: target}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     steps:
@@ -50,6 +46,7 @@ jobs:
         run: >-
           python scripts/dev/isolated-linux.py -- python scripts/qualification/arm64-forensics.py
           --mode '${{ matrix.mode }}' --profile '${{ matrix.profile }}' --scope '${{ matrix.scope }}'
+          --campaign path-control
           --output "$RUNNER_TEMP/p37-forensics"
       - name: Return diagnostic evidence to artifact collector
         if: always()
@@ -62,7 +59,7 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: p37-${{ matrix.os }}-${{ matrix.mode }}-${{ matrix.profile }}
+          name: p37-path-control-${{ matrix.os }}-${{ matrix.mode }}-${{ matrix.profile }}
           path: |
             ${{ runner.temp }}/p37-forensics/
             ${{ runner.temp }}/p37-reference/
