@@ -38,9 +38,9 @@ jobs:
       - name: Populate fixed modules before native evidence capture
         shell: bash
         run: go mod download
-      - name: Execute thirteen registered cases without rerunning failed samples
+      - name: Execute the registered two-case canonical-path package control
         shell: bash
-        run: python scripts/qualification/dns-bind-forensics.py --output "$RUNNER_TEMP/p39-dns"
+        run: python scripts/qualification/dns-bind-forensics.py --campaign path-control --output "$RUNNER_TEMP/p39-dns"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:

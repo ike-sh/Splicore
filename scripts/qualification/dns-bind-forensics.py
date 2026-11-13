@@ -232,27 +232,29 @@ def snapshot(out, label):
 
 
 def main():
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--output',type=Path,required=True);args=parser.parse_args()
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--output',type=Path,required=True);parser.add_argument('--campaign',choices=['original','path-control'],default='original');args=parser.parse_args()
     assert sys.platform=='win32', 'Native Windows required'
     arch=json.loads(subprocess.check_output(['go','env','-json','GOARCH','GOOS','GOVERSION'],text=True))
     assert arch['GOOS']=='windows' and arch['GOVERSION']=='go1.26.3'
     assert arch['GOARCH'] in ['arm64','amd64'] and platform.machine().lower() in ['arm64','amd64'], 'native machine/toolchain required'
     out=args.output.resolve();out.mkdir(parents=True,exist_ok=False)
-    save(out/'host.json',{'utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'machine':platform.machine(),'platform':platform.platform(),'go':arch,'runner':{k:os.environ.get(k) for k in ['ImageOS','ImageVersion','RUNNER_ARCH','RUNNER_NAME','GITHUB_RUN_ID','GITHUB_SHA']}})
+    save(out/'host.json',{'utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'machine':platform.machine(),'platform':platform.platform(),'go':arch,'campaign':args.campaign,'original_temp':tempfile.gettempdir(),'original_temp_realpath':os.path.realpath(tempfile.gettempdir()),'runner':{k:os.environ.get(k) for k in ['ImageOS','ImageVersion','RUNNER_ARCH','RUNNER_NAME','GITHUB_RUN_ID','GITHUB_SHA']}})
     snapshot(out,'environment-before')
     cases=[{'paired':p,'observed':o,'scope':s,'contender':''} for o in [False,True] for p in [False,True] for s in ['target','package']]
     cases += [{'paired':p,'observed':True,'scope':'target','contender':c} for c in ['ordinary','exclusive'] for p in [False,True]]
     cases += [{'paired':True,'observed':True,'scope':'cleanup','contender':''}]
+    if args.campaign=='path-control':cases=[{'paired':p,'observed':True,'scope':'package','contender':''} for p in [False,True]]
+    runtime_parent=out/'runtime';runtime_parent.mkdir()
     results=[]
     for i,case in enumerate(cases,1):
         dest=out/f"{i:02d}-{'paired' if case['paired'] else 'original'}-{'observed' if case['observed'] else 'pristine'}-{case['scope']}-{case['contender'] or 'natural'}";dest.mkdir()
         overlay=make_overlay(dest,case['paired'],case['observed'])
-        runtime=tempfile.mkdtemp(prefix='d9-')
+        runtime=tempfile.mkdtemp(prefix='d9-',dir=runtime_parent)
         env=dict(os.environ,TEMP=runtime,TMP=runtime,GOTMPDIR=runtime,CGO_ENABLED='0',GOMAXPROCS='4',GOTOOLCHAIN='local',GOTELEMETRY='off',GOFLAGS='-mod=readonly',SPLICORE_P39_OBSERVE='1' if case['observed'] else '',SPLICORE_P39_CONTENDER=case['contender'],SPLICORE_P39_CLEANUP='1' if case['scope']=='cleanup' else '')
         command=['go','test','-mod=readonly','-overlay='+str(overlay),'-tags=with_quic,with_utls,with_gvisor','-json','-count=1','-timeout=1200s']
         if case['scope']!='package':command+=['-run','^'+('TestP39PairCleanup' if case['scope']=='cleanup' else TARGET)+'$']
         command+=['./internal/splicore/networkruntime']
-        save(dest/'identity.json',{**case,'fixed_source':FIXED,'command':command,'runtime_root':runtime,'go':arch,'observer':'Extra logging/snapshots and controlled child creation can alter scheduling; target assertions and timeouts unchanged.'})
+        save(dest/'identity.json',{**case,'fixed_source':FIXED,'command':command,'runtime_root':runtime,'runtime_root_realpath':os.path.realpath(runtime),'campaign':args.campaign,'go':arch,'observer':'Extra logging/snapshots and controlled child creation can alter scheduling; target assertions and timeouts unchanged.'})
         with (dest/'test.stdout').open('xb') as stdout,(dest/'test.stderr').open('xb') as stderr:
             result=subprocess.run(command,cwd=ROOT,env=env,stdout=stdout,stderr=stderr,timeout=1500)
         content=(dest/'test.stdout').read_text(errors='replace')
@@ -261,7 +263,7 @@ def main():
         row={'case':dest.name,'exit_code':result.returncode,'expected_exit':expected,'expectation_met':met,'actual_test_result':'PASS' if result.returncode==0 else 'FAIL'}
         save(dest/'result.json',row);results.append(row);print(json.dumps(row),flush=True)
     snapshot(out,'environment-after')
-    save(out/'campaign.json',{'cases':results,'budget':13,'historical_DNS_owner':'ROOT_CAUSE_UNRESOLVED until exact historical evidence supports attribution','historical_ARM64_root':'ROOT_CAUSE_UNRESOLVED','overall_PR14':'NOT_QUALIFIED'})
+    save(out/'campaign.json',{'cases':results,'budget':len(cases),'campaign':args.campaign,'historical_DNS_owner':'ROOT_CAUSE_UNRESOLVED until exact historical evidence supports attribution','historical_ARM64_root':'ROOT_CAUSE_UNRESOLVED','overall_PR14':'NOT_QUALIFIED'})
     return int(any(not row['expectation_met'] for row in results))
 
 
