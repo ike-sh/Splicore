@@ -21,6 +21,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	maskcfg "github.com/ike-sh/Splicore/internal/splicore/domain/finalmask"
 	"github.com/ike-sh/Splicore/internal/splicore/finalmask"
+	"github.com/ike-sh/Splicore/internal/splicore/testkit"
 	"github.com/ike-sh/Splicore/internal/splicore/transport"
 	"github.com/ike-sh/Splicore/protocol/vless/backend"
 	"github.com/ike-sh/Splicore/protocol/vless/encryption"
@@ -121,14 +122,10 @@ func runtimeBinaryTraffic(t *testing.T, masked, encrypted bool) {
 			go func() { defer c.Close(); _, _ = io.Copy(c, c) }()
 		}
 	}()
-	probe, err := net.Listen("tcp4", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	proxyAddress := probe.Addr().String()
-	_, proxyPortText, _ := net.SplitHostPort(proxyAddress)
-	proxyPort, _ := strconv.Atoi(proxyPortText)
-	probe.Close()
+	// The daemon cannot inherit this test's probe socket. Use the shared
+	// cross-package lease outside ephemeral client ports until child cleanup.
+	proxyPort := testkit.PeerPort(t, "tcp")
+	proxyAddress := net.JoinHostPort("127.0.0.1", strconv.Itoa(proxyPort))
 	user := "c60224f4-8ee9-4f3e-a605-5af746b89fe8"
 	document := filepath.Join(dir, "vless.json")
 	draft := fmt.Sprintf(`{"schema":1,"name":"runtime-e2e","listener":{"host":"127.0.0.1","port":%d},"display_endpoint":{"host":"127.0.0.1","port":%d},"settings":{"security":"none","flow":"none","transport":"tcp","packet_encoding":"xudp"},"users":[{"account_name":"runtime-user","uuid":"%s"}]}`, proxyPort, proxyPort, user)
@@ -166,7 +163,7 @@ func runtimeBinaryTraffic(t *testing.T, masked, encrypted bool) {
 	if err := exec.CommandContext(ctx, binary, "check", "--config", bootstrap, "--protocol", "vless", "--file", badDocument).Run(); err == nil {
 		t.Fatal("check accepted invalid protocol port")
 	}
-	probe, err = net.Listen("tcp4", proxyAddress)
+	probe, err := net.Listen("tcp4", proxyAddress)
 	if err != nil {
 		t.Fatal("check bound a listener:", err)
 	}

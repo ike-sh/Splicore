@@ -1,0 +1,97 @@
+name: Native platform qualification
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GOTOOLCHAIN: local
+  GOTELEMETRY: 'off'
+  GOFLAGS: -mod=readonly
+  CGO_ENABLED: '0'
+  GOMAXPROCS: '4'
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  arm64:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04-arm, windows-11-arm]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          architecture: arm64
+          cache: false
+      - name: Fetch native independent protocol peers
+        shell: bash
+        run: |
+          python -m unittest discover -s scripts/qualification -p 'test_*.py'
+          python scripts/dev/fetch-restoration-references.py --output "$RUNNER_TEMP/p3-reference" --github-env "$GITHUB_ENV"
+      - name: Native ARM64 build, vet, full traffic, lifecycle and persistence
+        shell: bash
+        run: |
+          if [[ '${{ runner.os }}' == Linux ]]; then
+            python scripts/dev/isolated-linux.py -- python scripts/qualification/native.py --mode arm64 --output "$RUNNER_TEMP/p3-platform"
+          else
+            python scripts/qualification/native.py --mode arm64 --output "$RUNNER_TEMP/p3-platform"
+          fi
+      - name: Return owned Linux evidence to the artifact collector
+        if: always() && runner.os == 'Linux'
+        shell: bash
+        run: |
+          for evidence in "$RUNNER_TEMP/p3-platform" "$RUNNER_TEMP/p3-reference"; do
+            if [[ -d "$evidence" ]]; then
+              sudo chown -R --no-dereference "$(id -u):$(id -g)" "$evidence"
+            fi
+          done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: native-arm64-${{ runner.os }}
+          path: |
+            ${{ runner.temp }}/p3-platform/
+            ${{ runner.temp }}/p3-reference/
+          if-no-files-found: warn
+          retention-days: 30
+
+  windows-race:
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Fetch fixed test-only compiler and independent protocol peers
+        shell: bash
+        run: |
+          python -m unittest discover -s scripts/qualification -p 'test_*.py'
+          python scripts/qualification/fetch-windows-race-toolchain.py --output "$RUNNER_TEMP/p3-compiler" --github-env "$GITHUB_ENV"
+          python scripts/dev/fetch-restoration-references.py --output "$RUNNER_TEMP/p3-reference" --github-env "$GITHUB_ENV"
+      - name: Native Windows amd64 Race, including process lifecycle and disk state
+        shell: bash
+        run: python scripts/qualification/native.py --mode windows-race --output "$RUNNER_TEMP/p3-platform"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: native-windows-race
+          path: |
+            ${{ runner.temp }}/p3-platform/
+            ${{ runner.temp }}/p3-reference/
+            ${{ runner.temp }}/p3-compiler/toolchain.json
+          if-no-files-found: warn
+          retention-days: 30
