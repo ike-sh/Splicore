@@ -1,13 +1,6 @@
 name: Mieru bounded port ownership controls
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - .github/workflows/mieru-port-forensics.yml
-      - scripts/qualification/mieru-port-forensics.py
-      - internal/splicore/engine/testfixture/fixtures.go
-      - internal/splicore/engine/testfixture/fixture_port_test.go
   workflow_dispatch:
 
 permissions:
