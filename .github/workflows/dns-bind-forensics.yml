@@ -1,11 +1,6 @@
 name: Native Windows DNS bind controls
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - .github/workflows/dns-bind-forensics.yml
-      - scripts/qualification/dns-bind-forensics.py
   workflow_dispatch:
 
 permissions:
