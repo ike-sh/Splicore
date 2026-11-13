@@ -34,6 +34,8 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
+      - name: Populate pinned modules before entering the offline namespace
+        run: go mod download
       - name: Bounded main and B lifecycle stack comparison
         shell: bash
         run: >-
