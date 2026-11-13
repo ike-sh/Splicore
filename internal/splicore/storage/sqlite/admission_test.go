@@ -130,13 +130,24 @@ func admissionEvidence(t *testing.T, label string, files map[string][]byte, stat
 	t.Helper()
 	root := os.Getenv("SPLICORE_STORAGE_SAFETY_EVIDENCE")
 	if root == "" {
+		if persistence := os.Getenv("SPLICORE_PERSISTENCE_EVIDENCE"); persistence != "" {
+			root = filepath.Join(persistence, "admission")
+		}
+	}
+	if root == "" {
 		return
 	}
 	if !filepath.IsAbs(root) {
 		t.Fatal("absolute external evidence path required")
 	}
-	dir := filepath.Join(root, strings.ReplaceAll(t.Name(), "/", "_"), label)
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	parent := filepath.Join(root, strings.ReplaceAll(t.Name(), "/", "_"))
+	if err := os.MkdirAll(parent, 0700); err != nil {
+		t.Fatal(err)
+	}
+	// Qualification runs several profiles against one evidence root. Retain
+	// every capture and identify its profile through this test's raw output.
+	dir, err := os.MkdirTemp(parent, label+"-")
+	if err != nil {
 		t.Fatal(err)
 	}
 	hashes := map[string]string{}
@@ -153,6 +164,7 @@ func admissionEvidence(t *testing.T, label string, files map[string][]byte, stat
 	if err = os.WriteFile(filepath.Join(dir, "snapshot.json"), append(b, '\n'), 0600); err != nil {
 		t.Fatal(err)
 	}
+	t.Logf("admission evidence retained: label=%s directory=%s", label, dir)
 }
 
 func admissionUnchanged(t *testing.T, s *Store, path string, code identity.Code, call func() error) {
