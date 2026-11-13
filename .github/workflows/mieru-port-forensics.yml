@@ -1,0 +1,52 @@
+name: Mieru bounded port ownership controls
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/mieru-port-forensics.yml
+      - scripts/qualification/mieru-port-forensics.py
+      - internal/splicore/engine/testfixture/fixtures.go
+      - internal/splicore/engine/testfixture/fixture_port_test.go
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GOTOOLCHAIN: local
+  GOTELEMETRY: 'off'
+  GOFLAGS: -mod=readonly
+  GOMAXPROCS: '4'
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  bounded-controls:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Populate pinned dependencies before offline controls
+        run: go mod download
+      - name: Run the thirteen registered native controls and retain negative results
+        run: python scripts/qualification/mieru-port-forensics.py native --output "$RUNNER_TEMP/p38-forensics"
+      - name: Return owned evidence to artifact collection
+        if: always()
+        run: |
+          if [[ -d "$RUNNER_TEMP/p38-forensics" ]]; then
+            sudo chown -R --no-dereference "$(id -u):$(id -g)" "$RUNNER_TEMP/p38-forensics"
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: p38-mieru-native-controls
+          path: ${{ runner.temp }}/p38-forensics/
+          if-no-files-found: warn
+          retention-days: 30
