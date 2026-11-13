@@ -9,6 +9,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	module "github.com/ike-sh/Splicore/internal/splicore/protocol/mieru"
+	"github.com/ike-sh/Splicore/internal/splicore/testkit"
 	"io"
 	"net"
 	"sync"
@@ -18,21 +19,8 @@ import (
 
 func MieruIntent(t *testing.T, transport string) ports.RuntimeIntent {
 	t.Helper()
-	l, e := net.Listen("tcp", "127.0.0.1:0")
-	if e != nil {
-		t.Fatal(e)
-	}
-	port := uint16(l.Addr().(*net.TCPAddr).Port)
-	l.Close()
-	if transport == "udp" {
-		packet, err := net.ListenPacket("udp4", "127.0.0.1:0")
-		if err != nil {
-			t.Fatal(err)
-		}
-		port = uint16(packet.LocalAddr().(*net.UDPAddr).Port)
-		_ = packet.Close()
-	}
-	return MieruIntentAt(t, transport, access.Endpoint{Host: "127.0.0.1", Port: port})
+	port := testkit.PeerPortAt(t, transport, "127.0.0.1")
+	return MieruIntentAt(t, transport, access.Endpoint{Host: "127.0.0.1", Port: uint16(port)})
 }
 
 // MieruIntentAt constructs metadata for an endpoint already owned by the test.

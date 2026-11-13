@@ -87,6 +87,15 @@ func migrate(ctx context.Context, db *sql.DB, steps []migration) error {
 	if err = runtimeBoundary(ctx, tx); err != nil {
 		return err
 	}
+	if !fresh && current < len(steps) {
+		var pending int
+		if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM transactions WHERE state='pending'").Scan(&pending); err != nil {
+			return storageError(err)
+		}
+		if pending != 0 {
+			return identity.Err(identity.Unavailable, "pending journal requires operator review before migration")
+		}
+	}
 	for _, m := range steps[current:] {
 		if m.Version != current+1 {
 			return identity.Err(identity.Invalid, "invalid migration sequence")

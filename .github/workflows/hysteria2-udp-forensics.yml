@@ -1,0 +1,59 @@
+name: Native Hysteria2 UDP forensics
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GOTOOLCHAIN: local
+  GOTELEMETRY: 'off'
+  GOFLAGS: -mod=readonly
+  CGO_ENABLED: '0'
+  GOMAXPROCS: '4'
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  bounded-paths:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-11-arm]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          architecture: ${{ runner.arch == 'ARM64' && 'arm64' || 'x64' }}
+          cache: false
+      - name: Populate pinned modules and native independent peers
+        shell: bash
+        run: |
+          go mod download
+          python scripts/dev/fetch-restoration-references.py --output "$RUNNER_TEMP/h10-reference" --github-env "$GITHUB_ENV"
+      - name: Execute four separately registered carrier observations once
+        shell: bash
+        run: |
+          python scripts/qualification/hysteria2-udp-forensics.py --campaign carrier --output "$RUNNER_TEMP/h10-carrier"
+      - name: Return Linux evidence to artifact collector
+        if: always() && runner.os == 'Linux'
+        shell: bash
+        run: |
+          if [[ -d "$RUNNER_TEMP/h10-paths" ]]; then
+            sudo chown -R --no-dereference "$(id -u):$(id -g)" "$RUNNER_TEMP/h10-paths"
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: h10-carrier-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            ${{ runner.temp }}/h10-carrier/
+            ${{ runner.temp }}/h10-reference/
+          if-no-files-found: warn
+          retention-days: 30

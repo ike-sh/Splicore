@@ -1,0 +1,62 @@
+name: ARM64 historical residue path control
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GOTOOLCHAIN: local
+  GOTELEMETRY: 'off'
+  GOFLAGS: -mod=readonly
+  GOMAXPROCS: '4'
+  CGO_ENABLED: '0'
+  PYTHONDONTWRITEBYTECODE: '1'
+
+jobs:
+  bounded-forensics:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-24.04-arm, mode: pristine, profile: default, scope: whole}
+          - {os: ubuntu-24.04-arm, mode: buffered, profile: default, scope: whole}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Fetch pinned modules and independent protocol peers before isolation
+        run: |
+          go mod download
+          python scripts/dev/fetch-restoration-references.py --output "$RUNNER_TEMP/p37-reference" --github-env "$GITHUB_ENV"
+      - name: Execute the preregistered native comparison without assertion changes
+        run: >-
+          python scripts/dev/isolated-linux.py -- python scripts/qualification/arm64-forensics.py
+          --mode '${{ matrix.mode }}' --profile '${{ matrix.profile }}' --scope '${{ matrix.scope }}'
+          --campaign path-control
+          --output "$RUNNER_TEMP/p37-forensics"
+      - name: Return diagnostic evidence to artifact collector
+        if: always()
+        run: |
+          for evidence in "$RUNNER_TEMP/p37-forensics" "$RUNNER_TEMP/p37-reference"; do
+            if [[ -d "$evidence" ]]; then
+              sudo chown -R --no-dereference "$(id -u):$(id -g)" "$evidence"
+            fi
+          done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: p37-path-control-${{ matrix.os }}-${{ matrix.mode }}-${{ matrix.profile }}
+          path: |
+            ${{ runner.temp }}/p37-forensics/
+            ${{ runner.temp }}/p37-reference/
+          if-no-files-found: warn
+          retention-days: 30

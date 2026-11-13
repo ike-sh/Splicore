@@ -43,7 +43,6 @@ func testPopulatedForwardMigration(t *testing.T, from int) {
 	opts.CredentialKinds = func(k access.ProtocolKey) ([]access.CredentialKind, error) {
 		return []access.CredentialKind{access.PSK}, nil
 	}
-	old := &Store{db: db, options: opts}
 	var node identity.ID
 	if e = db.QueryRow("SELECT id FROM nodes").Scan(&node); e != nil {
 		t.Fatal(e)
@@ -55,7 +54,7 @@ func testPopulatedForwardMigration(t *testing.T, from int) {
 	quota := int64(1234)
 	p := policy.TrafficPolicy{ID: newID(t), QuotaBytes: &quota, Stamp: stamp}
 	b := access.Binding{ID: newID(t), AccountID: a.ID, InboundID: i.ID, CredentialID: c.ID, Enabled: true, PolicyOverrideID: &p.ID, Stamp: stamp}
-	op, e := old.Transact(ctx, 0, actor(t), func(w ports.Writer) error {
+	op, e := populateHistoricalTransaction(t, ctx, db, opts, func(w ports.Writer) error {
 		if e := w.CreateAccount(a); e != nil {
 			return e
 		}
@@ -163,4 +162,29 @@ func testPopulatedForwardMigration(t *testing.T, from int) {
 			t.Fatal("plaintext in SQLite")
 		}
 	}
+}
+
+// Seed historical tables directly in one fixture transaction. The current
+// production Store deliberately admits only a fully migrated Schema8 database;
+// using it to create pre-upgrade state would bypass that new safety boundary.
+// All original migration/content/ciphertext/journal assertions above remain.
+func populateHistoricalTransaction(t *testing.T, ctx context.Context, db *sql.DB, opts Options, fn func(ports.Writer) error) (identity.Transaction, error) {
+	t.Helper()
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return identity.Transaction{}, err
+	}
+	defer tx.Rollback()
+	if err = fn(&writer{ctx: ctx, tx: tx, options: opts}); err != nil {
+		return identity.Transaction{}, err
+	}
+	now := time.Now().UTC()
+	op := identity.Transaction{ID: newID(t), State: identity.Committed, BaseRevision: 0, TargetRevision: 1, Actor: actor(t), CreatedAt: now, UpdatedAt: now}
+	if _, err = tx.ExecContext(ctx, "INSERT INTO transactions(id,state,base_revision,target_revision,principal,request_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)", op.ID, op.State, op.BaseRevision, op.TargetRevision, op.Actor.Principal, op.Actor.RequestID, utc(now), utc(now)); err != nil {
+		return op, err
+	}
+	if _, err = tx.ExecContext(ctx, "UPDATE settings SET committed_revision=1 WHERE singleton=1"); err != nil {
+		return op, err
+	}
+	return op, tx.Commit()
 }

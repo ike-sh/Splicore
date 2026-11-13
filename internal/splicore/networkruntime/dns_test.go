@@ -376,3 +376,29 @@ func TestFlushDoesNotRefillFromInflightQueryAndCloseCancels(t *testing.T) {
 		t.Fatal("closed query succeeded")
 	}
 }
+
+// dnsFallbackPairFixture owns both kernel sockets before either DNS server
+// starts. TCP and UDP use the same literal IP and numeric port throughout.
+func dnsFallbackPairFixture(t *testing.T, tcpHandler, udpHandler dns.Handler) access.Endpoint {
+	t.Helper()
+	pair := testkit.ReserveDualPeerPort(t, "127.0.0.1")
+	tcp, udp := pair.OwnedSockets()
+	if tcp == nil || udp == nil || tcp.Addr().String() != udp.LocalAddr().String() {
+		t.Fatal("DNS fallback requires one retained TCP/UDP endpoint")
+	}
+	for _, server := range []*dns.Server{{Listener: tcp, Net: "tcp", Handler: tcpHandler}, {PacketConn: udp, Net: "udp", Handler: udpHandler}} {
+		ready, done := make(chan struct{}), make(chan error, 1)
+		server.NotifyStartedFunc = func() { close(ready) }
+		go func() { done <- server.ActivateAndServe() }()
+		<-ready
+		t.Cleanup(func() {
+			if err := server.Shutdown(); err != nil {
+				t.Error(err)
+			}
+			if err := <-done; err != nil {
+				t.Error(err)
+			}
+		})
+	}
+	return access.Endpoint{Host: pair.Host, Port: uint16(pair.Port)}
+}
