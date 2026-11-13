@@ -268,6 +268,9 @@ func TestPhase20ProxyLifetimeAuthRotation25(t *testing.T) {
 	}
 	end := phase20Sample(s)
 	if end.Goroutines > start.Goroutines+1 {
+		stack := make([]byte, 1<<20)
+		n := runtime.Stack(stack, true)
+		t.Logf("goroutine residue stacks (sample=%d now=%d truncated=%t):\n%s", end.Goroutines, runtime.NumGoroutine(), n == len(stack), stack[:n])
 		t.Fatalf("goroutine residue start=%+v end=%+v", start, end)
 	}
 	t.Logf("x25 TCP/auth churn=675 valid plus 75 invalid rotations=150 start=%+v peak=%+v end=%+v", start, peak, end)
