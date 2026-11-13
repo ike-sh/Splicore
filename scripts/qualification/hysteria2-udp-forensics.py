@@ -70,6 +70,22 @@ func (c *p310Conn) Write(b []byte)(int,error) {n,e:=c.Conn.Write(b);P310("target
 func (c *p310Conn) Close() error {e:=c.Conn.Close();P310("target-close","owner",c.id,"socket",P310Ptr(c.Conn),"error",P310Err(e));return e}
 '''
 
+CARRIER_TRACE = r'''package quic
+import (
+ "crypto/sha256"
+ "encoding/hex"
+ "sync/atomic"
+)
+type p310Observer struct { f func(string,...any) }
+var p310Hook atomic.Pointer[p310Observer]
+func P310SetObserver(f func(string,...any)) {if f==nil {p310Hook.Store(nil)} else {p310Hook.Store(&p310Observer{f})}}
+func p310Observe(stage string,b []byte,fields ...any) {
+ observer:=p310Hook.Load();if observer==nil{return}
+ sum:=sha256.Sum256(b);fields=append(fields,"frame_sha256",hex.EncodeToString(sum[:]),"bytes",len(b))
+ observer.f(stage,fields...)
+}
+'''
+
 
 def save(path, data):
     with path.open('x', encoding='utf-8') as f:
@@ -161,7 +177,55 @@ def observed_sources(commit, directory, replacements, literal):
                                              'disturbance': 'Bounded in-memory records use allocation, hashes, locks and time reads; they may change scheduling. Disk serialization occurs after original cleanup.'})
 
 
-def make_overlay(version, out, observed, literal=''):
+def carrier_observer(out, replacements):
+    module=json.loads(subprocess.check_output(['go','list','-m','-json','github.com/apernet/quic-go'],cwd=ROOT,text=True))
+    assert module['Version']=='v0.63.1-0.20261004180939-a10df75c260c'
+    original_directory=Path(module['Dir']).resolve()
+    # Go intentionally rejects overlays inside GOMODCACHE. Observe a byte-for-
+    # byte copy of this pinned third-party dependency via a private modfile;
+    # neither the module cache nor the project's go.mod/go.sum is modified.
+    directory=out/'quic-carrier-observation-module'
+    shutil.copytree(original_directory,directory)
+    modfile=out/'carrier-observation.mod';sumfile=out/'carrier-observation.sum'
+    modfile.write_bytes(git('show',VERSIONS['H']+':go.mod'))
+    sumfile.write_bytes(git('show',VERSIONS['H']+':go.sum'))
+    subprocess.run(['go','mod','edit','-modfile='+str(modfile),'-replace=github.com/apernet/quic-go='+str(directory)],cwd=ROOT,check=True)
+    proof=[]
+    edits={
+      'connection.go':[
+        ('return c.datagramQueue.Add(f)', 'e:=c.datagramQueue.Add(f)\np310Observe("library-send-admission",f.Data,"queue",fmt.Sprintf("%p",c.datagramQueue),"local",c.LocalAddr().String(),"remote",c.RemoteAddr().String(),"maxDataLen",int64(maxDataLen),"error",fmt.Sprint(e));return e'),
+      ],
+      'datagram_queue.go':[
+        ('"context"','"context"\n"fmt"'),
+        ('h.sendQueue.PushBack(f)', 'h.sendQueue.PushBack(f)\np310Observe("library-queued",f.Data,"queue",fmt.Sprintf("%p",h),"queued_count",h.sendQueue.Len())'),
+        ('\tif !queued && h.logger.Debug() {', '\tp310Observe("library-received-queue",f.Data,"queue",fmt.Sprintf("%p",h),"queued",queued)\n\tif !queued && h.logger.Debug() {'),
+      ],
+      'packet_packer.go':[
+        ('pl.frames = append(pl.frames, ackhandler.Frame{Frame: f})', 'p310Observe("library-packer-selected",f.Data,"queue",fmt.Sprintf("%p",p.datagramQueue),"size",int64(size),"maxPayloadSize",int64(maxPayloadSize),"ackLength",int64(pl.length))\npl.frames = append(pl.frames, ackhandler.Frame{Frame: f})'),
+        ('} else if pl.ack == nil {', '} else if pl.ack == nil {\np310Observe("library-discard-no-ack",f.Data,"queue",fmt.Sprintf("%p",p.datagramQueue),"size",int64(size),"maxPayloadSize",int64(maxPayloadSize),"ackLength",int64(pl.length))'),
+        ('if p.peekTimes > DatagramFrameMaxPeekTimes {', 'if p.peekTimes > DatagramFrameMaxPeekTimes {\np310Observe("library-discard-peeks",f.Data,"queue",fmt.Sprintf("%p",p.datagramQueue),"size",int64(size),"maxPayloadSize",int64(maxPayloadSize),"ackLength",int64(pl.length),"peekTimes",p.peekTimes)'),
+      ],
+    }
+    for name,changes in edits.items():
+        original=(directory/name).read_text();source=original
+        for before,after in changes:
+            assert source.count(before)==1,(name,before,source.count(before));source=source.replace(before,after,1)
+        restored=source
+        for before,after in reversed(changes):restored=restored.replace(after,before,1)
+        assert restored==original
+        path=out/('carrier-'+name);path.write_text(source);replacements[str(directory/name)]=str(path)
+        proof.append({'file':name,'original_sha256':hashlib.sha256(original.encode()).hexdigest(),'observed_sha256':hashlib.sha256(source.encode()).hexdigest(),'removing_observation_restores_all_original_bytes':True})
+    helper=out/'p310_carrier_trace.go';helper.write_text(CARRIER_TRACE);replacements[str(directory/'p310_carrier_trace.go')]=str(helper)
+    native_path=replacements[str(ROOT/NATIVE/'hysteria2_owned_test.go')]
+    source=Path(native_path).read_text()
+    source=source.replace('import (','import (\n"github.com/apernet/quic-go"',1)
+    source=source.replace('packetio.P310Start();','packetio.P310Start();quic.P310SetObserver(packetio.P310);',1)
+    source=source.replace('t.Cleanup(func(){if e:=packetio.P310Save','t.Cleanup(func(){quic.P310SetObserver(nil);if e:=packetio.P310Save',1)
+    Path(native_path).write_text(source)
+    save(out/'carrier-proof.json',{'module':module,'private_third_party_copy':str(directory),'private_modfile':str(modfile),'files':proof,'native_final_sha256':hashlib.sha256(source.encode()).hexdigest(),'no_on_disk_module_cache_change':True,'production_go_mod_go_sum_unchanged':True,'pinned_original_version_unchanged':True,'budget':4,'observation_only':'Only a copied pinned third-party module is selected by the private diagnostic modfile, with overlay logging at admission/queue/selected/discard branches. No conditional/size/ACK/queue policy changes; this is not the production qualification build.'})
+
+
+def make_overlay(version, out, observed, literal='', carrier=False):
     spec = importlib.util.spec_from_file_location('p36', ROOT/'scripts/qualification/integration-diagnostics.py')
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -169,6 +233,8 @@ def make_overlay(version, out, observed, literal=''):
     replacements = json.loads(mapping.read_text())['Replace']
     if observed:
         observed_sources(VERSIONS[version], out, replacements, literal)
+        if carrier:
+            carrier_observer(out,replacements)
     mapping.write_text(json.dumps({'Replace': replacements}, indent=2))
     return mapping
 
@@ -178,6 +244,7 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--local-sanity', action='store_true')
     parser.add_argument('--prepare-only', action='store_true')
+    parser.add_argument('--campaign', choices=['natural','carrier'], default='natural')
     args = parser.parse_args()
     go = json.loads(subprocess.check_output(['go','env','-json','GOARCH','GOOS','GOVERSION'], text=True))
     arch = {'aarch64':'arm64','arm64':'arm64','x86_64':'amd64','amd64':'amd64'}.get(platform.machine().lower())
@@ -189,13 +256,16 @@ def main():
     save(out/'host.json',{'utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),'go':go,'machine':platform.machine(),'platform':platform.platform(),'runner':{k:os.environ.get(k) for k in ['ImageOS','ImageVersion','RUNNER_ARCH','RUNNER_OS','RUNNER_NAME','GITHUB_RUN_ID','GITHUB_SHA']},'cpu_count':os.cpu_count(),'cpu_affinity':sorted(os.sched_getaffinity(0)) if hasattr(os,'sched_getaffinity') else None})
     cases = [{'version':v,'observed':o,'scope':s,'literal':''} for o in [False,True] for v in ['M','H'] for s in ['target','package']]
     cases += [{'version':'H','observed':True,'scope':'target','literal':ip} for ip in ['127.0.0.1','::1']]
+    if args.campaign=='carrier':
+        assert (sys.platform=='win32' and arch=='arm64') or args.prepare_only
+        cases=[{'version':'H','observed':True,'scope':'package','literal':''} for _ in range(4)]
     if args.local_sanity or args.prepare_only:
         cases=[{'version':'H','observed':o,'scope':'target','literal':''} for o in [False,True]]
     save(out/'registered-cases.json',{'cases':cases,'budget':len(cases),'prepare_only':args.prepare_only,'versions':VERSIONS})
     rows=[]
     for i,case in enumerate(cases,1):
         dest=out/f"{i:02d}-{case['version']}-{'buffered' if case['observed'] else 'pristine'}-{case['scope']}-{case['literal'].replace(':','6') or 'domain'}";dest.mkdir()
-        overlay=make_overlay(case['version'],dest,case['observed'],case['literal'])
+        overlay=make_overlay(case['version'],dest,case['observed'],case['literal'],args.campaign=='carrier')
         if args.prepare_only:
             continue
         if sys.platform=='win32':
@@ -205,6 +275,7 @@ def main():
             runtime=Path(tempfile.mkdtemp(prefix='h10-'))
         env=dict(os.environ,TEMP=str(runtime),TMP=str(runtime),TMPDIR=str(runtime),GOTMPDIR=str(runtime),GOMAXPROCS='4',CGO_ENABLED='0',GOTOOLCHAIN='local',GOTELEMETRY='off',GOFLAGS='-mod=readonly',SPLICORE_P310_TRACE=str(dest/'trace.json'))
         command=['go','test','-mod=readonly','-overlay='+str(overlay),'-json','-count=1','-timeout=1200s']
+        if args.campaign=='carrier':command+=['-modfile='+str(dest/'carrier-observation.mod')]
         if case['scope']=='target':command+=['-run','^'+TARGET+'$']
         command+=['./internal/splicore/engine/native']
         save(dest/'identity.json',{**case,'fixed_source':VERSIONS[case['version']],'fixed_tree':git('rev-parse',VERSIONS[case['version']]+'^{tree}').decode().strip(),'command':command,'runtime':str(runtime),'runtime_realpath':os.path.realpath(runtime),'go':go,'utc':datetime.datetime.now(datetime.timezone.utc).isoformat()})
