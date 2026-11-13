@@ -2,7 +2,6 @@ package networkruntime
 
 import (
 	"context"
-	"net"
 	"sync/atomic"
 	"testing"
 
@@ -13,29 +12,13 @@ import (
 
 func TestProtectedDNSUDPTruncationFallsBackToTCP(t *testing.T) {
 	var tcpQueries, udpQueries atomic.Int64
-	endpoint := dnsTCPFixture(t, answerHandler(&tcpQueries, "192.0.2.42"), nil)
-	pc, err := net.ListenPacket("udp", net.JoinHostPort(endpoint.Host, portString(endpoint.Port)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	ready, done := make(chan struct{}), make(chan error, 1)
-	peer := &dns.Server{PacketConn: pc, Net: "udp", NotifyStartedFunc: func() { close(ready) }, Handler: dns.HandlerFunc(func(w dns.ResponseWriter, r *dns.Msg) {
+	endpoint := dnsFallbackPairFixture(t, answerHandler(&tcpQueries, "192.0.2.42"), dns.HandlerFunc(func(w dns.ResponseWriter, r *dns.Msg) {
 		udpQueries.Add(1)
 		m := new(dns.Msg)
 		m.SetReply(r)
 		m.Truncated = true
 		_ = w.WriteMsg(m)
-	})}
-	go func() { done <- peer.ActivateAndServe() }()
-	<-ready
-	t.Cleanup(func() {
-		if err := peer.Shutdown(); err != nil {
-			t.Error(err)
-		}
-		if err := <-done; err != nil {
-			t.Error(err)
-		}
-	})
+	}))
 	x := testkit.NewUnderlay(t)
 	lease, err := x.Factory.Begin(context.Background(), true)
 	if err != nil {

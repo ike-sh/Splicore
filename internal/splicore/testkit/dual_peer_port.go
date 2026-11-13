@@ -116,3 +116,20 @@ func ReserveDualPeerPort(t *testing.T, host string) *DualPeerPort {
 	t.Fatal(fmt.Errorf("no TCP+UDP peer endpoint after 64 OS-selected candidates on %s", host))
 	return nil
 }
+
+// OwnedSockets exposes the retained pair for in-process test servers. Callers
+// use these exact sockets and keep the lease until both servers have stopped;
+// they must not release and rebind them during handoff.
+func (p *DualPeerPort) OwnedSockets() (net.Listener, net.PacketConn) {
+	var tcp net.Listener
+	var udp net.PacketConn
+	for _, socket := range p.sockets {
+		if listener, ok := socket.(net.Listener); ok {
+			tcp = listener
+		}
+		if packet, ok := socket.(net.PacketConn); ok {
+			udp = packet
+		}
+	}
+	return tcp, udp
+}
