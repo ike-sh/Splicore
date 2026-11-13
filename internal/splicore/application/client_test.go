@@ -97,6 +97,9 @@ func transfer(port uint16, target access.Endpoint, payload []byte) error {
 	if err != nil {
 		return err
 	}
+	return transferConnection(c, payload)
+}
+func transferConnection(c net.Conn, payload []byte) error {
 	defer c.Close()
 	done := make(chan error, 1)
 	go func() {
@@ -106,7 +109,7 @@ func transfer(port uint16, target access.Endpoint, payload []byte) error {
 	// Snell command-1 EOF closes its tunnel by the frozen upstream contract.
 	// Check the entire framed payload before ending the application session.
 	received := make([]byte, len(payload))
-	_, err = io.ReadFull(c, received)
+	_, err := io.ReadFull(c, received)
 	writeErr := <-done
 	if err != nil {
 		return err

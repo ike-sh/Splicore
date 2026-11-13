@@ -95,6 +95,8 @@ func phase33Reference(t *testing.T) string {
 	want := map[string]string{
 		"linux/amd64":   "a27e3f95ab6ce270956d0cecd32eda4686a811afc71c64a6a734a3dede14883e",
 		"windows/amd64": "c77a00eb84fb93ae044c2d771a1cabcc033b81e487253fbc35b12df6879c1e15",
+		"linux/arm64":   "dc3324f437132d70d29ddadea19b202949c2d1230b5d90dac469b03f68829c8b",
+		"windows/arm64": "bf47164a9be92afc87f50f1e22d25730f044222bfd6cedf9a524201379be023f",
 	}[runtime.GOOS+"/"+runtime.GOARCH]
 	if want == "" || hex.EncodeToString(digest.Sum(nil)) != want {
 		t.Fatal("Phase33 reference binary digest mismatch")
@@ -102,8 +104,25 @@ func phase33Reference(t *testing.T) string {
 	return binary
 }
 
-func phase33Peer(t *testing.T, binary string, config map[string]any, server bool) {
+func phase33Peer(t *testing.T, binary string, config map[string]any, server bool) access.Endpoint {
 	t.Helper()
+	var lease *testkit.DualPeerPort
+	var endpoint access.Endpoint
+	if server {
+		inbounds := config["inbounds"].([]any)
+		inbound := inbounds[0].(map[string]any)
+		host := inbound["listen"].(string)
+		lease = testkit.ReserveDualPeerPort(t, host)
+		endpoint = access.Endpoint{Host: host, Port: uint16(lease.Port)}
+		inbound["port"] = endpoint.Port
+		// Pinned Xray h3-only XHTTP listens on UDP, not TCP. A distinct,
+		// loopback-only SOCKS sentinel makes child TCP ownership at the same
+		// endpoint observable without changing any H3 profile or traffic path.
+		config["inbounds"] = append(inbounds, map[string]any{
+			"tag": "test-tcp-bind-sentinel", "listen": host, "port": endpoint.Port,
+			"protocol": "socks", "settings": map[string]any{"auth": "noauth", "udp": false},
+		})
+	}
 	root := t.TempDir()
 	if external := os.Getenv("SPLICORE_PHASE33_PEER_LOGS"); external != "" {
 		root = filepath.Join(external, testkit.EvidenceName(t.Name()))
@@ -126,13 +145,37 @@ func phase33Peer(t *testing.T, binary string, config map[string]any, server bool
 	cmd := exec.Command(binary, "run", "-config", file)
 	cmd.Stdout, cmd.Stderr = log, log
 	cmd.Env = append(os.Environ(), "XRAY_CONE_DISABLED=true")
+	if lease != nil {
+		lease.ReleaseSockets()
+		t.Logf("peer_handoff at=%s address=%s parent_TCP_and_UDP=released child_start=next no_start_retry=true", time.Now().UTC().Format(time.RFC3339Nano), lease.Address())
+	}
 	if err = cmd.Start(); err != nil {
 		log.Close()
 		t.Fatal(err)
 	}
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
-	t.Cleanup(func() { _ = cmd.Process.Kill(); <-done; log.Close() })
+	t.Cleanup(func() {
+		_ = cmd.Process.Kill()
+		exit := <-done
+		_ = log.Close()
+		t.Logf("peer_exit pid=%d error=%v", cmd.Process.Pid, exit)
+		if lease != nil {
+			tcp, err := net.Listen("tcp", lease.Address())
+			if err != nil {
+				t.Error("child TCP sentinel not released", err)
+			} else {
+				defer tcp.Close()
+			}
+			udp, err := net.ListenPacket("udp", lease.Address())
+			if err != nil {
+				t.Error("child H3 UDP listener not released", err)
+			} else {
+				defer udp.Close()
+			}
+			t.Logf("peer_rebind address=%s TCP=%t UDP=%t", lease.Address(), tcp != nil, udp != nil)
+		}
+	})
 	marker := "[Warning] core: Xray "
 	if server {
 		marker = "listening QUIC for XHTTP/3"
@@ -140,8 +183,39 @@ func phase33Peer(t *testing.T, binary string, config map[string]any, server bool
 	until := time.Now().Add(5 * time.Second)
 	for time.Now().Before(until) {
 		data, _ := os.ReadFile(logPath)
-		if bytes.Contains(data, []byte(marker)) {
-			return
+		if bytes.Contains(data, []byte(marker)) && bytes.Contains(data, []byte("[Warning] core: Xray ")) {
+			select {
+			case err := <-done:
+				done <- err
+				t.Fatalf("peer exited after startup marker: %v", err)
+			default:
+			}
+			if lease != nil {
+				probe, err := net.DialTimeout("tcp", lease.Address(), time.Second)
+				if err != nil {
+					t.Fatal("child TCP sentinel missing", err)
+				}
+				if err = probe.SetDeadline(time.Now().Add(time.Second)); err != nil {
+					t.Fatal(err)
+				}
+				_, err = probe.Write([]byte{5, 1, 0})
+				var method [2]byte
+				if err == nil {
+					_, err = io.ReadFull(probe, method[:])
+				}
+				_ = probe.Close()
+				if err != nil || method != [2]byte{5, 0} {
+					t.Fatal("child TCP sentinel framing", method, err)
+				}
+				udp, err := net.ListenPacket("udp", lease.Address())
+				if err == nil {
+					udp.Close()
+					t.Fatal("QUIC marker present but child UDP port is unowned")
+				}
+				testkit.VerifyDualPeerProcess(t, cmd.Process.Pid, lease.Address())
+				t.Logf("peer_listeners pid=%d address=%s TCP=SOCKS-sentinel-verified UDP=H3-marker-and-occupied actual_H3_payload=required-next", cmd.Process.Pid, lease.Address())
+			}
+			return endpoint
 		}
 		select {
 		case err := <-done:
@@ -152,6 +226,7 @@ func phase33Peer(t *testing.T, binary string, config map[string]any, server bool
 		time.Sleep(5 * time.Millisecond)
 	}
 	t.Fatal("pinned reference startup timeout; see peer.log")
+	return endpoint
 }
 
 func phase33PeerConfig(t *testing.T, protocol, direction string, in ports.RuntimeIntent, n client.RemoteNode, credential access.Credential, socks access.Endpoint) map[string]any {
@@ -246,8 +321,9 @@ func TestPhase33PinnedProtocols(t *testing.T) {
 						n.Endpoint = endpoint
 						defer h.Close(ctx)
 					}
-					phase33Peer(t, binary, phase33PeerConfig(t, protocol, direction, in, n, credential, socks), direction == "splicore-client")
+					peerEndpoint := phase33Peer(t, binary, phase33PeerConfig(t, protocol, direction, in, n, credential, socks), direction == "splicore-client")
 					if direction == "splicore-client" {
+						n.Endpoint = peerEndpoint
 						d := sharedBuild(t, ctx, n, credential)
 						defer d.Close()
 						sharedPayload(t, d, tcp, udp)
@@ -299,7 +375,10 @@ func TestPhase33PinnedEncryption(t *testing.T) {
 						}
 						socks := phase33SOCKS(t)
 						if direction != "self" {
-							phase33Peer(t, binary, phase33PeerConfig(t, "vless", direction, in, n, credential, socks), direction == "splicore-client")
+							endpoint := phase33Peer(t, binary, phase33PeerConfig(t, "vless", direction, in, n, credential, socks), direction == "splicore-client")
+							if direction == "splicore-client" {
+								n.Endpoint = endpoint
+							}
 						}
 						if direction == "splicore-server" {
 							for range 2 {
@@ -399,7 +478,10 @@ func TestPhase33PinnedVision(t *testing.T) {
 				}
 				socks := phase33SOCKS(t)
 				if direction != "self" {
-					phase33Peer(t, binary, phase33PeerConfig(t, "vless", direction, in, n, credential, socks), direction == "splicore-client")
+					endpoint := phase33Peer(t, binary, phase33PeerConfig(t, "vless", direction, in, n, credential, socks), direction == "splicore-client")
+					if direction == "splicore-client" {
+						n.Endpoint = endpoint
+					}
 				}
 				var dial func(access.Endpoint) (net.Conn, error)
 				if direction == "splicore-server" {
@@ -431,7 +513,7 @@ func TestPhase33PinnedVision(t *testing.T) {
 		opts, _ := vl.DecodeClientOptions(n.Options.Data)
 		opts.Flow = vl.Vision
 		n.Options.Data, _ = json.Marshal(opts)
-		phase33Peer(t, binary, phase33PeerConfig(t, "vless", "splicore-client", in, n, credential, phase33SOCKS(t)), true)
+		n.Endpoint = phase33Peer(t, binary, phase33PeerConfig(t, "vless", "splicore-client", in, n, credential, phase33SOCKS(t)), true)
 		opts.Flow = vl.NoFlow
 		n.Options.Data, _ = json.Marshal(opts)
 		d := sharedBuild(t, ctx, n, credential).(*vlessDialer)

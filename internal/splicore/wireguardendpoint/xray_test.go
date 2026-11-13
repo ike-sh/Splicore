@@ -41,6 +41,8 @@ func xrayPeer(t *testing.T, config map[string]any) {
 	want := map[string]string{
 		"linux/amd64":   "a27e3f95ab6ce270956d0cecd32eda4686a811afc71c64a6a734a3dede14883e",
 		"windows/amd64": "c77a00eb84fb93ae044c2d771a1cabcc033b81e487253fbc35b12df6879c1e15",
+		"linux/arm64":   "dc3324f437132d70d29ddadea19b202949c2d1230b5d90dac469b03f68829c8b",
+		"windows/arm64": "bf47164a9be92afc87f50f1e22d25730f044222bfd6cedf9a524201379be023f",
 	}[runtime.GOOS+"/"+runtime.GOARCH]
 	if want == "" || hex.EncodeToString(digest[:]) != want {
 		t.Fatal("Xray reference digest mismatch")

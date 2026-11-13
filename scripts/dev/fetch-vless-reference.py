@@ -10,8 +10,10 @@ import zipfile
 
 RELEASE = 'v26.10.21'
 ASSETS = {
-    'Linux': ('Xray-linux-64.zip', '0eec3ed4163c273d8c8bf821f7d219e257921cf584aa3fb970715e458e631978', 'xray'),
-    'Windows': ('Xray-windows-64.zip', 'fc58c39ee2f2717b4c54d28d374362389e5319b20ae44aea76ea45a5243ec827', 'xray.exe'),
+    ('Linux', 'amd64'): ('Xray-linux-64.zip', '0eec3ed4163c273d8c8bf821f7d219e257921cf584aa3fb970715e458e631978', 'xray'),
+    ('Windows', 'amd64'): ('Xray-windows-64.zip', 'fc58c39ee2f2717b4c54d28d374362389e5319b20ae44aea76ea45a5243ec827', 'xray.exe'),
+    ('Linux', 'arm64'): ('Xray-linux-arm64-v8a.zip', 'd1304946c486d98e6b886e9b931eaaaebb23835b30e217638037b7f2721d4e9c', 'xray'),
+    ('Windows', 'arm64'): ('Xray-windows-arm64-v8a.zip', 'bb44af3380c9975f951ce7645c04d56ab600040e68f23974a2806e08e0a3f872', 'xray.exe'),
 }
 
 
@@ -20,9 +22,10 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--github-env', type=Path)
     args = parser.parse_args()
-    if platform.machine().casefold() not in ('x86_64', 'amd64'):
-        raise RuntimeError('The pinned independent peer is qualified for amd64 only')
-    name, expected, executable = ASSETS[platform.system()]
+    arch = {'x86_64': 'amd64', 'amd64': 'amd64', 'aarch64': 'arm64', 'arm64': 'arm64'}.get(platform.machine().casefold())
+    if (platform.system(), arch) not in ASSETS:
+        raise RuntimeError('A native Linux/Windows amd64 or arm64 test peer is required')
+    name, expected, executable = ASSETS[(platform.system(), arch)]
     root = args.output.resolve()
     root.mkdir(parents=True, exist_ok=True)
     archive = root / name

@@ -17,6 +17,7 @@ def validate(root, result, target, profile):
         'internal/splicore/storage/sqlite/TestInspectIsReadOnly',
         'protocol/vless/encryption/TestEncryptedStreams',
         'protocol/vless/encryption/TestPinnedReferenceRawMatrix',
+        'internal/splicore/storage/sqlite/TestPersistenceReliability',
     }
     if profile != 'race':
         required.add('cmd/splicore/TestRuntimeBinaryTrafficShutdownAndRestart')
