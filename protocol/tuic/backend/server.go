@@ -269,6 +269,14 @@ func (p *peer) commands() {
 					_ = p.q.CloseWithError(0, "")
 				}
 				p.authMu.Unlock()
+				// Authentication is complete before FIN so parallel CONNECTs can
+				// proceed. Let the sender finish this valid command before the
+				// deferred CancelRead: an early STOP_SENDING can otherwise race
+				// the client's Close and reject an already accepted token.
+				// One byte bounds trailing input; the existing read deadline
+				// bounds a sender that never closes its authentication stream.
+				var end [1]byte
+				_, _ = stream.Read(end[:])
 			case wire.Dissociate:
 				if p.waitAuth() == nil {
 					return
