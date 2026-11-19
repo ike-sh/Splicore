@@ -12,7 +12,7 @@ unchanged; individual dependency terms remain applicable.
 | github.com/apernet/quic-go | v0.63.1-0.20261004180939-a10df75c260c | [LICENSE](licenses/third-party/github.com/apernet/quic-go/v0.63.1-0.20261004180939-a10df75c260c/LICENSE) |
 | github.com/cespare/xxhash/v2 | v2.3.0 | [LICENSE.txt](licenses/third-party/github.com/cespare/xxhash/v2/v2.3.0/LICENSE.txt) |
 | github.com/dustin/go-humanize | v1.0.1 | [LICENSE](licenses/third-party/github.com/dustin/go-humanize/v1.0.1/LICENSE) |
-| github.com/enfein/mieru/v3 | v3.39.0 | [LICENSE](licenses/third-party/github.com/enfein/mieru/v3/v3.39.0/LICENSE) |
+| github.com/enfein/mieru/v3 | v3.39.0 with [github.com/ike-sh/mieru/v3 v3.0.0-20261118111519-f237626f5345](https://github.com/ike-sh/mieru/commit/f237626f5345d83ba35d8e24c1721dc8e1c928d3) as the replacement | [LICENSE](licenses/third-party/github.com/enfein/mieru/v3/v3.39.0/LICENSE) |
 | github.com/go-logr/logr | v1.4.3 | [LICENSE](licenses/third-party/github.com/go-logr/logr/v1.4.3/LICENSE) |
 | github.com/go-logr/stdr | v1.2.2 | [LICENSE](licenses/third-party/github.com/go-logr/stdr/v1.2.2/LICENSE) |
 | github.com/gofrs/uuid/v5 | v5.5.1 | [LICENSE](licenses/third-party/github.com/gofrs/uuid/v5/v5.5.1/LICENSE) |

@@ -58,3 +58,5 @@ require (
 	golang.zx2c4.com/wireguard v0.0.0-20261024220952-b3bc704ef0ee
 	golang.zx2c4.com/wireguard/wgctrl v0.0.0-20241231184526-a9ab2273dd10
 )
+
+replace github.com/enfein/mieru/v3 v3.39.0 => github.com/ike-sh/mieru/v3 v3.0.0-20261118111519-f237626f5345
