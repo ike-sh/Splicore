@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.6.3
+
+- TUIC lets a valid authentication command finish its stream before canceling
+  reads. Parallel CONNECT can proceed after authentication, with the existing
+  read deadline bounding stream cleanup.
+- The embedded Mieru SDK uses a pinned Fork. Its UDP receive loop keeps serving
+  established sessions when the session accept queues are full. The patch also
+  corrects UDP read-deadline wakeup and socket shutdown order.
+- P2 adds instrumented native network measurements. P3 adds native ARM64,
+  Windows amd64 Race, and bounded persistence diagnostics. These are test
+  facilities. WAL/P1-B and automatic media-corruption recovery remain outside
+  the release qualification.
+
+See the [v0.6.3 release notes](docs/releases/v0.6.3.md) for the Fork revision,
+platform coverage, and the outstanding TrustTunnel Race investigation.
+
 ## v0.6.2
 
 Qualified convergence scope with UDP session cancellation joining its in-flight
