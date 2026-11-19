@@ -8,6 +8,7 @@ import (
 	"net"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	cfg "github.com/ike-sh/Splicore/internal/splicore/domain/streamtransport"
@@ -217,6 +218,11 @@ func frame(id, index, total byte, pad int, chunk []byte) []byte {
 	return append(b, chunk...)
 }
 func TestGeckoBoundsExpiryConflictWrap(t *testing.T) {
+	// Control the sweeper's clock while the assertions supply fragment timestamps.
+	synctest.Test(t, testGeckoBoundsExpiryConflictWrap)
+}
+
+func testGeckoBoundsExpiryConflictWrap(t *testing.T) {
 	c, _ := wrapTest(t, "gecko")
 	now := time.Now()
 	valid := frame(0, 0, 2, 0, []byte{0xC0, 1})

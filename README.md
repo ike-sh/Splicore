@@ -105,12 +105,12 @@ implemented experimental protocol.
 
 Each published release records its native amd64 gates and ARM64 BUILD ONLY
 archive status in `RELEASE_MANIFEST.json`. See the
-[v0.6.3 qualification scope](docs/releases/v0.6.3.md#qualification-scope)
+[v0.6.4 qualification scope](docs/releases/v0.6.4.md#qualification-scope)
 for the additional native ARM64 and Windows amd64 Race coverage.
 
 Download the matching `splicore-<version>-<os>-<arch>` archive and SHA256SUMS.
-Linux: `sha256sum -c SHA256SUMS`. For v0.6.3 on Windows, compare
-`Get-FileHash -Algorithm SHA256 ./splicore-v0.6.3-windows-amd64.zip` with the
+Linux: `sha256sum -c SHA256SUMS`. For v0.6.4 on Windows, compare
+`Get-FileHash -Algorithm SHA256 ./splicore-v0.6.4-windows-amd64.zip` with the
 published line. After unpacking, use `./splicore help` or `./splicore.exe help`,
 then follow [Linux](docs/releases/RUNNING_linux.md) or
 [Windows](docs/releases/RUNNING_windows.md) instructions. Go/WSL and a separate
@@ -126,7 +126,7 @@ process completion.
 
 The pre-1.0 v0.6 series adds historical native capability to the v0.5.0 baseline. Do not
 mix Frozen and current configurations/databases. See the
-[release notes](docs/releases/v0.6.3.md) and [changelog](CHANGELOG.md): the typed
+[release notes](docs/releases/v0.6.4.md) and [changelog](CHANGELOG.md): the typed
 Windows WireGuard receive correction requires fresh native qualification;
 AmneziaWG is retired and independent SQLite WAL/P1-B candidates are excluded; WSL2 UDP, historical SOCKS, Mieru throughput and broad
 protocol interoperability limits remain open. The local Windows symlink fixture
