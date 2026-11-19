@@ -1,10 +1,13 @@
 package testkit
 
 import (
+	"context"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +17,7 @@ import (
 	"sync"
 	"syscall"
 	"testing"
+	"time"
 )
 
 var portEnvironmentOnce sync.Once
@@ -84,25 +88,115 @@ func VerifyDualPeerProcess(t *testing.T, pid int, address string) {
 	if runtime.GOOS != "windows" {
 		return
 	}
-	out, err := exec.Command("netstat", "-ano").CombinedOutput()
-	if err != nil {
-		t.Fatal("child socket owner readback", err)
+	if err := VerifyPeerProcessSockets(t, context.Background(), pid, address, "tcp", "udp"); err != nil {
+		t.Fatal(err)
 	}
-	tcp, udp := false, false
+}
+
+// VerifyPeerProcessSockets requires the exact bound endpoint and child PID for
+// every requested protocol. Linux readback matches socket inodes to the child.
+func VerifyPeerProcessSockets(t *testing.T, ctx context.Context, pid int, address string, networks ...string) error {
+	t.Helper()
+	var owned map[string]string
+	var err error
+	switch runtime.GOOS {
+	case "linux":
+		owned, err = linuxPeerSockets(pid, address, networks)
+	case "windows":
+		owned, err = windowsPeerSockets(ctx, pid, address)
+	default:
+		return fmt.Errorf("peer socket ownership readback unavailable on %s", runtime.GOOS)
+	}
+	if err != nil {
+		return fmt.Errorf("child pid=%d socket owner readback: %w", pid, err)
+	}
+	for _, network := range networks {
+		socket, found := owned[network]
+		if !found {
+			return fmt.Errorf("child pid=%d does not own %s listener at %s", pid, network, address)
+		}
+		t.Logf("child_socket_owner pid=%d socket=%s network=%s address=%s at=%s",
+			pid, socket, network, address, time.Now().UTC().Format(time.RFC3339Nano))
+	}
+	return ctx.Err()
+}
+
+func windowsPeerSockets(ctx context.Context, pid int, address string) (map[string]string, error) {
+	out, err := exec.CommandContext(ctx, "netstat", "-ano").CombinedOutput()
+	if err != nil {
+		return nil, err
+	}
+	owned := make(map[string]string)
 	for _, line := range strings.Split(string(out), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) < 4 || fields[1] != address || fields[len(fields)-1] != strconv.Itoa(pid) {
 			continue
 		}
-		if fields[0] == "TCP" && len(fields) == 5 && fields[3] == "LISTENING" {
-			tcp = true
+		if fields[0] == "UDP" || (fields[0] == "TCP" && len(fields) == 5 && fields[3] == "LISTENING") {
+			owned[strings.ToLower(fields[0])] = strings.Join(fields, " ")
 		}
-		if fields[0] == "UDP" {
-			udp = true
+	}
+	return owned, nil
+}
+
+func linuxPeerSockets(pid int, address string, networks []string) (map[string]string, error) {
+	endpoint, err := netip.ParseAddrPort(address)
+	if err != nil {
+		return nil, err
+	}
+	if !endpoint.Addr().Is4() {
+		return nil, fmt.Errorf("Linux peer socket readback requires an IPv4 endpoint: %s", address)
+	}
+	ip := endpoint.Addr().As4()
+	local := fmt.Sprintf("%08X:%04X", binary.NativeEndian.Uint32(ip[:]), endpoint.Port())
+	process := filepath.Join("/proc", strconv.Itoa(pid))
+	fdDir := filepath.Join(process, "fd")
+	fds, err := os.ReadDir(fdDir)
+	if err != nil {
+		return nil, err
+	}
+	sockets := make(map[string]string)
+	for _, fd := range fds {
+		link, err := os.Readlink(filepath.Join(fdDir, fd.Name()))
+		if errors.Is(err, os.ErrNotExist) {
+			continue
 		}
-		t.Logf("child_socket_owner pid=%d socket=%s", pid, strings.Join(fields, " "))
+		if err != nil {
+			return nil, err
+		}
+		sockets[link] = fd.Name()
 	}
-	if !tcp || !udp {
-		t.Fatalf("child pid=%d address=%s does not own required TCP/UDP listeners: tcp=%t udp=%t", pid, address, tcp, udp)
+	namespace, err := os.Readlink(filepath.Join(process, "ns", "net"))
+	if err != nil {
+		return nil, err
 	}
+	owned := make(map[string]string)
+	for _, network := range networks {
+		var state string
+		switch network {
+		case "udp":
+			state = "07" // Bound without a connected remote.
+		case "tcp":
+			state = "0A" // LISTEN.
+		default:
+			return nil, fmt.Errorf("unsupported peer protocol: %s", network)
+		}
+		table, err := os.ReadFile(filepath.Join(process, "net", network))
+		if err != nil {
+			return nil, err
+		}
+		// The table is namespace-wide. Its inode must also exist in this
+		// process's fd directory before the socket can count as ready.
+		for _, line := range strings.Split(string(table), "\n") {
+			fields := strings.Fields(line)
+			if len(fields) < 10 || fields[1] != local || fields[3] != state {
+				continue
+			}
+			if fd, found := sockets["socket:["+fields[9]+"]"]; found {
+				owned[network] = fmt.Sprintf("fd=%s inode=%s namespace=%s", fd, fields[9], namespace)
+				break
+			}
+		}
+	}
+	return owned, nil
 }

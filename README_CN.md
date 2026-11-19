@@ -6,19 +6,16 @@ sing-box 或 Mihomo 代理核心进程，也不提供桌面 UI。
 
 ## 下载和验证
 
-[正式 v0.6.2 下载](https://github.com/ike-sh/Splicore/releases/tag/v0.6.2)。
+[最新正式版本下载](https://github.com/ike-sh/Splicore/releases/latest)。
 按平台选择 zip / tar.gz，另下载 SHA256SUMS。Linux 使用
-`sha256sum -c SHA256SUMS`；Windows 使用
-`Get-FileHash -Algorithm SHA256 ./splicore-v0.6.2-windows-amd64.zip` 与公开值核对。
+`sha256sum -c SHA256SUMS`。在 Windows 上，以 v0.6.3 为例，使用
+`Get-FileHash -Algorithm SHA256 ./splicore-v0.6.3-windows-amd64.zip` 与公开值核对。
 解压后只有一个主程序 `splicore` / `splicore.exe`，以及许可证、示例、RUNNING.md
 和内部文件校验清单。运行不需要 Go 或 WSL。提供 SHA256，没有声称数字签名。
 
-| 平台 | 构建 | 原生资格 |
-| --- | --- | --- |
-| Windows amd64 | CGO=0 | 默认/完整标签 Build、Vet、测试和真实 VLESS 进程；Race 未执行 |
-| Linux amd64 | CGO=0 | 默认/完整标签 Build、Vet、测试，限定包 Race 和真实 VLESS 进程 |
-| Windows arm64 | CGO=0 交叉编译 | BUILD ONLY，未原生运行 |
-| Linux arm64 | CGO=0 交叉编译 | BUILD ONLY，未原生运行 |
+各版本的 `RELEASE_MANIFEST.json` 记录原生 amd64 资格和 ARM64 发行包的 BUILD ONLY 状态。
+[v0.6.3 资格范围](docs/releases/v0.6.3.md#qualification-scope) 另列独立原生 ARM64
+与 Windows amd64 Race 的覆盖。
 
 真实进程测试覆盖 Help/Version/Check/Run、VLESS 监听和数据传输、错误凭据拒绝、
 保留活动连接时 Shutdown、端口释放与持久化重启。不能由此推导所有协议互通已合格。
@@ -64,7 +61,7 @@ v0.6.0/v0.6.1 Tag 均保留为未发布候选，不覆盖；修正范围以 v0.6
 AmneziaWG/Phase37 明确废弃。WAL/P1-B 候选不准入；标准 WireGuard 与 AWG 分开。
 Windows WG 接收修复仅丢弃已被 Winsock 消耗的 WSAEMSGSIZE 数据报，其余错误保持原语义，
 要求新的原生互通、重复畸形包恢复和完整 Release 门禁，旧 Hotfix 报告结论不被改写。
-Windows Race 未执行，ARM64 仅交叉编译；
+Windows ARM64 Race 为 NOT_EXECUTED，ARM64 发行包仍标为 BUILD ONLY。
 本机 Windows Symlink 测试可能因 1314 跳过，CI 不允许该例外。WSL2 大 UDP 超时、
 历史 SOCKS 诊断、Mieru 大流量性能保留限制；独立 SQLite WAL/P1-B 候选未进入本版本，
 未宣称崩溃/断电恢复资格。Phase37 AWG 已废弃。Windows 服务安装/生产备份、TUN、
@@ -78,7 +75,7 @@ Windows Race 未执行，ARM64 仅交叉编译；
 CGO=0；官方构建从最终 main 的精确 Tag Commit 注入版本、提交和时间。
 对应源码归档含 vendor 依赖及无需 Git/下载依赖的构建说明。
 
-完整边界见 [Release Notes](docs/releases/v0.6.2.md)、[CHANGELOG](CHANGELOG.md)、
+完整边界见 [Release Notes](docs/releases/v0.6.3.md)、[CHANGELOG](CHANGELOG.md)、
 [CLI](docs/CLI.md)、[配置](docs/CONFIGURATION.md)、[安全政策](SECURITY.md)。
 原始 [LICENSE](LICENSE)、[GPL 全文](licenses/GPL-3.0.txt)、[NOTICE](NOTICE.md)
 和[第三方许可](THIRD_PARTY_NOTICES.md) 均保留。Splicore 不隶属或获得 SagerNet 背书。
