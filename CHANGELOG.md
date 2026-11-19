@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.6.3
+## v0.6.4
 
 - TUIC lets a valid authentication command finish its stream before canceling
   reads. Parallel CONNECT can proceed after authentication, with the existing
@@ -12,9 +12,19 @@
   Windows amd64 Race, and bounded persistence diagnostics. These are test
   facilities. WAL/P1-B and automatic media-corruption recovery remain outside
   the release qualification.
+- The WireGuard Xray fixture leases OS-assigned ports and verifies the test
+  peer owns its listening sockets. The Gecko reassembly test controls its
+  clock while it checks expiry and message ID wraparound.
 
-See the [v0.6.3 release notes](docs/releases/v0.6.3.md) for the Fork revision,
-platform coverage, and the outstanding TrustTunnel Race investigation.
+See the [v0.6.4 release notes](docs/releases/v0.6.4.md) for the Fork revision,
+qualification scope, and the historical TrustTunnel and Snell failures.
+
+## v0.6.3 — unpublished candidate
+
+The immutable v0.6.3 tag records the candidate whose formal Linux amd64 Race
+failed in the Gecko reassembly fixture and the official Snell peer test.
+The [original workflow](https://github.com/ike-sh/Splicore/actions/runs/44511422648)
+preserves both failures. v0.6.2 was the preceding published release.
 
 ## v0.6.2
 

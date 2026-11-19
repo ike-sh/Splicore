@@ -8,13 +8,13 @@ sing-box 或 Mihomo 代理核心进程，也不提供桌面 UI。
 
 [最新正式版本下载](https://github.com/ike-sh/Splicore/releases/latest)。
 按平台选择 zip / tar.gz，另下载 SHA256SUMS。Linux 使用
-`sha256sum -c SHA256SUMS`。在 Windows 上，以 v0.6.3 为例，使用
-`Get-FileHash -Algorithm SHA256 ./splicore-v0.6.3-windows-amd64.zip` 与公开值核对。
+`sha256sum -c SHA256SUMS`。在 Windows 上，以 v0.6.4 为例，使用
+`Get-FileHash -Algorithm SHA256 ./splicore-v0.6.4-windows-amd64.zip` 与公开值核对。
 解压后只有一个主程序 `splicore` / `splicore.exe`，以及许可证、示例、RUNNING.md
 和内部文件校验清单。运行不需要 Go 或 WSL。提供 SHA256，没有声称数字签名。
 
 各版本的 `RELEASE_MANIFEST.json` 记录原生 amd64 资格和 ARM64 发行包的 BUILD ONLY 状态。
-[v0.6.3 资格范围](docs/releases/v0.6.3.md#qualification-scope) 另列独立原生 ARM64
+[v0.6.4 资格范围](docs/releases/v0.6.4.md#qualification-scope) 另列独立原生 ARM64
 与 Windows amd64 Race 的覆盖。
 
 真实进程测试覆盖 Help/Version/Check/Run、VLESS 监听和数据传输、错误凭据拒绝、
@@ -75,7 +75,7 @@ Windows ARM64 Race 为 NOT_EXECUTED，ARM64 发行包仍标为 BUILD ONLY。
 CGO=0；官方构建从最终 main 的精确 Tag Commit 注入版本、提交和时间。
 对应源码归档含 vendor 依赖及无需 Git/下载依赖的构建说明。
 
-完整边界见 [Release Notes](docs/releases/v0.6.3.md)、[CHANGELOG](CHANGELOG.md)、
+完整边界见 [Release Notes](docs/releases/v0.6.4.md)、[CHANGELOG](CHANGELOG.md)、
 [CLI](docs/CLI.md)、[配置](docs/CONFIGURATION.md)、[安全政策](SECURITY.md)。
 原始 [LICENSE](LICENSE)、[GPL 全文](licenses/GPL-3.0.txt)、[NOTICE](NOTICE.md)
 和[第三方许可](THIRD_PARTY_NOTICES.md) 均保留。Splicore 不隶属或获得 SagerNet 背书。
