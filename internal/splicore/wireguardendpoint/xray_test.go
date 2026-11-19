@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -27,7 +28,16 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 )
 
-func xrayPeer(t *testing.T, config map[string]any) {
+func xrayPeer(t *testing.T, lease *testkit.DualPeerPort, config map[string]any, networks ...string) int {
+	t.Helper()
+	pid, _, err := startXrayPeer(t, config, lease.Address(), lease.ReleaseSockets, networks...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return pid
+}
+
+func startXrayPeer(t *testing.T, config map[string]any, address string, handoff func(), networks ...string) (int, string, error) {
 	t.Helper()
 	binary := os.Getenv("SPLICORE_PHASE34_XRAY_REFERENCE")
 	if binary == "" {
@@ -69,28 +79,86 @@ func xrayPeer(t *testing.T, config map[string]any) {
 	}
 	cmd := exec.Command(binary, "run", "-config", file)
 	cmd.Stdout, cmd.Stderr = log, log
+	var releasedAt time.Time
+	if handoff != nil {
+		handoff()
+		releasedAt = time.Now()
+	}
 	if err = cmd.Start(); err != nil {
 		_ = log.Close()
-		t.Fatal(err)
+		return 0, logPath, err
 	}
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-	t.Cleanup(func() { _ = cmd.Process.Kill(); <-done; _ = log.Close() })
 	until := time.Now().Add(4 * time.Second)
+	t.Logf("xray_peer_start pid=%d address=%s handoff=%t release_at=%s started_at=%s",
+		cmd.Process.Pid, address, handoff != nil, releasedAt.UTC().Format(time.RFC3339Nano),
+		time.Now().UTC().Format(time.RFC3339Nano))
+	done := make(chan struct{})
+	var exit error
+	go func() {
+		exit = cmd.Wait()
+		close(done)
+	}()
+	ready := false
+	t.Cleanup(func() {
+		_ = cmd.Process.Kill()
+		<-done
+		_ = log.Close()
+		t.Logf("xray_peer_exit pid=%d status=%v at=%s",
+			cmd.Process.Pid, exit, time.Now().UTC().Format(time.RFC3339Nano))
+		if ready {
+			checkXrayPeerReleased(t, address, networks)
+		}
+	})
+	exited := func() error {
+		if exit == nil {
+			return fmt.Errorf("external Xray exited before fixture readiness at %s; see peer.log", address)
+		}
+		return fmt.Errorf("external Xray rejected WireGuard fixture at %s; see peer.log: %w", address, exit)
+	}
 	for time.Now().Before(until) {
+		select {
+		case <-done:
+			return cmd.Process.Pid, logPath, exited()
+		default:
+		}
 		b, _ := os.ReadFile(logPath)
 		if bytes.Contains(b, []byte("[Warning] core: Xray")) {
-			return
-		}
-		select {
-		case err := <-done:
-			done <- err
-			t.Fatal("external Xray rejected WireGuard fixture; see peer.log", err)
-		default:
+			ctx, cancel := context.WithDeadline(context.Background(), until)
+			err := testkit.VerifyPeerProcessSockets(t, ctx, cmd.Process.Pid, address, networks...)
+			cancel()
+			if err != nil {
+				return cmd.Process.Pid, logPath, err
+			}
+			select {
+			case <-done:
+				return cmd.Process.Pid, logPath, exited()
+			default:
+			}
+			ready = true
+			return cmd.Process.Pid, logPath, nil
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	t.Fatal("external Xray startup timeout")
+	return cmd.Process.Pid, logPath, fmt.Errorf("external Xray startup timeout at %s", address)
+}
+
+func checkXrayPeerReleased(t *testing.T, address string, networks []string) {
+	t.Helper()
+	for _, network := range networks {
+		var socket io.Closer
+		var err error
+		if network == "tcp" {
+			socket, err = net.Listen("tcp4", address)
+		} else {
+			socket, err = net.ListenPacket("udp4", address)
+		}
+		if err != nil {
+			t.Errorf("Xray %s listener release at %s: %v", network, address, err)
+			continue
+		}
+		_ = socket.Close()
+		t.Logf("xray_peer_rebind network=%s address=%s at=%s", network, address, time.Now().UTC().Format(time.RFC3339Nano))
+	}
 }
 
 func xrayHostEcho(t *testing.T, ip string) {
@@ -152,8 +220,9 @@ func TestXrayWireGuardInterop(t *testing.T) {
 				for _, ip := range testkit.RoutedHosts(t) {
 					xrayHostEcho(t, ip)
 				}
-				xrayPeer(t, map[string]any{"log": map[string]any{"loglevel": "warning"}, "inbounds": []any{map[string]any{"listen": "127.0.0.1", "port": 33434, "protocol": "wireguard", "settings": map[string]any{"secretKey": E.EncodeKey(remote.Reveal()), "address": []string{"10.34.0.2", "fd34::2"}, "noKernelTun": true, "peers": []any{map[string]any{"publicKey": public, "preSharedKey": psk, "allowedIPs": []string{"10.34.0.1/32", "fd34::1/128"}}}}}}, "outbounds": []any{map[string]any{"protocol": "freedom", "settings": map[string]any{"finalRules": []any{map[string]any{"action": "allow", "ip": xrayAllowedHosts(t)}}}}}})
-				config := E.WireGuard{Tag: "xray-server", PrivateKey: private, Addresses: []string{"10.34.0.1/32", "fd34::1/128"}, Peers: []E.WireGuardPeer{{PublicKey: remotePublic, PreSharedKey: secret, Endpoint: "127.0.0.1:33434", AllowedIPs: []string{"0.0.0.0/0", "::/0"}}}}
+				lease := testkit.ReserveDualPeerPort(t, "127.0.0.1")
+				xrayPeer(t, lease, xrayWireGuardServerConfig(t, lease.Port, E.EncodeKey(remote.Reveal()), public, psk), "udp")
+				config := E.WireGuard{Tag: "xray-server", PrivateKey: private, Addresses: []string{"10.34.0.1/32", "fd34::1/128"}, Peers: []E.WireGuardPeer{{PublicKey: remotePublic, PreSharedKey: secret, Endpoint: lease.Address(), AllowedIPs: []string{"0.0.0.0/0", "::/0"}}}}
 				e, err := New(context.Background(), config, Options{Dispatcher: &echoDispatcher{}, Underlay: underlay.New()})
 				if err != nil {
 					t.Fatal(err)
@@ -177,9 +246,34 @@ func TestXrayWireGuardInterop(t *testing.T) {
 				if err = e.Start(context.Background()); err != nil {
 					t.Fatal(err)
 				}
-				xrayPeer(t, map[string]any{"log": map[string]any{"loglevel": "warning"}, "inbounds": []any{map[string]any{"listen": "127.0.0.1", "port": 33435, "protocol": "socks", "settings": map[string]any{"auth": "noauth", "udp": true}}}, "outbounds": []any{map[string]any{"protocol": "wireguard", "settings": map[string]any{"secretKey": E.EncodeKey(remote.Reveal()), "address": []string{"10.34.0.2", "fd34::2"}, "noKernelTun": true, "peers": []any{map[string]any{"publicKey": public, "preSharedKey": psk, "endpoint": net.JoinHostPort("127.0.0.1", itoa(e.Status().ListenPort)), "allowedIPs": []string{"0.0.0.0/0", "::/0"}}}}}}})
+				lease := testkit.ReserveDualPeerPort(t, "127.0.0.1")
+				var relays []string
+				t.Cleanup(func() {
+					// The child cleanup is registered after this callback, so it
+					// joins Xray before checking its per-association sockets.
+					for _, relay := range relays {
+						checkXrayPeerReleased(t, relay, []string{"udp"})
+					}
+				})
+				pid := xrayPeer(t, lease, map[string]any{
+					"log": map[string]any{"loglevel": "warning"},
+					"inbounds": []any{map[string]any{
+						"listen": lease.Host, "port": lease.Port, "protocol": "socks",
+						"settings": map[string]any{"auth": "noauth", "udp": true},
+					}},
+					"outbounds": []any{map[string]any{
+						"protocol": "wireguard",
+						"settings": map[string]any{
+							"secretKey": E.EncodeKey(remote.Reveal()), "address": []string{"10.34.0.2", "fd34::2"}, "noKernelTun": true,
+							"peers": []any{map[string]any{
+								"publicKey": public, "preSharedKey": psk, "endpoint": net.JoinHostPort("127.0.0.1", itoa(e.Status().ListenPort)),
+								"allowedIPs": []string{"0.0.0.0/0", "::/0"},
+							}},
+						},
+					}},
+				}, "tcp")
 				for _, ip := range []string{"10.34.0.1", "fd34::1"} {
-					c, err := net.DialTimeout("tcp", "127.0.0.1:33435", 3*time.Second)
+					c, err := net.DialTimeout("tcp", lease.Address(), 3*time.Second)
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -197,17 +291,29 @@ func TestXrayWireGuardInterop(t *testing.T) {
 						t.Fatalf("Xray client TCP %s: %v", ip, err)
 					}
 					_ = c.Close()
-					control, err := net.DialTimeout("tcp", "127.0.0.1:33435", 3*time.Second)
+					control, err := net.DialTimeout("tcp", lease.Address(), 3*time.Second)
 					if err != nil {
 						t.Fatal(err)
 					}
-					_ = control.SetDeadline(time.Now().Add(4 * time.Second))
+					deadline := time.Now().Add(4 * time.Second)
+					_ = control.SetDeadline(deadline)
 					relay, err := socks.Handshake(control, socks.UDPAssociate, access.Endpoint{Host: "0.0.0.0", Port: 0})
 					if err != nil {
 						_ = control.Close()
 						t.Fatal(err)
 					}
-					udp, err := net.Dial("udp", net.JoinHostPort(relay.Host, itoa(int(relay.Port))))
+					// Xray opens a separate OS-selected UDP relay for each
+					// association, after its TCP listener is ready.
+					relayAddress := net.JoinHostPort(relay.Host, itoa(int(relay.Port)))
+					ctx, cancel := context.WithDeadline(context.Background(), deadline)
+					err = testkit.VerifyPeerProcessSockets(t, ctx, pid, relayAddress, "udp")
+					cancel()
+					if err != nil {
+						_ = control.Close()
+						t.Fatal(err)
+					}
+					relays = append(relays, relayAddress)
+					udp, err := net.Dial("udp", relayAddress)
 					if err != nil {
 						_ = control.Close()
 						t.Fatal(err)
@@ -228,6 +334,24 @@ func TestXrayWireGuardInterop(t *testing.T) {
 				}
 			})
 		})
+	}
+}
+
+func xrayWireGuardServerConfig(t *testing.T, port int, secretKey, publicKey, psk string) map[string]any {
+	t.Helper()
+	return map[string]any{
+		"log": map[string]any{"loglevel": "warning"},
+		"inbounds": []any{map[string]any{
+			"listen": "127.0.0.1", "port": port, "protocol": "wireguard",
+			"settings": map[string]any{
+				"secretKey": secretKey, "address": []string{"10.34.0.2", "fd34::2"}, "noKernelTun": true,
+				"peers": []any{map[string]any{"publicKey": publicKey, "preSharedKey": psk, "allowedIPs": []string{"10.34.0.1/32", "fd34::1/128"}}},
+			},
+		}},
+		"outbounds": []any{map[string]any{
+			"protocol": "freedom",
+			"settings": map[string]any{"finalRules": []any{map[string]any{"action": "allow", "ip": xrayAllowedHosts(t)}}},
+		}},
 	}
 }
 
