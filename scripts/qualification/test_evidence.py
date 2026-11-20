@@ -54,6 +54,7 @@ class EvidenceTests(unittest.TestCase):
             self.assertTrue(recorded['runner']['kernel'])
             self.assertTrue(recorded['runner']['architecture'])
             self.assertIn(b'WARNING: DATA RACE', (public / 'commands/injected-test.stdout').read_bytes())
+            self.assertIn(b'WARNING: DATA RACE', (public / 'commands/injected-test.failures.jsonl').read_bytes())
             self.assertIn(b'Xray 26.10.21 started', (public / 'peers/wg-evidence/TestInjectedRequired/peer.log').read_bytes())
             for name, entry in manifest['files'].items():
                 data = (public / name).read_bytes()
@@ -109,6 +110,25 @@ class EvidenceTests(unittest.TestCase):
             except OSError:
                 self.skipTest('Symlink creation is unavailable on this host')
             self.assertFalse(evidence.plain_file(log))
+
+    def test_failure_events_survive_general_log_truncation(self):
+        with tempfile.TemporaryDirectory() as temp:
+            log = Path(temp) / 'race.stdout'
+            package = 'github.com/ike-sh/Splicore/protocol/synthetic'
+            test = 'TestRace/subtest'
+            with log.open('w', encoding='utf-8') as stream:
+                for action, output in [('run', ''), ('output', 'WARNING: DATA RACE'),
+                                       ('output', 'password=synthetic-failure-event-marker'), ('fail', '')]:
+                    stream.write(json.dumps(dict(Action=action, Package=package, Test=test, Output=output)) + '\n')
+                for _ in range(1000):
+                    stream.write(json.dumps(dict(Action='pass', Package=package, Test='TestPassing')) + '\n')
+            with patch.object(evidence, 'FILE_LIMIT', 2048):
+                self.assertNotIn(b'WARNING: DATA RACE', evidence.projected_log(log))
+                failure = evidence.failure_events(log, {'failed_tests': [package + '/' + test]})
+            self.assertIn(b'WARNING: DATA RACE', failure)
+            self.assertIn(b'"Action":"fail"', failure)
+            self.assertNotIn(b'synthetic-failure-event-marker', failure)
+            self.assertNotIn(b'TestPassing', failure)
 
 
 class ComparisonTests(unittest.TestCase):

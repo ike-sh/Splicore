@@ -69,7 +69,8 @@ whose image version the operator controls. [GitHub-hosted runner images](https:/
   peer startup, readiness, ownership, exit and rebind checks.
 - The public projection preserves structured Go events and known diagnostic
   fields from race reports and peer logs. Unclassified messages and stack
-  arguments are redacted. Complete peer configuration, private keys, vault
+  arguments are redacted. A separate selection retains failed Go test events
+  when general stdout is truncated. Complete peer configuration, private keys, vault
   credentials, state DBs, environment dumps, binaries and support bundles
   stay out of public evidence. Hosted raw files remain private for the life
   of the runner. Retain raw reproduction evidence in a controlled operator

@@ -304,6 +304,37 @@ def projected_log(path):
         return prefix + b''.join(lines)
 
 
+def failure_events(path, status):
+    """Preserve the failing Go tests' events even if the general log loses its head."""
+    tests = set(status.get('failed_tests', ()))
+    packages = set(status.get('failing_packages', ()))
+    selected = bytearray()
+    consumed = 0
+    truncated = b'{"Evidence":"failure event scan reached its limit"}\n'
+    with path.open('rb') as stream:
+        for raw in stream:
+            consumed += len(raw)
+            if consumed > 64 * MIB:
+                return bytes(selected) + truncated
+            if not raw.startswith(b'{'):
+                continue
+            try:
+                event = json.loads(raw)
+            except ValueError:
+                continue
+            if not isinstance(event, dict):
+                continue
+            package, test = event.get('Package', ''), event.get('Test', '')
+            if (event.get('Action') not in ('fail', 'build-fail')
+                    and f'{package}/{test}' not in tests and (test or package not in packages)):
+                continue
+            data = (safe_event(raw.decode('utf-8', errors='replace')) + '\n').encode('utf-8')
+            if len(selected) + len(data) + len(truncated) > FILE_LIMIT:
+                return bytes(selected) + truncated
+            selected.extend(data)
+    return bytes(selected)
+
+
 def read_json(path):
     try:
         if plain_file(path) and path.stat().st_size <= FILE_LIMIT:
@@ -386,7 +417,8 @@ def export(private, public, target, label, kind):
 
     def add(name, data):
         nonlocal used
-        if len(data) > FILE_LIMIT or used + len(data) > ARTIFACT_LIMIT - 128 * 1024 or len(manifest['files']) >= FILE_COUNT - 1:
+        # Reserve the full per-file allowance for the final SHA256 inventory.
+        if len(data) > FILE_LIMIT or used + len(data) > ARTIFACT_LIMIT - FILE_LIMIT or len(manifest['files']) >= FILE_COUNT - 1:
             manifest['omitted_by_limits'] += 1
             return
         path = public / name
@@ -412,6 +444,12 @@ def export(private, public, target, label, kind):
     runner['fingerprint_sha256'] = sha256(json_bytes(runner))
     add('fingerprint.json', json_bytes(runner))
 
+    for name, status in stages.items():
+        if status['result'] == 'PASS' and status.get('policy_result') != 'FAIL':
+            continue
+        path = private / 'raw' / (name + '.stdout')
+        if path.is_file() and plain_file(path) and (events := failure_events(path, status)):
+            add('commands/' + name + '.failures.jsonl', events)
     for path in sorted((private / 'raw').glob('*')):
         if not re.fullmatch(STAGE + r'\.(?:stdout|stderr|failure\.json)', path.name) or not plain_file(path):
             continue
