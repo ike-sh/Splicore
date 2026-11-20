@@ -29,8 +29,15 @@ sources. Their archive and executable digests are recorded where applicable.
 `assemble` validates the complete candidate and corresponding source. On PR and
 main, `download-test` verifies and executes the candidate archive. A Tag push
 must point to the exact current `origin/main` commit and match the distribution
-version. Its job verifies the public download of the newly published artifacts
-with the same native smoke command. Production publication remains Tag-only.
+version. The `draft` job creates a new Draft, downloads all seven assets by ID,
+and verifies their GitHub SHA256 digests and the exact candidate checksum list.
+Both amd64 runners verify and smoke-test those downloaded bytes. The gate
+requires the process lifecycle test and all four traffic subtests to pass.
+`authorize-publication` requires both native jobs to succeed. The Tag-only
+`publish` job rechecks the Draft ID, Tag commit and asset snapshot immediately
+before making that Draft public. A smoke failure leaves the Draft and the
+failed job evidence available. Retry failed jobs to reuse the successful Draft
+round trip. A fresh Draft staging attempt refuses an existing Release or Draft.
 
 Native ARM64 and Windows amd64 Race retain their independent PR and dispatch
 jobs and their existing scope. Linux ARM64 Race and Windows amd64 Race run
@@ -48,9 +55,18 @@ environment. Command records include the actual native test namespace and each
 command's Go settings, including the change to CGO for Race. Source commit,
 tree, event, run ID, attempt and job bind the observations to a run.
 
-On main and Tag pushes, `environment-diff` finds the successful `Official
-release` run of the associated merged PR with the same source tree. It checks
-the target fingerprints and their hashes before comparing recorded fields.
+`environment-diff` checks the effective result for each target against the
+run’s job history. GitHub copies successful jobs into a partial rerun with new
+job IDs and the original runner, timestamps and steps. The comparison follows
+those copies back to the execution that produced the evidence. It validates
+the Artifact ZIP digest, inventory and fingerprint hashes, the original
+attempt, and the checked-out commit and Tree. A newer failed execution or a
+missing or invalid Artifact leaves that target without evidence for comparison.
+
+On main and Tag pushes, the job compares against the latest `Official release`
+run of the associated merged PR when that run succeeded and used the same
+source tree. On PRs it verifies the current evidence and records that the
+same-source Tag comparison awaits a Tag run.
 Ephemeral namespace IDs and load snapshots appear in fingerprints and are
 excluded from comparison. The result lists specific changed values. Missing
 or expired artifacts, an incomplete runner fingerprint, or a different source
@@ -93,3 +109,11 @@ file limits, and runner comparison. `Official release` also accepts the
 run a synthetic required test that exits 42. They upload
 `diagnostic-injection-*` evidence and remain failed. This dispatch omits the
 real qualification, packaging, assembly and publication steps.
+
+Set `draft_rehearsal=pass` or `draft_rehearsal=fail-linux` to exercise the same
+native smoke matrix and publication authorization gate with the frozen v0.6.4
+assets. Both dispatches download and verify the fixture through the release
+asset API with read-only credentials. The failure mode runs the unchanged
+Linux smoke test with `/bin/false` as its executable fixture. The failure must
+skip authorization while the passing control reaches it. Draft creation and
+the final GitHub publication mutation require a formal Tag push.

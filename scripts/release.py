@@ -30,6 +30,9 @@ ROOT = Path(__file__).resolve().parents[1]
 TAGS = "with_quic,with_utls,with_gvisor"
 TARGETS = ("linux-amd64", "linux-arm64", "windows-amd64", "windows-arm64")
 VP = "github.com/ike-sh/Splicore/internal/splicore/version"
+RUNTIME_TEST = "TestRuntimeBinaryTrafficShutdownAndRestart"
+RUNTIME_IDENTITY = "github.com/ike-sh/Splicore/cmd/splicore/" + RUNTIME_TEST
+RUNTIME_LEAVES = ('plain', 'plain-native-sudoku', 'encrypted', 'encrypted-native-sudoku')
 
 
 def require(condition, message):
@@ -243,15 +246,18 @@ def run_logged(args, env, directory, name, timeout=2100):
     return status
 
 
+def require_runtime_tests(result):
+    required = [RUNTIME_IDENTITY] + [RUNTIME_IDENTITY + '/' + leaf for leaf in RUNTIME_LEAVES]
+    missing = [name for name in required if result['tests'].get(name) != 'pass']
+    require(not missing, 'Missing/failed/skipped required behaviors: ' + ', '.join(missing))
+
+
 def check_behavior(result, directory, stage, target, profile, process_leaves=False):
     validator = runpy.run_path(str(ROOT / "scripts/dev/qualification_policy.py"))["validate"]
     try:
         result["behavior_policy"] = validator(ROOT, result, target, profile)
         if process_leaves:
-            parent = "github.com/ike-sh/Splicore/cmd/splicore/TestRuntimeBinaryTrafficShutdownAndRestart"
-            required = [parent] + [parent + '/' + leaf for leaf in ('plain', 'plain-native-sudoku', 'encrypted', 'encrypted-native-sudoku')]
-            missing = [name for name in required if result['tests'].get(name) != 'pass']
-            require(not missing, 'Missing/failed/skipped required behaviors: ' + ', '.join(missing))
+            require_runtime_tests(result)
     except RuntimeError as error:
         result['policy_result'] = 'FAIL'
         result['policy_error'] = str(error)
@@ -333,9 +339,18 @@ def smoke(out, target, binary, directory):
             env['TMPDIR'] = runtime_tmp
         else:
             env.update(TEMP=runtime_tmp, TMP=runtime_tmp)
-        run_logged(['go', 'test', '-count=1', '-v', '-json', '-timeout=90s', '-tags', TAGS,
-                    '-run', '^TestRuntimeBinaryTrafficShutdownAndRestart$', './cmd/splicore'],
-                   env, directory, 'product-smoke')
+        stage = 'product-smoke'
+        result = run_logged(['go', 'test', '-count=1', '-v', '-json', '-timeout=90s', '-tags', TAGS,
+                             '-run', '^' + RUNTIME_TEST + '$', './cmd/splicore'], env, directory, stage)
+        try:
+            require_runtime_tests(result)
+        except RuntimeError as error:
+            result['policy_result'] = 'FAIL'
+            result['policy_failed_tests'] = str(error).partition(': ')[2].split(', ')
+            evidence.failure_snapshot(directory / (stage + '.failure.json'), env)
+            raise
+        finally:
+            save(directory / (stage + '.json'), result)
 
 
 def archive_name(version, target):
@@ -480,13 +495,16 @@ def checksums(text):
     return result
 
 
-def verify(directory, extract_target=None, extract_dir=None):
+def verify(directory, extract_target=None, extract_dir=None, checksums_sha256=None):
     manifest = json.loads((directory / "RELEASE_MANIFEST.json").read_text())
     meta = manifest["release"]
     version = meta["version"]
     require(re.fullmatch(r"v0\.[1-9][0-9]*\.[0-9]+", version), "invalid manifest version")
     expected = {archive_name(version, target) for target in TARGETS} | {f"splicore-{version}-source.tar.gz", "RELEASE_MANIFEST.json"}
-    sums = checksums((directory / "SHA256SUMS").read_text())
+    sums_data = (directory / "SHA256SUMS").read_bytes()
+    if checksums_sha256 is not None:
+        require(digest(sums_data) == checksums_sha256, "asset checksums differ from the verified draft download")
+    sums = checksums(sums_data.decode('utf-8'))
     require(set(sums) == expected and {p.name for p in directory.iterdir()} == expected | {"SHA256SUMS"}, "asset inventory mismatch")
     require(manifest["assets"] == {name: sums[name] for name in expected if name != "RELEASE_MANIFEST.json"}, "manifest/checksum inventory mismatch")
     for name, checksum in sums.items():
@@ -527,6 +545,7 @@ def verify(directory, extract_target=None, extract_dir=None):
     require(all(name.startswith(prefix) for name in source), "source archive root mismatch")
     require(prefix + "vendor/modules.txt" in source and json.loads(source[prefix + "SOURCE_ID.json"]) == meta, "corresponding source incomplete")
     print(f"Verified {len(sums) + 1} official assets for {version} at {meta['commit']}", flush=True)
+    return meta
 
 
 def main():
@@ -537,6 +556,7 @@ def main():
     parser.add_argument("--evidence-dir", type=Path)
     parser.add_argument("--runtime-binary", type=Path)
     parser.add_argument("--extract-dir", type=Path)
+    parser.add_argument("--checksums-sha256", help="Expected SHA256 of the verified SHA256SUMS file")
     args = parser.parse_args()
     out = args.output.resolve()
     if args.action == "identity":
@@ -554,7 +574,7 @@ def main():
     elif args.action == "assemble":
         assemble(out)
     else:
-        verify(out, args.target, args.extract_dir.resolve() if args.extract_dir else None)
+        verify(out, args.target, args.extract_dir.resolve() if args.extract_dir else None, args.checksums_sha256)
 
 
 if __name__ == "__main__":

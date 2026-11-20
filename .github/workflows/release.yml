@@ -10,6 +10,11 @@ on:
         description: Run only the synthetic diagnostics failure on the native build checks
         type: boolean
         default: false
+      draft_rehearsal:
+        description: Exercise the draft smoke gate with frozen v0.6.4 assets and read-only credentials
+        type: choice
+        default: 'off'
+        options: ['off', pass, fail-linux]
   pull_request:
     branches: [main]
 
@@ -46,12 +51,15 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           REF_NAME: ${{ github.ref_name }}
+          INJECT_FAILURE: ${{ inputs.inject_failure }}
+          DRAFT_REHEARSAL: ${{ inputs.draft_rehearsal }}
         run: |
           python3 scripts/release.py identity > "$RUNNER_TEMP/identity.json"
           python3 - <<'PY'
           import json, os, subprocess
           m = json.load(open(os.environ['RUNNER_TEMP'] + '/identity.json'))
           assert m['commit'] == os.environ['GITHUB_SHA']
+          assert not (os.environ['INJECT_FAILURE'] == 'true' and os.environ['DRAFT_REHEARSAL'] in ('pass', 'fail-linux'))
           if os.environ['EVENT_NAME'] == 'push' and os.environ['GITHUB_REF_TYPE'] == 'tag':
               assert os.environ['REF_NAME'] == m['version']
               tag = subprocess.check_output(['git','rev-parse',m['version']+'^{commit}'], text=True).strip()
@@ -65,6 +73,7 @@ jobs:
 
   build:
     needs: prepare
+    if: inputs.draft_rehearsal != 'pass' && inputs.draft_rehearsal != 'fail-linux'
     strategy:
       fail-fast: false
       matrix:
@@ -206,12 +215,17 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  publish:
+  draft:
     needs: [prepare, assemble]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    if: github.event_name == 'push' && github.ref_type == 'tag'
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     permissions:
       contents: write
+    outputs:
+      id: ${{ steps.stage.outputs.id }}
+      snapshot_sha256: ${{ steps.stage.outputs.snapshot_sha256 }}
+      sums_sha256: ${{ steps.stage.outputs.sums_sha256 }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
@@ -221,32 +235,52 @@ jobs:
         with:
           name: release-candidate
           path: build/payload
-      - name: Verify, upload a new draft, download-check, then publish
+      - name: Create the draft and verify all assets downloaded by ID
+        id: stage
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
           RELEASE_COMMIT: ${{ needs.prepare.outputs.commit }}
-        run: |
-          set -euo pipefail
-          python3 scripts/release.py verify --output build/payload/final
-          if gh release view "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            echo 'Refusing to modify an existing Release' >&2
-            exit 1
-          fi
-          gh release create "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --verify-tag \
-            --target "$RELEASE_COMMIT" --draft --title "Splicore $RELEASE_VERSION" \
-            --notes-file build/payload/RELEASE_NOTES.md build/payload/final/*
-          gh release download "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --dir build/draft-download
-          cmp build/payload/final/SHA256SUMS build/draft-download/SHA256SUMS
-          python3 scripts/release.py verify --output build/draft-download
-          gh release edit "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+        run: python3 scripts/qualification/release-draft.py stage --payload build/payload --output build/draft-roundtrip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-draft-roundtrip
+          path: build/draft-roundtrip/
+          if-no-files-found: error
+          retention-days: 14
+
+  draft-rehearsal:
+    needs: prepare
+    if: >-
+      github.event_name == 'workflow_dispatch' && !inputs.inject_failure &&
+      (inputs.draft_rehearsal == 'pass' || inputs.draft_rehearsal == 'fail-linux')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      sums_sha256: ${{ steps.fixture.outputs.sums_sha256 }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Round trip the frozen release assets as a read-only fixture
+        id: fixture
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/qualification/release-draft.py rehearsal --output build/draft-roundtrip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-draft-roundtrip
+          path: build/draft-roundtrip/
+          if-no-files-found: error
+          retention-days: 14
 
   download-test:
-    needs: [prepare, assemble, publish]
+    needs: [prepare, assemble, draft, draft-rehearsal]
     if: >-
-      !cancelled() && needs.assemble.result == 'success' &&
-      (needs.publish.result == 'success' ||
-      (needs.publish.result == 'skipped' && github.ref_type != 'tag'))
+      !cancelled() && needs.prepare.result == 'success' &&
+      (needs.draft.result == 'success' || needs.draft-rehearsal.result == 'success' ||
+      (needs.assemble.result == 'success' && github.ref_type != 'tag'))
     strategy:
       fail-fast: false
       matrix:
@@ -274,25 +308,32 @@ jobs:
           python scripts/qualification/evidence.py fingerprint --private "$RUNNER_TEMP/splicore-private" \
             --target '${{ matrix.target }}' --label '${{ matrix.os }}' --kind product-smoke
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        if: needs.publish.result == 'skipped'
+        if: needs.draft.result != 'success' && needs.draft-rehearsal.result != 'success'
         with:
           name: release-candidate
           path: build/downloaded-candidate
-      - name: Download the public release assets
-        if: needs.publish.result == 'success'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
-        run: gh release download "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --dir build/published-download
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        if: needs.draft.result == 'success' || needs.draft-rehearsal.result == 'success'
+        with:
+          name: release-draft-roundtrip
+          path: build/draft-roundtrip
       - name: Verify the downloaded archives and run the native core
         shell: bash
+        env:
+          DRAFT_TEST: ${{ needs.draft.result == 'success' || needs.draft-rehearsal.result == 'success' }}
+          DRAFT_SUMS_SHA256: ${{ needs.draft.outputs.sums_sha256 || needs.draft-rehearsal.outputs.sums_sha256 }}
+          REHEARSE_LINUX_FAILURE: ${{ needs.draft-rehearsal.result == 'success' && inputs.draft_rehearsal == 'fail-linux' && matrix.target == 'linux-amd64' }}
         run: |
           assets=build/downloaded-candidate/final
-          if [[ '${{ needs.publish.result }}' == success ]]; then assets=build/published-download; fi
+          checks=()
+          if [[ "$DRAFT_TEST" == true ]]; then
+            assets=build/draft-roundtrip
+            checks=(--checksums-sha256 "$DRAFT_SUMS_SHA256")
+          fi
           binary=build/downloaded-core/splicore
           if [[ '${{ runner.os }}' == Windows ]]; then binary+=.exe; fi
-          python scripts/release.py verify --output "$assets" --target '${{ matrix.target }}' --extract-dir build/downloaded-core
+          python scripts/release.py verify --output "$assets" "${checks[@]}" --target '${{ matrix.target }}' --extract-dir build/downloaded-core
+          if [[ "$REHEARSE_LINUX_FAILURE" == true ]]; then binary=/bin/false; fi
           python scripts/release.py smoke --target '${{ matrix.target }}' --runtime-binary "$binary" \
             --evidence-dir "$RUNNER_TEMP/splicore-private/raw" --output build
       - uses: ./.github/actions/qualification-evidence
@@ -306,7 +347,39 @@ jobs:
         if: always()
         continue-on-error: true
         with:
-          name: product-smoke-${{ matrix.target }}-r${{ github.run_id }}-a${{ github.run_attempt }}
+          name: ${{ needs.draft-rehearsal.result == 'success' && 'draft-rehearsal-smoke' || 'product-smoke' }}-${{ matrix.target }}-r${{ github.run_id }}-a${{ github.run_attempt }}
           path: ${{ runner.temp }}/splicore-public/
           if-no-files-found: warn
           retention-days: 30
+
+  authorize-publication:
+    needs: [draft, draft-rehearsal, download-test]
+    if: >-
+      !cancelled() && needs.download-test.result == 'success' &&
+      (needs.draft.result == 'success' || needs.draft-rehearsal.result == 'success')
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require both verified native smoke jobs
+        run: echo 'Both native smoke jobs passed for the verified asset round trip.'
+
+  publish:
+    needs: [prepare, draft, authorize-publication]
+    if: github.event_name == 'push' && github.ref_type == 'tag' && needs.authorize-publication.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Recheck the draft asset snapshot and publish by ID
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          RELEASE_COMMIT: ${{ needs.prepare.outputs.commit }}
+          DRAFT_ID: ${{ needs.draft.outputs.id }}
+          DRAFT_SNAPSHOT_SHA256: ${{ needs.draft.outputs.snapshot_sha256 }}
+          PUBLICATION_GATE: ${{ needs.authorize-publication.result }}
+        run: python3 scripts/qualification/release-draft.py publish
