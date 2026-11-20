@@ -118,4 +118,4 @@ null mask selections, invalid ranges and unrepresentable exports fail closed.
 Maximum chain length is eight masks; JSON configuration is bounded. Masks are
 currently admitted only by raw VLESS; AnyTLS and other protocols reject them.
 Sudoku is obfuscation and provides no authentication or encryption.
-The implementation is experimental. Linux arm64 is BUILD ONLY.
+The implementation is experimental.

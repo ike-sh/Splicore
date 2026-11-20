@@ -20,11 +20,11 @@ MIB = 1024 * 1024
 ARTIFACT_LIMIT = 24 * MIB
 FILE_LIMIT = 2 * MIB
 FILE_COUNT = 512
-STAGE = r'(?:release(?:-default|-full)?-build|(?:default|full)-(?:build|vet|test)|race(?:-test)?|injected-test|product-smoke)'
+STAGE = r'(?:release-build|(?:default|full)-(?:build|vet|test)|race(?:-test)?|product-smoke)'
 NAME = r'[A-Za-z0-9_.:@/+%\[\]=-]{1,400}'
 STAMP = r'\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,12})?(?:Z|[+-]\d\d:\d\d)'
 ENDPOINT = r'(?:127\.\d{1,3}\.\d{1,3}\.\d{1,3}|\[::1\]|192\.0\.2\.29|\[2001:db8::29\]):\d{1,5}'
-GO_KEYS = ('GOVERSION', 'GOHOSTOS', 'GOHOSTARCH', 'GOOS', 'GOARCH', 'GOAMD64', 'GOARM64', 'CGO_ENABLED',
+GO_KEYS = ('GOVERSION', 'GOHOSTOS', 'GOHOSTARCH', 'GOOS', 'GOARCH', 'GOAMD64', 'CGO_ENABLED',
            'GOTOOLCHAIN', 'GOENV', 'GOFLAGS', 'GOTELEMETRY')
 ACTIONS = ('start', 'run', 'pause', 'cont', 'pass', 'fail', 'skip', 'output', 'build-output', 'build-fail')
 
@@ -348,7 +348,7 @@ def read_json(path):
 def public_command(command):
     public = []
     for index, arg in enumerate(command):
-        if index == 0 or arg.endswith('inject-failure.py'):
+        if index == 0 or (index == 1 and arg.endswith('.py')):
             arg = arg.replace('\\', '/').rsplit('/', 1)[-1]
         if index and command[index - 1] == '-o':
             arg = '${RELEASE_OUTPUT}/' + arg.replace('\\', '/').rsplit('/', 1)[-1]
@@ -489,7 +489,7 @@ def main():
     parser.add_argument('--target', required=True)
     parser.add_argument('--label', required=True)
     parser.add_argument('--kind', default='release',
-                        choices=('release', 'injection', 'native-arm64', 'windows-race', 'performance', 'product-smoke'))
+                        choices=('release', 'windows-race', 'performance', 'product-smoke'))
     args = parser.parse_args()
     if args.action == 'fingerprint':
         save(args.private.resolve() / 'runner.json', fingerprint(args.target, args.label, args.kind))

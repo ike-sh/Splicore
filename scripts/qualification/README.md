@@ -1,48 +1,34 @@
 # Persistence and native platform qualification
 
-The production SQLite and Vault implementation and its settings are unchanged.
-`TestPersistenceReliability` uses disposable real files, actual SQLite, actual
-transactions and independent child processes. It extends the existing rollback,
-concurrent access, schema migration, encrypted credential and lifecycle tests.
+Official qualification uses Linux and Windows amd64 under the
+[AMD64_ONLY release contract](../../docs/releases/QUALIFICATION.md).
+The [roadmap](../../docs/ROADMAP.md) describes current development priorities.
+
+`TestPersistenceReliability` uses disposable real files, SQLite transactions
+and independent child processes. It extends rollback, concurrent access,
+schema migration, encrypted credential and lifecycle tests.
 
 ```sh
-# A private, disk-backed temporary filesystem is required. Set TMPDIR and
-# GOTMPDIR as well as GOCACHE/GOMODCACHE outside the source checkout.
+# Use a private, disk-backed temporary filesystem and caches outside the checkout.
 SPLICORE_PERSISTENCE_EVIDENCE=/external/persistence \
   go test -json -count=1 -timeout=10m -run '^TestPersistenceReliability$' ./internal/splicore/storage/sqlite
-
-# On actual Linux ARM64, populate the digest-pinned ARM64 test peers first:
-python3 scripts/dev/fetch-restoration-references.py --output /external/reference --github-env /external/peers.env
-# Import those NAME=value peer paths into the process environment, then:
-python3 scripts/dev/isolated-linux.py -- python3 scripts/qualification/native.py --mode arm64 --output /external/native-arm64
-
-# On actual Windows ARM64, use native ARM64 Go/Python and omit isolated-linux.py:
-python scripts/qualification/native.py --mode arm64 --output D:/external/native-arm64
-
-# On native Windows amd64 only, CC must name a mingw-w64 v8+ compiler:
-python scripts/qualification/fetch-windows-race-toolchain.py --output D:/external/compiler --github-env D:/external/compiler.env
-python scripts/qualification/native.py --mode windows-race --output D:/external/windows-race
 ```
 
-Go must match `go.mod`. Import the generated compiler `CC` entry before running
-Race. Production default/full builds remain `CGO_ENABLED=0`; only Race test
-binaries require the C toolchain. No compiler is installed globally. Pinned
-compiler and Xray archives are SHA256 checked; Xray and the separately compiled
-official wireguard-go peer are test tools, never production dependencies. The
-existing amd64 peer hashes remain unchanged. A native official Snell executable
-is currently pinned only for Linux amd64; ARM64 outcomes enumerate that missing
-oracle rather than claim independent Snell qualification.
+On native Windows amd64, fetch the pinned compiler and test peers, then import
+the generated environment assignments before running the independent Race job.
 
-`platform-qualification.yml` runs on actual `ubuntu-24.04-arm`, `windows-11-arm`
-and native Windows amd64. Host architecture is checked independently of Go's
-target (Windows uses GetNativeSystemInfo); emulated amd64 on ARM64 is rejected.
-The script preserves all default/full build, vet and test scope, checks required
-behavior identities and actual CLI process traffic/restart, and records every
-allowed skip. Linux ARM64 also runs its supported native Race detector. Native
-ARM64 outcomes remain `QUALIFIED_WITH_LIMITATIONS` while
-hardware networking, missing oracle campaigns and broad physical devices are
-unqualified. BUILD PASS, native startup, native traffic and full scope are
-recorded separately. Cross-build success alone cannot pass the script.
+```powershell
+python scripts/qualification/fetch-windows-race-toolchain.py --output D:/external/compiler --github-env D:/external/compiler.env
+python scripts/dev/fetch-restoration-references.py --output D:/external/reference --github-env D:/external/peers.env
+python scripts/qualification/native.py --output D:/external/windows-race
+```
+
+Use the Go version in `go.mod` and `GOMAXPROCS=4` as in CI. The script checks the
+native OS and architecture and preserves the original Race exit and behavior
+evidence. The compiler and independent peers are SHA256-checked test tools.
+Production default/full builds remain CGO-free. The Linux and Windows test
+profiles, interop scope and artifact retention are described in the release
+contract.
 
 The persistent test evidence records actual `sqlite_version/source_id`, Schema,
 journal_mode, synchronous, busy_timeout, foreign_keys, checkpoint threshold,

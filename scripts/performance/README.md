@@ -21,8 +21,9 @@ python3 scripts/performance/run.py --profile soak --soak-hours 72 --isolate --ou
 
 On native Windows omit `--isolate`; use `--conditions clean`. Linux builds or
 WSL measurements do not qualify native Windows. `run.ps1` provides an equivalent
-native Windows entry without requiring Python. Both ARM64 architectures require
-actual native execution; cross compilation is only BUILD ONLY.
+native Windows entry without requiring Python. Use the manual Performance
+baseline workflow for hosted amd64 measurements. See the [roadmap](../../docs/ROADMAP.md)
+for the project priorities.
 
 `profiles.json` specifies CI smoke, protocol baseline, one-factor matrix and
 soak workloads. Matrix coverage includes 1/10/100 connections, 64 KiB/1 MiB/

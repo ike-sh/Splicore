@@ -35,9 +35,8 @@ def main():
     parser.add_argument('--output', required=True, type=Path)
     parser.add_argument('--github-env', type=Path)
     args = parser.parse_args()
-    arch = {'amd64': 'amd64', 'x86_64': 'amd64', 'aarch64': 'arm64', 'arm64': 'arm64'}.get(platform.machine().casefold())
-    if arch is None:
-        raise RuntimeError('Independent test peers require native amd64 or arm64')
+    if platform.machine().casefold() not in ('amd64', 'x86_64'):
+        raise RuntimeError('Independent test peers require native amd64')
     root = args.output.resolve()
     root.mkdir(parents=True, exist_ok=True)
     # Qualification owns an offline network namespace. Populate every module,
@@ -50,7 +49,7 @@ def main():
     env = {'SPLICORE_PHASE32_PEER_LOGS': str(root / 'vless-encryption-evidence'),
            'SPLICORE_PHASE33_PEER_LOGS': str(root / 'h3-evidence'), 'SPLICORE_PHASE34_PEER_LOGS': str(root / 'wg-evidence')}
     manifest = {'shadowquic': {'status': 'ISOLATED_NOT_QUALIFIED', 'included': False}}
-    if os.name != 'nt' and arch == 'amd64':
+    if os.name != 'nt':
         url = 'https://dl.nssurge.com/snell/snell-server-v5.0.1-linux-amd64.zip'
         archive_sha256 = '9bea1c2b9e35b73b31634856c04d18c393072b9e5dcde6a32781d8b8f908c539'
         package = fetch(root / 'snell-v5.0.1.zip', url, archive_sha256)

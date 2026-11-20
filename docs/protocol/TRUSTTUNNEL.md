@@ -68,4 +68,4 @@ not qualified. The generic Core TCP/UDP outbound interface exposes no ICMP metho
 
 HTTP/1.1, browser/TLS fingerprint parity, anti-DPI parity, post-quantum
 fingerprint parity, kill switch, subscription services and automatic certificate
-management are not claimed. Linux arm64 remains BUILD ONLY.
+management are not claimed.

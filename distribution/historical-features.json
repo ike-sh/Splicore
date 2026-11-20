@@ -40,7 +40,7 @@
         "protocol/vless/encryption/handshake.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -54,7 +54,7 @@
         "internal/splicore/protocol/vless/settings.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -65,7 +65,7 @@
         "internal/splicore/cli/vlessenc.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -77,7 +77,7 @@
         "internal/splicore/engine/native/vless_outbound.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -89,7 +89,7 @@
         "internal/splicore/exporter/vless_uri.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -101,7 +101,7 @@
         "internal/splicore/domain/streamtransport/xhttp_h3_options.go"
       ],
       "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "RESTORED_AND_VERIFIED"
     },
     {
@@ -115,7 +115,7 @@
         "internal/splicore/streamtransport/xhttp/h3_stub.go"
       ],
       "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "RESTORED_AND_VERIFIED"
     },
     {
@@ -128,7 +128,7 @@
         "internal/splicore/streamtransport/xhttp/envelope.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -139,7 +139,7 @@
         "internal/splicore/streamtransport/native_http.go"
       ],
       "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "RESTORED_AND_VERIFIED"
     },
     {
@@ -151,7 +151,7 @@
         "internal/splicore/streamtransport/native_quic_stub.go"
       ],
       "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "RESTORED_AND_VERIFIED"
     },
     {
@@ -165,7 +165,7 @@
         "internal/splicore/domain/streamtransport/mkcp.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -179,7 +179,7 @@
         "internal/splicore/streamtransport/deadline.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -234,7 +234,7 @@
         "internal/splicore/domain/endpoint/wireguard.go"
       ],
       "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "RESTORED_AND_VERIFIED"
     },
     {
@@ -247,7 +247,7 @@
         "internal/splicore/wireguardendpoint/backend_unqualified.go"
       ],
       "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "RESTORED_AND_VERIFIED"
     },
     {
@@ -276,7 +276,7 @@
         "internal/splicore/wireguardendpoint/bind_receive_windows.go"
       ],
       "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY. Fresh typed WSAEMSGSIZE 10040 recovery on the same Windows receive worker; all other socket errors retain their semantics. Old Hotfix campaign remains NOT QUALIFIED.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. Fresh typed WSAEMSGSIZE 10040 recovery on the same Windows receive worker; all other socket errors retain their semantics. Old Hotfix campaign remains NOT QUALIFIED.",
       "status": "RESTORED_AND_VERIFIED",
       "additional_sources": [
         "ade432c36a42fb35658d97d9103767c7aaeb93a0"
@@ -293,7 +293,7 @@
         "internal/splicore/clientruntime/status.go"
       ],
       "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "RESTORED_AND_VERIFIED"
     },
     {
@@ -307,7 +307,7 @@
         "internal/splicore/nativetun/dial_gvisor.go"
       ],
       "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY. In-memory native TUN stack dialing and ownership tested. Windows Wintun/hardware networking is NOT EXECUTED.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. In-memory native TUN stack dialing and ownership tested. Windows Wintun/hardware networking is NOT EXECUTED.",
       "status": "RESTORED_AND_VERIFIED"
     },
     {
@@ -321,7 +321,7 @@
         "internal/splicore/ports/target.go"
       ],
       "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "RESTORED_AND_VERIFIED"
     },
     {
@@ -334,7 +334,7 @@
         "internal/splicore/underlay/bootstrap.go"
       ],
       "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "RESTORED_AND_VERIFIED"
     },
     {
@@ -347,7 +347,7 @@
         "internal/splicore/storage/sqlite/users.go"
       ],
       "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "RESTORED_AND_VERIFIED"
     },
     {
@@ -361,7 +361,7 @@
         "protocol/snell/wire/command.go"
       ],
       "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "RESTORED_AND_VERIFIED"
     },
     {
@@ -375,7 +375,7 @@
         "internal/splicore/engine/native/snell_pool.go"
       ],
       "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY. Official Snell v5.0.1 peer is Linux-only; native Windows protocol coverage is separate.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. Official Snell v5.0.1 peer is Linux-only; native Windows protocol coverage is separate.",
       "status": "RESTORED_AND_VERIFIED"
     },
     {
@@ -389,7 +389,7 @@
         "internal/splicore/engine/native/snell_pool.go"
       ],
       "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "RESTORED_AND_VERIFIED"
     },
     {
@@ -403,7 +403,7 @@
         "internal/splicore/protocol/shadowsocks/creation.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -417,7 +417,7 @@
         "internal/splicore/protocol/trojan/trojan.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -431,7 +431,7 @@
         "internal/splicore/protocol/vmess/json.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -445,7 +445,7 @@
         "internal/splicore/protocol/hysteria2/hysteria2.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -459,7 +459,7 @@
         "internal/splicore/streamtransport/hysteria/congestion.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -473,7 +473,7 @@
         "internal/splicore/protocol/tuic/tuic.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -487,7 +487,7 @@
         "internal/splicore/protocol/anytls/creation.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -501,7 +501,7 @@
         "internal/splicore/protocol/naive/naive.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY. Native H2/H3 ownership, half-close, active close, idle expiry and bounded worker join regressions; no arbitrary sleep or per-operation deadline relaxation.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. Native H2/H3 ownership, half-close, active close, idle expiry and bounded worker join regressions; no arbitrary sleep or per-operation deadline relaxation.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -515,7 +515,7 @@
         "protocol/mieru/backend/meter.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 release archives are BUILD ONLY. The Mieru SDK v3.39.0 requirement resolves to github.com/ike-sh/mieru/v3 v3.0.0-20261118111519-f237626f5345. The deadline/reader-ownership adaptation from f16067799b07945614f2dffcb8fdc8275dc8ac07 remains in use.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. The Mieru SDK v3.39.0 requirement resolves to github.com/ike-sh/mieru/v3 v3.0.0-20261118111519-f237626f5345. The deadline/reader-ownership adaptation from f16067799b07945614f2dffcb8fdc8275dc8ac07 remains in use.",
       "status": "RESTORED_AND_VERIFIED",
       "additional_sources": [
         "f16067799b07945614f2dffcb8fdc8275dc8ac07"
@@ -532,7 +532,7 @@
         "internal/splicore/protocol/trusttunnel/creation.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -546,7 +546,7 @@
         "protocol/vless/backend/packet.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -558,7 +558,7 @@
         "protocol/vless/vision/security.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -572,7 +572,7 @@
         "internal/splicore/finalmask/sudoku.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -586,7 +586,7 @@
         "internal/splicore/streamtransport/mkcp/writer.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -599,7 +599,7 @@
         "internal/splicore/streamtransport/websocket.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -613,7 +613,7 @@
         "internal/splicore/clientruntime/udp.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -627,7 +627,7 @@
         "internal/splicore/networkruntime/policy.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -640,7 +640,7 @@
         "internal/splicore/remotesource/fetch.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -654,7 +654,7 @@
         "internal/splicore/exporter/dispatch.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -668,7 +668,7 @@
         "internal/splicore/storage/sqlite/files_unix.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY. Encrypted SQLite schema 8 retained; historical WAL/P1-B candidate excluded. Linux-only production backup and fail-closed Windows behavior tested separately.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. Encrypted SQLite schema 8 retained; historical WAL/P1-B candidate excluded. Linux-only production backup and fail-closed Windows behavior tested separately.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -682,7 +682,7 @@
         "internal/splicore/secretvault/vault.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -696,7 +696,7 @@
         "internal/splicore/cli/client.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -708,7 +708,7 @@
         "internal/splicore/application/service.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -722,7 +722,7 @@
         "internal/splicore/hostnetwork/devices.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY. Native in-memory/journal/security behavior; physical TUN/Wintun and broad host networking remain outside qualification.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. Native in-memory/journal/security behavior; physical TUN/Wintun and broad host networking remain outside qualification.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -736,7 +736,7 @@
         "internal/splicore/registry/engine_bindings.go"
       ],
       "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "RESTORED_AND_VERIFIED"
     },
     {
@@ -750,7 +750,7 @@
         "internal/splicore/registry/testfixture/foundation.go"
       ],
       "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "RESTORED_AND_VERIFIED"
     },
     {
@@ -764,7 +764,7 @@
         "internal/splicore/distribution/manifest.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -791,7 +791,7 @@
         "internal/splicore/domain/streamtransport/mkcp.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     },
     {
@@ -815,7 +815,7 @@
         "internal/splicore/api/http.go"
       ],
       "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "RESTORED_AND_VERIFIED"
     },
     {
@@ -826,7 +826,7 @@
         "internal/splicore/application/client.go"
       ],
       "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "RESTORED_AND_VERIFIED"
     },
     {
@@ -837,7 +837,7 @@
         "internal/splicore/clientprofile/profile.go"
       ],
       "disposition": "restored",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "RESTORED_AND_VERIFIED"
     },
     {
@@ -849,7 +849,7 @@
         "internal/splicore/domain/access/private_key.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. ARM64 is BUILD ONLY.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json.",
       "status": "MAIN_VERIFIED"
     }
   ],

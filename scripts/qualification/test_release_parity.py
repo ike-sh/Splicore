@@ -51,7 +51,11 @@ class QualificationProvenance(unittest.TestCase):
                'job': 'build', 'ref': REF, 'sha': MERGE}
         source = {'commit': MERGE, 'tree': tree}
         value = {'kind': 'release', 'target': target, 'source': source, 'run': run,
-                 'recorded_at': f'2026-11-20T0{attempt}:01:00Z'}
+                 'recorded_at': f'2026-11-20T0{attempt}:01:00Z',
+                 'runner': {'image_version': '20261115.219.1'}, 'go': {'GOVERSION': 'go1.26.3'},
+                 'network': {}, 'resources': {}, 'reference': {}, 'windows_port_ranges': None,
+                 'test_commands': {name: {'command': ['go', 'test'], 'execution': {}}
+                                   for name in ('default-test', 'full-test', 'race')}}
         value['fingerprint_sha256'] = evidence.sha256(evidence.json_bytes(value))
         fingerprint = evidence.json_bytes(value)
         manifest = {'target': target, 'kind': 'release', 'run': run, 'source': source,
@@ -93,13 +97,14 @@ class QualificationProvenance(unittest.TestCase):
     def rerun(self, conclusion='success'):
         self.run['run_attempt'] = 2
         for target in compare.TARGETS:
-            # Mirror GitHub's new attempt-2 IDs for the three carried jobs.
+            # Mirror GitHub's new attempt-2 ID for the carried Windows job.
             selected = target == 'linux-amd64'
             self.add_job(target, 2, copied=not selected, conclusion=conclusion if selected else 'success')
 
     def test_complete_first_attempt(self):
         rows, proof = self.inspect()
-        self.assertEqual(set(rows), set(compare.TARGETS))
+        self.assertEqual(set(rows), {'linux-amd64', 'windows-amd64'})
+        self.assertEqual(compare.TARGETS, draft.release.TARGETS)
         self.assertTrue(all(data['attempt'] == 1 and data['original_job'] == data['effective_job'] for data in proof.values()))
 
     def test_partial_rerun_and_failure_then_success(self):
@@ -110,9 +115,9 @@ class QualificationProvenance(unittest.TestCase):
         self.assertEqual(set(rows), set(compare.TARGETS))
         self.assertEqual(proof['linux-amd64']['artifact_id'], new['id'])
         self.assertEqual(proof['linux-amd64']['attempt'], 2)
-        for target in ('windows-amd64', 'linux-arm64', 'windows-arm64'):
-            self.assertEqual(proof[target]['attempt'], 1)
-            self.assertNotEqual(proof[target]['original_job'], proof[target]['effective_job'])
+        self.assertEqual([job['conclusion'] for job in proof['linux-amd64']['history']], ['failure', 'success'])
+        self.assertEqual(proof['windows-amd64']['attempt'], 1)
+        self.assertNotEqual(proof['windows-amd64']['original_job'], proof['windows-amd64']['effective_job'])
         self.assertNotIn(1, self.downloaded)
 
     def test_new_failure_invalidates_older_success(self):
@@ -121,6 +126,12 @@ class QualificationProvenance(unittest.TestCase):
         self.assertNotIn('linux-amd64', rows)
         self.assertIn('did not succeed', proof['linux-amd64']['reason'])
         self.assertNotIn(1, self.downloaded)
+
+    def test_missing_supported_target_is_incomplete(self):
+        self.artifacts.pop()
+        rows, proof = self.inspect()
+        self.assertEqual(proof['windows-amd64']['result'], 'INCOMPLETE')
+        self.assertEqual(compare.compare(rows, rows, TREE)['windows-amd64']['result'], 'INCOMPLETE')
 
     def test_missing_artifact_for_new_success_does_not_fall_back(self):
         self.rerun()
@@ -166,12 +177,11 @@ class QualificationProvenance(unittest.TestCase):
 
 
 class Publication(unittest.TestCase):
-    version = 'v0.6.4'
+    version = 'v0.99.0'
     tag_env = {'GITHUB_EVENT_NAME': 'push', 'GITHUB_REF': 'refs/tags/' + version, 'GITHUB_SHA': HEAD}
 
     def release_record(self):
-        names = [draft.release.archive_name(self.version, target) for target in draft.release.TARGETS]
-        names += [f'splicore-{self.version}-source.tar.gz', 'SHA256SUMS', 'RELEASE_MANIFEST.json']
+        names = sorted(draft.release.asset_names(self.version))
         return {'id': 42, 'draft': True, 'tag_name': self.version, 'target_commitish': HEAD,
                 'assets': [{'id': index, 'name': name, 'state': 'uploaded', 'size': 4, 'digest': 'sha256:' + '0' * 64}
                            for index, name in enumerate(names, 1)]}
@@ -186,7 +196,7 @@ class Publication(unittest.TestCase):
 
     def test_publish_checks_snapshot_then_updates_exact_release(self):
         record = self.release_record()
-        check = draft.snapshot(record, self.version, HEAD, draft=True)
+        check = draft.snapshot(record, self.version, HEAD)
         digest = evidence.sha256(evidence.json_bytes(check))
         with patch.dict('os.environ', dict(self.tag_env, PUBLICATION_GATE='success')):
             with patch.object(draft, 'api', side_effect=[{'sha': HEAD}, record, {'id': 42, 'draft': False}]) as api:
@@ -198,6 +208,40 @@ class Publication(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, 'changed after download'):
                     draft.publish(REPO, self.version, HEAD, 42, digest)
                 self.assertEqual(api.call_count, 2)
+
+    def test_draft_inventory_requires_exactly_five_assets(self):
+        record = self.release_record()
+        snapshot = draft.snapshot(record, self.version, HEAD)
+        self.assertEqual(set(snapshot['assets']), {
+            f'splicore-{self.version}-linux-amd64.tar.gz', f'splicore-{self.version}-windows-amd64.zip',
+            f'splicore-{self.version}-source.tar.gz', 'SHA256SUMS', 'RELEASE_MANIFEST.json',
+        })
+        windows = next(i for i, item in enumerate(record['assets']) if item['name'].endswith('windows-amd64.zip'))
+        asset = record['assets'].pop(windows)
+        with self.assertRaisesRegex(RuntimeError, 'inventory mismatch'):
+            draft.snapshot(record, self.version, HEAD)
+        record['assets'].append(dict(asset, name=f'splicore-{self.version}-windows-arm64.zip'))
+        with self.assertRaisesRegex(RuntimeError, 'unexpected asset'):
+            draft.snapshot(record, self.version, HEAD)
+
+    def test_draft_round_trip_checks_bytes_by_asset_id(self):
+        record = self.release_record()
+        data = b'fixture'
+        checksum = evidence.sha256(data)
+        for asset in record['assets']:
+            asset.update(size=len(data), digest='sha256:' + checksum)
+        snapshot = draft.snapshot(record, self.version, HEAD)
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            with patch.object(draft, 'gh', side_effect=lambda *args, output: output.write(data)) as gh, \
+                    patch.object(draft.release, 'verify', return_value={'version': self.version, 'commit': HEAD}) as verify:
+                self.assertEqual(draft.download_verified(REPO, snapshot, root/'good', checksum), checksum)
+                self.assertEqual({call.args[1] for call in gh.call_args_list},
+                                 {f'repos/{REPO}/releases/assets/{asset["id"]}' for asset in record['assets']})
+                verify.assert_called_once_with(root/'good', checksums_sha256=checksum)
+            with patch.object(draft, 'gh', side_effect=lambda *args, output: output.write(b'corrupt')):
+                with self.assertRaisesRegex(RuntimeError, 'SHA256 mismatch'):
+                    draft.download_verified(REPO, snapshot, root/'bad', checksum)
 
     def test_stage_creates_draft_and_requires_verified_download(self):
         with tempfile.TemporaryDirectory() as temp, patch.dict('os.environ', self.tag_env):
@@ -224,6 +268,45 @@ class Publication(unittest.TestCase):
             draft.release.require_runtime_tests({'tests': tests})
         tests.update({f'{draft.release.RUNTIME_IDENTITY}/{leaf}': 'pass' for leaf in draft.release.RUNTIME_LEAVES})
         draft.release.require_runtime_tests({'tests': tests})
+
+    def test_assembly_rejects_missing_amd64_transfer(self):
+        with tempfile.TemporaryDirectory() as temp:
+            out = Path(temp)
+            transfer = out / 'transfer'
+            transfer.mkdir()
+            (transfer / 'linux-amd64.json').touch()
+            (transfer / f'splicore-{self.version}-linux-amd64.tar.gz').touch()
+            with patch.object(draft.release, 'identity', return_value={'version': self.version}), \
+                    patch.object(draft.release, 'windows_race_result', return_value={'result': 'PASS'}):
+                with self.assertRaisesRegex(RuntimeError, 'transfer inventory mismatch'):
+                    draft.release.assemble(out)
+
+    def test_windows_race_evidence_requires_success_and_matching_source(self):
+        source = {'commit': HEAD, 'tree': TREE}
+        fingerprint = {'source': source, 'run': {'job': 'windows-race', 'sha': HEAD},
+                       'kind': 'windows-race', 'target': 'windows-amd64', 'runner': {},
+                       'reference': {'windows_race_toolchain': {'archive_sha256': '0' * 64}}}
+        race = {'result': 'PASS', 'exit_code': 0, 'command': ['go', 'test', '-race'],
+                'behavior_policy': {'result': 'PASS'}}
+        with tempfile.TemporaryDirectory() as temp, patch.dict('os.environ', {'GITHUB_ACTIONS': ''}):
+            out = Path(temp)
+            manifest = {key: fingerprint[key] for key in ('source', 'target', 'kind', 'run')}
+            for exit_code in (0, 1):
+                race['exit_code'] = exit_code
+                manifest['files'] = {}
+                for name, value in (('fingerprint.json', fingerprint), ('commands/race-test.json', race)):
+                    path = out / name
+                    draft.release.save(path, value)
+                    data = path.read_bytes()
+                    manifest['files'][name] = {'bytes': len(data), 'sha256': evidence.sha256(data)}
+                draft.release.save(out/'SHA256_MANIFEST.json', manifest)
+                if exit_code == 0:
+                    self.assertEqual(draft.release.windows_race_result(out, source)['result'], 'PASS')
+                    with self.assertRaisesRegex(RuntimeError, 'source or job mismatch'):
+                        draft.release.windows_race_result(out, dict(source, tree='d' * 40))
+                else:
+                    with self.assertRaisesRegex(RuntimeError, 'Windows Race did not pass'):
+                        draft.release.windows_race_result(out, source)
 
 
 if __name__ == '__main__':

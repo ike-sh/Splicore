@@ -131,7 +131,7 @@ This source restores the native implementation introduced in commit
 interfaces and retains current permission, provider, underlay and shutdown fixes.
 No module downgrade or schema migration is required. The protocol remains
 experimental; implementation and local peer tests do not certify every client.
-Android/v2rayNG device traffic and native ARM64 execution are NOT EXECUTED.
+Android/v2rayNG device traffic remains NOT EXECUTED.
 Cross-compilation is build evidence only.
 
 CI fetches an official digest-pinned test peer through

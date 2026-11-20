@@ -2,8 +2,7 @@
 
 The archive contains one core executable, `splicore.exe`. No WSL, Go installation
 or separate proxy core is needed. The amd64 archive has native process
-qualification. The ARM64 archive is **BUILD_ONLY**. Independent native ARM64 CI
-has its own qualification record.
+qualification.
 
 Verify the archive with `Get-FileHash -Algorithm SHA256` and the published
 SHA256SUMS. Inside the unpacked directory, the second SHA256SUMS lists each
@@ -45,8 +44,8 @@ From another terminal in the unpacked directory:
 `run` stays in the foreground and writes Ready/errors to stderr. `stop` success
 means the request was accepted; also wait for process exit when supervising it.
 Windows archive qualification exercised `stop`, active-stream closure and
-restart. Console Ctrl+C/SIGTERM injection was `NOT_EXECUTED`. Independent
-native CI covers Windows amd64 Race. Windows ARM64 Race is `NOT_EXECUTED`.
+restart. Console Ctrl+C/SIGTERM injection was `NOT_EXECUTED`. The unified
+CI includes a separate native Windows amd64 Race gate.
 
 The bootstrap's `api.unix_socket` is a stable identity for a local user-restricted
 named pipe, not a socket file or public TCP API port. New key/state directories

@@ -15,12 +15,16 @@ current stable release. The `v0.6.3` tag remains an unpublished candidate.
 
 ## Downloads
 
+Splicore uses the `AMD64_ONLY` support policy. Linux amd64 and Windows amd64
+are the official CI and release targets. ARM64 packages in v0.6.4 are historical
+`BUILD_ONLY` assets. Formal ARM64 support is paused.
+
 | Platform | v0.6.4 archive | Release archive qualification |
 | --- | --- | --- |
 | Linux amd64 | [tar.gz](https://github.com/ike-sh/Splicore/releases/download/v0.6.4/splicore-v0.6.4-linux-amd64.tar.gz) | Native tests and Linux Race |
-| Linux ARM64 | [tar.gz](https://github.com/ike-sh/Splicore/releases/download/v0.6.4/splicore-v0.6.4-linux-arm64.tar.gz) | `BUILD_ONLY` |
+| Linux ARM64 | [tar.gz](https://github.com/ike-sh/Splicore/releases/download/v0.6.4/splicore-v0.6.4-linux-arm64.tar.gz) | Historical `BUILD_ONLY` |
 | Windows amd64 | [zip](https://github.com/ike-sh/Splicore/releases/download/v0.6.4/splicore-v0.6.4-windows-amd64.zip) | Native tests |
-| Windows ARM64 | [zip](https://github.com/ike-sh/Splicore/releases/download/v0.6.4/splicore-v0.6.4-windows-arm64.zip) | `BUILD_ONLY` |
+| Windows ARM64 | [zip](https://github.com/ike-sh/Splicore/releases/download/v0.6.4/splicore-v0.6.4-windows-arm64.zip) | Historical `BUILD_ONLY` |
 
 [SHA256SUMS](https://github.com/ike-sh/Splicore/releases/download/v0.6.4/SHA256SUMS) ·
 [RELEASE_MANIFEST.json](https://github.com/ike-sh/Splicore/releases/download/v0.6.4/RELEASE_MANIFEST.json) ·
@@ -28,9 +32,8 @@ current stable release. The `v0.6.3` tag remains an unpublished candidate.
 
 Verify the archive SHA256 before extraction. Each platform archive includes one
 executable, build metadata, examples, and licenses. The source archive includes
-vendored dependencies and offline build instructions. Independent native ARM64
-CI and Windows amd64 Race have their own qualification records. Windows ARM64
-Race is `NOT_EXECUTED`. [Qualification scope](docs/releases/v0.6.4.md#qualification-scope)
+vendored dependencies and offline build instructions. For the recorded v0.6.4
+results, see the [historical qualification scope](docs/releases/v0.6.4.md#qualification-scope)
 
 ## Quick start
 
@@ -117,8 +120,8 @@ recorded per release. [v0.6.4 release notes](docs/releases/v0.6.4.md)
   fork at `f237626f5345d83ba35d8e24c1721dc8e1c928d3`.
 - **Test fixtures.** Gecko reassembly uses a deterministic test clock. The
   WireGuard Xray fixture uses OS-assigned ports and verifies child socket ownership.
-- **Engineering tools.** P2 records network baselines. P3 adds independent
-  platform qualification and bounded persistence diagnostics.
+- **Engineering tools.** Native CI includes runtime qualification and bounded
+  persistence checks. Network performance baselines run on demand.
 
 See the [release notes](docs/releases/v0.6.4.md) for changes and evidence.
 
@@ -148,6 +151,6 @@ their own gates. [Build and installation guide](docs/INSTALLATION.md)
 - [Installation](docs/INSTALLATION.md) and [configuration](docs/CONFIGURATION.md)
 - [CLI](docs/CLI.md) and [local API](docs/api/README.md)
 - [Architecture](docs/ARCHITECTURE.md) and [Capability Matrix](docs/architecture/CAPABILITY_MATRIX.md)
-- [Operations](docs/OPERATIONS.md) and [contributor workflow](docs/DEVELOPMENT.md)
+- [Operations](docs/OPERATIONS.md), [contributor workflow](docs/DEVELOPMENT.md) and [project roadmap](docs/ROADMAP.md)
 - [Release notes](docs/releases/v0.6.4.md) and [changelog](CHANGELOG.md)
 - [Security policy](SECURITY.md) and [license](LICENSE)

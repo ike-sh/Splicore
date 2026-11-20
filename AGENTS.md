@@ -3,6 +3,9 @@
 - The only development baseline is the latest `origin/main`. Use one short-lived
   `codex/` feature branch directly from it. Never stack restoration branches or
   establish another integration/release mainline.
+- `AMD64_ONLY` covers Linux and Windows amd64. ARM64 formal support, CI gates
+  and release assets are paused. Historical qualification stays with its
+  original evidence. [docs/ROADMAP.md](docs/ROADMAP.md) is the project roadmap.
 - Frozen tags are read-only references for comparison and minimal, attributable
   ports. Never merge the historical branch wholesale, rewrite published history,
   move release tags, reset main, or force-push.

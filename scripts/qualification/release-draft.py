@@ -15,10 +15,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import release
 from qualification import evidence
 
-REHEARSAL_TAG = 'v0.6.4'
-REHEARSAL_COMMIT = '6ff2101e76f73941ecbd780ce2cb68869cb32cee'
-
-
 def gh(*args, output=subprocess.PIPE):
     cli = shutil.which('gh') or shutil.which('gh.exe') or 'gh'
     return subprocess.run([cli, *args], stdout=output, check=True, timeout=180).stdout
@@ -42,13 +38,12 @@ def file_sha256(path):
     return digest.hexdigest()
 
 
-def snapshot(record, version, commit, *, draft):
-    release.require(type(record['id']) is int and record['id'] > 0 and record['draft'] is draft
+def snapshot(record, version, commit):
+    release.require(type(record['id']) is int and record['id'] > 0 and record['draft'] is True
                     and record['tag_name'] == version and record['target_commitish'] == commit,
                     'release ID, draft state, tag or target commit mismatch')
     assets = {}
-    expected = {release.archive_name(version, target) for target in release.TARGETS}
-    expected.update((f'splicore-{version}-source.tar.gz', 'SHA256SUMS', 'RELEASE_MANIFEST.json'))
+    expected = release.asset_names(version)
     for asset in record['assets']:
         name = asset['name']
         release.require(name in expected and name not in assets and asset['state'] == 'uploaded'
@@ -87,7 +82,7 @@ def stage(repo, version, commit, payload, destination):
        '--title', 'Splicore ' + version, '--notes-file', str(payload / 'RELEASE_NOTES.md'),
        *map(str, sorted(candidate.iterdir())))
     view = json.loads(gh('release', 'view', version, '--repo', repo, '--json', 'databaseId'))
-    draft = snapshot(api(repo, f'releases/{view["databaseId"]}'), version, commit, draft=True)
+    draft = snapshot(api(repo, f'releases/{view["databaseId"]}'), version, commit)
     release.require(draft['id'] == view['databaseId'], 'draft lookup returned a different release')
     download_verified(repo, draft, destination, sums)
     return {'id': draft['id'], 'snapshot_sha256': evidence.sha256(evidence.json_bytes(draft)), 'sums_sha256': sums}
@@ -98,7 +93,7 @@ def publish(repo, version, commit, draft_id, expected_snapshot):
     release.require(os.environ.get('PUBLICATION_GATE') == 'success', 'both native smoke jobs must authorize publication')
     release.require(api(repo, f'commits/{version}')['sha'] == commit, 'release tag no longer points to the qualified commit')
     path = f'releases/{draft_id}'
-    draft = snapshot(api(repo, path), version, commit, draft=True)
+    draft = snapshot(api(repo, path), version, commit)
     release.require(draft['id'] == draft_id and evidence.sha256(evidence.json_bytes(draft)) == expected_snapshot,
                     'draft assets changed after download qualification')
     published = api(repo, path, '--method', 'PATCH', '-F', 'draft=false', '-f', 'make_latest=true')
@@ -106,16 +101,9 @@ def publish(repo, version, commit, draft_id, expected_snapshot):
     print(f'Published qualified draft {draft_id} for {version}', flush=True)
 
 
-def rehearsal(repo, destination):
-    # The transport round trip uses existing public assets as a frozen fixture.
-    # The rehearsal has read-only credentials and no release mutation path.
-    fixture = snapshot(api(repo, f'releases/tags/{REHEARSAL_TAG}'), REHEARSAL_TAG, REHEARSAL_COMMIT, draft=False)
-    return {'sums_sha256': download_verified(repo, fixture, destination)}
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=('stage', 'publish', 'rehearsal'))
+    parser.add_argument('action', choices=('stage', 'publish'))
     parser.add_argument('--output', type=Path)
     parser.add_argument('--payload', type=Path)
     args = parser.parse_args()
@@ -124,12 +112,9 @@ def main():
         publish(repo, os.environ['RELEASE_VERSION'], os.environ['RELEASE_COMMIT'], int(os.environ['DRAFT_ID']),
                 os.environ['DRAFT_SNAPSHOT_SHA256'])
         return
-    if args.output is None or (args.action == 'stage' and args.payload is None):
-        parser.error('stage and rehearsal require --output, and stage also requires --payload')
-    if args.action == 'stage':
-        outputs = stage(repo, os.environ['RELEASE_VERSION'], os.environ['RELEASE_COMMIT'], args.payload, args.output)
-    else:
-        outputs = rehearsal(repo, args.output)
+    if args.output is None or args.payload is None:
+        parser.error('stage requires --output and --payload')
+    outputs = stage(repo, os.environ['RELEASE_VERSION'], os.environ['RELEASE_COMMIT'], args.payload, args.output)
     with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
         for key, value in outputs.items():
             output.write(f'{key}={value}\n')

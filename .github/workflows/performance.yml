@@ -1,11 +1,7 @@
-name: Core runtime
+name: Performance baseline
 
 on:
-  workflow_call:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main, 'codex/restore-*']
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -33,10 +29,6 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
-      - name: Verify local guard behavior
-        run: python -m unittest discover -s scripts/dev -p 'test_*.py'
-      - name: Verify restored feature inventory
-        run: python scripts/dev/check-features.py
       - name: Record runner fingerprint
         if: always()
         continue-on-error: true
@@ -60,12 +52,7 @@ jobs:
         if: always()
         continue-on-error: true
         with:
-          name: core-performance-${{ runner.os }}-r${{ github.run_id }}-a${{ github.run_attempt }}
+          name: performance-baseline-${{ runner.os }}-r${{ github.run_id }}-a${{ github.run_attempt }}
           path: ${{ runner.temp }}/splicore-public/
           if-no-files-found: warn
           retention-days: 14
-      - name: Compile arm64 core and packages
-        shell: bash
-        run: |
-          export GOARCH=arm64
-          go build -tags with_quic,with_utls,with_gvisor ./...

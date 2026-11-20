@@ -183,5 +183,5 @@ custom CAs, distinct server names and richer options to prevent silent loss.
 Use canonical configuration for those settings. URI export follows the existing
 explicit secret-export policy. External client JSON formats are unsupported.
 
-Linux arm64 remains **build only**. Real hardware is **not yet qualified**;
-localhost protocol compatibility does not certify deployment or browser identity.
+Real hardware is **not yet qualified**. Deployment and browser identity need
+separate validation beyond localhost protocol compatibility.

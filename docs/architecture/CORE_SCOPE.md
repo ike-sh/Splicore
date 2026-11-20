@@ -31,8 +31,8 @@ desired state. Physical backups preserve it; current configuration exports omit
 it. Obsolete desktop configuration fields are rejected. Legacy recovery journal
 debt can be retained as opaque history and diagnosed without desktop OS writes.
 
-Platform support is experimental and partially qualified. Windows/Linux arm64
-are build-only. Windows/Linux amd64 foreground local control, VLESS loopback
+Official platform support covers Linux and Windows amd64. Foreground local
+control and VLESS loopback
 traffic, shutdown and restart have bounded native process tests. Linux auto-route,
 Windows service installation, real host networking and hardware qualification
 retain their existing limits. See [operations](../OPERATIONS.md).

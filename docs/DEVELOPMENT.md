@@ -1,5 +1,10 @@
 # Development from main
 
+The [roadmap](ROADMAP.md) is the maintained development plan. Work starts from
+the latest main and uses one short-lived `codex/` branch. `AMD64_ONLY` limits
+native CI and release qualification to Linux and Windows amd64. ARM64 is paused.
+Historical investigation results retain their original scope and qualification.
+
 Use the maintainer's canonical checkout. Install local guards once from that
 checkout (Python 3.9+ and Git are required):
 
