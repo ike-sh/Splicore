@@ -59,14 +59,14 @@ The hosted Linux evidence uses the repository's isolated network namespace.
 | Protocol/version | Server Inbound | Client Outbound | TCP | UDP | IPv4 | IPv6 | Domain | Authentication | Observed exercise | Evidence |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | VLESS v0 plain, flow `none` | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | CONNECT | XUDP | TCP/UDP | TCP/UDP | TCP/UDP | UUID | Managed self-interop and reconnect, plain process smoke | [VLESS](#vless), [carriers](#shared-carriers-and-security) |
-| VLESS TLS, flow `none` | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | Stream | XUDP | TCP/UDP | Peer and supported destinations | Carrier DNS case | UUID and TLS | Native TLS payload and shared-carrier close | [VLESS](#vless), [carriers](#shared-carriers-and-security) |
-| VLESS REALITY, flow `none` | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | Raw TCP and admitted XHTTP | Raw XUDP | TCP/UDP | `NOT_EXECUTED` for raw XUDP target | SNI distinct from target DNS | UUID and REALITY keys | Raw loopback and separate XHTTP REALITY fixture | [VLESS](#vless) |
-| VLESS Vision | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | Raw TLS 1.3, REALITY or Encryption, plus encrypted XHTTP H3 | `NOT_IMPLEMENTED` | TCP | Tested H3 and raw peer variants | `NOT_EXECUTED` as a destination grid | UUID, security profile | Bidirectional raw/H3 Xray cases and negative validation | [VLESS](#vless) |
-| VLESS Encryption | `SUPPORTED_VERIFIED` | `SUPPORTED_VERIFIED` | X25519 / ML-KEM-768, native/xorpub/random, 1-RTT/0-RTT cases | XUDP on flow `none` | TCP/UDP | Tested peer/address variants | Separate DNS and identity tests | UUID plus encrypted handshake | Native TLS/REALITY/Vision, Xray both directions, encryption resumption and downloaded TCP smoke | [VLESS](#vless), [carriers](#shared-carriers-and-security) |
-| VMess AEAD | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | Raw plain/TLS and admitted carriers | Standard bound UDP | TCP/UDP | Native cases | Native cases | UUID, AEAD with `alterId=0` | Self-interop, replay, close, pinned XHTTP H3 in both directions | [VMess and Trojan](#vmess-and-trojan) |
-| Shadowsocks AEAD 2017 | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | AEAD streams | AEAD datagrams | Native cases | Native cases | Native cases | Cipher-specific password-derived key | Per-cipher native TCP/UDP, shutdown, replay and destination isolation | [Shadowsocks](#shadowsocks) |
-| Shadowsocks 2022 | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | SS2022 streams | SS2022 datagrams | Native cases | Native cases | Native cases | Edition-specific key | Native matrix and replay boundaries, independent current amd64 campaign `NOT_EXECUTED` | [Shadowsocks](#shadowsocks) |
-| Trojan standard | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | TLS and admitted TLS carriers | Trojan UDP frames | TCP/UDP | Native cases | Native cases | Password plus TLS | Payload, wrong auth, half-close, lifecycle, pinned XHTTP H3 both ways | [VMess and Trojan](#vmess-and-trojan) |
+| VLESS TLS, flow `none` | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | Stream | XUDP | TCP/UDP | `NOT_EXECUTED` for the raw TLS destination grid | `NOT_EXECUTED` for the raw TLS destination grid | UUID and TLS | Native TLS payload and shared-carrier close | [VLESS](#vless), [carriers](#shared-carriers-and-security) |
+| VLESS REALITY, flow `none` | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | Raw TCP and admitted XHTTP | Raw XUDP | TCP/UDP | `NOT_EXECUTED` for raw XUDP target | `NOT_EXECUTED` for the payload grid | UUID and REALITY keys | Raw loopback and separate XHTTP REALITY fixture | [VLESS](#vless) |
+| VLESS Vision | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | Raw TLS 1.3, REALITY or Encryption, plus encrypted XHTTP H3 | `NOT_IMPLEMENTED` | TCP | `NOT_EXECUTED` for the payload grid | `NOT_EXECUTED` for the payload grid | UUID, security profile | Bidirectional raw/H3 Xray cases and negative validation | [VLESS](#vless) |
+| VLESS Encryption | `SUPPORTED_VERIFIED` | `SUPPORTED_VERIFIED` | X25519 / ML-KEM-768, native/xorpub/random, 1-RTT/0-RTT cases | XUDP on flow `none` | TCP/UDP | XHTTP H3 UDP target | XHTTP H3 UDP target | UUID plus encrypted handshake | Native TLS/REALITY/Vision, Xray both directions, encryption resumption and downloaded TCP smoke | [VLESS](#vless), [carriers](#shared-carriers-and-security) |
+| VMess AEAD | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | Raw plain/TLS and admitted carriers | Standard bound UDP | TCP/UDP | `NOT_EXECUTED` for native proxy payload on formal amd64 | TCP on the managed native path | UUID, AEAD with `alterId=0` | Self-interop, replay, close, pinned XHTTP H3 in both directions | [VMess and Trojan](#vmess-and-trojan) |
+| Shadowsocks AEAD 2017 | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | AEAD streams | AEAD datagrams | TCP/UDP | UDP | UDP | Cipher-specific password-derived key | Per-cipher native TCP/UDP, shutdown, replay and destination isolation | [Shadowsocks](#shadowsocks) |
+| Shadowsocks 2022 | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | SS2022 streams | SS2022 datagrams | TCP/UDP | UDP | UDP | Edition-specific key | Native matrix and replay boundaries, independent current amd64 campaign `NOT_EXECUTED` | [Shadowsocks](#shadowsocks) |
+| Trojan standard | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | TLS and admitted TLS carriers | Trojan UDP frames | TCP/UDP | `NOT_EXECUTED` for native proxy payload on formal amd64 | TCP on the managed native path | Password plus TLS | Payload, wrong auth, half-close, lifecycle, pinned XHTTP H3 both ways | [VMess and Trojan](#vmess-and-trojan) |
 | Snell v4 | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | Native raw, bounded HTTP obfs and optional v4 reuse | UDP payload over TCP | TCP/UDP | `NOT_EXECUTED` across v4 modes | HTTP obfs authority and destination evidence are separate | PSK, one binding | Native TCP reuse, UDP port/destination change, pool shutdown | [Snell](#snell) |
 | Snell v5 | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | Raw TCP, tested v4-client subset | UDP over TCP and app QUIC Proxy with DRS | TCP/UDP and QUIC target | UDP and QUIC target | Outbound UDP resolves locally | PSK, one binding | Real QUIC payload, native and Linux official v5 upstream | [Snell](#snell) |
 | Snell v6 | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | Native stream | Bound UDP over TCP | TCP/UDP | TCP/UDP | TCP/UDP | PSK, one binding | Managed native creation/traffic/rotation/reconnect | [Snell](#snell) |
@@ -74,7 +74,7 @@ The hosted Linux evidence uses the repository's isolated network namespace.
 | TUIC v5 | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | QUIC streams | Native QUIC Datagram | TCP/UDP | TCP/UDP | TCP/UDP | UUID/password over TLS/QUIC | Native managed dual-end traffic, cancellation and shutdown | [TUIC and Mieru](#tuic-and-mieru) |
 | Mieru | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | Embedded TCP/UDP underlay | Proxy packet sessions | TCP/UDP | TCP/UDP | TCP/UDP on TCP underlay | Username/password | Native managed dual-end payload and UDP-underlay cases | [TUIC and Mieru](#tuic-and-mieru) |
 | AnyTLS v2 + UoT2 | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | TLS streams and session reuse | Connected and nonconnected UoT2 | TCP/UDP | TCP/UDP | UDP tested | Password plus TLS | Multi-user transfer, reuse and owned lifecycle | [AnyTLS](#anytls) |
-| AnyTLS v1 compatibility | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | Bounded negotiation and stream reuse | Separate v1 UoT2 peer campaign `NOT_EXECUTED` | Negotiation fixture | `NOT_EXECUTED` | `NOT_EXECUTED` | Password plus TLS | Version negotiation and native session fixture | [AnyTLS](#anytls) |
+| AnyTLS v1 compatibility | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | Bounded negotiation and stream reuse | Separate v1 UoT2 peer campaign `NOT_EXECUTED` | `NOT_EXECUTED` at managed Core level | `NOT_EXECUTED` | `NOT_EXECUTED` | Password plus TLS | Version negotiation and native session fixture | [AnyTLS](#anytls) |
 | NaiveProxy H2 CONNECT | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | TLS HTTP/2 CONNECT | `NOT_IMPLEMENTED` | TCP | TCP | TCP | Basic over TLS | Native and unpadded HTTP/2 client, stream shutdown | [NaiveProxy](#naiveproxy) |
 | NaiveProxy H3 CONNECT | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | TLS/QUIC HTTP/3 CONNECT | `NOT_IMPLEMENTED` | TCP | TCP | TCP | Basic over TLS | Full-tag multi-user/payload/half-close and H3 ownership | [NaiveProxy](#naiveproxy) |
 | TrustTunnel H2/H3/auto | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | TLS CONNECT paths | Native tunneled datagrams | TCP/UDP | IPv6 proxy endpoint | Domain proxy endpoint, outbound UDP target resolved locally | Username/password plus TLS | Native TCP/UDP and ownership at H2/H3 and auto | [TrustTunnel](#trusttunnel) |
@@ -93,7 +93,9 @@ full builds. The name retains its original test identity. VLESS Encryption
 gate cases `TestVLESSEncryptionNativeSecurityVision`,
 `TestVLESSEncryptionPinnedRuntimeInterop`, `TestPhase33PinnedEncryption`, and
 `TestPhase33PinnedVision` passed baseline L/W with exit `0`. The independent
-Xray cases exercise Splicore as both server and client. The four
+Xray cases exercise Splicore as both server and client. The full Linux
+`TestPhase33EncryptionUDPDestinationsAndShutdown` leaves for `127.0.0.1`, `::1`,
+and `localhost` passed with exit `0`. The four
 `TestRuntimeBinaryTrafficShutdownAndRestart` smoke leaves cover plain and
 encrypted profiles with and without Sudoku. VLESS Vision is TCP only. The
 H3 exception requires VLESS Encryption. Android device interoperability is
@@ -104,8 +106,10 @@ H3 exception requires VLESS Encryption. Android device interoperability is
 The two native modules and outbound factories accept only AEAD VMess and
 standard TLS Trojan. `TestVMessNativeModesTLSMultiUser` and
 `TestTrojanNativeTLSMultiUserLifecycle` passed baseline default L/W, exit `0`,
-with real TCP/UDP. `TestVMessLifecycle25` and `TestTrojanLifecycle25` cover
-generation release. `TestPhase33PinnedProtocols` independently verifies XHTTP
+with real TCP/UDP. Linux full `TestPhase19VMessManagedUsersAndRotation` and
+`TestPhase18TrojanManagedUsersAndRotation` passed with exit `0`, including
+TCP to a domain target. `TestVMessLifecycle25` and `TestTrojanLifecycle25`
+cover generation release. `TestPhase33PinnedProtocols` independently verifies XHTTP
 H3 TCP/UDP in both directions for both protocols in baseline full L/W, exit `0`.
 The broader `TestVMessExternalInterop` campaign is `NOT_EXECUTED` in the native
 release policy. VMess legacy, arbitrary mux and Trojan's optional fallback and
@@ -117,7 +121,9 @@ The edition-specific modules share a native compiler and factory. The
 `TestShadowsocksNativeTCPUDPMatrix` and `TestShadowsocksLifecycle25` cases pass
 baseline default L/W, exit `0`. The matrix checks edition/cipher-specific
 payload, including AEAD 2017 AES-GCM and ChaCha20-Poly1305 and the supported
-SS2022 key/cipher profiles. `TestShadowsocksAuthenticatedReplayAfterRestart`
+SS2022 key/cipher profiles. `TestShadowsocksUDPMultipleDestinationsOneAssociation`
+passed baseline default L/W, exit `0`, with IPv4, IPv6 and domain targets per
+cipher. `TestShadowsocksAuthenticatedReplayAfterRestart`
 checks the authenticated replay boundary. Independent peer qualification of
 every cipher is `NOT_EXECUTED`. SIP options outside the registered profiles
 have no direction claim. [Module](../../internal/splicore/protocol/shadowsocks) · [Native matrix](../../internal/splicore/engine/native/shadowsocks_test.go)
@@ -147,8 +153,8 @@ TCP/UDP over both destination families and domains. The native
 `TestOwnedHysteria2ParallelAuthAttributionAndDomainTargets`,
 `TestOwnedHysteria2DatagramsAndShutdown` and
 `TestOwnedHysteria2HalfCloseAndIndependentCancellation` exercise native
-QUIC traffic and lifecycle. `TestNativeHysteriaCompletenessNegativeMatrix`
-covers obfuscation and TLS boundaries. The settings admit Salamander,
+QUIC traffic and lifecycle. The Linux `TestNativeHysteriaCompletenessNegativeMatrix`
+checks incompatible obfuscation and downgrade refusal. The settings admit Salamander,
 experimental Gecko, hopping, bounded masquerade and native congestion
 profiles. The full cross-product, independent BBR equivalence and privileged
 Linux nftables server ranges are `NOT_EXECUTED` in this audit. Hysteria v1
