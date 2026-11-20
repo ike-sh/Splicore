@@ -55,8 +55,8 @@ is permission to push main, alter tags, or skip qualification. No global Git
 configuration is changed. Configure GitHub required PR review and required CI
 checks separately with maintainer authorization.
 
-The restoration CI runs native Linux/Windows builds and tests, CLI process
-traffic/restart, credential/storage and lifecycle regressions, and Linux race
-tests. Optional reference peers must be pinned and used only in test code.
+The [release qualification contract](releases/QUALIFICATION.md) defines the
+shared PR, main and Tag gates and the evidence available for troubleshooting.
+Optional reference peers must be pinned and used only in test code.
 Run `python3 -m unittest discover -s scripts/dev -p 'test_*.py'` to verify guard
 rejection cases without creating another source checkout.

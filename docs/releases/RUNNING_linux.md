@@ -1,8 +1,9 @@
 # Splicore on Linux
 
 The archive contains one core executable, `splicore`. No separate proxy core or
-language runtime is needed. amd64 has native process qualification; arm64 is
-**BUILD ONLY**, with no native runtime qualification.
+language runtime is needed. The amd64 archive has native process qualification.
+The ARM64 archive is **BUILD_ONLY**. Independent native ARM64 CI has its own
+qualification record.
 
 Verify the downloaded archive against the release's SHA256SUMS before unpacking.
 Inside the unpacked directory, `sha256sum -c SHA256SUMS` verifies its contents.
@@ -69,17 +70,19 @@ port-range rules need nft/CAP_NET_ADMIN. These privileged features, all-protocol
 interoperability, WSL2 large-UDP behavior and crash/power-loss recovery are outside
 this release's VLESS process qualification. No drivers are bundled.
 
-This v0.5.0 line is not a drop-in v0.3.0 Frozen upgrade. WireGuard endpoints,
-ShadowQUIC, XHTTP H3 and additional generic stream carriers remain pending.
+Follow the [upgrade guide](https://github.com/ike-sh/Splicore/blob/v0.6.4/docs/UPGRADE.md)
+when migrating from the v0.3.0 Frozen line. v0.6.4 includes standard userspace
+WireGuard, XHTTP H3 and additional generic stream carriers. ShadowQUIC and
+Linux kernel WireGuard remain `ISOLATED_NOT_QUALIFIED`.
 Native VLESS Encryption is restored, with ML-KEM-768/X25519 handshakes and
 AES-GCM/ChaCha records. Generate keys with `splicore vlessenc` (use `.exe` on
 Windows), set inbound `server_secret.decryption` and public client
 `options.data.encryption`, and follow the tagged
-[VLESS Encryption configuration](https://github.com/ike-sh/Splicore/blob/v0.5.0/docs/protocol/VLESS_ENCRYPTION.md).
+[VLESS Encryption configuration](https://github.com/ike-sh/Splicore/blob/v0.6.4/docs/protocol/VLESS_ENCRYPTION.md).
 Generator output contains private key material; store it privately. Sudoku is
 obfuscation, not encryption. Android/v2rayNG real-device traffic is NOT EXECUTED.
 Phase37 and unadmitted SQLite WAL candidates remain excluded.
 Keep backups and do not mix frozen database/configuration trees.
 
-Source and detailed limits: https://github.com/ike-sh/Splicore/releases/tag/v0.5.0
-and https://github.com/ike-sh/Splicore/tree/v0.5.0/docs
+See the [v0.6.4 release and qualification limits](https://github.com/ike-sh/Splicore/releases/tag/v0.6.4)
+and the [tagged documentation](https://github.com/ike-sh/Splicore/tree/v0.6.4/docs).

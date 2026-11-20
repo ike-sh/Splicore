@@ -52,7 +52,8 @@ def main():
     manifest = {'shadowquic': {'status': 'ISOLATED_NOT_QUALIFIED', 'included': False}}
     if os.name != 'nt' and arch == 'amd64':
         url = 'https://dl.nssurge.com/snell/snell-server-v5.0.1-linux-amd64.zip'
-        package = fetch(root / 'snell-v5.0.1.zip', url, '9bea1c2b9e35b73b31634856c04d18c393072b9e5dcde6a32781d8b8f908c539')
+        archive_sha256 = '9bea1c2b9e35b73b31634856c04d18c393072b9e5dcde6a32781d8b8f908c539'
+        package = fetch(root / 'snell-v5.0.1.zip', url, archive_sha256)
         with zipfile.ZipFile(package) as archive:
             data = archive.read('snell-server')
         expected = '5b2e221f2c6e29b1db8e47053e1221be29d5627da807cb932b089f514a3609f0'
@@ -64,13 +65,15 @@ def main():
         snell.write_bytes(data)
         snell.chmod(0o755)
         env.update(SPLICORE_SNELL_V5_REFERENCE=str(snell), SPLICORE_SNELL_V5_EVIDENCE=str(root / 'snell-evidence'))
-        manifest['snell'] = {'version': 'v5.0.1', 'url': url, 'binary_sha256': expected}
+        manifest['snell'] = {'version': 'v5.0.1', 'url': url, 'archive_sha256': archive_sha256, 'binary_sha256': expected}
     else:
         manifest['snell'] = {'status': 'NOT EXECUTED', 'reason': 'No digest-pinned native official Snell binary configured for this OS/architecture; native Splicore traffic remains required'}
     peer = root / ('wireguard-peer.exe' if os.name == 'nt' else 'wireguard-peer')
     if peer.exists():
         raise RuntimeError('Use a fresh peer output directory; refusing to overwrite a WireGuard peer')
-    subprocess.run(['go', 'build', '-mod=readonly', '-trimpath', '-o', str(peer), './scripts/dev/wireguard-peer'], cwd=ROOT, check=True)
+    # PR merge commits and their integrated commit may have the same tree but
+    # different VCS metadata. Bind source in the run fingerprint instead.
+    subprocess.run(['go', 'build', '-mod=readonly', '-trimpath', '-buildvcs=false', '-o', str(peer), './scripts/dev/wireguard-peer'], cwd=ROOT, check=True)
     env['SPLICORE_PHASE34_WG_REFERENCE'] = str(peer)
     manifest['wireguard'] = {'source': 'scripts/dev/wireguard-peer', 'engine': 'golang.zx2c4.com/wireguard@v0.0.0-20261024220952-b3bc704ef0ee', 'binary_sha256': sha(peer.read_bytes()), 'test_only': True}
     for key in ('SPLICORE_PHASE32_PEER_LOGS', 'SPLICORE_PHASE33_PEER_LOGS', 'SPLICORE_PHASE34_PEER_LOGS', 'SPLICORE_SNELL_V5_EVIDENCE'):

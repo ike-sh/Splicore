@@ -1,0 +1,34 @@
+name: Qualification evidence
+description: Export only the bounded public projection of this job's evidence
+inputs:
+  target:
+    required: true
+    description: Package target or supplemental native target
+  label:
+    required: true
+    description: Hosted runner label requested by the job
+  kind:
+    required: false
+    default: release
+    description: Qualification or diagnostic campaign
+runs:
+  using: composite
+  steps:
+    - name: Reclaim private Linux namespace evidence
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        private="$RUNNER_TEMP/splicore-private"
+        if [[ -d "$private" && ! -L "$private" ]]; then
+          sudo chown -R --no-dereference "$(id -u):$(id -g)" "$private" || echo '::warning::Could not reclaim all qualification evidence'
+        fi
+    - name: Project public evidence and inventory
+      shell: bash
+      env:
+        EVIDENCE_TARGET: ${{ inputs.target }}
+        EVIDENCE_LABEL: ${{ inputs.label }}
+        EVIDENCE_KIND: ${{ inputs.kind }}
+      run: |
+        python scripts/qualification/evidence.py export \
+          --private "$RUNNER_TEMP/splicore-private" --public "$RUNNER_TEMP/splicore-public" \
+          --target "$EVIDENCE_TARGET" --label "$EVIDENCE_LABEL" --kind "$EVIDENCE_KIND"

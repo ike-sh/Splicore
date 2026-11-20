@@ -1,150 +1,153 @@
 # Splicore
 
-Splicore is an independent proxy Core for Server Core and Client Core use.
-It combines proxy protocols, local traffic entry, routing, DNS, policy, TUN
-and a persistent control plane in a single Core implementation.
+[简体中文](README_CN.md)
+
+Splicore is a standalone proxy core written in Go. Its Server Core and Client
+Core share one native executable, with a local control API and encrypted
+SQLite state. It runs without Xray, V2Ray, sing-box, or Mihomo as production
+dependencies. The repository provides the core, CLI, and API for operators
+and integrators.
+
+## Latest stable release
+
+[Splicore v0.6.4](https://github.com/ike-sh/Splicore/releases/tag/v0.6.4) is the
+current stable release. The `v0.6.3` tag remains an unpublished candidate.
+
+## Downloads
+
+| Platform | v0.6.4 archive | Release archive qualification |
+| --- | --- | --- |
+| Linux amd64 | [tar.gz](https://github.com/ike-sh/Splicore/releases/download/v0.6.4/splicore-v0.6.4-linux-amd64.tar.gz) | Native tests and Linux Race |
+| Linux ARM64 | [tar.gz](https://github.com/ike-sh/Splicore/releases/download/v0.6.4/splicore-v0.6.4-linux-arm64.tar.gz) | `BUILD_ONLY` |
+| Windows amd64 | [zip](https://github.com/ike-sh/Splicore/releases/download/v0.6.4/splicore-v0.6.4-windows-amd64.zip) | Native tests |
+| Windows ARM64 | [zip](https://github.com/ike-sh/Splicore/releases/download/v0.6.4/splicore-v0.6.4-windows-arm64.zip) | `BUILD_ONLY` |
+
+[SHA256SUMS](https://github.com/ike-sh/Splicore/releases/download/v0.6.4/SHA256SUMS) ·
+[RELEASE_MANIFEST.json](https://github.com/ike-sh/Splicore/releases/download/v0.6.4/RELEASE_MANIFEST.json) ·
+[Corresponding source archive](https://github.com/ike-sh/Splicore/releases/download/v0.6.4/splicore-v0.6.4-source.tar.gz)
+
+Verify the archive SHA256 before extraction. Each platform archive includes one
+executable, build metadata, examples, and licenses. The source archive includes
+vendored dependencies and offline build instructions. Independent native ARM64
+CI and Windows amd64 Race have their own qualification records. Windows ARM64
+Race is `NOT_EXECUTED`. [Qualification scope](docs/releases/v0.6.4.md#qualification-scope)
+
+## Quick start
+
+On Linux, run these commands from the extracted archive. Use a local filesystem
+that enforces POSIX permissions and a directory owned by the account running
+the core. `run` stays in the foreground.
+
+```sh
+./splicore version
+./splicore help
+
+umask 077
+data_dir="$HOME/.local/state/splicore"
+install -d -m 700 "$data_dir"
+cat > "$data_dir/bootstrap.yaml" <<EOF
+schema: 1
+state_directory: $data_dir/state
+key_file: $data_dir/keys/master.key
+api:
+  unix_socket: $data_dir/ctl/core.sock
+EOF
+
+./splicore key init --file "$data_dir/keys/master.key"
+./splicore check --config "$data_dir/bootstrap.yaml"
+./splicore run --config "$data_dir/bootstrap.yaml"
+```
+
+From a second terminal in the extracted directory, check status or request a
+graceful stop.
+
+```sh
+./splicore status --config "$HOME/.local/state/splicore/bootstrap.yaml"
+./splicore stop --config "$HOME/.local/state/splicore/bootstrap.yaml"
+```
+
+On Windows, open PowerShell in the extracted directory and use the bootstrap
+setup in the [Windows run guide](docs/releases/RUNNING_windows.md).
+
+```powershell
+.\splicore.exe version
+.\splicore.exe help
+.\splicore.exe key init --file 'D:/Splicore/keys/master.key'
+.\splicore.exe check --config 'D:/Splicore/bootstrap.yaml'
+.\splicore.exe run --config 'D:/Splicore/bootstrap.yaml'
+```
+
+Query or stop it from a second PowerShell window.
+
+```powershell
+.\splicore.exe status --config 'D:/Splicore/bootstrap.yaml'
+.\splicore.exe stop --config 'D:/Splicore/bootstrap.yaml'
+```
+
+The bootstrap YAML selects process paths. Manage protocol resources through
+the CLI or the local control API, which uses a Unix socket on Linux and a
+user-restricted named pipe on Windows. An empty database starts without proxy
+listeners. The Linux guide walks through applying the bundled loopback VLESS
+example. Keep key and state directories private, and back up the SQLite state
+with its matching original master key. [Linux run guide](docs/releases/RUNNING_linux.md)
 
 ## Capabilities
 
-Implemented experimental protocol modules include Shadowsocks/SS2022, Snell, Hysteria2, TUIC, VLESS,
-Mieru, Trojan, VMess, AnyTLS, standard WireGuard endpoints, [TrustTunnel](docs/protocol/TRUSTTUNNEL.md) and
-[NaiveProxy](docs/architecture/NAIVE.md), with local
-SOCKS5, HTTP, Mixed and TUN traffic entry.
-Shared stream transports include raw TCP, WebSocket, HTTPUpgrade, gRPC,
-[XHTTP](docs/architecture/XHTTP.md) H1/H2/H3, generic HTTP/H2/QUIC carriers and [modern mKCP](docs/architecture/MKCP.md).
-Hysteria2 uses the native [specialized Hysteria transport](docs/architecture/HYSTERIA_TRANSPORT.md),
-including Salamander, Gecko obfuscation (experimental) and UDP port hopping.
-Native REALITY protected destinations can use a
-[local tunnel guard](docs/protocol/LOCAL_TUNNEL_GUARD.md) with bounded TLS SNI
-inspection, route-only matching and fail-closed routing to a fixed destination.
+- **Proxy protocols and endpoints.** VLESS, VMess, Shadowsocks and SS2022,
+  Trojan, Hysteria2, TUIC, Mieru, Snell, AnyTLS, TrustTunnel, NaiveProxy, and
+  standard userspace WireGuard are available within their documented profiles.
+- **Transports.** Supported combinations include TLS and REALITY, WebSocket,
+  HTTPUpgrade, gRPC, XHTTP, HTTP/H2/QUIC stream carriers, and modern mKCP.
+- **Client networking.** Local SOCKS5, HTTP, Mixed, and optional TUN ingress
+  feed managed routing, DNS, and provider policies.
+- **Management.** The CLI and local API manage runtime resources and lifecycle.
+  SQLite persists state with encrypted credentials.
 
-See the [capability matrix](docs/architecture/CAPABILITY_MATRIX.md) and
-[Core scope](docs/architecture/CORE_SCOPE.md) for capability details and boundaries.
+The [Capability Matrix](docs/architecture/CAPABILITY_MATRIX.md) defines supported
+profiles, dependencies, and limits. Independent peer and platform coverage is
+recorded per release. [v0.6.4 release notes](docs/releases/v0.6.4.md)
 
-## Build
+## Changes in v0.6.4
 
-Go 1.26.3 or newer is required. Release qualification uses Go 1.26.3.
+- **TUIC.** A valid authentication command stream can finish before the server
+  cancels its reads, allowing authenticated parallel CONNECT to proceed.
+- **Mieru.** Full accept queues no longer stall UDP receive for established
+  sessions. The patch also fixes read-deadline wakeup order and preserves
+  socket access during session cleanup. The release pins the internal Mieru
+  fork at `f237626f5345d83ba35d8e24c1721dc8e1c928d3`.
+- **Test fixtures.** Gecko reassembly uses a deterministic test clock. The
+  WireGuard Xray fixture uses OS-assigned ports and verifies child socket ownership.
+- **Engineering tools.** P2 records network baselines. P3 adds independent
+  platform qualification and bounded persistence diagnostics.
 
-```sh
-make build
-# build/linux-amd64/splicore (on Linux amd64)
-```
+See the [release notes](docs/releases/v0.6.4.md) for changes and evidence.
 
-Native Windows builds use PowerShell and Go; WSL is not required:
+## Build from source
 
-```powershell
-./scripts/splicore-build.ps1
-./build/windows-amd64/splicore.exe help
-```
+Use Go 1.26.3 or newer. On Linux, run `make build`. On Windows, run
+`.\scripts\splicore-build.ps1` in PowerShell. The standard build profile uses
+`CGO_ENABLED=0` and `with_quic,with_utls,with_gvisor`. Cross-compilation
+establishes build compatibility. Native execution and interoperability have
+their own gates. [Build and installation guide](docs/INSTALLATION.md)
 
-Both builders use CGO_ENABLED=0 and embed source commit, time and feature tags.
-`make build-matrix` evaluates Windows/Linux amd64/arm64. Cross-compilation does
-not establish native arm64 runtime support. Local build outputs default to development builds. Official archives embed the
-version from `distribution/RELEASE_VERSION` and their exact main release commit.
+## Known limitations
 
-## Run the core
-
-One executable owns the daemon, local API, protocol listeners and management CLI.
-Provision a new vault key as the Core account, check the bootstrap, then run:
-
-```sh
-splicore help
-splicore version --json
-splicore key init --file /var/lib/splicore/master.key
-splicore check --config distribution/splicore.yaml
-splicore run --config distribution/splicore.yaml
-# From another terminal:
-splicore status --config distribution/splicore.yaml
-splicore stop --config distribution/splicore.yaml
-```
-
-On Windows use [the Windows bootstrap](distribution/splicore-windows.yaml),
-`splicore.exe`, and its configured `D:/Splicore/keys/master.key` path. New state
-and key directories receive a private owner/SYSTEM DACL. Existing broad or
-foreign-owned state is rejected. Linux requires private mode-0700 directories
-and mode-0600 state/key files. `run` prints `Splicore ready` on stderr after
-initialization; Ctrl+C/SIGTERM or `stop` performs orderly shutdown.
-
-Bootstrap selects process paths. Proxy resources are managed through the local
-API/CLI and persisted in SQLite; no proxy listener is invented for an empty
-database. See [the loopback VLESS example and run sequence](docs/CLI.md).
-Windows foreground control uses a local named pipe; Linux uses a Unix socket.
-No external proxy core is installed or launched. Optional TUN still requires OS
-facilities and privileges, including an external Wintun DLL/driver on Windows.
-
-Native amd64 process tests cover VLESS loopback transfer, authentication refusal,
-shutdown and restart on Windows/Linux. This is a bounded runtime qualification;
-it does not qualify every protocol, TUN, Windows service installation or arm64.
-v0.5.0 adds [native VLESS Encryption](docs/protocol/VLESS_ENCRYPTION.md) to the
-v0.4.0 baseline, with hybrid ML-KEM-768/X25519, AES-GCM/ChaCha records and
-independent official Xray v26.10.21 peer tests on both native platforms.
-Android/v2rayNG real-device traffic is NOT EXECUTED. v0.6.2 restores standard WireGuard, XHTTP H3 and generic
-carriers with the scope recorded in the [release notes](docs/releases/v0.6.2.md).
-ShadowQUIC and Linux kernel WireGuard restorations are ISOLATED_NOT_QUALIFIED
-and excluded from this release. Standard WireGuard uses the userspace backend;
-explicit kernel activation is rejected and auto reports its userspace fallback.
-AmneziaWG is retired; standard WireGuard remains separate.
-The v0.6.0/v0.6.1 tags are unpublished candidates. The
-[v0.6.2 release notes](docs/releases/v0.6.2.md) record their retained failures.
+- ShadowQUIC and Linux kernel WireGuard remain `ISOLATED_NOT_QUALIFIED`.
+  AmneziaWG/Phase37 is `RETIRED`. Standard userspace WireGuard is available.
+- WAL/P1-B remains outside production qualification. Physical power loss and
+  OS crash recovery are `NOT_EXECUTED`.
+- The historical Snell v5 concurrent QUIC IPv6 read timeout and TrustTunnel
+  HTTP/2 Race `tcp_connect` failure remain `ROOT_CAUSE_UNRESOLVED`.
+- Linux TUN requires a kernel device and appropriate network privileges.
+  Windows TUN requires an operator-supplied Wintun driver/DLL and privileges.
+  Physical TUN/Wintun, Android/v2rayNG interoperability, and extended soak
+  tests remain outside the release qualification. [Release limits](docs/releases/v0.6.4.md#known-limits)
 
 ## Documentation
 
-- [Installation and bootstrap configuration](docs/INSTALLATION.md)
-- [CLI](docs/CLI.md)
-- [Operations](docs/OPERATIONS.md)
-- [Local API](docs/api/README.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Documentation index](docs/README.md)
-
-## Download and qualification
-
-[Latest official downloads](https://github.com/ike-sh/Splicore/releases/latest)
-contain one executable per platform plus licenses, examples and RUNNING.md.
-The project remains pre-1.0; a formal downloadable Release does not certify every
-implemented experimental protocol.
-
-Each published release records its native amd64 gates and ARM64 BUILD ONLY
-archive status in `RELEASE_MANIFEST.json`. See the
-[v0.6.4 qualification scope](docs/releases/v0.6.4.md#qualification-scope)
-for the additional native ARM64 and Windows amd64 Race coverage.
-
-Download the matching `splicore-<version>-<os>-<arch>` archive and SHA256SUMS.
-Linux: `sha256sum -c SHA256SUMS`. For v0.6.4 on Windows, compare
-`Get-FileHash -Algorithm SHA256 ./splicore-v0.6.4-windows-amd64.zip` with the
-published line. After unpacking, use `./splicore help` or `./splicore.exe help`,
-then follow [Linux](docs/releases/RUNNING_linux.md) or
-[Windows](docs/releases/RUNNING_windows.md) instructions. Go/WSL and a separate
-proxy core are not required to run the binary. No digital signature is claimed.
-The source archive includes vendored dependencies and offline build instructions.
-
-High-port foreground listeners need ordinary user permissions. Private state/key
-paths are required. Logs go to stderr (Linux installed services use journald).
-Optional TUN requires OS devices/drivers/privileges, including external Wintun on
-Windows; drivers are not built into the binary. `check` is a bounded static
-validation, and `stop` acknowledges a shutdown request rather than waiting for
-process completion.
-
-The pre-1.0 v0.6 series adds historical native capability to the v0.5.0 baseline. Do not
-mix Frozen and current configurations/databases. See the
-[release notes](docs/releases/v0.6.4.md) and [changelog](CHANGELOG.md): the typed
-Windows WireGuard receive correction requires fresh native qualification;
-AmneziaWG is retired and independent SQLite WAL/P1-B candidates are excluded; WSL2 UDP, historical SOCKS, Mieru throughput and broad
-protocol interoperability limits remain open. The local Windows symlink fixture
-may be skipped for Win32 1314; hosted tests do not allow that skip. ARM64 builds
-remain BUILD ONLY. The VLESS Encryption reference matrix does not certify
-other clients or every implemented protocol. Historical v0.3.0, v0.4.0 and v0.5.0 remain unchanged.
-
-For security reporting and support boundaries, see [SECURITY.md](SECURITY.md).
-中文说明见 [README_CN.md](README_CN.md).
-
-## Scope
-
-Splicore focuses on proxy Core functionality and native Core networking.
-Client Core is a reusable proxy runtime; application UI and application shells
-are outside the Core repository.
-
-## License
-
-See [LICENSE](LICENSE), [NOTICE](NOTICE.md),
-[third-party notices](THIRD_PARTY_NOTICES.md) and
-[license boundaries](docs/architecture/LICENSE_BOUNDARIES.md).
+- [Installation](docs/INSTALLATION.md) and [configuration](docs/CONFIGURATION.md)
+- [CLI](docs/CLI.md) and [local API](docs/api/README.md)
+- [Architecture](docs/ARCHITECTURE.md) and [Capability Matrix](docs/architecture/CAPABILITY_MATRIX.md)
+- [Operations](docs/OPERATIONS.md) and [contributor workflow](docs/DEVELOPMENT.md)
+- [Release notes](docs/releases/v0.6.4.md) and [changelog](CHANGELOG.md)
+- [Security policy](SECURITY.md) and [license](LICENSE)

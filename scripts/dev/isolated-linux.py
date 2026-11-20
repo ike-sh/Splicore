@@ -50,7 +50,10 @@ def main():
             for base, dirs, files in os.walk(ROOT / 'build', followlinks=False):
                 for path in [Path(base), *[Path(base) / name for name in dirs + files]]:
                     if not path.is_symlink():
-                        os.chown(path, uid, gid, follow_symlinks=False)
+                        try:
+                            os.chown(path, uid, gid, follow_symlinks=False)
+                        except OSError:
+                            print('Cannot reclaim a generated build path', file=sys.stderr)
 
 
 def json_go_env():

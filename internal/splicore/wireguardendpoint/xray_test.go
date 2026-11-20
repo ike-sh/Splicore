@@ -105,6 +105,7 @@ func startXrayPeer(t *testing.T, config map[string]any, address string, handoff 
 		_ = log.Close()
 		t.Logf("xray_peer_exit pid=%d status=%v at=%s",
 			cmd.Process.Pid, exit, time.Now().UTC().Format(time.RFC3339Nano))
+		t.Logf("peer_exit pid=%d exit_code=%d at=%s", cmd.Process.Pid, cmd.ProcessState.ExitCode(), time.Now().UTC().Format(time.RFC3339Nano))
 		if ready {
 			checkXrayPeerReleased(t, address, networks)
 		}

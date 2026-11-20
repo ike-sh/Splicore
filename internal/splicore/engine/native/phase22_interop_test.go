@@ -129,6 +129,8 @@ func phasePeer(t *testing.T, root, binary, name string, config any, endpoint acc
 	if e = cmd.Start(); e != nil {
 		t.Fatal(e)
 	}
+	t.Logf("peer_start pid=%d address=%s started_at=%s", cmd.Process.Pid,
+		net.JoinHostPort(endpoint.Host, fmt.Sprint(endpoint.Port)), time.Now().UTC().Format(time.RFC3339Nano))
 	done := make(chan struct{})
 	var waitError error
 	go func() { waitError = cmd.Wait(); close(done) }()
@@ -142,6 +144,7 @@ func phasePeer(t *testing.T, root, binary, name string, config any, endpoint acc
 		}
 		<-done
 		log.Close()
+		t.Logf("peer_exit pid=%d exit_code=%d at=%s", cmd.Process.Pid, cmd.ProcessState.ExitCode(), time.Now().UTC().Format(time.RFC3339Nano))
 		state := map[string]any{"exit_code": cmd.ProcessState.ExitCode(), "process_state": cmd.ProcessState.String(), "exited_before_cleanup": exitedBeforeCleanup, "cleanup_kill_requested": !exitedBeforeCleanup}
 		if waitError != nil {
 			state["wait_error"] = waitError.Error()

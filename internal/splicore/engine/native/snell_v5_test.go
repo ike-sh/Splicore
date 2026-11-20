@@ -78,10 +78,18 @@ func snellV5Reference(t *testing.T, endpoint access.Endpoint) {
 		f.Close()
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = cmd.Process.Kill(); _ = cmd.Wait(); _ = f.Close() })
+	address := net.JoinHostPort(endpoint.Host, portString(endpoint.Port))
+	t.Logf("peer_start pid=%d address=%s started_at=%s", cmd.Process.Pid, address, time.Now().UTC().Format(time.RFC3339Nano))
+	t.Cleanup(func() {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		_ = f.Close()
+		t.Logf("peer_exit pid=%d exit_code=%d at=%s", cmd.Process.Pid, cmd.ProcessState.ExitCode(), time.Now().UTC().Format(time.RFC3339Nano))
+	})
 	for until := time.Now().Add(3 * time.Second); time.Now().Before(until); {
 		b, _ := os.ReadFile(filepath.Join(root, "official.log"))
 		if bytes.Contains(b, []byte("Start snell quic proxy server")) {
+			t.Logf("peer_ready pid=%d address=%s at=%s", cmd.Process.Pid, address, time.Now().UTC().Format(time.RFC3339Nano))
 			return
 		}
 		time.Sleep(10 * time.Millisecond)

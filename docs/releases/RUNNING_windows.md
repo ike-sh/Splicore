@@ -1,8 +1,9 @@
 # Splicore on Windows
 
 The archive contains one core executable, `splicore.exe`. No WSL, Go installation
-or separate proxy core is needed. amd64 has native process qualification; arm64
-is **BUILD ONLY**, with no native runtime qualification.
+or separate proxy core is needed. The amd64 archive has native process
+qualification. The ARM64 archive is **BUILD_ONLY**. Independent native ARM64 CI
+has its own qualification record.
 
 Verify the archive with `Get-FileHash -Algorithm SHA256` and the published
 SHA256SUMS. Inside the unpacked directory, the second SHA256SUMS lists each
@@ -43,8 +44,9 @@ From another terminal in the unpacked directory:
 
 `run` stays in the foreground and writes Ready/errors to stderr. `stop` success
 means the request was accepted; also wait for process exit when supervising it.
-Windows qualification exercised `stop`, active-stream closure and restart;
-console Ctrl+C/SIGTERM injection and Windows Race were not executed.
+Windows archive qualification exercised `stop`, active-stream closure and
+restart. Console Ctrl+C/SIGTERM injection was `NOT_EXECUTED`. Independent
+native CI covers Windows amd64 Race. Windows ARM64 Race is `NOT_EXECUTED`.
 
 The bootstrap's `api.unix_socket` is a stable identity for a local user-restricted
 named pipe, not a socket file or public TCP API port. New key/state directories
@@ -63,20 +65,23 @@ validation, not a guarantee of port availability or every client credential.
 CGO is disabled. Normal Windows OS DLLs are used. Optional TUN requires an
 operator-supplied Wintun DLL/driver and privileges; it is not embedded in this
 binary and is not qualified here. Windows service installation and production
-backup remain unavailable. The Windows WireGuard hotfix remains NOT QUALIFIED.
+backup remain unavailable. The typed Winsock UDP receive recovery has v0.6.4
+native amd64 evidence. The historical Windows WireGuard Hotfix remains unqualified.
 Historical SOCKS UDP and Mieru throughput qualifications remain open; the local
 symlink privilege exception does not establish symlink safety on every host.
 
-This v0.5.0 line is not a drop-in v0.3.0 Frozen upgrade. WireGuard endpoints,
-ShadowQUIC, XHTTP H3 and additional generic stream carriers remain pending.
+Follow the [upgrade guide](https://github.com/ike-sh/Splicore/blob/v0.6.4/docs/UPGRADE.md)
+when migrating from the v0.3.0 Frozen line. v0.6.4 includes standard userspace
+WireGuard, XHTTP H3 and additional generic stream carriers. ShadowQUIC remains
+`ISOLATED_NOT_QUALIFIED`.
 Native VLESS Encryption is restored, with ML-KEM-768/X25519 handshakes and
 AES-GCM/ChaCha records. Generate keys with `splicore vlessenc` (use `.exe` on
 Windows), set inbound `server_secret.decryption` and public client
 `options.data.encryption`, and follow the tagged
-[VLESS Encryption configuration](https://github.com/ike-sh/Splicore/blob/v0.5.0/docs/protocol/VLESS_ENCRYPTION.md).
+[VLESS Encryption configuration](https://github.com/ike-sh/Splicore/blob/v0.6.4/docs/protocol/VLESS_ENCRYPTION.md).
 Generator output contains private key material; store it privately. Sudoku is
 obfuscation, not encryption. Android/v2rayNG real-device traffic is NOT EXECUTED.
 Phase37 and unadmitted SQLite WAL candidates remain excluded.
 
-Source and detailed limits: https://github.com/ike-sh/Splicore/releases/tag/v0.5.0
-and https://github.com/ike-sh/Splicore/tree/v0.5.0/docs
+See the [v0.6.4 release and qualification limits](https://github.com/ike-sh/Splicore/releases/tag/v0.6.4)
+and the [tagged documentation](https://github.com/ike-sh/Splicore/tree/v0.6.4/docs).
