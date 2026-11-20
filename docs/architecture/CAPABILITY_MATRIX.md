@@ -13,12 +13,13 @@ identity does not imply ownership of another Core process.
 | TrustTunnel base | TCP / UDP | Authenticated TLS HTTP/2 or HTTP/3; experimental |
 | TUIC v5 | TCP / UDP | QUIC/TLS and UUID/password |
 | VLESS flow-none | TCP / XUDP | Plain/TLS/REALITY; optional native VLESS Encryption |
-| VLESS Vision | TCP only | Raw TLS 1.3, REALITY, or enabled VLESS Encryption |
+| VLESS Vision | TCP only | Raw TLS 1.3, REALITY, or enabled VLESS Encryption. XHTTP H3 requires Encryption |
 | AnyTLS v2/v1 | TCP / UoT2 | Mandatory TLS/password; TCP session reuse |
 | Mieru | TCP / UDP | Embedded TCP/UDP library transport |
 | Trojan standard | TCP / UDP | TLS/password |
 | VMess AEAD | TCP / UDP | UUID; supported security profiles |
-| SOCKS5 / HTTP proxy nodes | Profile-dependent | Canonical node/auth settings |
+| Managed SOCKS5 | TCP CONNECT | Mandatory RFC 1929, loopback by default, explicit opt-in for remote cleartext |
+| SOCKS5 / HTTP proxy nodes | SOCKS5 TCP and optional UDP, HTTP CONNECT TCP | Canonical node/auth settings |
 
 Local entry includes SOCKS5 TCP/UDP, HTTP, Mixed and native TUN. Routing supports
 DIRECT/REJECT and bounded selectors, URL-Test, fallback and load balance. DNS,
@@ -55,8 +56,8 @@ Hysteria v1 and arbitrary VLESS/VMess/Trojan over Hysteria are not supported.
 Generic QUIC stream carriers and XHTTP HTTP/3 are separate transports and require
 `with_quic`. AmneziaWG/Phase37 is intentionally retired.
 
-VLESS Vision requires raw TLS 1.3, REALITY, or enabled
-[VLESS Encryption](../protocol/VLESS_ENCRYPTION.md), and rejects HTTP stream wrappers.
+VLESS Vision accepts raw TLS 1.3, REALITY, or enabled VLESS Encryption. Its
+XHTTP H3 profile requires Encryption. [VLESS Encryption](../protocol/VLESS_ENCRYPTION.md)
 VLESS raw TCP also admits a [FinalMask](FINALMASK.md) chain containing
 header-custom, fragment or Sudoku. The first configured mask is innermost.
 [Vision combinations](../protocol/VLESS.md) and [AnyTLS options](ANYTLS.md)
@@ -69,9 +70,10 @@ runtime generation. Read the live capability API rather than assuming uniform
 hot mutation behavior.
 
 Formal platform support covers Linux and Windows amd64. Native process tests
-cover the local control
-API, VLESS loopback transfer, authentication refusal, shutdown and persisted
-listener restoration. Other protocol combinations, native Linux auto-route, real
+cover the local control API, VLESS and SOCKS5 loopback transfer, authentication
+refusal, shutdown and persisted listener restoration. The direction audit identifies
+the tested transport combinations and independent peers. [Direction audit](INBOUND_OUTBOUND_MATRIX.md)
+Other protocol combinations, native Linux auto-route, real
 Windows host networking and real hardware retain their existing qualification
 limits. See [platform limits](../OPERATIONS.md).
 

@@ -111,6 +111,7 @@ type RuntimeIntent struct {
 	Credentials       []access.Credential
 	ServerCredentials []access.Credential
 	Revision          identity.Revision
+	AuthorizeBinding  func(context.Context, access.Binding) bool `json:"-"`
 }
 type AuthorizedBinding struct {
 	Binding           access.Binding

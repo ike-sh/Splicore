@@ -119,6 +119,13 @@ func (f *Factory) RetainDebt() {
 type contextKey struct{}
 type scopeKey struct{}
 type purposeKey struct{}
+type tcpPeerCheckKey struct{}
+
+// WithTCPPeerCheck checks resolved numeric peers before protected TCP connects.
+// It follows a flow through routing and applies to the proxy underlay too.
+func WithTCPPeerCheck(ctx context.Context, check func(netip.AddrPort) error) context.Context {
+	return context.WithValue(ctx, tcpPeerCheckKey{}, check)
+}
 
 func WithPurpose(ctx context.Context, p Purpose) context.Context {
 	return context.WithValue(ctx, purposeKey{}, p)
@@ -425,15 +432,36 @@ func (d *Dialer) LookupIP(ctx context.Context, network, host string) ([]net.IP, 
 	}
 	return out, err
 }
+func (d *Dialer) socketDialer(ctx context.Context) net.Dialer {
+	control := d.Control
+	if check, ok := ctx.Value(tcpPeerCheckKey{}).(func(netip.AddrPort) error); ok {
+		control = func(network, address string, raw syscall.RawConn) error {
+			if network == "tcp4" || network == "tcp6" {
+				peer, err := netip.ParseAddrPort(address)
+				if err != nil {
+					return unsafe("invalid TCP peer address")
+				}
+				if err := check(peer); err != nil {
+					return err
+				}
+			}
+			return d.Control(network, address, raw)
+		}
+	}
+	return net.Dialer{Control: control}
+}
+
 func (d *Dialer) dialNumeric(ctx context.Context, network, address string) (net.Conn, error) {
-	return (&net.Dialer{Control: d.Control}).DialContext(ctx, network, address)
+	dialer := d.socketDialer(ctx)
+	return dialer.DialContext(ctx, network, address)
 }
 func (d *Dialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
 	if d == nil {
 		return nil, unsafe("missing dial capability")
 	}
 	if d.f.required.Load() == 0 {
-		return (&net.Dialer{Control: d.Control}).DialContext(ctx, network, address)
+		dialer := d.socketDialer(ctx)
+		return dialer.DialContext(ctx, network, address)
 	}
 	host, port, err := net.SplitHostPort(address)
 	if err != nil {

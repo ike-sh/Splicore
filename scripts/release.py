@@ -15,7 +15,6 @@ import os
 from pathlib import Path, PurePosixPath
 import platform
 import re
-import runpy
 import shutil
 import struct
 import subprocess
@@ -25,15 +24,13 @@ import tempfile
 import zipfile
 
 sys.dont_write_bytecode = True
+from dev import qualification_policy
 from qualification import evidence
 
 ROOT = Path(__file__).resolve().parents[1]
 TAGS = "with_quic,with_utls,with_gvisor"
 TARGETS = ("linux-amd64", "windows-amd64")
 VP = "github.com/ike-sh/Splicore/internal/splicore/version"
-RUNTIME_TEST = "TestRuntimeBinaryTrafficShutdownAndRestart"
-RUNTIME_IDENTITY = "github.com/ike-sh/Splicore/cmd/splicore/" + RUNTIME_TEST
-RUNTIME_LEAVES = ('plain', 'plain-native-sudoku', 'encrypted', 'encrypted-native-sudoku')
 
 
 def require(condition, message):
@@ -251,15 +248,14 @@ def run_logged(args, env, directory, name, timeout=2100):
 
 
 def require_runtime_tests(result):
-    required = [RUNTIME_IDENTITY] + [RUNTIME_IDENTITY + '/' + leaf for leaf in RUNTIME_LEAVES]
+    required = [qualification_policy.PREFIX + case for case in qualification_policy.RUNTIME_CASES]
     missing = [name for name in required if result['tests'].get(name) != 'pass']
     require(not missing, 'Missing/failed/skipped required behaviors: ' + ', '.join(missing))
 
 
 def check_behavior(result, directory, stage, target, profile, process_leaves=False):
-    validator = runpy.run_path(str(ROOT / "scripts/dev/qualification_policy.py"))["validate"]
     try:
-        result["behavior_policy"] = validator(ROOT, result, target, profile, directory / (stage + '.stdout'))
+        result["behavior_policy"] = qualification_policy.validate(ROOT, result, target, profile, directory / (stage + '.stdout'))
         if process_leaves:
             require_runtime_tests(result)
     except RuntimeError as error:
@@ -342,8 +338,9 @@ def smoke(out, target, binary, directory):
         else:
             env.update(TEMP=runtime_tmp, TMP=runtime_tmp)
         stage = 'product-smoke'
+        test_pattern = '^(' + '|'.join(qualification_policy.RUNTIME_TESTS) + ')$'
         result = run_logged(['go', 'test', '-count=1', '-v', '-json', '-timeout=90s', '-tags', TAGS,
-                             '-run', '^' + RUNTIME_TEST + '$', './cmd/splicore'], env, directory, stage)
+                             '-run', test_pattern, './cmd/splicore'], env, directory, stage)
         try:
             require_runtime_tests(result)
         except RuntimeError as error:

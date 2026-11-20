@@ -35,3 +35,15 @@ func (c *Client) SetBinding(ctx context.Context, id identity.ID, r application.B
 	}
 	return v, e
 }
+
+func (c *Client) SetSOCKS5Lifecycle(ctx context.Context, id identity.ID, r application.SOCKS5LifecycleRequest) (identity.Transaction, error) {
+	var v identity.Transaction
+	if err := id.Validate(); err != nil {
+		return v, err
+	}
+	b, err := json.Marshal(r)
+	if err == nil {
+		err = c.post(ctx, "/api/v1/inbounds/"+string(id)+"/lifecycle", b, &v)
+	}
+	return v, err
+}

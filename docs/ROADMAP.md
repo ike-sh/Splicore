@@ -14,7 +14,8 @@ qualification and unresolved findings remain in their release and issue records.
 | 5 | SQLite persistence and failure recovery | Acknowledged data and revision recovery, encrypted state, and fail-closed mutation checks |
 | 6 | Build, release and deployment quality | Exact source and package identity, dual-platform downloaded smoke, and documented deployment scope |
 
-The [capability matrix](architecture/CAPABILITY_MATRIX.md) records current
-protocol boundaries. Review the [historical inventory](../distribution/historical-features.json)
+The capability and direction matrices record current protocol boundaries and
+independent-peer evidence. [Capabilities](architecture/CAPABILITY_MATRIX.md) · [Direction audit](architecture/INBOUND_OUTBOUND_MATRIX.md)
+Review the [historical inventory](../distribution/historical-features.json)
 before releases and keep unqualified candidates outside production. ARM64
 re-admission requires a maintainer support decision and fresh native evidence.

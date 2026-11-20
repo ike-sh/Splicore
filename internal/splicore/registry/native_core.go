@@ -21,12 +21,12 @@ import (
 
 func NativeCore() (*Protocols, *Engines, *Exporters, error) {
 	protocols := []ports.Protocol{snell.Module{Version: 4}, snell.Module{Version: 5}, snell.Module{Version: 6}, hysteria2.Module{}, tuic.Module{}, vless.Module{Security: vless.Plain}, vless.Module{Security: vless.TLS}, vless.Module{Security: vless.Reality}}
-	protocols = append(protocols, mieru.Module{}, shadowsocks.Module{Edition: "2017"}, shadowsocks.Module{Edition: "2022"}, trojan.Module{}, vmess.Module{}, anytls.Module{}, naive.Module{}, trusttunnel.Module{})
+	protocols = append(protocols, mieru.Module{}, shadowsocks.Module{Edition: "2017"}, shadowsocks.Module{Edition: "2022"}, trojan.Module{}, vmess.Module{}, anytls.Module{}, naive.Module{}, trusttunnel.Module{}, proxy.SOCKS5Inbound{})
 	p, e := NewProtocols(protocols...)
 	if e != nil {
 		return nil, nil, nil, e
 	}
-	n, e := native.NewEngine(native.SnellCompiler{}, native.Hysteria2Compiler{}, native.TUICCompiler{}, native.VLESSCompiler{}, native.MieruCompiler{}, native.NewShadowsocksCompiler(), native.TrojanCompiler{}, native.NewVMessCompiler(), native.AnyTLSCompiler{}, native.NaiveCompiler{}, native.TrustTunnelCompiler{})
+	n, e := native.NewEngine(native.SnellCompiler{}, native.Hysteria2Compiler{}, native.TUICCompiler{}, native.VLESSCompiler{}, native.MieruCompiler{}, native.NewShadowsocksCompiler(), native.TrojanCompiler{}, native.NewVMessCompiler(), native.AnyTLSCompiler{}, native.NaiveCompiler{}, native.TrustTunnelCompiler{}, native.SOCKS5Compiler{})
 	if e != nil {
 		return nil, nil, nil, e
 	}

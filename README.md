@@ -99,6 +99,9 @@ with its matching original master key. [Linux run guide](docs/releases/RUNNING_l
 - **Proxy protocols and endpoints.** VLESS, VMess, Shadowsocks and SS2022,
   Trojan, Hysteria2, TUIC, Mieru, Snell, AnyTLS, TrustTunnel, NaiveProxy, and
   standard userspace WireGuard are available within their documented profiles.
+- **Managed SOCKS5.** The current source adds a loopback-default server with
+  required username/password authentication and TCP CONNECT over IPv4, IPv6
+  and domain targets. [Server and client examples](docs/CLI.md#managed-socks5-and-a-local-client)
 - **Transports.** Supported combinations include TLS and REALITY, WebSocket,
   HTTPUpgrade, gRPC, XHTTP, HTTP/H2/QUIC stream carriers, and modern mKCP.
 - **Client networking.** Local SOCKS5, HTTP, Mixed, and optional TUN ingress
@@ -107,8 +110,9 @@ with its matching original master key. [Linux run guide](docs/releases/RUNNING_l
   SQLite persists state with encrypted credentials.
 
 The [Capability Matrix](docs/architecture/CAPABILITY_MATRIX.md) defines supported
-profiles, dependencies, and limits. Independent peer and platform coverage is
-recorded per release. [v0.6.4 release notes](docs/releases/v0.6.4.md)
+profiles, dependencies, and limits. The direction audit records runtime
+traffic, lifecycle, independent peer coverage and remaining gaps for each
+profile. [Inbound and outbound audit](docs/architecture/INBOUND_OUTBOUND_MATRIX.md)
 
 ## Changes in v0.6.4
 

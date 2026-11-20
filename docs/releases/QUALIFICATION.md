@@ -35,8 +35,9 @@ interop and persistence identities and records approved skip reasons.
 evidence. It verifies the two platform archives and corresponding source, then
 writes `SHA256SUMS` and `RELEASE_MANIFEST.json` for the five-asset set.
 On PR and main, both `download-test` jobs verify and execute the downloaded
-candidate, using the current source commit and tree. The smoke requires the
-process lifecycle test and all four traffic subtests.
+candidate, using the current source commit and tree. The smoke requires the VLESS
+process lifecycle with all four traffic subtests and the managed SOCKS5 process
+suite, including three address types, reverse half-close, and the two-Core chain.
 
 A Tag push must match the distribution version and the exact `origin/main`
 commit. The `draft` job stages a new Draft after build, Race, assembly and
@@ -87,6 +88,9 @@ whose image version the operator controls. [GitHub-hosted runner images](https:/
   namespace, and process resource limits where available. A post-exit snapshot
   can miss sockets already closed by the fixture. Go events record observed
   peer startup, readiness, ownership, exit and rebind checks.
+- `commands/*.test-identities.json` records allowed Go test identities and their
+  terminal results separately from bounded stdout. The index includes an omitted
+  count for identifiers outside the public projection rules.
 - The public projection preserves structured Go events and known diagnostic
   fields from race reports and peer logs. Unclassified messages and stack
   arguments are redacted. A separate selection retains failed Go test events

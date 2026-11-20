@@ -141,7 +141,7 @@ func (s *Service) creationResources(d ports.CreationDraft, node identity.ID, cod
 		if err != nil {
 			return out, err
 		}
-		a := access.Account{ID: aid, Name: u.Name, Status: access.Active, Enabled: u.AccountEnabled, Metadata: identity.Metadata{}, Stamp: stamp}
+		a := access.Account{ID: aid, Name: u.Name, Status: access.Active, Enabled: u.AccountEnabled, ExpiresAt: u.ExpiresAt, Metadata: identity.Metadata{}, Stamp: stamp}
 		b := access.Binding{ID: bid, AccountID: aid, InboundID: id, CredentialID: cid, Enabled: u.Enabled, Stamp: stamp}
 		c := access.Credential{ID: cid, OwnerAccountID: &a.ID, Kind: payload.Kind(), Schema: 1, State: "active", Payload: payload, Stamp: stamp}
 		if u.Policy != nil {
@@ -161,7 +161,7 @@ func (s *Service) creationResources(d ports.CreationDraft, node identity.ID, cod
 func (res creationResources) intent(revision identity.Revision) ports.RuntimeIntent {
 	in := ports.RuntimeIntent{Inbound: res.inbound, Revision: revision, ServerCredentials: res.serverCredentials}
 	for n, b := range res.bindings {
-		if b.Enabled && res.accounts[n].Enabled {
+		if b.Enabled && accountAllowed(res.accounts[n]) {
 			in.Bindings = append(in.Bindings, b)
 			in.Credentials = append(in.Credentials, res.credentials[n])
 		}

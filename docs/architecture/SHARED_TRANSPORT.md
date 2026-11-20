@@ -7,7 +7,7 @@ layer. Protocol authentication and TCP/UDP framing remain owned by the protocol.
 | --- | --- | --- |
 | VMess AEAD | Plain or TLS | Plain or TLS |
 | VLESS flow-none | Plain, TLS or supported REALITY | Plain or TLS |
-| VLESS Vision | TLS 1.3 or REALITY; TCP only | Rejected |
+| VLESS Vision | TLS 1.3, REALITY or VLESS Encryption, TCP payload only | Rejected |
 | Trojan standard | TLS | TLS |
 | Other protocol families | Their existing transport | Rejected |
 
@@ -18,7 +18,8 @@ REALITY and Vision over mKCP are rejected.
 
 [Hysteria](HYSTERIA_TRANSPORT.md) is a specialized QUIC transport owned by
 Hysteria2, rather than a general protocol wrapper. [NaiveProxy](NAIVE.md)
-owns its H2/H3 CONNECT carriers. Generic QUIC transport is not implemented.
+owns its H2/H3 CONNECT carriers. Generic QUIC stream transport is a separate
+`quic-stream` profile gated by `with_quic`.
 
 `internal/splicore/domain/streamtransport` defines bounded intent;
 `internal/splicore/streamtransport` supplies dialing and listener wrapping.
@@ -43,9 +44,12 @@ Physical dial endpoint, TLS SNI and HTTP Host/gRPC authority are distinct.
 HTTP wrappers use `http/1.1`; gRPC uses `h2`; incompatible ALPN is rejected.
 With no explicit authority, the gRPC authority defaults to explicit TLS name,
 then endpoint. Managed TLS profiles require an explicit server name.
-REALITY and Vision over HTTP wrappers are rejected. Raw VLESS admits
-[Vision](../protocol/VLESS.md) and [TCP FinalMask chains](FINALMASK.md). AnyTLS
-owns its TLS/session transport and rejects these HTTP wrappers and FinalMask.
+The WebSocket, HTTPUpgrade and gRPC profiles exclude REALITY and Vision.
+VLESS has separate XHTTP profiles for REALITY and for Vision with Encryption
+over H3. Raw VLESS also admits Vision and TCP FinalMask chains.
+[Vision](../protocol/VLESS.md) · [TCP FinalMask](FINALMASK.md) · [XHTTP](XHTTP.md)
+
+AnyTLS owns its TLS/session transport and rejects these HTTP wrappers and FinalMask.
 
 WebSocket accepts binary frames as a byte stream. HTTPUpgrade uses an HTTP/1.1
 101 upgrade and then raw bytes, retaining buffered payload exactly once.

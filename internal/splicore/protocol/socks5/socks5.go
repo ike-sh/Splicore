@@ -55,6 +55,15 @@ func WriteFull(w io.Writer, b []byte) error {
 	return nil
 }
 func AcceptAuth(r io.Reader, w io.Writer) error { return AcceptAuthWithVerifier(r, w, nil) }
+
+// AcceptRequiredAuth never negotiates no-auth, including when a verifier is missing.
+func AcceptRequiredAuth(r io.Reader, w io.Writer, verify func(string, string) bool) error {
+	if verify == nil {
+		return ErrHandshake
+	}
+	return AcceptAuthWithVerifier(r, w, verify)
+}
+
 func AcceptAuthWithVerifier(r io.Reader, w io.Writer, verify func(string, string) bool) error {
 	var h [2]byte
 	if _, e := io.ReadFull(r, h[:]); e != nil {

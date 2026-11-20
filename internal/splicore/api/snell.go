@@ -113,6 +113,16 @@ func snellRoute(w http.ResponseWriter, r *http.Request, q application.Queries) b
 				if err == nil {
 					result, err = hy.SetBinding(r.Context(), id, req)
 				}
+			case len(parts) == 2 && parts[1] == "lifecycle":
+				commands, ok := q.(application.SOCKS5Commands)
+				if !ok {
+					err = identity.Err(identity.NotImplemented, "SOCKS5 lifecycle unavailable")
+					break
+				}
+				var req application.SOCKS5LifecycleRequest
+				if err = application.StrictJSON(body, &req); err == nil {
+					result, err = commands.SetSOCKS5Lifecycle(r.Context(), id, req)
+				}
 			default:
 				err = identity.Err(identity.NotFound, "unknown endpoint")
 			}

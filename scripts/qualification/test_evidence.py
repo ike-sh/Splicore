@@ -76,6 +76,9 @@ class EvidenceTests(unittest.TestCase):
             self.assertEqual(status['exit_code'], 42)
             self.assertEqual(status['result'], 'FAIL')
             self.assertEqual(status['failed_tests'], ['github.com/ike-sh/Splicore/scripts/qualification/diagnostic/TestInjectedRequired/child'])
+            index = json.loads((public / 'commands/full-test.test-identities.json').read_bytes())
+            self.assertEqual(index['omitted'], 0)
+            self.assertEqual({name for name, result in index['results'].items() if result == 'fail'}, set(status['failed_tests']))
             self.assertGreaterEqual(status['finished_at'], status['started_at'])
             recorded = json.loads((public / 'fingerprint.json').read_bytes())
             self.assertIn('full-test', recorded['test_commands'])
@@ -92,6 +95,14 @@ class EvidenceTests(unittest.TestCase):
                 self.assertNotIn(b'unit-test-env-secret-marker', data)
             self.assertFalse(list(public.rglob('config.json')))
             self.assertFalse(list(private.rglob('RELEASE_MANIFEST.json')))
+
+    def test_identity_index_filters_non_test_fields(self):
+        prefix = 'github.com/ike-sh/Splicore/protocol/test/TestCase'
+        self.assertEqual(evidence.test_identities({
+            prefix + '/::1': 'pass', prefix + '/unsupported': 'skip',
+            prefix + '/<private>': 'pass', prefix + '/unclassified': 'output',
+            'external.invalid/private': 'pass',
+        }), {'results': {prefix + '/::1': 'pass', prefix + '/unsupported': 'skip'}, 'omitted': 3})
 
     def test_timeout_diagnostics_and_original_output_are_preserved(self):
         with tempfile.TemporaryDirectory() as temp:
