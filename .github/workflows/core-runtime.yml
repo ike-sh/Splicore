@@ -37,33 +37,31 @@ jobs:
         run: python -m unittest discover -s scripts/dev -p 'test_*.py'
       - name: Verify restored feature inventory
         run: python scripts/dev/check-features.py
-      - name: Fetch independent pinned protocol test peers
-        shell: bash
-        run: python scripts/dev/fetch-restoration-references.py --output build/reference --github-env "$GITHUB_ENV"
-      - name: Native default/full qualification and Linux Race
+      - name: Record runner fingerprint
+        if: always()
+        continue-on-error: true
         shell: bash
         run: |
-          target=windows-amd64
-          if [[ '${{ runner.os }}' == Linux ]]; then target=linux-amd64; fi
-          python scripts/release.py build --target "$target"
-          if [[ '${{ runner.os }}' == Linux ]]; then
-            python scripts/dev/isolated-linux.py -- python scripts/release.py qualify --target "$target"
-          else
-            python scripts/release.py qualify --target "$target"
-          fi
-      - name: Instrumented native network baseline (no performance SLO)
+          python scripts/qualification/evidence.py fingerprint --private "$RUNNER_TEMP/splicore-private" \
+            --target '${{ runner.os == 'Linux' && 'linux-amd64' || 'windows-amd64' }}' --label '${{ matrix.os }}' --kind performance
+      - name: Instrumented native network baseline
         shell: bash
         run: |
           python -m unittest discover -s scripts/performance -p 'test_*.py'
-          python scripts/performance/run.py --profile ci --output "$RUNNER_TEMP/splicore-performance"
+          python scripts/performance/run.py --profile ci --output "$RUNNER_TEMP/splicore-private/performance"
+      - uses: ./.github/actions/qualification-evidence
+        if: always()
+        continue-on-error: true
+        with:
+          target: ${{ runner.os == 'Linux' && 'linux-amd64' || 'windows-amd64' }}
+          label: ${{ matrix.os }}
+          kind: performance
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
+        continue-on-error: true
         with:
-          name: core-qualification-${{ runner.os }}
-          path: |
-            build/release/qualification/
-            build/reference/
-            ${{ runner.temp }}/splicore-performance/
+          name: core-performance-${{ runner.os }}-r${{ github.run_id }}-a${{ github.run_attempt }}
+          path: ${{ runner.temp }}/splicore-public/
           if-no-files-found: warn
           retention-days: 14
       - name: Compile arm64 core and packages

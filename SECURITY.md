@@ -1,6 +1,6 @@
 # Security policy
 
-The current downloadable line is v0.4.x. Pre-1.0 protocol and platform features
+The current downloadable version is v0.6.4. Pre-1.0 protocol and platform features
 remain bounded by the documented qualification matrix; a successful build does
 not certify host networking, every protocol combination or crash recovery.
 There is no guaranteed support period for historical releases.
@@ -17,5 +17,5 @@ corruption; no cryptographic release signature is supplied. Preserve private
 state/key permissions. The control API is local and privileged; do not expose
 or bridge its Unix socket/named pipe to an untrusted network or user.
 
-See [release limits](docs/releases/v0.4.0.md) before deploying experimental
+See [release limits](docs/releases/v0.6.4.md#known-limits) before deploying experimental
 protocols or privileged TUN/host-network features.

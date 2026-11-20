@@ -66,11 +66,13 @@ func referenceProcess(t *testing.T, binary, address string, config any, aesMode 
 	if e = cmd.Start(); e != nil {
 		t.Fatal(e)
 	}
+	t.Logf("peer_start pid=%d address=%s started_at=%s", cmd.Process.Pid, address, time.Now().UTC().Format(time.RFC3339Nano))
 	done := make(chan struct{})
 	go func() { _ = cmd.Wait(); close(done) }()
 	t.Cleanup(func() {
 		_ = cmd.Process.Kill()
 		<-done
+		t.Logf("peer_exit pid=%d exit_code=%d at=%s", cmd.Process.Pid, cmd.ProcessState.ExitCode(), time.Now().UTC().Format(time.RFC3339Nano))
 		if t.Failed() {
 			t.Log(log.String())
 		}

@@ -153,6 +153,11 @@ func phase33Peer(t *testing.T, binary string, config map[string]any, server bool
 		log.Close()
 		t.Fatal(err)
 	}
+	address := "pending"
+	if lease != nil {
+		address = lease.Address()
+	}
+	t.Logf("peer_start pid=%d address=%s started_at=%s", cmd.Process.Pid, address, time.Now().UTC().Format(time.RFC3339Nano))
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
 	t.Cleanup(func() {
@@ -160,6 +165,7 @@ func phase33Peer(t *testing.T, binary string, config map[string]any, server bool
 		exit := <-done
 		_ = log.Close()
 		t.Logf("peer_exit pid=%d error=%v", cmd.Process.Pid, exit)
+		t.Logf("peer_exit pid=%d exit_code=%d at=%s", cmd.Process.Pid, cmd.ProcessState.ExitCode(), time.Now().UTC().Format(time.RFC3339Nano))
 		if lease != nil {
 			tcp, err := net.Listen("tcp", lease.Address())
 			if err != nil {

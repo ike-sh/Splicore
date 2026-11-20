@@ -23,10 +23,16 @@ import tarfile
 import tempfile
 import zipfile
 
+sys.dont_write_bytecode = True
+from qualification import evidence
+
 ROOT = Path(__file__).resolve().parents[1]
 TAGS = "with_quic,with_utls,with_gvisor"
 TARGETS = ("linux-amd64", "linux-arm64", "windows-amd64", "windows-arm64")
 VP = "github.com/ike-sh/Splicore/internal/splicore/version"
+RUNTIME_TEST = "TestRuntimeBinaryTrafficShutdownAndRestart"
+RUNTIME_IDENTITY = "github.com/ike-sh/Splicore/cmd/splicore/" + RUNTIME_TEST
+RUNTIME_LEAVES = ('plain', 'plain-native-sudoku', 'encrypted', 'encrypted-native-sudoku')
 
 
 def require(condition, message):
@@ -138,7 +144,7 @@ def native_identity(binary, meta, target):
     return value
 
 
-def build(out, target):
+def build(out, target, evidence_dir=None):
     meta = identity()
     env = goenv(target)
     goversion = command(["go", "env", "GOVERSION"], env=env)
@@ -152,11 +158,17 @@ def build(out, target):
     if target.startswith("windows") and os.name == "nt":
         env.update(TEMP=str(build_tmp), TMP=str(build_tmp))
     require(not binary.exists(), "refusing to replace a release build")
-    subprocess.run(["go", "build", "-mod=readonly", "-trimpath", "-tags=" + TAGS,
-                    "-ldflags=" + flags(meta), "-o", str(binary), "./cmd/splicore"], cwd=ROOT, env=env, check=True)
+    def build_command(args, stage):
+        if evidence_dir is None:
+            subprocess.run(args, cwd=ROOT, env=env, check=True)
+        else:
+            run_logged(args, env, evidence_dir, stage, timeout=None)
+
+    build_command(["go", "build", "-mod=readonly", "-trimpath", "-tags=" + TAGS,
+                   "-ldflags=" + flags(meta), "-o", str(binary), "./cmd/splicore"], "release-build")
     if target != native_target():
-        for tags in ([], ["-tags=" + TAGS]):
-            subprocess.run(["go", "build", "-mod=readonly", *tags, "./..."], cwd=ROOT, env=env, check=True)
+        for profile, tags in (("default", []), ("full", ["-tags=" + TAGS])):
+            build_command(["go", "build", "-mod=readonly", *tags, "./..."], f"release-{profile}-build")
     info = command(["go", "version", "-m", str(binary)], env=env)
     require("CGO_ENABLED=0" in info and "-tags=" + TAGS in info, "missing build settings")
     require("GOOS=" + target.split("-")[0] in info and "GOARCH=" + target.split("-")[1] in info, "build settings target mismatch")
@@ -172,37 +184,91 @@ def build(out, target):
     print(json.dumps(meta), flush=True)
 
 
-def run_logged(args, env, directory, name):
-    started = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    timeout = False
+class LoggedFailure(RuntimeError):
+    def __init__(self, name, status):
+        super().__init__(f"{name}: {status['result']}; original stdout/stderr retained")
+        code = status['exit_code']
+        self.exit_code = (124 if status['result'] == 'TIMEOUT' else 127 if code is None
+                          else 128 - code if code < 0 else code)
+
+
+def run_logged(args, env, directory, name, timeout=2100):
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     try:
-        result = subprocess.run(args, cwd=ROOT, env=env, capture_output=True, timeout=2100)
-        code, stdout, stderr = result.returncode, result.stdout, result.stderr
-    except subprocess.TimeoutExpired as failure:
-        code, stdout, stderr, timeout = -1, failure.stdout or b"", failure.stderr or b"", True
-    (directory / (name + ".stdout")).write_bytes(stdout)
-    (directory / (name + ".stderr")).write_bytes(stderr)
-    status = dict(command=args, started_at=started, exit_code=code, result="TIMEOUT" if timeout else "PASS" if code == 0 else "FAIL")
-    tests, counts = {}, collections.Counter()
-    for line in stdout.splitlines():
+        execution = evidence.test_context(env)
+    except (OSError, ValueError):
+        execution = {"status": "UNAVAILABLE"}
+    stdout_path = directory / (name + ".stdout")
+    status = dict(command=args, started_at=evidence.timestamp(), timeout_seconds=timeout, execution=execution,
+                  exit_code=None, result="FAIL")
+    with stdout_path.open("xb") as stdout, (directory / (name + ".stderr")).open("xb") as stderr:
         try:
-            event = json.loads(line)
-        except ValueError:
-            continue
-        if event.get("Test") and event["Action"] in ("pass", "fail", "skip"):
-            tests[event["Package"] + "/" + event["Test"]] = event["Action"]
-            counts[("subtest_" if "/" in event["Test"] else "parent_") + event["Action"]] += 1
-    status.update(test_counts=dict(counts), tests=tests)
+            with subprocess.Popen(args, cwd=ROOT, env=env, stdout=stdout, stderr=stderr) as process:
+                status['child_pid'] = process.pid
+                try:
+                    status['exit_code'] = process.wait(timeout=timeout)
+                    if status['exit_code'] == 0:
+                        status['result'] = 'PASS'
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    status.update(exit_code=process.wait(), result="TIMEOUT")
+        except OSError as error:
+            stderr.write((str(error) + "\n").encode("utf-8"))
+    status['finished_at'] = evidence.timestamp()
+    tests, counts = {}, collections.Counter()
+    failed_tests, failing_packages = set(), set()
+    with stdout_path.open('rb') as stdout:
+        for line in stdout:
+            if not line.startswith(b'{'):
+                continue
+            try:
+                event = json.loads(line)
+            except ValueError:
+                continue
+            if not isinstance(event, dict) or 'Package' not in event:
+                continue
+            action, test = event.get('Action'), event.get('Test')
+            if test and action in ('pass', 'fail', 'skip'):
+                identity = event['Package'] + '/' + test
+                tests[identity] = action
+                counts[('subtest_' if '/' in test else 'parent_') + action] += 1
+                if action == 'fail':
+                    failed_tests.add(identity)
+            elif action == 'fail':
+                failing_packages.add(event['Package'])
+    status.update(test_counts=dict(counts), tests=tests, failed_tests=sorted(failed_tests),
+                  failing_packages=sorted(failing_packages))
     save(directory / (name + ".json"), status)
-    print(name, json.dumps({k: v for k, v in status.items() if k != "tests"}), flush=True)
-    if code:
-        sys.stdout.buffer.write(stdout)
-        sys.stderr.buffer.write(stderr)
-    require(code == 0, f"{name}: {status['result']}; original stdout/stderr retained")
+    print(name, json.dumps({k: status[k] for k in ("result", "exit_code", "test_counts")}), flush=True)
+    if status['result'] != 'PASS':
+        evidence.failure_snapshot(directory / (name + '.failure.json'), env)
+        raise LoggedFailure(name, status)
     return status
 
 
-def qualify(out, target):
+def require_runtime_tests(result):
+    required = [RUNTIME_IDENTITY] + [RUNTIME_IDENTITY + '/' + leaf for leaf in RUNTIME_LEAVES]
+    missing = [name for name in required if result['tests'].get(name) != 'pass']
+    require(not missing, 'Missing/failed/skipped required behaviors: ' + ', '.join(missing))
+
+
+def check_behavior(result, directory, stage, target, profile, process_leaves=False):
+    validator = runpy.run_path(str(ROOT / "scripts/dev/qualification_policy.py"))["validate"]
+    try:
+        result["behavior_policy"] = validator(ROOT, result, target, profile)
+        if process_leaves:
+            require_runtime_tests(result)
+    except RuntimeError as error:
+        result['policy_result'] = 'FAIL'
+        result['policy_error'] = str(error)
+        result['policy_failed_tests'] = str(error).partition(': ')[2].split(', ')
+        evidence.failure_snapshot(directory / (stage + '.failure.json'), goenv(target))
+        raise
+    finally:
+        save(directory / (stage + '.json'), result)
+
+
+def qualify(out, target, evidence_dir=None):
     require(target == native_target(), "qualification must run natively")
     for name in ("SPLICORE_VLESS_ENCRYPTION_REFERENCE", "SPLICORE_XHTTP_H3_REFERENCE", "SPLICORE_PHASE34_WG_REFERENCE", "SPLICORE_PHASE34_XRAY_REFERENCE"):
         require(Path(os.environ.get(name, "")).is_file(), "qualification requires pinned independent peers; use scripts/dev/fetch-restoration-references.py: " + name)
@@ -211,7 +277,7 @@ def qualify(out, target):
     require(meta["commit"] == identity()["commit"], "qualification source differs from build")
     binary = out / target / ("splicore.exe" if target.startswith("windows") else "splicore")
     require(digest(binary.read_bytes()) == meta["binary_sha256"], "qualification binary changed")
-    directory = out / "qualification" / target
+    directory = evidence_dir if evidence_dir is not None else out / "qualification" / target
     directory.mkdir(parents=True, exist_ok=True)
     env = goenv(target)
     env["SPLICORE_RUNTIME_BINARY"] = str(binary)
@@ -243,22 +309,48 @@ def qualify(out, target):
                         # from consuming each other's bounded I/O budgets. Their
                         # internal multi-stream/concurrent-user tests still run.
                         args += ["-p=1"]
-                result = run_logged(args + tags + ["./..."], env, directory, profile + "-" + action)
+                stage = profile + "-" + action
+                result = run_logged(args + tags + ["./..."], env, directory, stage)
                 if action == "test":
-                    validator = runpy.run_path(str(ROOT / "scripts/dev/qualification_policy.py"))["validate"]
-                    result["behavior_policy"] = validator(ROOT, result, target, profile)
-                    save(directory / (profile + "-test.json"), result)
-                summary[profile + "-" + action] = result
+                    check_behavior(result, directory, stage, target, profile)
+                summary[stage] = result
         if target.startswith("linux"):
             env["CGO_ENABLED"] = "1"
             summary["race"] = run_logged(["go", "test", "-race", "-json", "-count=1", "-timeout=1200s", "-tags=" + TAGS,
                                           "./internal/splicore/...", "./protocol/..."], env, directory, "race")
-            summary["race"]["behavior_policy"] = runpy.run_path(str(ROOT / "scripts/dev/qualification_policy.py"))["validate"](ROOT, summary["race"], target, "race")
-            save(directory / "race.json", summary["race"])
+            check_behavior(summary["race"], directory, "race", target, "race")
         else:
             summary["race"] = dict(result="NOT_EXECUTED", reason="Windows race is outside this release qualification; no configured native C toolchain")
     summary["all_native_gates_passed"] = True
     save(out / target / "qualification.json", summary)
+
+
+def smoke(out, target, binary, directory):
+    require(target == native_target() and binary.is_file(), "downloaded smoke test requires a native core")
+    env = goenv(target)
+    env['SPLICORE_RUNTIME_BINARY'] = str(binary)
+    temp_parent = None
+    if target.startswith('windows'):
+        temp_parent = out / 'runtime-tmp'
+        temp_parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='sr-download-', dir=temp_parent) as runtime_tmp:
+        env['GOTMPDIR'] = runtime_tmp
+        if target.startswith('linux'):
+            env['TMPDIR'] = runtime_tmp
+        else:
+            env.update(TEMP=runtime_tmp, TMP=runtime_tmp)
+        stage = 'product-smoke'
+        result = run_logged(['go', 'test', '-count=1', '-v', '-json', '-timeout=90s', '-tags', TAGS,
+                             '-run', '^' + RUNTIME_TEST + '$', './cmd/splicore'], env, directory, stage)
+        try:
+            require_runtime_tests(result)
+        except RuntimeError as error:
+            result['policy_result'] = 'FAIL'
+            result['policy_failed_tests'] = str(error).partition(': ')[2].split(', ')
+            evidence.failure_snapshot(directory / (stage + '.failure.json'), env)
+            raise
+        finally:
+            save(directory / (stage + '.json'), result)
 
 
 def archive_name(version, target):
@@ -403,13 +495,16 @@ def checksums(text):
     return result
 
 
-def verify(directory, extract_target=None, extract_dir=None):
+def verify(directory, extract_target=None, extract_dir=None, checksums_sha256=None):
     manifest = json.loads((directory / "RELEASE_MANIFEST.json").read_text())
     meta = manifest["release"]
     version = meta["version"]
     require(re.fullmatch(r"v0\.[1-9][0-9]*\.[0-9]+", version), "invalid manifest version")
     expected = {archive_name(version, target) for target in TARGETS} | {f"splicore-{version}-source.tar.gz", "RELEASE_MANIFEST.json"}
-    sums = checksums((directory / "SHA256SUMS").read_text())
+    sums_data = (directory / "SHA256SUMS").read_bytes()
+    if checksums_sha256 is not None:
+        require(digest(sums_data) == checksums_sha256, "asset checksums differ from the verified draft download")
+    sums = checksums(sums_data.decode('utf-8'))
     require(set(sums) == expected and {p.name for p in directory.iterdir()} == expected | {"SHA256SUMS"}, "asset inventory mismatch")
     require(manifest["assets"] == {name: sums[name] for name in expected if name != "RELEASE_MANIFEST.json"}, "manifest/checksum inventory mismatch")
     for name, checksum in sums.items():
@@ -450,29 +545,43 @@ def verify(directory, extract_target=None, extract_dir=None):
     require(all(name.startswith(prefix) for name in source), "source archive root mismatch")
     require(prefix + "vendor/modules.txt" in source and json.loads(source[prefix + "SOURCE_ID.json"]) == meta, "corresponding source incomplete")
     print(f"Verified {len(sums) + 1} official assets for {version} at {meta['commit']}", flush=True)
+    return meta
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("identity", "build", "qualify", "package", "assemble", "verify"))
+    parser.add_argument("action", choices=("identity", "build", "qualify", "package", "assemble", "verify", "smoke"))
     parser.add_argument("--target", choices=TARGETS)
     parser.add_argument("--output", type=Path, default=ROOT / "build/release")
+    parser.add_argument("--evidence-dir", type=Path)
+    parser.add_argument("--runtime-binary", type=Path)
     parser.add_argument("--extract-dir", type=Path)
+    parser.add_argument("--checksums-sha256", help="Expected SHA256 of the verified SHA256SUMS file")
     args = parser.parse_args()
     out = args.output.resolve()
     if args.action == "identity":
         print(json.dumps(identity(), sort_keys=True))
-    elif args.action in ("build", "qualify", "package"):
+    elif args.action in ("build", "qualify"):
         require(args.target is not None, "target required")
-        {"build": build, "qualify": qualify, "package": package}[args.action](out, args.target)
+        {"build": build, "qualify": qualify}[args.action](out, args.target,
+                                                        args.evidence_dir.resolve() if args.evidence_dir else None)
+    elif args.action == "package":
+        require(args.target is not None, "target required")
+        package(out, args.target)
+    elif args.action == "smoke":
+        require(args.target and args.runtime_binary and args.evidence_dir, "smoke requires target, binary and evidence directory")
+        smoke(out, args.target, args.runtime_binary.resolve(), args.evidence_dir.resolve())
     elif args.action == "assemble":
         assemble(out)
     else:
-        verify(out, args.target, args.extract_dir.resolve() if args.extract_dir else None)
+        verify(out, args.target, args.extract_dir.resolve() if args.extract_dir else None, args.checksums_sha256)
 
 
 if __name__ == "__main__":
     try:
         main()
+    except LoggedFailure as error:
+        print(error, file=sys.stderr)
+        sys.exit(error.exit_code)
     except (RuntimeError, subprocess.CalledProcessError) as error:
         sys.exit(str(error))

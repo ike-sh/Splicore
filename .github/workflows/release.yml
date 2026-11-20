@@ -2,28 +2,21 @@ name: Official release
 
 on:
   push:
+    branches: [main, 'codex/restore-*']
     tags: ['v*.*.*']
   workflow_dispatch:
+    inputs:
+      inject_failure:
+        description: Run only the synthetic diagnostics failure on the native build checks
+        type: boolean
+        default: false
+      draft_rehearsal:
+        description: Exercise the draft smoke gate with frozen v0.6.4 assets and read-only credentials
+        type: choice
+        default: 'off'
+        options: ['off', pass, fail-linux]
   pull_request:
     branches: [main]
-    paths:
-      - '.github/workflows/release.yml'
-      - 'scripts/release.py'
-      - 'scripts/dev/check-features.py'
-      - 'scripts/dev/fetch-vless-reference.py'
-      - 'scripts/dev/fetch-restoration-references.py'
-      - 'scripts/dev/isolated-linux.py'
-      - 'scripts/dev/qualification_policy.py'
-      - 'scripts/dev/wireguard-peer/**'
-      - 'distribution/feature-gates.json'
-      - 'distribution/historical-features.json'
-      - 'distribution/qualification-profile.json'
-      - 'distribution/RELEASE_VERSION'
-      - 'docs/releases/**'
-      - 'licenses/GPL-3.0.txt'
-      - 'README*'
-      - 'CHANGELOG.md'
-      - 'SECURITY.md'
 
 permissions:
   contents: read
@@ -58,14 +51,16 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           REF_NAME: ${{ github.ref_name }}
+          INJECT_FAILURE: ${{ inputs.inject_failure }}
+          DRAFT_REHEARSAL: ${{ inputs.draft_rehearsal }}
         run: |
           python3 scripts/release.py identity > "$RUNNER_TEMP/identity.json"
           python3 - <<'PY'
           import json, os, subprocess
           m = json.load(open(os.environ['RUNNER_TEMP'] + '/identity.json'))
           assert m['commit'] == os.environ['GITHUB_SHA']
-          if os.environ['EVENT_NAME'] == 'push':
-              assert os.environ['GITHUB_REF_TYPE'] == 'tag'
+          assert not (os.environ['INJECT_FAILURE'] == 'true' and os.environ['DRAFT_REHEARSAL'] in ('pass', 'fail-linux'))
+          if os.environ['EVENT_NAME'] == 'push' and os.environ['GITHUB_REF_TYPE'] == 'tag':
               assert os.environ['REF_NAME'] == m['version']
               tag = subprocess.check_output(['git','rev-parse',m['version']+'^{commit}'], text=True).strip()
               assert tag == m['commit']
@@ -78,6 +73,7 @@ jobs:
 
   build:
     needs: prepare
+    if: inputs.draft_rehearsal != 'pass' && inputs.draft_rehearsal != 'fail-linux'
     strategy:
       fail-fast: false
       matrix:
@@ -106,41 +102,91 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
-      - name: Build exact release core and inspect format
-        shell: bash
-        run: python scripts/release.py build --target '${{ matrix.target }}'
-      - name: Fetch pinned independent protocol test peers
-        if: matrix.native
-        shell: bash
-        run: python scripts/dev/fetch-restoration-references.py --output build/reference --github-env "$GITHUB_ENV"
-      - name: Native default/full builds, vet, tests and Linux race
-        if: matrix.native
+      - name: Record runner fingerprint
+        if: always()
+        continue-on-error: true
         shell: bash
         run: |
+          python scripts/qualification/evidence.py fingerprint --private "$RUNNER_TEMP/splicore-private" \
+            --target '${{ matrix.target }}' --label '${{ matrix.os }}' --kind '${{ inputs.inject_failure && 'injection' || 'release' }}'
+      - name: Exercise synthetic failure and preserve its exit status
+        if: inputs.inject_failure && matrix.native
+        shell: bash
+        run: python scripts/qualification/inject-failure.py --private "$RUNNER_TEMP/splicore-private"
+      - name: Build exact release core and inspect format
+        if: '!inputs.inject_failure'
+        shell: bash
+        run: python scripts/release.py build --target '${{ matrix.target }}' --evidence-dir "$RUNNER_TEMP/splicore-private/raw"
+      - name: Fetch pinned independent protocol test peers
+        if: matrix.native && !inputs.inject_failure
+        shell: bash
+        run: python scripts/dev/fetch-restoration-references.py --output "$RUNNER_TEMP/splicore-private/reference" --github-env "$GITHUB_ENV"
+      - name: Native default/full builds, vet, tests and Linux race
+        if: matrix.native && !inputs.inject_failure
+        shell: bash
+        run: |
+          args=(python scripts/release.py qualify --target '${{ matrix.target }}' --evidence-dir "$RUNNER_TEMP/splicore-private/raw")
           if [[ '${{ runner.os }}' == Linux ]]; then
-            python scripts/dev/isolated-linux.py -- python scripts/release.py qualify --target '${{ matrix.target }}'
+            python scripts/dev/isolated-linux.py -- "${args[@]}"
           else
-            python scripts/release.py qualify --target '${{ matrix.target }}'
+            "${args[@]}"
           fi
       - name: Package the qualified target
+        if: '!inputs.inject_failure'
         shell: bash
         run: python scripts/release.py package --target '${{ matrix.target }}'
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: '!inputs.inject_failure'
         with:
           name: release-transfer-${{ matrix.target }}
           path: build/release/transfer/*
           if-no-files-found: error
           retention-days: 14
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        if: always() && matrix.native
+      - uses: ./.github/actions/qualification-evidence
+        if: always()
+        continue-on-error: true
         with:
-          name: qualification-${{ matrix.target }}
-          path: build/release/qualification/${{ matrix.target }}
+          target: ${{ matrix.target }}
+          label: ${{ matrix.os }}
+          kind: ${{ inputs.inject_failure && 'injection' || 'release' }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: ${{ inputs.inject_failure && 'diagnostic-injection' || 'qualification' }}-${{ matrix.target }}-r${{ github.run_id }}-a${{ github.run_attempt }}
+          path: ${{ runner.temp }}/splicore-public/
+          if-no-files-found: warn
+          retention-days: 30
+
+  environment-diff:
+    needs: [prepare, build]
+    if: '!cancelled() && needs.prepare.result == ''success'' && !inputs.inject_failure'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Compare source-matched PR and current runner evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/qualification/compare-environments.py --output "$RUNNER_TEMP/splicore-compare/environment-diff.json"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: environment-diff-r${{ github.run_id }}-a${{ github.run_attempt }}
+          path: ${{ runner.temp }}/splicore-compare/environment-diff.json
           if-no-files-found: warn
           retention-days: 30
 
   assemble:
     needs: [prepare, build]
+    if: '!inputs.inject_failure'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -169,12 +215,17 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  publish:
+  draft:
     needs: [prepare, assemble]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    if: github.event_name == 'push' && github.ref_type == 'tag'
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     permissions:
       contents: write
+    outputs:
+      id: ${{ steps.stage.outputs.id }}
+      snapshot_sha256: ${{ steps.stage.outputs.snapshot_sha256 }}
+      sums_sha256: ${{ steps.stage.outputs.sums_sha256 }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
@@ -184,28 +235,52 @@ jobs:
         with:
           name: release-candidate
           path: build/payload
-      - name: Verify, upload a new draft, download-check, then publish
+      - name: Create the draft and verify all assets downloaded by ID
+        id: stage
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
           RELEASE_COMMIT: ${{ needs.prepare.outputs.commit }}
-        run: |
-          set -euo pipefail
-          python3 scripts/release.py verify --output build/payload/final
-          if gh release view "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            echo 'Refusing to modify an existing Release' >&2
-            exit 1
-          fi
-          gh release create "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --verify-tag \
-            --target "$RELEASE_COMMIT" --draft --title "Splicore $RELEASE_VERSION" \
-            --notes-file build/payload/RELEASE_NOTES.md build/payload/final/*
-          gh release download "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --dir build/draft-download
-          cmp build/payload/final/SHA256SUMS build/draft-download/SHA256SUMS
-          python3 scripts/release.py verify --output build/draft-download
-          gh release edit "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+        run: python3 scripts/qualification/release-draft.py stage --payload build/payload --output build/draft-roundtrip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-draft-roundtrip
+          path: build/draft-roundtrip/
+          if-no-files-found: error
+          retention-days: 14
+
+  draft-rehearsal:
+    needs: prepare
+    if: >-
+      github.event_name == 'workflow_dispatch' && !inputs.inject_failure &&
+      (inputs.draft_rehearsal == 'pass' || inputs.draft_rehearsal == 'fail-linux')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      sums_sha256: ${{ steps.fixture.outputs.sums_sha256 }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Round trip the frozen release assets as a read-only fixture
+        id: fixture
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/qualification/release-draft.py rehearsal --output build/draft-roundtrip
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-draft-roundtrip
+          path: build/draft-roundtrip/
+          if-no-files-found: error
+          retention-days: 14
 
   download-test:
-    needs: [prepare, publish]
+    needs: [prepare, assemble, draft, draft-rehearsal]
+    if: >-
+      !cancelled() && needs.prepare.result == 'success' &&
+      (needs.draft.result == 'success' || needs.draft-rehearsal.result == 'success' ||
+      (needs.assemble.result == 'success' && github.ref_type != 'tag'))
     strategy:
       fail-fast: false
       matrix:
@@ -225,35 +300,86 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
-      - name: Download the published assets and verify all hashes
+      - name: Record runner fingerprint
+        if: always()
+        continue-on-error: true
         shell: bash
+        run: |
+          python scripts/qualification/evidence.py fingerprint --private "$RUNNER_TEMP/splicore-private" \
+            --target '${{ matrix.target }}' --label '${{ matrix.os }}' --kind product-smoke
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        if: needs.draft.result != 'success' && needs.draft-rehearsal.result != 'success'
+        with:
+          name: release-candidate
+          path: build/downloaded-candidate
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        if: needs.draft.result == 'success' || needs.draft-rehearsal.result == 'success'
+        with:
+          name: release-draft-roundtrip
+          path: build/draft-roundtrip
+      - name: Verify the downloaded archives and run the native core
+        shell: bash
+        env:
+          DRAFT_TEST: ${{ needs.draft.result == 'success' || needs.draft-rehearsal.result == 'success' }}
+          DRAFT_SUMS_SHA256: ${{ needs.draft.outputs.sums_sha256 || needs.draft-rehearsal.outputs.sums_sha256 }}
+          REHEARSE_LINUX_FAILURE: ${{ needs.draft-rehearsal.result == 'success' && inputs.draft_rehearsal == 'fail-linux' && matrix.target == 'linux-amd64' }}
+        run: |
+          assets=build/downloaded-candidate/final
+          checks=()
+          if [[ "$DRAFT_TEST" == true ]]; then
+            assets=build/draft-roundtrip
+            checks=(--checksums-sha256 "$DRAFT_SUMS_SHA256")
+          fi
+          binary=build/downloaded-core/splicore
+          if [[ '${{ runner.os }}' == Windows ]]; then binary+=.exe; fi
+          python scripts/release.py verify --output "$assets" "${checks[@]}" --target '${{ matrix.target }}' --extract-dir build/downloaded-core
+          if [[ "$REHEARSE_LINUX_FAILURE" == true ]]; then binary=/bin/false; fi
+          python scripts/release.py smoke --target '${{ matrix.target }}' --runtime-binary "$binary" \
+            --evidence-dir "$RUNNER_TEMP/splicore-private/raw" --output build
+      - uses: ./.github/actions/qualification-evidence
+        if: always()
+        continue-on-error: true
+        with:
+          target: ${{ matrix.target }}
+          label: ${{ matrix.os }}
+          kind: product-smoke
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        continue-on-error: true
+        with:
+          name: ${{ needs.draft-rehearsal.result == 'success' && 'draft-rehearsal-smoke' || 'product-smoke' }}-${{ matrix.target }}-r${{ github.run_id }}-a${{ github.run_attempt }}
+          path: ${{ runner.temp }}/splicore-public/
+          if-no-files-found: warn
+          retention-days: 30
+
+  authorize-publication:
+    needs: [draft, draft-rehearsal, download-test]
+    if: >-
+      !cancelled() && needs.download-test.result == 'success' &&
+      (needs.draft.result == 'success' || needs.draft-rehearsal.result == 'success')
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require both verified native smoke jobs
+        run: echo 'Both native smoke jobs passed for the verified asset round trip.'
+
+  publish:
+    needs: [prepare, draft, authorize-publication]
+    if: github.event_name == 'push' && github.ref_type == 'tag' && needs.authorize-publication.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Recheck the draft asset snapshot and publish by ID
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
-        run: |
-          gh release download "$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --dir build/published-download
-          python scripts/release.py verify --output build/published-download \
-            --target '${{ matrix.target }}' --extract-dir build/downloaded-core
-      - name: Run the downloaded Linux product
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          umask 077
-          runtime_tmp=$(mktemp -d /tmp/sr-download.XXXXXX)
-          trap 'rm -rf -- "$runtime_tmp"' EXIT
-          export TMPDIR="$runtime_tmp" GOTMPDIR="$runtime_tmp"
-          export SPLICORE_RUNTIME_BINARY="$GITHUB_WORKSPACE/build/downloaded-core/splicore"
-          go test -count=1 -v -timeout=90s -tags with_quic,with_utls,with_gvisor \
-            -run '^TestRuntimeBinaryTrafficShutdownAndRestart$' ./cmd/splicore
-      - name: Run the downloaded Windows product
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $runtimeTmp = Join-Path $pwd 'build/runtime-tmp'
-          New-Item -ItemType Directory -Force $runtimeTmp | Out-Null
-          $env:TEMP = $runtimeTmp
-          $env:TMP = $runtimeTmp
-          $env:GOTMPDIR = $runtimeTmp
-          $env:SPLICORE_RUNTIME_BINARY = Join-Path $pwd 'build/downloaded-core/splicore.exe'
-          go test -count=1 -v -timeout=90s -tags with_quic,with_utls,with_gvisor -run '^TestRuntimeBinaryTrafficShutdownAndRestart$' ./cmd/splicore
-          if ($LASTEXITCODE -ne 0) { throw 'Downloaded Windows product qualification failed' }
+          RELEASE_COMMIT: ${{ needs.prepare.outputs.commit }}
+          DRAFT_ID: ${{ needs.draft.outputs.id }}
+          DRAFT_SNAPSHOT_SHA256: ${{ needs.draft.outputs.snapshot_sha256 }}
+          PUBLICATION_GATE: ${{ needs.authorize-publication.result }}
+        run: python3 scripts/qualification/release-draft.py publish

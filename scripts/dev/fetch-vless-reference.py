@@ -2,6 +2,7 @@
 """Fetch a digest-pinned, test-only Xray peer; never used by the product build."""
 import argparse
 import hashlib
+import json
 import os
 from pathlib import Path
 import platform
@@ -29,8 +30,9 @@ def main():
     root = args.output.resolve()
     root.mkdir(parents=True, exist_ok=True)
     archive = root / name
+    url = f'https://github.com/XTLS/Xray-core/releases/download/{RELEASE}/{name}'
     if not archive.exists():
-        with urllib.request.urlopen(f'https://github.com/XTLS/Xray-core/releases/download/{RELEASE}/{name}', timeout=60) as response:
+        with urllib.request.urlopen(url, timeout=60) as response:
             with archive.open('xb') as output:
                 while block := response.read(1024 * 1024):
                     output.write(block)
@@ -45,6 +47,9 @@ def main():
         binary.write_bytes(data)
     if os.name != 'nt':
         binary.chmod(0o755)
+    (root / 'reference.json').write_text(json.dumps({'version': RELEASE, 'url': url, 'archive_sha256': expected,
+                                                    'binary_sha256': hashlib.sha256(data).hexdigest()}, indent=2) + '\n',
+                                        encoding='utf-8')
     if args.github_env:
         with args.github_env.open('a', encoding='utf-8') as env:
             for name in ('SPLICORE_VLESS_ENCRYPTION_REFERENCE', 'SPLICORE_XHTTP_H3_REFERENCE', 'SPLICORE_PHASE34_XRAY_REFERENCE'):

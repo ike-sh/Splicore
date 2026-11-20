@@ -65,6 +65,7 @@ func startOracle(t *testing.T, public string, addresses, allowed []string, psk s
 		cancel()
 		t.Fatal(err)
 	}
+	t.Logf("peer_start pid=%d address=pending started_at=%s", o.cmd.Process.Pid, time.Now().UTC().Format(time.RFC3339Nano))
 	o.enc = json.NewEncoder(o.input)
 	o.dec = json.NewDecoder(stdout)
 	t.Cleanup(func() {
@@ -73,6 +74,7 @@ func startOracle(t *testing.T, public string, addresses, allowed []string, psk s
 		if err := o.cmd.Wait(); err != nil {
 			t.Errorf("official fixture failed: %v (%s)", err, log.String())
 		}
+		t.Logf("peer_exit pid=%d exit_code=%d at=%s", o.cmd.Process.Pid, o.cmd.ProcessState.ExitCode(), time.Now().UTC().Format(time.RFC3339Nano))
 		cancel()
 	})
 	if err = o.enc.Encode(map[string]any{"op": "init", "peer_key": public, "addresses": addresses, "allowed_ips": allowed, "psk": psk, "keepalive": keepalive}); err != nil {
@@ -84,6 +86,7 @@ func startOracle(t *testing.T, public string, addresses, allowed []string, psk s
 	if o.Revision != "b3bc704ef0ee21a36298601a9e1e5ff90377ac52" || o.ListenPort == 0 {
 		t.Fatal("incorrect official oracle identity")
 	}
+	t.Logf("peer_ready pid=%d assigned_port=%d at=%s", o.cmd.Process.Pid, o.ListenPort, time.Now().UTC().Format(time.RFC3339Nano))
 	return o
 }
 func deferOnCleanup(t *testing.T, c io.Closer) { t.Helper(); t.Cleanup(func() { _ = c.Close() }) }
