@@ -213,4 +213,4 @@ not exposed by XHTTP.
 Canonical node import/persistence retains XHTTP controls. VLESS XHTTP export
 targets Xray 26.10.10 and retains transport/security/download settings. Complex
 XHTTP URI and other ecosystem exports are rejected rather than losing options.
-Hardware deployment remains NOT YET QUALIFIED; Linux arm64 remains BUILD ONLY.
+Hardware deployment remains NOT YET QUALIFIED.

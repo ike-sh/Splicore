@@ -9,9 +9,9 @@ make build
 ./build/linux-amd64/splicore version
 ```
 
-For cross compilation, set `GOOS` and `GOARCH` to `linux/amd64`,
-`windows/amd64`, `windows/arm64` or `linux/arm64`; set `CGO_ENABLED=0` and choose an output with
-`-o`. Windows uses `splicore.exe`. The optional
+For an amd64 development cross-build, set `GOARCH=amd64` and choose `GOOS=linux`
+or `GOOS=windows`. Use `CGO_ENABLED=0` and choose an output with `-o`. Windows
+uses `splicore.exe`. The optional
 [PowerShell build helper](../scripts/splicore-build.ps1) injects version and
 timestamp metadata and builds the same `with_quic,with_utls,with_gvisor` profile.
 
@@ -87,4 +87,4 @@ sudo sh scripts/install.sh --artifact /absolute/path/splicore-linux-amd64.tar.gz
 Omit `--start` to enable the unit without starting it. The long-running service
 uses the dedicated `splicore` account. The source checkout does not itself provide
 a ready-made binary package. [Operations](OPERATIONS.md) describes service assets
-and platform limits; Linux arm64 remains build-only.
+and platform limits. Official release targets are Linux amd64 and Windows amd64.

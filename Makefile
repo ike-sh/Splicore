@@ -1,7 +1,7 @@
 NAME := splicore
 TAGS ?= with_quic,with_utls,with_gvisor
 GOOS ?= $(shell go env GOHOSTOS)
-GOARCH ?= $(shell go env GOHOSTARCH)
+GOARCH ?= amd64
 EXT := $(if $(filter windows,$(GOOS)),.exe,)
 OUTPUT ?= build/$(GOOS)-$(GOARCH)/$(NAME)$(EXT)
 
@@ -24,9 +24,7 @@ verify-runtime: build
 
 build-matrix:
 	$(MAKE) build GOOS=windows GOARCH=amd64
-	$(MAKE) build GOOS=windows GOARCH=arm64
 	$(MAKE) build GOOS=linux GOARCH=amd64
-	$(MAKE) build GOOS=linux GOARCH=arm64
 
 clean:
 	rm -rf -- build

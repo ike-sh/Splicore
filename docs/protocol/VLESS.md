@@ -115,4 +115,4 @@ peer. Native Splicore preserves half-close in either fragment/Sudoku order.
 See [FinalMask restrictions](../architecture/FINALMASK.md).
 
 This implementation is experimental. Real-world server/hardware deployment is
-not yet qualified. Linux arm64 is BUILD ONLY.
+not yet qualified.

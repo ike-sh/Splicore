@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""Native ARM64 and Windows Race gates, separate from release qualification."""
+"""Run the required native Windows amd64 Race qualification."""
 import argparse
-import ctypes
 import json
 import os
 from pathlib import Path
@@ -16,86 +15,49 @@ sys.path.insert(0, str(ROOT/'scripts'))
 import release
 
 
-def host_architecture():
-    if os.name == 'nt':
-        class SystemInfo(ctypes.Structure):
-            _fields_ = [('architecture', ctypes.c_ushort), ('reserved', ctypes.c_ushort), ('tail', ctypes.c_byte*44)]
-        info = SystemInfo()
-        ctypes.windll.kernel32.GetNativeSystemInfo(ctypes.byref(info))
-        return {12: 'arm64', 9: 'amd64'}.get(info.architecture, 'unknown')
-    return {'aarch64': 'arm64', 'arm64': 'arm64', 'x86_64': 'amd64', 'amd64': 'amd64'}.get(platform.machine().casefold(), 'unknown')
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--mode', choices=['arm64', 'windows-race'], required=True)
     args = parser.parse_args()
+    target = 'windows-amd64'
+    release.require(release.native_target() == target, 'Windows Race requires native Windows amd64')
+    go = json.loads(release.command(['go', 'env', '-json', 'GOOS', 'GOARCH']))
+    release.require(go == {'GOOS': 'windows', 'GOARCH': 'amd64'}, 'native host/toolchain mismatch')
+
     out = args.output.resolve()
     release.require(out != ROOT and ROOT not in out.parents, 'output must be outside source')
     out.mkdir(parents=True, exist_ok=True)
     release.require(not any(out.iterdir()), 'use a fresh output directory')
-    system = 'windows' if os.name == 'nt' else 'linux'
-    host = host_architecture()
-    go = json.loads(subprocess.check_output(['go', 'env', '-json', 'GOOS', 'GOARCH'], cwd=ROOT, text=True))
-    target = system+'-'+host
-    identity = dict(host_os=platform.platform(), host_arch=host, go=go, source=release.identity(), command=sys.argv)
-    release.save(out/'identity.json', identity)
-    release.require(go == {'GOOS': system, 'GOARCH': host}, 'native host/toolchain mismatch; cross compilation is BUILD ONLY')
-    release.require((args.mode == 'arm64' and host == 'arm64') or (args.mode == 'windows-race' and target == 'windows-amd64'), 'requested native platform unavailable')
-    if system == 'linux':
-        release.require(os.environ.get('SPLICORE_PRIVATE_NETNS') == '1', 'use scripts/dev/isolated-linux.py')
-    env = release.goenv(target)
+    release.save(out/'identity.json', dict(host_os=platform.platform(), host_arch='amd64', go=go,
+                                          source=release.identity(), command=sys.argv))
     temp_parent = out/'runtime'
     temp_parent.mkdir()
+    env = release.goenv(target, cgo='1')
     summary = {'classification': 'NOT_EXECUTED', 'target': target, 'power_loss': 'NOT EXECUTED'}
     try:
-        with tempfile.TemporaryDirectory(prefix='sq-', dir=temp_parent if system=='windows' else None) as tmp:
-            if system == 'linux':
-                os.chmod(tmp, 0o700)
-                release.require(Path(tmp).stat().st_mode & 0o077 == 0, 'private POSIX temporary filesystem required')
-                env.update(TMPDIR=tmp, GOTMPDIR=tmp)
-            else:
-                env.update(TEMP=tmp, TMP=tmp, GOTMPDIR=tmp)
+        with tempfile.TemporaryDirectory(prefix='sq-', dir=temp_parent) as tmp:
+            env.update(TEMP=tmp, TMP=tmp, GOTMPDIR=tmp)
             evidence = out/'persistence'
             evidence.mkdir()
             env['SPLICORE_PERSISTENCE_EVIDENCE'] = str(evidence)
-            # The CLI lifecycle test intentionally skips without a separately
-            # built product. Build a CGO-free native core even when the test
-            # process itself uses Race/CGO, and require all real traffic leaves.
+
+            # The Race test process uses CGO. Its lifecycle fixture runs a
+            # separately built CGO-free release core.
             release.build(out, target, out)
-            env['SPLICORE_RUNTIME_BINARY'] = str(out/target/('splicore.exe' if system=='windows' else 'splicore'))
-            profiles = [('race', ['-race', '-tags='+release.TAGS])] if args.mode=='windows-race' else [('default', []), ('full', ['-tags='+release.TAGS])]
-            if args.mode == 'arm64' and system == 'linux':
-                profiles.append(('race', ['-race', '-tags='+release.TAGS]))
-            for profile, tags in profiles:
-                if profile == 'race':
-                    env['CGO_ENABLED'] = '1'
-                    if system == 'windows':
-                        compiler = env.get('CC', 'gcc')
-                        library = subprocess.check_output([compiler, '-print-file-name=libsynchronization.a'], text=True).strip()
-                        release.require(Path(library).is_file(), 'mingw-w64 v8+ runtime synchronization library required')
-                        release.save(out/'race-toolchain.json', dict(compiler=compiler, synchronization_library=library))
-                    actions = ['test']
-                else:
-                    actions = ['build', 'vet', 'test']
-                for action in actions:
-                    command = ['go', action, '-mod=readonly'] + tags
-                    if action == 'test':
-                        command += ['-json', '-count=1', '-timeout=1200s']
-                        if system == 'windows':
-                            command += ['-p=1']
-                    stage = profile+'-'+action
-                    result = release.run_logged(command+['./...'], env, out, stage)
-                    summary[stage] = result
-                    if action == 'test':
-                        release.check_behavior(result, out, stage, target, profile, process_leaves=True)
-                    release.save(out/'summary.json', summary)
-            summary['classification'] = 'QUALIFIED_WITH_LIMITATIONS'
-            summary['native_startup'] = 'PASS'
-            summary['native_traffic'] = 'PASS'
-            summary['native_full_qualification'] = 'NOT EXECUTED' if args.mode=='windows-race' else 'QUALIFIED_WITH_LIMITATIONS'
-            summary['limitations'] = 'Independent oracle and platform skip identities are enumerated by behavior_policy. Physical TUN/Wintun, 24/72h soak, OS crash and power loss are not certified.'
+            env['SPLICORE_RUNTIME_BINARY'] = str(out/target/'splicore.exe')
+            compiler = env.get('CC', 'gcc')
+            library = subprocess.check_output([compiler, '-print-file-name=libsynchronization.a'], text=True).strip()
+            release.require(Path(library).is_file(), 'mingw-w64 v8+ runtime synchronization library required')
+            release.save(out/'race-toolchain.json', dict(compiler=compiler, synchronization_library=library))
+
+            stage = 'race-test'
+            command = ['go', 'test', '-mod=readonly', '-race', '-tags='+release.TAGS,
+                       '-json', '-count=1', '-timeout=1200s', '-p=1', './...']
+            result = release.run_logged(command, env, out, stage)
+            summary[stage] = result
+            release.check_behavior(result, out, stage, target, 'race', process_leaves=True)
+            summary.update(classification='QUALIFIED_WITH_LIMITATIONS', native_startup='PASS', native_traffic='PASS',
+                           native_full_qualification='NOT EXECUTED')
     except Exception as exc:
         summary.update(classification='NOT_QUALIFIED', error=str(exc))
         raise

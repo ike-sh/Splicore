@@ -24,5 +24,5 @@ is additional to the full default/full/native/Race qualification matrix.
 
 AWG/Phase37, ShadowQUIC, kernel WireGuard and historical SQLite WAL/P1-B
 candidates remain outside this performance support inventory. Broad real-hardware
-TUN/Wintun and WAN behavior require separate execution. Physical ARM64 is not
-inferred from a build or from emulated execution.
+TUN/Wintun and WAN behavior require separate execution. The hosted baseline
+covers Linux and Windows amd64.

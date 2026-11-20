@@ -2,8 +2,6 @@
 
 The archive contains one core executable, `splicore`. No separate proxy core or
 language runtime is needed. The amd64 archive has native process qualification.
-The ARM64 archive is **BUILD_ONLY**. Independent native ARM64 CI has its own
-qualification record.
 
 Verify the downloaded archive against the release's SHA256SUMS before unpacking.
 Inside the unpacked directory, `sha256sum -c SHA256SUMS` verifies its contents.

@@ -19,20 +19,49 @@ comparison = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(comparison)
 
 
+EXIT = 42
+PACKAGE = 'github.com/ike-sh/Splicore/scripts/qualification/diagnostic'
+TEST = 'TestInjectedRequired/child'
+MARKER = 'synthetic-fixture-secret-only'
+
+
+def fixture():
+    print(json.dumps(dict(Action='run', Package=PACKAGE, Test=TEST, Time=evidence.timestamp())))
+    for line in ('WARNING: DATA RACE', 'injected_test.go:42: i/o timeout', 'vault_master_key=' + MARKER):
+        print(json.dumps(dict(Action='output', Package=PACKAGE, Test=TEST, Output=line + '\n')))
+    print(json.dumps(dict(Action='fail', Package=PACKAGE, Test=TEST, Time=evidence.timestamp(), Elapsed=0)))
+    print('Authorization: Bearer ' + MARKER, file=sys.stderr)
+    return EXIT
+
+
+def run_fixture(private):
+    peer = private / 'reference/wg-evidence/TestInjectedRequired'
+    peer.mkdir(mode=0o700, parents=True)
+    (peer / 'config.json').write_text(json.dumps({'private_key': MARKER}), encoding='utf-8')
+    (peer / 'peer.log').write_text('[Warning] core: Xray 26.10.21 started\npassword=' + MARKER + '\n', encoding='utf-8')
+    try:
+        release.run_logged([sys.executable, str(Path(__file__).resolve()), '--fixture'], os.environ.copy(),
+                           private / 'raw', 'full-test', timeout=30)
+    except release.LoggedFailure as error:
+        print(error, file=sys.stderr)
+        return error.exit_code
+    raise RuntimeError('Synthetic required test unexpectedly succeeded')
+
+
 class EvidenceTests(unittest.TestCase):
     def test_injected_exit_and_public_projection(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp).resolve()
             private, public = root / 'private', root / 'public'
             target = release.native_target()
-            args = ['--private', str(private), '--target', target, '--label', 'unit-test', '--kind', 'injection']
+            args = ['--private', str(private), '--target', target, '--label', 'unit-test', '--kind', 'release']
             env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1', GH_TOKEN='unit-test-env-secret-marker')
             subprocess.run([sys.executable, str(SCRIPTS / 'evidence.py'), 'fingerprint', *args], env=env, check=True)
-            failed = subprocess.run([sys.executable, str(SCRIPTS / 'inject-failure.py'), '--private', str(private)],
+            failed = subprocess.run([sys.executable, str(Path(__file__).resolve()), '--run-fixture', str(private)],
                                     env=env, capture_output=True)
             self.assertEqual(failed.returncode, 42, failed.stderr)
-            stdout = private / 'raw/injected-test.stdout'
-            stderr = private / 'raw/injected-test.stderr'
+            stdout = private / 'raw/full-test.stdout'
+            stderr = private / 'raw/full-test.stderr'
             original = stdout.read_bytes(), stderr.read_bytes()
             secret = b'synthetic-fixture-secret-only'
             self.assertTrue(all(secret in stream for stream in original))
@@ -41,20 +70,20 @@ class EvidenceTests(unittest.TestCase):
             subprocess.run(export, check=True, env=env)
             self.assertEqual((stdout.read_bytes(), stderr.read_bytes()), original)
             manifest = json.loads((public / 'SHA256_MANIFEST.json').read_bytes())
-            self.assertEqual(manifest['kind'], 'injection')
-            self.assertIn('commands/injected-test.failure.json', manifest['files'])
-            status = json.loads((public / 'commands/injected-test.json').read_bytes())
+            self.assertEqual(manifest['kind'], 'release')
+            self.assertIn('commands/full-test.failure.json', manifest['files'])
+            status = json.loads((public / 'commands/full-test.json').read_bytes())
             self.assertEqual(status['exit_code'], 42)
             self.assertEqual(status['result'], 'FAIL')
             self.assertEqual(status['failed_tests'], ['github.com/ike-sh/Splicore/scripts/qualification/diagnostic/TestInjectedRequired/child'])
             self.assertGreaterEqual(status['finished_at'], status['started_at'])
             recorded = json.loads((public / 'fingerprint.json').read_bytes())
-            self.assertIn('injected-test', recorded['test_commands'])
+            self.assertIn('full-test', recorded['test_commands'])
             self.assertEqual(recorded['target'], target)
             self.assertTrue(recorded['runner']['kernel'])
             self.assertTrue(recorded['runner']['architecture'])
-            self.assertIn(b'WARNING: DATA RACE', (public / 'commands/injected-test.stdout').read_bytes())
-            self.assertIn(b'WARNING: DATA RACE', (public / 'commands/injected-test.failures.jsonl').read_bytes())
+            self.assertIn(b'WARNING: DATA RACE', (public / 'commands/full-test.stdout').read_bytes())
+            self.assertIn(b'WARNING: DATA RACE', (public / 'commands/full-test.failures.jsonl').read_bytes())
             self.assertIn(b'Xray 26.10.21 started', (public / 'peers/wg-evidence/TestInjectedRequired/peer.log').read_bytes())
             for name, entry in manifest['files'].items():
                 data = (public / name).read_bytes()
@@ -69,14 +98,14 @@ class EvidenceTests(unittest.TestCase):
             path = Path(temp)
             command = [sys.executable, '-c', 'import time; print("before timeout", flush=True); time.sleep(30)']
             with self.assertRaises(release.LoggedFailure) as failure:
-                release.run_logged(command, os.environ.copy(), path, 'injected-test', timeout=1)
+                release.run_logged(command, os.environ.copy(), path, 'full-test', timeout=1)
             self.assertEqual(failure.exception.exit_code, 124)
-            self.assertIn(b'before timeout', (path / 'injected-test.stdout').read_bytes())
-            status = json.loads((path / 'injected-test.json').read_bytes())
+            self.assertIn(b'before timeout', (path / 'full-test.stdout').read_bytes())
+            status = json.loads((path / 'full-test.json').read_bytes())
             self.assertEqual(status['result'], 'TIMEOUT')
             self.assertIsInstance(status['exit_code'], int)
             with self.assertRaises(FileExistsError):
-                release.run_logged(command, os.environ.copy(), path, 'injected-test', timeout=1)
+                release.run_logged(command, os.environ.copy(), path, 'full-test', timeout=1)
 
     def test_export_bounds_log_and_drops_non_fixture_files(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -84,16 +113,16 @@ class EvidenceTests(unittest.TestCase):
             private, public = root / 'private', root / 'public'
             raw = private / 'raw'
             raw.mkdir(parents=True)
-            log = raw / 'injected-test.stdout'
+            log = raw / 'full-test.stdout'
             with log.open('wb') as output:
                 for _ in range(10000):
                     output.write(b'private log text ' * 60 + b'\n')
                 output.write(b'WARNING: DATA RACE\n')
             (raw / 'support-bundle.zip').write_bytes(b'excluded')
-            fingerprint = evidence.fingerprint(release.native_target(), 'unit-test', 'injection')
+            fingerprint = evidence.fingerprint(release.native_target(), 'unit-test', 'release')
             with patch.object(evidence, 'fingerprint', return_value=fingerprint):
-                evidence.export(private, public, release.native_target(), 'unit-test', 'injection')
-            safe = (public / 'commands/injected-test.stdout').read_bytes()
+                evidence.export(private, public, release.native_target(), 'unit-test', 'release')
+            safe = (public / 'commands/full-test.stdout').read_bytes()
             self.assertTrue(safe.startswith(b'{"Evidence":"truncated; retained tail"}'))
             self.assertLessEqual(len(safe), evidence.FILE_LIMIT)
             self.assertTrue(safe.endswith(b'WARNING: DATA RACE\n'))
@@ -136,19 +165,24 @@ class ComparisonTests(unittest.TestCase):
         def row(commit, tree, image, node):
             return {'source': {'commit': commit, 'tree': tree}, 'runner': {'image_version': image},
                     'go': {'GOVERSION': 'go1.26.3'}, 'network': {'id': node}, 'resources': {'load_average': [node]},
-                    'test_commands': {}, 'reference': {}, 'windows_port_ranges': None}
+                    'test_commands': {name: {'command': ['go', 'test'], 'execution': {}}
+                                      for name in ('default-test', 'full-test', 'race')}, 'reference': {}, 'windows_port_ranges': None}
 
-        pr = {'linux-arm64': row('pr', 'same-tree', '20261116.376.1', 1)}
-        tag = {'linux-arm64': row('tag', 'same-tree', '20261111.127.1', 2)}
+        pr = {'linux-amd64': row('pr', 'same-tree', '20261116.376.1', 1)}
+        tag = {'linux-amd64': row('tag', 'same-tree', '20261111.127.1', 2)}
         results = comparison.compare(pr, tag, 'same-tree')
-        self.assertEqual(results['linux-arm64']['result'], 'DIFFERENCES')
-        self.assertEqual(results['linux-arm64']['differences'], [{'field': 'runner.image_version',
+        self.assertEqual(results['linux-amd64']['result'], 'DIFFERENCES')
+        self.assertEqual(results['linux-amd64']['differences'], [{'field': 'runner.image_version',
                                                                  'pr': '20261116.376.1', 'current': '20261111.127.1'}])
-        self.assertEqual(results['windows-amd64']['result'], 'NOT_EXECUTED')
-        tag['linux-arm64']['runner']['image_version'] = None
-        self.assertEqual(comparison.compare(pr, tag, 'same-tree')['linux-arm64']['result'], 'INCOMPLETE')
-        self.assertEqual(comparison.compare(pr, tag, 'different-tree')['linux-arm64']['result'], 'NOT_EXECUTED')
+        self.assertEqual(results['windows-amd64']['result'], 'INCOMPLETE')
+        tag['linux-amd64']['runner']['image_version'] = None
+        self.assertEqual(comparison.compare(pr, tag, 'same-tree')['linux-amd64']['result'], 'INCOMPLETE')
+        self.assertEqual(comparison.compare(pr, tag, 'different-tree')['linux-amd64']['result'], 'NOT_EXECUTED')
 
 
 if __name__ == '__main__':
+    if sys.argv[1:] == ['--fixture']:
+        sys.exit(fixture())
+    if len(sys.argv) == 3 and sys.argv[1] == '--run-fixture':
+        sys.exit(run_fixture(Path(sys.argv[2])))
     unittest.main()

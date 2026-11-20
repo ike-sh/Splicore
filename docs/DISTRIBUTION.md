@@ -6,11 +6,11 @@ manifest/checksums, public operations pages and required license/notice texts.
 The retained [installer](../scripts/install.sh) consumes a separately assembled
 package and delegates verification and installation to the Core.
 
-The source tree supplies native assets; it does not promise an available binary
-package, update endpoint or Windows service wrapper. Windows/Linux amd64 native
-foreground runtime has bounded VLESS loopback qualification; Windows/Linux arm64
-remain build-only. All four core targets compile with CGO_ENABLED=0. The runtime
-change does not create a release tag, archive or published binary package.
+The `AMD64_ONLY` release contract covers native Linux amd64 and Windows amd64.
+The product builds use `CGO_ENABLED=0`. Each future release has five assets: two
+platform archives, a corresponding source archive, `SHA256SUMS` and
+`RELEASE_MANIFEST.json`. ARM64 formal support is paused. The seven v0.6.4 assets
+remain historical, including the ARM64 `BUILD_ONLY` packages.
 Container images and mobile/desktop application distribution are outside Core.
 
 ## Version metadata

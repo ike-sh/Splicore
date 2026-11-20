@@ -68,8 +68,8 @@ strict policy fails closed. For example, VLESS user changes restart the affected
 runtime generation. Read the live capability API rather than assuming uniform
 hot mutation behavior.
 
-Platform support remains experimental and partially qualified. Both arm64 targets
-are build-only. Native Windows/Linux amd64 process tests cover the local control
+Formal platform support covers Linux and Windows amd64. Native process tests
+cover the local control
 API, VLESS loopback transfer, authentication refusal, shutdown and persisted
 listener restoration. Other protocol combinations, native Linux auto-route, real
 Windows host networking and real hardware retain their existing qualification

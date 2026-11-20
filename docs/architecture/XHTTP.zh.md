@@ -71,4 +71,4 @@ downloadSettings 和 XMUX 退役后重新连接。包大小和 chunk 只会提�
 
 原生节点导入和持久化保留全部选项。VLESS XHTTP 可导出为 Xray 26.10.10 格式。
 无法完整表达的 URI 和其他生态导出会报错。字段默认值、方向限制、下载配置示例及
-全部边界见 [完整字段说明](XHTTP.md)。硬件部署仍为 NOT YET QUALIFIED，arm64 为 BUILD ONLY。
+全部边界见 [完整字段说明](XHTTP.md)。硬件部署仍为 NOT YET QUALIFIED。

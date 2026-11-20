@@ -35,5 +35,6 @@
 - [Licenses and attribution](architecture/LICENSE_BOUNDARIES.md)
 
 Splicore bootstrap and resource documents use the Core's own schema. External
-client formats are export projections. Platform support is experimental;
-Linux arm64 is BUILD ONLY. See operations for host networking limits.
+client formats are export projections. Official support covers Linux and Windows
+amd64. See operations for host networking limits and the [roadmap](ROADMAP.md)
+for current development priorities.

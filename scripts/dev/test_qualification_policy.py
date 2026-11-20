@@ -1,8 +1,10 @@
-import unittest
+import json
 from pathlib import Path
+import tempfile
+import unittest
 from unittest.mock import patch
 
-from qualification_policy import validate
+from qualification_policy import PREFIX, SYMLINK_PROOFS, SYMLINK_TEST, validate, verify_windows_underlay
 
 ROOT = Path(__file__).resolve().parents[2]
 BASE = [
@@ -47,3 +49,24 @@ class QualificationTests(unittest.TestCase):
     def test_missing_restored_interop_rejects_full_profile(self):
         with self.assertRaisesRegex(RuntimeError, 'TestPhase33PinnedProtocols'):
             validate(ROOT, {'tests': dict.fromkeys(BASE, 'pass')}, 'windows-amd64', 'full')
+
+    def test_windows_gate_requires_run_pass_and_real_symlink_evidence(self):
+        cases = json.loads((ROOT/'distribution/qualification-profile.json').read_bytes())['windows_file_underlay']
+        events = []
+        for package, names in cases.items():
+            events.append(dict(Package=PREFIX+package, Action='pass'))
+            events.extend(dict(Package=PREFIX+package, Test=name, Action=action)
+                          for name in names for action in ('run', 'pass'))
+            if SYMLINK_TEST in names:
+                events.extend(dict(Package=PREFIX+package, Test=SYMLINK_TEST, Action='output', Output=marker)
+                              for marker in sorted(SYMLINK_PROOFS))
+        with tempfile.TemporaryDirectory() as folder:
+            log = Path(folder)/'go.jsonl'
+            log.write_text('\n'.join(map(json.dumps, events)), encoding='utf-8')
+            verify_windows_underlay(log, cases)
+            log.write_text('\n'.join(map(json.dumps, events[:-1])), encoding='utf-8')
+            with self.assertRaisesRegex(RuntimeError, 'Expected one Windows run and pass event'):
+                verify_windows_underlay(log, cases)
+            log.write_text('\n'.join(json.dumps(event) for event in events if event.get('Output') != 'real file symlink cleanup completed'), encoding='utf-8')
+            with self.assertRaisesRegex(RuntimeError, 'Missing Windows symlink evidence'):
+                verify_windows_underlay(log, cases)

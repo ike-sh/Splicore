@@ -63,5 +63,37 @@
   "windows_optional_nic_ipv6": [
     "internal/splicore/wireguardendpoint/TestWindowsUDPTruncationEnvironment/nic-ipv6",
     "internal/splicore/wireguardendpoint/TestWindowsWireGuardOversizedReceiveRecovery/nic-ipv6"
-  ]
+  ],
+  "windows_file_underlay": {
+    "internal/splicore/streamtransport/hysteria": [
+      "TestMasqueradeSymlinkEnvironmentPolicy",
+      "TestRootFileTraversalAndHTTPHTTPSProxyBoundaries",
+      "TestMasqueradeProtectedDialAndNoDefault",
+      "TestMasqueradeFailClosedAndInitializationRollback",
+      "TestMasqueradeDialCancellationDeadlineAndClose",
+      "TestMasqueradeTLSCancellationAndVerification",
+      "TestMasqueradeConcurrentRequestsAndRedirect",
+      "TestRootFileTraversalAndHTTPHTTPSProxyBoundaries/file",
+      "TestRootFileTraversalAndHTTPHTTPSProxyBoundaries/file/traversal",
+      "TestRootFileTraversalAndHTTPHTTPSProxyBoundaries/file/symlink",
+      "TestRootFileTraversalAndHTTPHTTPSProxyBoundaries/proxy/http",
+      "TestRootFileTraversalAndHTTPHTTPSProxyBoundaries/proxy/http-rewrite",
+      "TestRootFileTraversalAndHTTPHTTPSProxyBoundaries/proxy/https",
+      "TestRootFileTraversalAndHTTPHTTPSProxyBoundaries/proxy/https-rewrite",
+      "TestMasqueradeProtectedDialAndNoDefault/http/127.0.0.1",
+      "TestMasqueradeProtectedDialAndNoDefault/http/::1",
+      "TestMasqueradeProtectedDialAndNoDefault/http/hy2.synthetic.test",
+      "TestMasqueradeProtectedDialAndNoDefault/https/127.0.0.1",
+      "TestMasqueradeProtectedDialAndNoDefault/https/::1",
+      "TestMasqueradeProtectedDialAndNoDefault/https/hy2.synthetic.test"
+    ],
+    "internal/splicore/engine/native": [
+      "TestNativeHysteriaMasqueradeProtectedUnderlay",
+      "TestNativeHysteriaMasqueradeProtectedUnderlay/http4",
+      "TestNativeHysteriaMasqueradeProtectedUnderlay/http6",
+      "TestNativeHysteriaMasqueradeProtectedUnderlay/https4",
+      "TestNativeHysteriaMasqueradeProtectedUnderlay/protected-refusal",
+      "TestNativeHysteriaMasqueradeProtectedUnderlay/dns-refusal"
+    ]
+  }
 }

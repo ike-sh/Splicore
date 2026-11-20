@@ -192,4 +192,4 @@ closes the session because its framing cannot safely resume.
 Closing a client cancels pending dials and joins its sessions and idle worker.
 Closing a server closes listener/sockets and joins session/proxy workers. The
 implementation is experimental. Real-world server/hardware deployment is not
-yet qualified. Linux arm64 is BUILD ONLY.
+yet qualified.

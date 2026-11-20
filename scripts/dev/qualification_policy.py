@@ -1,12 +1,49 @@
 """Validate executed behavior identities; source presence is never qualification."""
+from collections import Counter
 import json
 import os
 from pathlib import PurePosixPath
 
 PREFIX = 'github.com/ike-sh/Splicore/'
+SYMLINK_TEST = 'TestRootFileTraversalAndHTTPHTTPSProxyBoundaries/file/symlink'
+SYMLINK_PROOFS = {
+    'real file symlink created:', 'file boundary assertion completed: path=/escape status=',
+    'outside-secret=false', 'real file symlink cleanup completed',
+}
 
 
-def validate(root, result, target, profile):
+def verify_windows_underlay(event_log, cases):
+    packages = {PREFIX + package: set(tests) for package, tests in cases.items()}
+    parents = {package: {name.split('/')[0] for name in tests} for package, tests in packages.items()}
+    counts = Counter()
+    proofs = set()
+    if event_log is None:
+        raise RuntimeError('Missing Windows file and underlay event log')
+    with event_log.open('rb') as stream:
+        for line in stream:
+            if not line.startswith(b'{'):
+                continue
+            event = json.loads(line)
+            package, name, action = event.get('Package'), event.get('Test', ''), event.get('Action')
+            if package not in packages:
+                continue
+            if name.split('/')[0] in parents[package] and action in ('skip', 'fail'):
+                raise RuntimeError(f'Windows file or underlay test did not pass: {package}/{name}')
+            if not name or name in packages[package]:
+                counts[package, name, action] += 1
+            if name == SYMLINK_TEST and action == 'output':
+                proofs.update(marker for marker in SYMLINK_PROOFS if marker in event['Output'])
+    for package, tests in packages.items():
+        if counts[package, '', 'pass'] != 1:
+            raise RuntimeError('Windows file or underlay package did not pass: ' + package)
+        for name in tests:
+            if any(counts[package, name, action] != 1 for action in ('run', 'pass')):
+                raise RuntimeError(f'Expected one Windows run and pass event: {package}/{name}')
+    if proofs != SYMLINK_PROOFS:
+        raise RuntimeError('Missing Windows symlink evidence: ' + ', '.join(sorted(SYMLINK_PROOFS - proofs)))
+
+
+def validate(root, result, target, profile, event_log=None):
     tests = {name.removeprefix(PREFIX): action for name, action in result['tests'].items()}
     policy = json.loads((root / 'distribution/qualification-profile.json').read_text())
     required = {
@@ -34,7 +71,11 @@ def validate(root, result, target, profile):
                 required.update(str(PurePosixPath(path).parent / name) for name in names)
         required.add('internal/splicore/engine/native/TestSnellV5IPv6UnderlayAndUDP443/false')
     if os.environ.get('GITHUB_ACTIONS'):
-        required.add('internal/splicore/streamtransport/hysteria/TestRootFileTraversalAndHTTPHTTPSProxyBoundaries/file/symlink')
+        required.add('internal/splicore/streamtransport/hysteria/' + SYMLINK_TEST)
+        if target == 'windows-amd64' and profile == 'default':
+            cases = policy['windows_file_underlay']
+            verify_windows_underlay(event_log, cases)
+            required.update(f'{package}/{name}' for package, names in cases.items() for name in names)
     missing = sorted(name for name in required if tests.get(name) != 'pass')
     if missing:
         raise RuntimeError('Missing/failed/skipped required behaviors: ' + ', '.join(missing))

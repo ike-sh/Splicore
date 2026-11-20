@@ -139,7 +139,7 @@ second termination timeout; readable bytes outlive either transport outcome.
 Local software compatibility uses exact Xray v26.10.10 commit
 `701af60772cda123492f86e383e1fdba066614a9`. Configuration defaults, representative
 tuning, local mismatches, large transfers and concurrent directions are tested.
-Linux arm64 remains **BUILD ONLY**. Real hardware remains **NOT YET QUALIFIED**.
+Real hardware remains **NOT YET QUALIFIED**.
 
 Canonical import/persistence retains all six tuning fields. VLESS Xray JSON
 projection uses `network: "kcp"` and `kcpSettings`. Unqualified URI,

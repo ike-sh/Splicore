@@ -16,10 +16,8 @@ sys.dont_write_bytecode = True
 import evidence
 
 JOBS = {
-    'linux-amd64': 'build (linux-amd64, ubuntu-24.04, true)',
-    'windows-amd64': 'build (windows-amd64, windows-2025-vs2026, true)',
-    'linux-arm64': 'build (linux-arm64, ubuntu-24.04, false)',
-    'windows-arm64': 'build (windows-arm64, ubuntu-24.04, false)',
+    'linux-amd64': 'build (linux-amd64)',
+    'windows-amd64': 'build (windows-amd64)',
 }
 TARGETS = tuple(JOBS)
 WORKFLOW = '.github/workflows/release.yml'
@@ -151,7 +149,11 @@ def inspect_run(repo, run, ref, tree, source_commit=None):
         raise ValueError('Run advanced to a different execution state during validation')
     rows, provenance, commits = {}, {}, {}
     for target, name in JOBS.items():
-        proof = provenance[target] = {'result': 'INCOMPLETE'}
+        executions = sorted((job for job in history if job['name'] == name), key=lambda job: job['run_attempt'])
+        proof = provenance[target] = {
+            'result': 'INCOMPLETE',
+            'history': [{key: job[key] for key in ('id', 'run_attempt', 'status', 'conclusion')} for job in executions],
+        }
         try:
             latest, original = original_job(run, name, effective, history)
             proof.update(effective_job=latest['id'], original_job=original['id'], attempt=original['run_attempt'])
@@ -190,12 +192,13 @@ def compare(pr, current, tree):
     for target in TARGETS:
         before = pr.get(target)
         after = current.get(target)
-        if not before or not after or before['source']['tree'] != tree or after['source']['tree'] != tree:
-            rows[target] = {'result': 'NOT_EXECUTED', 'reason': 'Both source-matched fingerprints are required'}
+        if not before or not after:
+            rows[target] = {'result': 'INCOMPLETE', 'reason': 'Both verified fingerprints are required'}
             continue
-        required = set()
-        if target.endswith('-amd64'):
-            required.update(('default-test', 'full-test'))
+        if before['source']['tree'] != tree or after['source']['tree'] != tree:
+            rows[target] = {'result': 'NOT_EXECUTED', 'reason': 'Both source trees must match'}
+            continue
+        required = {'default-test', 'full-test'}
         if target == 'linux-amd64':
             required.add('race')
         missing = []
@@ -249,32 +252,44 @@ def main():
                                     'targets': proof, 'result': 'VERIFIED' if len(rows) == len(TARGETS) else 'INCOMPLETE'})
         return 0 if len(rows) == len(TARGETS) else 1
     tree = evidence.probe(['git', 'rev-parse', 'HEAD^{tree}'])
-    report = {'schema': 2, 'source_commit': os.environ['GITHUB_SHA'], 'source_tree': tree,
+    report = {'schema': 3, 'source_commit': os.environ['GITHUB_SHA'], 'source_tree': tree,
               'event': os.environ['GITHUB_EVENT_NAME'], 'ref': os.environ['GITHUB_REF'],
               'run_id': os.environ['GITHUB_RUN_ID'], 'attempt': os.environ['GITHUB_RUN_ATTEMPT'], 'pr': None}
+    current, pr = {}, {}
+    compare_pr = report['ref'] == 'refs/heads/main' or report['ref'].startswith('refs/tags/')
     try:
         run = api(f'repos/{args.repo}/actions/runs/{report["run_id"]}')
         if (str(run['run_attempt']) != report['attempt'] or str(run['id']) != report['run_id']
                 or run['event'] != report['event']):
             raise ValueError('Current Actions run identity differs from the workflow context')
         current, report['current_evidence'] = inspect_run(args.repo, run, report['ref'], tree, report['source_commit'])
-        if report['ref'] == 'refs/heads/main' or report['ref'].startswith('refs/tags/'):
+        if compare_pr:
             number, baseline = latest_pr_run(args.repo, report['source_commit'])
-            if baseline and baseline['status'] == 'completed' and baseline['conclusion'] == 'success':
-                report['pr'] = {'pr': number, 'run_id': baseline['id'], 'attempt': baseline['run_attempt']}
+            if baseline:
+                report['pr'] = {'pr': number, 'run_id': baseline['id'], 'attempt': baseline['run_attempt'],
+                                'status': baseline['status'], 'conclusion': baseline['conclusion']}
                 pr, report['pr_evidence'] = inspect_run(args.repo, baseline, f'refs/pull/{number}/merge', tree)
-                report['targets'] = compare(pr, current, tree)
+                if baseline['status'] != 'completed' or baseline['conclusion'] != 'success':
+                    report['reason'] = 'Latest matching PR run did not succeed'
+                    pr = {}
             else:
-                report['reason'] = 'No latest successful Official release run for the merged PR'
+                report['reason'] = 'No Official release run for the merged PR'
         else:
             report['reason'] = 'The matching main or Tag run will perform the comparison with this PR'
     except (subprocess.SubprocessError, OSError, ValueError, KeyError, TypeError):
         report['reason'] = 'GitHub comparison inputs unavailable or invalid'
-    report.setdefault('targets', compare({}, {}, tree))
-    report['result'] = ('NOT_EXECUTED' if not report['pr'] else 'INCOMPLETE'
-                        if any(row['result'] in ('INCOMPLETE', 'NOT_EXECUTED') for row in report['targets'].values())
-                        else 'DIFFERENCES' if any(row['differences'] for row in report['targets'].values())
-                        else 'NO_RECORDED_DIFFERENCES')
+    if compare_pr:
+        report['targets'] = compare(pr, current, tree)
+    else:
+        report['targets'] = {target: {'result': 'NOT_EXECUTED' if target in current else 'INCOMPLETE'}
+                             for target in TARGETS}
+    if len(current) != len(TARGETS) or (compare_pr and any(
+            row['result'] in ('INCOMPLETE', 'NOT_EXECUTED') for row in report['targets'].values())):
+        report['result'] = 'INCOMPLETE'
+    elif not compare_pr:
+        report['result'] = 'NOT_EXECUTED'
+    else:
+        report['result'] = 'DIFFERENCES' if any(row['differences'] for row in report['targets'].values()) else 'NO_RECORDED_DIFFERENCES'
     evidence.save(args.output, report)
     summary = ['## Qualification environment comparison', '', f"**{report['result']}**", '',
                report.get('reason', 'Compared recorded fields for the same source tree.'), '']
@@ -283,7 +298,7 @@ def main():
     summary += ['', 'The JSON artifact lists values for each changed field. Hosted runner labels allow image updates.', '']
     with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as output:
         output.write('\n'.join(summary))
-    return 0
+    return 1 if report['result'] == 'INCOMPLETE' else 0
 
 
 if __name__ == '__main__':
