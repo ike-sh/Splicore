@@ -21,6 +21,15 @@ did not reproduce either failure. The tracker issues retain both unresolved
 findings. The official workflow governs candidate assembly and downloaded smoke.
 [PR #24](https://github.com/ike-sh/Splicore/pull/24) · [Linux Snell #25](https://github.com/ike-sh/Splicore/issues/25) · [Windows DNS #26](https://github.com/ike-sh/Splicore/issues/26)
 
+PR #24 and the merged main tree passed the full native amd64 gates and
+downloaded smoke. The two historical failures remain unresolved.
+[PR qualification](https://github.com/ike-sh/Splicore/actions/runs/44874906356) · [Main qualification](https://github.com/ike-sh/Splicore/actions/runs/44877182215)
+
+The managed SOCKS5 UDP increment covers authenticated association, protected
+target routing and dual-Core traffic. The same Official release workflow
+requires both platforms to execute the UDP product smoke before publication.
+[SOCKS5 UDP settings](CONFIGURATION.md#managed-socks5)
+
 The capability and direction matrices record current protocol boundaries and
 independent-peer evidence. [Capabilities](architecture/CAPABILITY_MATRIX.md) · [Direction audit](architecture/INBOUND_OUTBOUND_MATRIX.md)
 Review the [historical inventory](../distribution/historical-features.json)

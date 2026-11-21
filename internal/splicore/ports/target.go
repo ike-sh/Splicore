@@ -37,13 +37,18 @@ func RoutedTargetDialer(ctx context.Context, fallback TargetDialer) TargetDialer
 
 // WithDirectServerTarget restricts a scoped route to the native ServerTarget
 // dialer and checks the logical target after Core DNS.
-func WithDirectServerTarget(ctx context.Context, check func(access.Endpoint) error) context.Context {
-	return context.WithValue(ctx, directServerTargetKey{}, check)
+func WithDirectServerTarget(ctx context.Context, network string, check func(access.Endpoint) error) context.Context {
+	return context.WithValue(ctx, directServerTargetKey{}, directServerTarget{network, check})
 }
 
 type directServerTargetKey struct{}
 
-func DirectServerTargetCheck(ctx context.Context) func(access.Endpoint) error {
-	check, _ := ctx.Value(directServerTargetKey{}).(func(access.Endpoint) error)
-	return check
+type directServerTarget struct {
+	network string
+	check   func(access.Endpoint) error
+}
+
+func DirectServerTargetCheck(ctx context.Context) (string, func(access.Endpoint) error) {
+	policy, _ := ctx.Value(directServerTargetKey{}).(directServerTarget)
+	return policy.network, policy.check
 }

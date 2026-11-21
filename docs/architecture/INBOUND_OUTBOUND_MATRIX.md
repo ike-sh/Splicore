@@ -78,7 +78,7 @@ The hosted Linux evidence uses the repository's isolated network namespace.
 | NaiveProxy H2 CONNECT | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | TLS HTTP/2 CONNECT | `NOT_IMPLEMENTED` | TCP | TCP | TCP | Basic over TLS | Native and unpadded HTTP/2 client, stream shutdown | [NaiveProxy](#naiveproxy) |
 | NaiveProxy H3 CONNECT | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | TLS/QUIC HTTP/3 CONNECT | `NOT_IMPLEMENTED` | TCP | TCP | TCP | Basic over TLS | Full-tag multi-user/payload/half-close and H3 ownership | [NaiveProxy](#naiveproxy) |
 | TrustTunnel H2/H3/auto | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | TLS CONNECT paths | Native tunneled datagrams | TCP/UDP | IPv6 proxy endpoint | Domain proxy endpoint, outbound UDP target resolved locally | Username/password plus TLS | Native TCP/UDP and ownership at H2/H3 and auto | [TrustTunnel](#trusttunnel) |
-| SOCKS5 `5/base` | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | CONNECT | Managed inbound `NOT_IMPLEMENTED`, optional outbound relay to a capable peer | TCP | TCP | TCP | Required RFC 1929 inbound, outbound depends on node settings | Independent wire client, `curl`, two-Core TCP, management and process recovery | [SOCKS5 and HTTP](#socks5-and-http-proxy) |
+| SOCKS5 `5/base` | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | CONNECT | Opt-in UDP ASSOCIATE, no fragment reassembly | TCP/UDP | TCP/UDP | TCP/UDP | Required RFC 1929 inbound, outbound depends on node settings | Independent wire client, two-Core TCP/UDP, management and process recovery | [SOCKS5 and HTTP](#socks5-and-http-proxy) |
 | HTTP Proxy `1.1/base` | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | CONNECT in both directions, absolute-form HTTP forwarding inbound | `NOT_IMPLEMENTED` | TCP | IPv6 inbound target | Domain inbound target and outbound CONNECT | Required Basic inbound, optional Basic to upstream | Independent curl, two-Core TCP and managed recovery | [SOCKS5 and HTTP](#socks5-and-http-proxy) |
 | Standard WireGuard userspace | `SUPPORTED_VERIFIED` (endpoint) | `SUPPORTED_VERIFIED` (endpoint) | Tunneled IP/TCP | Tunneled IP/UDP | TCP/UDP | TCP/UDP | Core DNS before endpoint selection | Peer keys and AllowedIPs | Native dual-end traffic, wireguard-go and Xray, close and malformed recovery | [WireGuard](#wireguard) |
 
@@ -223,11 +223,16 @@ full tags. The Linux shell examples also executed against independent `curl`
 and returned two HTTP response bodies, exit `0`. `TestManagedSOCKS5AuthenticationAndRouting`,
 `TestManagedSOCKS5ConnectionBoundsAndCancellation` and
 `TestManagedSOCKS5CommittedAdmission` cover negative auth, listener conflict,
-protected dial/cancellation and committed SQLite admission. Explicit client
-exports project TCP-only mode. The managed server returns `0x07` for BIND
-and UDP ASSOCIATE. Native `TestPhase20SOCKSOutboundRemoteDNSRelayLifetime`
-passed baseline default L/W, exit `0`, against a separate upstream fixture
-with UDP relay. The upstream's capability determines whether UDP works.
+protected dial/cancellation and committed SQLite admission. UDP is disabled
+by default and client exports retain the configured mode. BIND returns
+`0x07`. `TestManagedSOCKS5UDPProcesses` covers independent IPv4, IPv6 and
+domain datagrams, same-IP isolation, scoped routing, a two-Core TCP/UDP
+chain with a real UDP DNS exchange, and credential and SQLite recovery.
+The native relay tests check source restrictions, protected sockets,
+association and flow bounds, idle close, loss and reordering at a test
+peer, and recovery from an injected socket size error. Native
+`TestPhase20SOCKSOutboundRemoteDNSRelayLifetime` also exercises an independent
+upstream relay. [UDP settings and limits](../CONFIGURATION.md#managed-socks5)
 
 HTTP uses one `http/1.1/base` profile for its managed module and existing
 outbound factory. The local HTTP entry is a separate client listener.
@@ -297,7 +302,8 @@ Local source and fixtures are under [Client runtime](../../internal/splicore/cli
 [native TUN](../../internal/splicore/nativetun), [routing/DNS](../../internal/splicore/networkruntime),
 and [application lifecycle](../../internal/splicore/application).
 
-Server target egress defaults to the protected `ServerTarget` dialer. SOCKS5,
+Server target egress defaults to the protected `ServerTarget` dialer. Managed
+SOCKS5 UDP allows protected Direct and Core Reject. SOCKS5 TCP,
 VLESS, VMess and Trojan also call `ports.RoutedTargetDialer`. Only a route
 scoped to the server inbound can select a Client Core proxy or endpoint for
 that traffic. `TestPhase34WireGuardToProxyAndServerToEndpoint` exercises the

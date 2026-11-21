@@ -87,7 +87,7 @@ func (h *httpProxyHandle) track(user *managedProxyUser, mode string) (func(), er
 }
 
 func (h *httpProxyHandle) dialTarget(ctx context.Context, target access.Endpoint) (net.Conn, error) {
-	ctx = ports.WithDirectServerTarget(ctx, func(resolved access.Endpoint) error {
+	ctx = ports.WithDirectServerTarget(ctx, "tcp", func(resolved access.Endpoint) error {
 		if h.ownsDestination(resolved) {
 			return errProxySelfTarget
 		}

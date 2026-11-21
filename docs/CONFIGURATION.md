@@ -62,9 +62,10 @@ wildcard bind also requires an explicit, usable `display_endpoint`. SOCKS5
 sends RFC 1929 credentials and relayed data without its own encryption. Keep
 remote deployments on a trusted encrypted network. [RFC 1929](https://www.rfc-editor.org/rfc/rfc1929.html#section-3)
 
-Set `settings.auth` to `true` and leave `settings.udp` omitted or `false`.
-The server supports TCP CONNECT to IPv4, IPv6 and domains. BIND and UDP ASSOCIATE
-return `0x07`. An unsupported address type returns `0x08`. [RFC 1928](https://www.rfc-editor.org/rfc/rfc1928.html#section-6)
+Set `settings.auth` to `true`. TCP CONNECT supports IPv4, IPv6 and domains.
+UDP ASSOCIATE is disabled by default and returns `0x07` in that mode. Set
+`settings.udp: true` to allow authenticated UDP ASSOCIATE. BIND still returns
+`0x07`. An unsupported address type returns `0x08`. [RFC 1928](https://www.rfc-editor.org/rfc/rfc1928.html#section-6)
 
 Each creation document can contain up to 16 users, with at least one enabled,
 unexpired binding. Each user has an `account_name` and a unique, case-sensitive
@@ -82,7 +83,38 @@ The target dial uses the protected `ServerTarget` underlay. An explicitly
 scoped server inbound route can select a TCP-capable outbound, including a
 proxy. With no scoped route, the server dials the target through the protected
 default path. The local SOCKS5 listener and SOCKS5 remote nodes have their own
-settings and support separate client-side UDP options. [CLI examples](CLI.md#managed-socks5-and-a-local-client)
+settings. Exports of a managed binding carry the server's UDP setting as the
+client node's UDP option. [CLI examples](CLI.md#managed-socks5-and-a-local-client)
+
+With UDP enabled, the server allocates one relay socket per authenticated TCP
+control connection. On loopback, the relay defaults to the listener address
+and the operating system assigns its port. The optional `settings.udp_relay`
+object accepts a literal `listen` address, an IP or DNS name in `advertise`, and
+an inclusive `port_min`/`port_max` pair of up to 1,024 ports. Use the same IP
+family for the relay and TCP listener. For a non-loopback listener, provide the
+range and an explicit `advertise` address. Open that UDP range alongside the
+TCP control port for the intended client network. Any NAT must forward each
+advertised UDP port to the same bound port. An association returns failure if
+no port can be bound. A successful control reply only proves the local bind.
+
+The relay only accepts UDP from the TCP peer IP. An explicit source port is
+enforced immediately. With a zero port, the first valid datagram pins the
+port for the association. A NAT source-port change requires a new association.
+On a shared source IP, a zero-port request relies on the first sender that
+can reach the assigned relay port. Use explicit source ports when available
+and restrict access to trusted peers. RFC 1929 supplies no UDP packet
+authentication or encryption.
+
+An inbound allows up to 64 simultaneous UDP associations, 16 per peer IP
+and 32 target flows per association. The idle limits are 60 seconds per
+association and 30 seconds per connected target flow. Closing the control
+connection or stopping the inbound releases its relay and flows. The relay
+checks committed account, binding and credential state and discards malformed
+frames and nonzero `FRAG`. UDP payload counts exclude SOCKS headers and failed
+writes. Protected Direct and Core Reject apply to new server UDP target
+flows. The response header carries the actual source endpoint. UDP delivery
+remains best effort, and the application must allow for the SOCKS header
+and path MTU. [RFC 1928 UDP framing](https://www.rfc-editor.org/rfc/rfc1928.html#section-7)
 
 ### Managed HTTP Proxy
 

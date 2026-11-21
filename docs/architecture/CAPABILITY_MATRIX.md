@@ -18,7 +18,7 @@ identity does not imply ownership of another Core process.
 | Mieru | TCP / UDP | Embedded TCP/UDP library transport |
 | Trojan standard | TCP / UDP | TLS/password |
 | VMess AEAD | TCP / UDP | UUID; supported security profiles |
-| Managed SOCKS5 | TCP CONNECT | Mandatory RFC 1929, loopback by default, explicit opt-in for remote cleartext |
+| Managed SOCKS5 | TCP CONNECT and opt-in UDP ASSOCIATE | Mandatory RFC 1929, loopback by default, protected Direct or Core Reject for UDP targets |
 | Managed HTTP Proxy `http/1.1/base` | TCP CONNECT and absolute-form HTTP forwarding | Required Basic proxy authentication, loopback default, one forwarded exchange per connection |
 | SOCKS5 / HTTP proxy nodes | SOCKS5 TCP and optional UDP, HTTP CONNECT TCP | Canonical node/auth settings |
 

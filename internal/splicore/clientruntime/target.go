@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
@@ -75,9 +76,9 @@ func (m *Manager) DialServerTarget(ctx context.Context, inbound identity.ID, net
 	}
 	outbound := selectedOutbound(decision.Selected)
 	var c net.Conn
-	if check := ports.DirectServerTargetCheck(ctx); check != nil {
-		if outbound != client.Direct || network != "tcp" {
-			return nil, identity.Err(identity.Unavailable, "server target requires a direct TCP route")
+	if required, check := ports.DirectServerTargetCheck(ctx); required != "" {
+		if outbound != client.Direct || network != required {
+			return nil, identity.Err(identity.Unavailable, "server target requires a direct "+strings.ToUpper(required)+" route")
 		}
 		if err := check(resolved); err != nil {
 			return nil, err

@@ -10,6 +10,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/nodeimport"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/anytls"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/proxy"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/trojan"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/vless"
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/vmess"
@@ -127,6 +128,13 @@ func (s *Service) ExportNodes(ctx context.Context, r NodeExportRequest) (NodeExp
 			profile.UDPPayload = options.Flow != vless.Vision
 		}
 		if n.Protocol.Protocol == "socks5" || n.Protocol.Protocol == "http" {
+			if n.Protocol.Protocol == "socks5" {
+				options, err := proxy.Decode(n.Options.Data)
+				if err != nil {
+					return NodeExport{}, err
+				}
+				profile.UDPPayload = options.UDP
+			}
 			profile.Metadata = identity.Metadata{}
 			for k, v := range n.Metadata {
 				profile.Metadata[k] = v

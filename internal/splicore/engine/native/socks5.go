@@ -35,18 +35,28 @@ func (c SOCKS5Compiler) Compile(ctx context.Context, in ports.RuntimeIntent) (po
 	if err := c.Supports(in); err != nil {
 		return nil, err
 	}
+	settings, enabled, err := (proxy.SOCKS5Inbound{}).UDPRelay(in.Inbound)
+	if err != nil {
+		return nil, err
+	}
 	owner, err := newManagedProxyHandle(ctx, in, "SOCKS5", managedProxyLimits{
 		connections: socks5ConnectionLimit, handshakes: socks5HandshakeLimit, perSource: socks5SourceHandshakeLimit,
 	})
 	if err != nil {
 		return nil, err
 	}
-	h := &socks5Handle{owner}
+	h := &socks5Handle{managedProxyHandle: owner}
+	if enabled {
+		h.udp = newSOCKS5UDPRelay(settings)
+	}
 	owner.serve = h.serve
 	return h, nil
 }
 
-type socks5Handle struct{ *managedProxyHandle }
+type socks5Handle struct {
+	*managedProxyHandle
+	udp *socks5UDPRelay
+}
 
 func (h *socks5Handle) serve(conn net.Conn, finishHandshake func()) {
 	authCtx, finishAuth := context.WithTimeout(h.ctx, socks5HandshakeTimeout)
@@ -71,6 +81,10 @@ func (h *socks5Handle) serve(conn net.Conn, finishHandshake func()) {
 		if errors.Is(err, address.ErrAddress) {
 			_ = socks5.Respond(conn, socks5.UnsupportedAddress, emptyBind)
 		}
+		return
+	}
+	if command == socks5.UDPAssociate && h.udp != nil {
+		h.associateUDP(conn.(*net.TCPConn), target, user, finishHandshake)
 		return
 	}
 	if command != socks5.Connect {

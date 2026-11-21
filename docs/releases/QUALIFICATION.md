@@ -36,8 +36,12 @@ evidence. It verifies the two platform archives and corresponding source, then
 writes `SHA256SUMS` and `RELEASE_MANIFEST.json` for the five-asset set.
 On PR and main, both `download-test` jobs verify and execute the downloaded
 candidate, using the current source commit and tree. The smoke requires the VLESS
-process lifecycle with all four traffic subtests and the managed SOCKS5 process
-suite, including three address types, reverse half-close, and the two-Core chain.
+process lifecycle with all four traffic subtests, the managed HTTP process
+suite, and both managed SOCKS5 TCP and UDP process suites. The UDP suite requires
+real per-address-type datagrams, source isolation, scoped routing, a two-Core
+TCP/UDP and DNS chain, credential revocation and recovery from the SQLite state.
+Native Default, Full and Race also require the UDP socket and configuration
+test identities recorded in `qualification_policy.py`.
 
 A Tag push must match the distribution version and the exact `origin/main`
 commit. The `draft` job stages a new Draft after build, Race, assembly and
