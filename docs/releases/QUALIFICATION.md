@@ -91,6 +91,11 @@ whose image version the operator controls. [GitHub-hosted runner images](https:/
 - `commands/*.test-identities.json` records allowed Go test identities and their
   terminal results separately from bounded stdout. The index includes an omitted
   count for identifiers outside the public projection rules.
+- `commands/*.protocol-observations.jsonl` retains bounded Snell v5 and protected
+  DNS fallback fixture evidence outside the truncated log tail. It records
+  synthetic socket ports, phase and byte counts, echo counts, peer cleanup,
+  DNS transaction metadata and OS error codes. The projection accepts fixed
+  fields only from the corresponding Go test identities.
 - The public projection preserves structured Go events and known diagnostic
   fields from race reports and peer logs. Unclassified messages and stack
   arguments are redacted. A separate selection retains failed Go test events

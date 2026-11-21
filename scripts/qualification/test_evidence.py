@@ -171,6 +171,48 @@ class EvidenceTests(unittest.TestCase):
             self.assertNotIn(b'TestPassing', failure)
 
 
+    def test_protocol_observations_use_only_known_test_fields(self):
+        dns = 'github.com/ike-sh/Splicore/internal/splicore/networkruntime'
+        snell = 'github.com/ike-sh/Splicore/internal/splicore/engine/native'
+        dns_test = 'TestProtectedDNSUDPTruncationFallsBackToTCP'
+        snell_test = 'TestSnellV5NativeAndOfficial/Official_true/::1'
+        bind = 'dns_fallback_test.go:90: dns_fallback_stage stage=udp_bind port=58189 result=socket_error errno=10013'
+        check = 'dns_fallback_test.go:125: dns_fallback_assertion check=protection'
+        flow = ('snell_v5_test.go:250: snell_v5_flow id=12 udp_port=42000 echo_port=43100 written=1200 received=0 '
+                'phase=read timeout=true elapsed_ms=5000')
+        output = [
+            (dns, dns_test, bind), (dns, dns_test, check), (snell, snell_test, flow),
+            (dns, dns_test, bind + ' password=' + MARKER),
+            (dns, 'TestOther', check), (PACKAGE, snell_test, flow),
+            (snell, snell_test, flow.replace('phase=read', 'phase=' + MARKER)),
+            (dns, dns_test, check + '\n' + MARKER),
+        ]
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve()
+            private, public = root / 'private', root / 'public'
+            raw = private / 'raw'
+            raw.mkdir(parents=True)
+            log = raw / 'full-test.stdout'
+            log.write_text(''.join(json.dumps(dict(Action='output', Package=p, Test=t, Output=line + '\n')) + '\n'
+                                   for p, t, line in output), encoding='utf-8')
+            saved = log.read_bytes()
+            evidence.save(raw / 'full-test.json', {'result': 'FAIL', 'exit_code': 1, 'command': ['go', 'test'],
+                          'timeout_seconds': 5, 'execution': {}, 'tests': {dns + '/' + dns_test: 'fail'},
+                          'failed_tests': [dns + '/' + dns_test]})
+            target = release.native_target()
+            with patch.object(evidence, 'fingerprint', return_value=evidence.fingerprint(target, 'unit-test', 'release')):
+                evidence.export(private, public, target, 'unit-test', 'release')
+            self.assertEqual(log.read_bytes(), saved)
+            name = 'commands/full-test.protocol-observations.jsonl'
+            projected = (public / name).read_bytes()
+            self.assertEqual([json.loads(line)['Output'].rstrip() for line in projected.splitlines()], [bind, check, flow])
+            self.assertNotIn(MARKER.encode(), (public / 'commands/full-test.failures.jsonl').read_bytes())
+            self.assertIn(bind.encode(), (public / 'commands/full-test.failures.jsonl').read_bytes())
+            manifest = json.loads((public / 'SHA256_MANIFEST.json').read_bytes())
+            self.assertEqual(manifest['files'][name]['sha256'], evidence.sha256(projected))
+            self.assertEqual(json.loads((public / 'commands/full-test.json').read_bytes())['exit_code'], 1)
+
+
 class ComparisonTests(unittest.TestCase):
     def test_tree_identity_and_host_image_drift(self):
         def row(commit, tree, image, node):
