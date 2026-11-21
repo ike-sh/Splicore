@@ -14,6 +14,13 @@ qualification and unresolved findings remain in their release and issue records.
 | 5 | SQLite persistence and failure recovery | Acknowledged data and revision recovery, encrypted state, and fail-closed mutation checks |
 | 6 | Build, release and deployment quality | Exact source and package identity, dual-platform downloaded smoke, and documented deployment scope |
 
+Managed HTTP/1.1 joins SOCKS5 under the native inbound lifecycle. The first
+official run for PR #24 failed on a Linux amd64 Snell v5 Race timeout and a
+Windows amd64 protected DNS fallback test. The bounded main/PR comparisons
+did not reproduce either failure. The tracker issues retain both unresolved
+findings. The official workflow governs candidate assembly and downloaded smoke.
+[PR #24](https://github.com/ike-sh/Splicore/pull/24) · [Linux Snell #25](https://github.com/ike-sh/Splicore/issues/25) · [Windows DNS #26](https://github.com/ike-sh/Splicore/issues/26)
+
 The capability and direction matrices record current protocol boundaries and
 independent-peer evidence. [Capabilities](architecture/CAPABILITY_MATRIX.md) · [Direction audit](architecture/INBOUND_OUTBOUND_MATRIX.md)
 Review the [historical inventory](../distribution/historical-features.json)

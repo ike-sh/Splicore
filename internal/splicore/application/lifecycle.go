@@ -69,7 +69,7 @@ func (s *Service) enableRuntime(ctx context.Context, beforeServers func() error)
 		return e
 	}
 	for _, i := range inbounds {
-		if managedSOCKS5(i) && !i.Enabled {
+		if managedProxy(i) && !i.Enabled {
 			continue
 		}
 		intent, e := s.projection(ctx, i, snapshot.Revision)
@@ -104,10 +104,10 @@ func (s *Service) prepare(ctx context.Context, in ports.RuntimeIntent) (ports.Ru
 	if e != nil {
 		return nil, e
 	}
-	if managedSOCKS5(in.Inbound) {
+	if managedProxy(in.Inbound) {
 		authority, ok := s.runtime.repo.(ports.BindingAdmission)
 		if !ok {
-			return nil, identity.Err(identity.Unavailable, "SOCKS5 binding admission unavailable")
+			return nil, identity.Err(identity.Unavailable, "managed proxy binding admission unavailable")
 		}
 		in.AuthorizeBinding = authority.BindingAllowed
 	}

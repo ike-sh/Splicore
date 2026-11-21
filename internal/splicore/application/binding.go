@@ -3,19 +3,22 @@ package application
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/ports"
-	"time"
+	"github.com/ike-sh/Splicore/internal/splicore/protocol/proxy"
 )
 
 type BindingRequest struct {
-	Action           string            `json:"action,omitempty"`
-	Credential       *CredentialInput  `json:"credential,omitempty"`
-	BindingID        identity.ID       `json:"binding_id"`
-	Enabled          bool              `json:"enabled"`
-	ResourceRevision identity.Revision `json:"resource_revision"`
-	Revision         identity.Revision `json:"revision"`
+	User             *proxy.ManagedUser `json:"user,omitempty"`
+	Action           string             `json:"action,omitempty"`
+	Credential       *CredentialInput   `json:"credential,omitempty"`
+	BindingID        identity.ID        `json:"binding_id"`
+	Enabled          bool               `json:"enabled"`
+	ResourceRevision identity.Revision  `json:"resource_revision"`
+	Revision         identity.Revision  `json:"revision"`
 }
 
 func (BindingRequest) Format(s fmt.State, _ rune) {
@@ -33,7 +36,7 @@ func (s *Service) SetBinding(ctx context.Context, id identity.ID, req BindingReq
 	if r.closed {
 		return op, identity.Err(identity.Unavailable, "runtime closed")
 	}
-	if id.Validate() != nil || req.BindingID.Validate() != nil {
+	if id.Validate() != nil || req.Action != "add" && req.BindingID.Validate() != nil {
 		return op, identity.Err(identity.Invalid, "invalid binding request")
 	}
 	repo, ok := r.repo.(ports.MultiBindingRepository)
@@ -66,6 +69,16 @@ func (s *Service) SetBinding(ctx context.Context, id identity.ID, req BindingReq
 	if err != nil {
 		return op, err
 	}
+	if req.Action == "add" {
+		if i.Protocol != proxy.Key("http") {
+			return op, identity.Err(identity.NotImplemented, "user enrollment requires a managed HTTP proxy inbound")
+		}
+		return s.addHTTPBinding(ctx, repo, i, bs, req)
+	}
+	if req.User != nil || req.Action == "revoke" && i.Protocol != proxy.Key("http") {
+		return op, identity.Err(identity.Invalid, "invalid binding mutation")
+	}
+
 	var target *access.Binding
 	for n := range bs {
 		if bs[n].ID == req.BindingID {
@@ -78,7 +91,7 @@ func (s *Service) SetBinding(ctx context.Context, id identity.ID, req BindingReq
 	if target.Revision != req.ResourceRevision {
 		return op, identity.RevisionConflict(target.Revision)
 	}
-	if req.Action != "" && req.Action != "rotate" && req.Action != "delete" || (req.Action == "rotate") != (req.Credential != nil) {
+	if req.Action != "" && req.Action != "rotate" && req.Action != "delete" && req.Action != "revoke" || (req.Action == "rotate") != (req.Credential != nil) {
 		return op, identity.Err(identity.Invalid, "invalid binding mutation")
 	}
 	var rotated access.Credential
@@ -95,20 +108,19 @@ func (s *Service) SetBinding(ctx context.Context, id identity.ID, req BindingReq
 		if p.ValidateCredential(rotated) != nil {
 			return op, identity.Err(identity.Invalid, "invalid credential rotation")
 		}
-		if managedSOCKS5(i) {
-			username := rotated.Payload.(access.UsernamePasswordPayload).Username.Reveal()
-			for _, binding := range bs {
-				if binding.ID == target.ID {
-					continue
-				}
-				credential, err := repo.RevealCredential(ctx, binding.CredentialID)
-				if err != nil {
-					return op, err
-				}
-				if pair, ok := credential.Payload.(access.UsernamePasswordPayload); ok && pair.Username.Reveal() == username {
-					return op, identity.Err(identity.Invalid, "duplicate SOCKS5 username")
-				}
+		if managedProxy(i) {
+			if err := uniqueProxyUsername(ctx, repo, bs, target.ID, rotated.Payload.(access.UsernamePasswordPayload)); err != nil {
+				return op, err
 			}
+		}
+	}
+	if i.Protocol == proxy.Key("http") && req.Action == "" && req.Enabled {
+		credential, err := repo.RevealCredential(ctx, target.CredentialID)
+		if err != nil {
+			return op, err
+		}
+		if credential.State == "revoked" {
+			return op, identity.Err(identity.Conflict, "revoked HTTP proxy credential")
 		}
 	}
 	oldIntent, err := s.projection(ctx, i, state.Revision)
@@ -120,7 +132,7 @@ func (s *Service) SetBinding(ctx context.Context, id identity.ID, req BindingReq
 	}
 	candidate := ports.RuntimeIntent{Inbound: i, Revision: state.Revision, ServerCredentials: oldIntent.ServerCredentials}
 	for _, b := range bs {
-		if req.Action == "delete" && b.ID == target.ID {
+		if (req.Action == "delete" || req.Action == "revoke") && b.ID == target.ID {
 			continue
 		}
 		a, err := repo.Account(ctx, b.AccountID)
@@ -137,13 +149,20 @@ func (s *Service) SetBinding(ctx context.Context, id identity.ID, req BindingReq
 		if req.Action == "rotate" && b.ID == target.ID {
 			c = rotated
 		}
-		if managedSOCKS5(i) && c.State == "revoked" {
+		if managedProxy(i) && c.State == "revoked" {
 			continue
 		}
 		candidate.Bindings = append(candidate.Bindings, b)
 		candidate.Credentials = append(candidate.Credentials, c)
 	}
 	write := func(w ports.Writer) error {
+		if req.Action == "revoke" {
+			writer, ok := w.(ports.ManagedProxyCredentialWriter)
+			if !ok {
+				return identity.Err(identity.NotImplemented, "credential revocation unavailable")
+			}
+			return writer.RevokeManagedProxyCredential(*target, req.ResourceRevision)
+		}
 		if req.Action != "" {
 			uw, ok := w.(ports.UserWriter)
 			if !ok {
@@ -160,11 +179,35 @@ func (s *Service) SetBinding(ctx context.Context, id identity.ID, req BindingReq
 		}
 		return bw.SetBindingEnabled(req.BindingID, req.Enabled, req.ResourceRevision)
 	}
-	if managedSOCKS5(i) && !i.Enabled {
+	return s.replaceBindingRuntime(ctx, repo, p, oldIntent, candidate, write)
+}
+
+func uniqueProxyUsername(ctx context.Context, repo ports.MultiBindingRepository, bindings []access.Binding, exclude identity.ID, pair access.UsernamePasswordPayload) error {
+	for _, binding := range bindings {
+		if binding.ID == exclude {
+			continue
+		}
+		credential, err := repo.RevealCredential(ctx, binding.CredentialID)
+		if err != nil {
+			return err
+		}
+		if existing, ok := credential.Payload.(access.UsernamePasswordPayload); ok && existing.Username.Reveal() == pair.Username.Reveal() {
+			return identity.Err(identity.Invalid, "duplicate managed proxy username")
+		}
+	}
+	return nil
+}
+
+// The caller holds the runtime lock and has checked the persisted revisions.
+func (s *Service) replaceBindingRuntime(ctx context.Context, repo ports.MultiBindingRepository, p ports.Protocol, oldIntent, candidate ports.RuntimeIntent, write func(ports.Writer) error) (op identity.Transaction, err error) {
+	r := s.runtime
+	i := candidate.Inbound
+	id := i.ID
+	if managedProxy(i) && !i.Enabled {
 		if _, err := p.BuildRuntime(ctx, candidate); err != nil {
 			return op, err
 		}
-		return commitSOCKS5Write(ctx, repo, req.Revision, write)
+		return commitManagedProxyWrite(ctx, repo, candidate.Revision, write)
 	}
 	h, err := s.prepare(ctx, candidate)
 	if err != nil {
@@ -175,7 +218,7 @@ func (s *Service) SetBinding(ctx context.Context, id identity.ID, req BindingReq
 		_ = h.Close(context.Background())
 		return op, err
 	}
-	op, err = repo.BeginRuntimeOperation(ctx, req.Revision, actor, "runtime_replace")
+	op, err = repo.BeginRuntimeOperation(ctx, candidate.Revision, actor, "runtime_replace")
 	if err != nil {
 		_ = h.Close(context.Background())
 		return op, err

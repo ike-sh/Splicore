@@ -14,10 +14,28 @@ RUNTIME_TESTS = {
         'independent-wire-client/localhost', 'reverse-half-close-and-abort',
         'two-core-outbound-and-restart',
     ),
+    'TestManagedHTTPProxyProcesses': (
+        'port-conflict', 'curl-forward', 'curl-connect', 'scoped-direct-and-reject',
+        'local-http-entry', 'two-core-outbound-and-recovery',
+    ),
 }
 RUNTIME_CASES = tuple(
     f'cmd/splicore/{name}' + (f'/{leaf}' if leaf else '')
     for name, leaves in RUNTIME_TESTS.items() for leaf in ('', *leaves)
+)
+MANAGED_HTTP_CASES = (
+    'internal/splicore/protocol/proxy/TestManagedHTTPCreationRequiresAuthentication',
+    'internal/splicore/engine/native/TestManagedHTTPRejectedWithoutTarget',
+    'internal/splicore/engine/native/TestManagedHTTPForwardingStreamsAndSanitizes',
+    'internal/splicore/engine/native/TestManagedHTTPForwardingBoundaries/connection-close',
+    'internal/splicore/engine/native/TestManagedHTTPForwardingBoundaries/truncated-upload',
+    'internal/splicore/engine/native/TestManagedHTTPForwardingBoundaries/client-cancellation',
+    'internal/splicore/engine/native/TestManagedHTTPConnectionBoundsAndCancellation/slow-header',
+    'internal/splicore/engine/native/TestManagedHTTPConnectionBoundsAndCancellation/unavailable-target',
+    'internal/splicore/engine/native/TestManagedHTTPConnectionBoundsAndCancellation/resolved-self-target',
+    'internal/splicore/engine/native/TestManagedHTTPConnectionBoundsAndCancellation/total-limit-and-idle-tunnel',
+    'internal/splicore/engine/native/TestManagedHTTPConnectionBoundsAndCancellation/bounded-admission-and-pending-dial-cancel',
+    'internal/splicore/storage/sqlite/TestManagedHTTPCommittedAdmission/revoke-commits-credential-and-binding',
 )
 SYMLINK_TEST = 'TestRootFileTraversalAndHTTPHTTPSProxyBoundaries/file/symlink'
 SYMLINK_PROOFS = {
@@ -74,6 +92,7 @@ def validate(root, result, target, profile, event_log=None):
         'internal/splicore/engine/native/TestManagedSOCKS5AuthenticationAndRouting',
         'internal/splicore/engine/native/TestManagedSOCKS5ConnectionBoundsAndCancellation',
         'internal/splicore/storage/sqlite/TestManagedSOCKS5CommittedAdmission',
+        *MANAGED_HTTP_CASES,
     }
     if profile != 'race':
         required.update(RUNTIME_CASES)

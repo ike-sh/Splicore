@@ -11,23 +11,37 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/protocol/proxy"
 )
 
-type SOCKS5LifecycleRequest struct {
+type ManagedProxyLifecycleRequest struct {
 	Action           string            `json:"action"`
 	ResourceRevision identity.Revision `json:"resource_revision"`
 	Revision         identity.Revision `json:"revision"`
 }
 
+type ManagedProxyCommands interface {
+	SetManagedProxyLifecycle(context.Context, identity.ID, ManagedProxyLifecycleRequest) (identity.Transaction, error)
+}
+
+type SOCKS5LifecycleRequest = ManagedProxyLifecycleRequest
+
 type SOCKS5Commands interface {
 	SetSOCKS5Lifecycle(context.Context, identity.ID, SOCKS5LifecycleRequest) (identity.Transaction, error)
 }
 
-func managedSOCKS5(in access.Inbound) bool {
-	return in.Protocol == proxy.Key("socks5")
+func managedProxy(in access.Inbound) bool {
+	return proxy.IsManagedInbound(in.Protocol)
 }
 
-func (s *Service) SetSOCKS5Lifecycle(ctx context.Context, id identity.ID, req SOCKS5LifecycleRequest) (op identity.Transaction, err error) {
+func (s *Service) SetSOCKS5Lifecycle(ctx context.Context, id identity.ID, req SOCKS5LifecycleRequest) (identity.Transaction, error) {
+	return s.setManagedProxyLifecycle(ctx, id, req, true)
+}
+
+func (s *Service) SetManagedProxyLifecycle(ctx context.Context, id identity.ID, req ManagedProxyLifecycleRequest) (identity.Transaction, error) {
+	return s.setManagedProxyLifecycle(ctx, id, req, false)
+}
+
+func (s *Service) setManagedProxyLifecycle(ctx context.Context, id identity.ID, req ManagedProxyLifecycleRequest, socks5Only bool) (op identity.Transaction, err error) {
 	if id.Validate() != nil || req.Action != "start" && req.Action != "stop" && req.Action != "delete" {
-		return op, identity.Err(identity.Invalid, "invalid SOCKS5 lifecycle request")
+		return op, identity.Err(identity.Invalid, "invalid managed proxy lifecycle request")
 	}
 	if s.runtime == nil {
 		return op, identity.Err(identity.NotImplemented, "runtime unavailable")
@@ -40,7 +54,7 @@ func (s *Service) SetSOCKS5Lifecycle(ctx context.Context, id identity.ID, req SO
 	}
 	repo, ok := r.repo.(ports.MultiBindingRepository)
 	if !ok {
-		return op, identity.Err(identity.NotImplemented, "SOCKS5 lifecycle unavailable")
+		return op, identity.Err(identity.NotImplemented, "managed proxy lifecycle unavailable")
 	}
 	state, err := repo.State(ctx)
 	if err != nil {
@@ -58,8 +72,8 @@ func (s *Service) SetSOCKS5Lifecycle(ctx context.Context, id identity.ID, req SO
 		return op, identity.Err(identity.NotFound, "inbound not found")
 	}
 	in := all[index]
-	if !managedSOCKS5(in) {
-		return op, identity.Err(identity.NotImplemented, "SOCKS5 lifecycle requires a managed SOCKS5 inbound")
+	if !managedProxy(in) || socks5Only && in.Protocol != proxy.Key("socks5") {
+		return op, identity.Err(identity.NotImplemented, "lifecycle operation requires a matching managed proxy inbound")
 	}
 	if in.Revision != req.ResourceRevision {
 		return op, identity.RevisionConflict(in.Revision)
@@ -84,21 +98,21 @@ func (s *Service) SetSOCKS5Lifecycle(ctx context.Context, id identity.ID, req SO
 		}
 	}
 	write := func(w ports.Writer) error {
-		managed, ok := w.(ports.SOCKS5LifecycleWriter)
+		managed, ok := w.(ports.ManagedProxyLifecycleWriter)
 		if !ok {
-			return identity.Err(identity.NotImplemented, "SOCKS5 lifecycle writer unavailable")
+			return identity.Err(identity.NotImplemented, "managed proxy lifecycle writer unavailable")
 		}
 		if req.Action == "delete" {
-			return managed.DeleteSOCKS5Inbound(in, bindings)
+			return managed.DeleteManagedProxyInbound(in, bindings)
 		}
-		return managed.SetSOCKS5InboundEnabled(in, req.Action == "start")
+		return managed.SetManagedProxyInboundEnabled(in, req.Action == "start")
 	}
 
 	handle := r.handles[id]
 	if req.Action == "start" {
 		if handle != nil {
 			if handle.Health(ctx) == nil {
-				return op, identity.Err(identity.Conflict, "SOCKS5 inbound already running")
+				return op, identity.Err(identity.Conflict, "managed proxy inbound already running")
 			}
 			if err := handle.Close(ctx); err != nil {
 				return op, err
@@ -117,7 +131,7 @@ func (s *Service) SetSOCKS5Lifecycle(ctx context.Context, id identity.ID, req SO
 
 	// A stopped generation has no sockets to replace.
 	if handle == nil {
-		return commitSOCKS5Write(ctx, repo, req.Revision, write)
+		return commitManagedProxyWrite(ctx, repo, req.Revision, write)
 	}
 	intent, err := s.projection(ctx, in, req.Revision)
 	if err != nil {
@@ -150,7 +164,7 @@ func (s *Service) SetSOCKS5Lifecycle(ctx context.Context, id identity.ID, req SO
 			if restored != nil {
 				_ = restored.Close(cleanup)
 			}
-			err = identity.Err(identity.Unavailable, "SOCKS5 runtime rollback requires recovery")
+			err = identity.Err(identity.Unavailable, "managed proxy runtime rollback requires recovery")
 			return
 		}
 		restored.Activate()
@@ -168,7 +182,7 @@ func (s *Service) SetSOCKS5Lifecycle(ctx context.Context, id identity.ID, req SO
 	return op, nil
 }
 
-func commitSOCKS5Write(ctx context.Context, repo ports.MultiBindingRepository, revision identity.Revision, write func(ports.Writer) error) (identity.Transaction, error) {
+func commitManagedProxyWrite(ctx context.Context, repo ports.MultiBindingRepository, revision identity.Revision, write func(ports.Writer) error) (identity.Transaction, error) {
 	actor, err := localActor()
 	if err != nil {
 		return identity.Transaction{}, err

@@ -1,4 +1,4 @@
-package clientruntime
+package httpproxy
 
 import (
 	"bufio"
@@ -8,17 +8,15 @@ import (
 	"net/textproto"
 	"strings"
 	"testing"
-
-	httpproxy "github.com/ike-sh/Splicore/internal/splicore/protocol/http"
 )
 
 func TestPhase20HTTPTrailerOwnership(t *testing.T) {
 	raw := "POST http://origin.test/ HTTP/1.1\r\nHost: origin.test\r\nConnection: X-Hop\r\nProxy-Authorization: header-secret\r\nTransfer-Encoding: chunked\r\nTrailer: X-Safe, Proxy-Authorization, X-Hop\r\n\r\n3\r\nabc\r\n0\r\nX-Safe: exact\r\nX-Safe: second\r\nProxy-Authorization: trailer-secret\r\nX-Hop: hop-secret\r\nX-Undeclared: ignored\r\n\r\n"
-	in, _, err := httpproxy.ReadRequest(bufio.NewReader(strings.NewReader(raw)))
+	in, _, err := ReadRequest(bufio.NewReader(strings.NewReader(raw)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	out := forwardHTTPRequest(in)
+	out := ForwardRequest(in)
 	if in.Header.Get("Proxy-Authorization") == "" || in.Trailer.Get("X-Safe") != "" || len(out.Trailer) != 1 {
 		t.Fatal("metadata ownership/declarations")
 	}
@@ -53,7 +51,7 @@ type terminalMetadataBody struct {
 func TestPhase20HTTPTrailerFramingDeclarationsRejected(t *testing.T) {
 	for _, name := range []string{"Transfer-Encoding", "Trailer", "Content-Length"} {
 		raw := "POST http://origin.test/ HTTP/1.1\r\nHost: origin.test\r\nTransfer-Encoding: chunked\r\nTrailer: " + name + "\r\n\r\n0\r\n\r\n"
-		if _, _, err := httpproxy.ReadRequest(bufio.NewReader(strings.NewReader(raw))); err == nil {
+		if _, _, err := ReadRequest(bufio.NewReader(strings.NewReader(raw))); err == nil {
 			t.Fatalf("forbidden framing declaration accepted: %s", name)
 		}
 	}

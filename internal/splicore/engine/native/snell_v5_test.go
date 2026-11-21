@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -14,6 +15,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -81,10 +83,18 @@ func snellV5Reference(t *testing.T, endpoint access.Endpoint) {
 	address := net.JoinHostPort(endpoint.Host, portString(endpoint.Port))
 	t.Logf("peer_start pid=%d address=%s started_at=%s", cmd.Process.Pid, address, time.Now().UTC().Format(time.RFC3339Nano))
 	t.Cleanup(func() {
-		_ = cmd.Process.Kill()
+		kill := cmd.Process.Kill()
 		_ = cmd.Wait()
 		_ = f.Close()
 		t.Logf("peer_exit pid=%d exit_code=%d at=%s", cmd.Process.Pid, cmd.ProcessState.ExitCode(), time.Now().UTC().Format(time.RFC3339Nano))
+		state := "error"
+		switch {
+		case kill == nil:
+			state = "requested"
+		case errors.Is(kill, os.ErrProcessDone):
+			state = "already_done"
+		}
+		t.Logf("snell_v5_peer pid=%d exit_code=%d cleanup_kill=%s", cmd.Process.Pid, cmd.ProcessState.ExitCode(), state)
 	})
 	for until := time.Now().Add(3 * time.Second); time.Now().Before(until); {
 		b, _ := os.ReadFile(filepath.Join(root, "official.log"))
@@ -109,7 +119,18 @@ func snellV5Initial() []byte {
 	return p
 }
 
+type snellV5EchoObservation struct {
+	concurrent atomic.Bool
+	received   atomic.Uint64
+	sent       atomic.Uint64
+}
+
 func snellV5Echo(t *testing.T, host string, port int) access.Endpoint {
+	t.Helper()
+	return snellV5EchoObserved(t, host, port, nil)
+}
+
+func snellV5EchoObserved(t *testing.T, host string, port int, observation *snellV5EchoObservation) access.Endpoint {
 	t.Helper()
 	p, err := net.ListenPacket("udp", net.JoinHostPort(host, fmt.Sprint(port)))
 	if err != nil {
@@ -118,18 +139,34 @@ func snellV5Echo(t *testing.T, host string, port int) access.Endpoint {
 		}
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = p.Close() })
+	done := make(chan struct{})
+	endpoint := netaddrEndpoint(p.LocalAddr())
+	t.Cleanup(func() {
+		_ = p.Close()
+		<-done
+		if observation != nil {
+			t.Logf("snell_v5_echo port=%d received=%d sent=%d", endpoint.Port, observation.received.Load(), observation.sent.Load())
+		}
+	})
 	go func() {
+		defer close(done)
 		b := make([]byte, 65535)
 		for {
 			n, a, err := p.ReadFrom(b)
 			if err != nil {
 				return
 			}
-			_, _ = p.WriteTo(b[:n], a)
+			count := observation != nil && observation.concurrent.Load()
+			if count {
+				observation.received.Add(1)
+			}
+			written, err := p.WriteTo(b[:n], a)
+			if count && err == nil && written == n {
+				observation.sent.Add(1)
+			}
 		}
 	}()
-	return netaddrEndpoint(p.LocalAddr())
+	return endpoint
 }
 
 func TestSnellV5NativeAndOfficial(t *testing.T) {
@@ -160,7 +197,8 @@ func TestSnellV5NativeAndOfficial(t *testing.T) {
 			}
 			for _, host := range []string{"127.0.0.1", "::1"} {
 				t.Run(host, func(t *testing.T) {
-					dst := snellV5Echo(t, host, 0)
+					var echo snellV5EchoObservation
+					dst := snellV5EchoObserved(t, host, 0, &echo)
 					for _, quic := range []bool{false, true} {
 						t.Run(fmt.Sprintf("QUIC_%t", quic), func(t *testing.T) {
 							p, err := d.ListenPacket(ctx, dst)
@@ -196,29 +234,61 @@ func TestSnellV5NativeAndOfficial(t *testing.T) {
 							}
 						})
 					}
+					type flowObservation struct {
+						port, written, received int
+						phase                   string
+						timedOut                bool
+						elapsed                 time.Duration
+					}
+					var flows [12]flowObservation
 					var wg sync.WaitGroup
-					for range 12 {
+					echo.concurrent.Store(true)
+					for index := range flows {
 						wg.Go(func() {
+							flow := &flows[index]
+							flow.phase = "listen"
 							p, err := d.ListenPacket(ctx, dst)
 							if err != nil {
+								flow.timedOut = errors.Is(err, os.ErrDeadlineExceeded)
 								t.Error(err)
 								return
 							}
-							defer p.Close()
-							_ = p.SetDeadline(time.Now().Add(5 * time.Second))
+							start := time.Now()
+							defer func() {
+								flow.elapsed = time.Since(start)
+								if addr, ok := p.LocalAddr().(*net.UDPAddr); ok && addr.IP.IsLoopback() {
+									flow.port = addr.Port
+								}
+								_ = p.Close()
+							}()
+							_ = p.SetDeadline(start.Add(5 * time.Second))
 							want := snellV5Initial()
-							if _, err = p.WriteTo(want, nil); err != nil {
+							flow.phase = "write"
+							flow.written, err = p.WriteTo(want, nil)
+							if err != nil {
+								flow.timedOut = errors.Is(err, os.ErrDeadlineExceeded)
 								t.Error(err)
 								return
 							}
+							flow.phase = "read"
 							b := make([]byte, 1500)
 							n, _, err := p.ReadFrom(b)
+							flow.received, flow.timedOut = n, errors.Is(err, os.ErrDeadlineExceeded)
 							if err != nil || !bytes.Equal(b[:n], want) {
+								if err == nil {
+									flow.phase = "payload"
+								}
 								t.Error("concurrent QUIC", err)
+								return
 							}
+							flow.phase = "complete"
 						})
 					}
 					wg.Wait()
+					for index, flow := range flows {
+						t.Logf("snell_v5_flow id=%d udp_port=%d echo_port=%d written=%d received=%d phase=%s timeout=%t elapsed_ms=%d",
+							index+1, flow.port, dst.Port, flow.written, flow.received, flow.phase, flow.timedOut, flow.elapsed.Milliseconds())
+					}
 				})
 			}
 			t.Run("AuthenticationAndIsolation", func(t *testing.T) {

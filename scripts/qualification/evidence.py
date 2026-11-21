@@ -254,6 +254,67 @@ def safe_output(line):
     return '[redacted]\n' if line else ''
 
 
+DNS_FALLBACK_RESULT = r'(?:ok|timeout|socket_error|error) errno=\d{1,10}'
+DNS_FALLBACK_FIELDS = (
+    r'dns_fallback_stage stage=(?:tcp_bind|tcp_ready|tcp_shutdown|tcp_serve|udp_bind|udp_ready|udp_shutdown|udp_serve|'
+    r'underlay_begin|engine_start|lookup) port=\d{1,5} result=' + DNS_FALLBACK_RESULT,
+    r'dns_fallback_reply network=(?:udp|tcp) id=\d{1,5} tc=(?:true|false) rcode=\d{1,4} answers=\d{1,5} result='
+    + DNS_FALLBACK_RESULT,
+    r'dns_fallback_answer addresses=\d{1,5} matched=(?:true|false)',
+    r'dns_fallback_assertion check=(?:answer|counts|protection)',
+    r'dns_fallback_counts udp=\d{1,9} tcp=\d{1,9} protection=\d{1,9} fallback=(?:unobserved|tcp_protect|matching_tcp_reply)',
+)
+SNELL_V5_FIELDS = (
+    r'snell_v5_flow id=(?:[1-9]|1[0-2]) udp_port=\d{1,5} echo_port=\d{1,5} written=\d{1,5} received=\d{1,5} '
+    r'phase=(?:listen|write|read|payload|complete) timeout=(?:true|false) elapsed_ms=\d{1,8}',
+    r'snell_v5_echo port=\d{1,5} received=\d{1,9} sent=\d{1,9}',
+    r'snell_v5_peer pid=\d{1,10} exit_code=-?\d{1,10} cleanup_kill=(?:requested|already_done|error)',
+)
+
+
+def protocol_observation(event):
+    if not isinstance(event, dict) or event.get('Action') != 'output':
+        return ''
+    package, test = event.get('Package'), event.get('Test')
+    output = event.get('Output')
+    if not isinstance(test, str) or not isinstance(output, str) or len(output) > 512:
+        return ''
+    if (package == 'github.com/ike-sh/Splicore/internal/splicore/networkruntime'
+            and test == 'TestProtectedDNSUDPTruncationFallsBackToTCP'):
+        source, fields = 'dns_fallback_test.go', DNS_FALLBACK_FIELDS
+    elif (package == 'github.com/ike-sh/Splicore/internal/splicore/engine/native'
+          and re.fullmatch(r'TestSnellV5NativeAndOfficial/Official_(?:true|false)(?:/(?:127\.0\.0\.1|::1))?', test)):
+        source, fields = 'snell_v5_test.go', SNELL_V5_FIELDS
+    else:
+        return ''
+    line = output.strip()
+    site = re.match(re.escape(source) + r':\d{1,6}: ', line)
+    if site and any(re.fullmatch(pattern, line[site.end():]) for pattern in fields):
+        return line
+    return ''
+
+
+def protocol_observations(path):
+    """Preserve the selected fixture observations outside the general log tail."""
+    scanned = 0
+    lines = []
+    limit = b'{"Evidence":"protocol observation scan reached its limit"}\n'
+    with path.open('rb') as stream:
+        for raw in stream:
+            scanned += len(raw)
+            if scanned > 64 * MIB or len(lines) >= 256:
+                return b''.join(lines) + limit
+            if not raw.startswith(b'{') or (b'snell_v5_' not in raw and b'dns_fallback_' not in raw):
+                continue
+            try:
+                event = json.loads(raw)
+            except ValueError:
+                continue
+            if protocol_observation(event):
+                lines.append((safe_event(raw) + '\n').encode('utf-8'))
+    return b''.join(lines)
+
+
 def safe_event(line):
     try:
         event = json.loads(line)
@@ -268,7 +329,9 @@ def safe_event(line):
     if type(event.get('Elapsed')) in (int, float):
         result['Elapsed'] = event['Elapsed']
     if isinstance(event.get('Output'), str):
-        result['Output'] = '\n'.join(safe_output(part).rstrip('\n') for part in event['Output'].splitlines()) + '\n'
+        observation = protocol_observation(event)
+        result['Output'] = (observation or '\n'.join(
+            safe_output(part).rstrip('\n') for part in event['Output'].splitlines())) + '\n'
     return json.dumps(result, separators=(',', ':'))
 
 
@@ -463,6 +526,9 @@ def export(private, public, target, label, kind):
             add('commands/' + name + '.failures.jsonl', events)
     for name, index in indexes.items():
         add(f'commands/{name}.test-identities.json', json_bytes(index))
+        path = private / 'raw' / (name + '.stdout')
+        if path.is_file() and plain_file(path) and (observations := protocol_observations(path)):
+            add(f'commands/{name}.protocol-observations.jsonl', observations)
     for path in sorted((private / 'raw').glob('*')):
         if not re.fullmatch(STAGE + r'\.(?:stdout|stderr|failure\.json)', path.name) or not plain_file(path):
             continue

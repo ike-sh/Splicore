@@ -41,7 +41,7 @@ func (s *Service) projection(ctx context.Context, i access.Inbound, revision ide
 	if err != nil {
 		return in, err
 	}
-	if len(bs) > 16 || len(bs) == 0 && !managedSOCKS5(i) {
+	if len(bs) > 16 || len(bs) == 0 && !managedProxy(i) {
 		return in, identity.Err(identity.Corrupt, "invalid inbound bindings")
 	}
 	for _, b := range bs {
@@ -56,7 +56,7 @@ func (s *Service) projection(ctx context.Context, i access.Inbound, revision ide
 		if err != nil {
 			return in, err
 		}
-		if managedSOCKS5(i) && c.State == "revoked" {
+		if managedProxy(i) && c.State == "revoked" {
 			continue
 		}
 		in.Bindings = append(in.Bindings, b)

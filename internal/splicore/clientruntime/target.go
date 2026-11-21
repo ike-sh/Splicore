@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/client"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
 	"github.com/ike-sh/Splicore/internal/splicore/engine/netaddr"
@@ -72,24 +73,35 @@ func (m *Manager) DialServerTarget(ctx context.Context, inbound identity.ID, net
 	if decision.Selected.Kind == P.Reject {
 		return nil, identity.Err(identity.Unavailable, "Core route rejected flow")
 	}
-	d := gen.outbounds[selectedOutbound(decision.Selected)]
-	if d == nil {
-		return nil, net.ErrClosed
-	}
+	outbound := selectedOutbound(decision.Selected)
 	var c net.Conn
-	if network == "tcp" {
-		c, err = d.DialContext(ctx, resolved)
+	if check := ports.DirectServerTargetCheck(ctx); check != nil {
+		if outbound != client.Direct || network != "tcp" {
+			return nil, identity.Err(identity.Unavailable, "server target requires a direct TCP route")
+		}
+		if err := check(resolved); err != nil {
+			return nil, err
+		}
+		c, err = fallback.DialContext(ctx, network, net.JoinHostPort(resolved.Host, strconv.Itoa(int(resolved.Port))))
 	} else {
-		packet, ok := d.(interface {
-			ListenPacket(context.Context, access.Endpoint) (net.PacketConn, error)
-		})
-		if !ok {
+		d := gen.outbounds[outbound]
+		if d == nil {
 			return nil, net.ErrClosed
 		}
-		var pc net.PacketConn
-		pc, err = packet.ListenPacket(ctx, resolved)
-		if err == nil {
-			c = &targetPacket{PacketConn: pc, target: resolved}
+		if network == "tcp" {
+			c, err = d.DialContext(ctx, resolved)
+		} else {
+			packet, ok := d.(interface {
+				ListenPacket(context.Context, access.Endpoint) (net.PacketConn, error)
+			})
+			if !ok {
+				return nil, net.ErrClosed
+			}
+			var pc net.PacketConn
+			pc, err = packet.ListenPacket(ctx, resolved)
+			if err == nil {
+				c = &targetPacket{PacketConn: pc, target: resolved}
+			}
 		}
 	}
 	if err != nil {

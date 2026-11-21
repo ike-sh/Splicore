@@ -57,6 +57,11 @@ IPv4、IPv6 和域名 TCP CONNECT。UDP ASSOCIATE 和 BIND 返回 `0x07`。
 服务端和客户端的独立资格记录见[入站与出站审计](docs/architecture/INBOUND_OUTBOUND_MATRIX.md)。
 实际配置和双端命令见 [SOCKS5 示例](docs/CLI.md#managed-socks5-and-a-local-client)。
 
+当前源码的受管 HTTP Proxy（`http/1.1/base`）支持 HTTP CONNECT、普通 HTTP 转发、
+Basic 代理认证、多账户管理和 SQLite 重启恢复。默认监听回环，普通转发每条连接处理
+一个请求。CONNECT 可以透传 HTTPS，客户端到代理的 Basic 认证仍为明文。
+[HTTP Proxy 示例](docs/CLI.md#managed-http-proxy)
+
 v0.6.2 在 v0.5.0 基线上恢复标准 WireGuard endpoint、XHTTP H3、
 Generic HTTP/H2/QUIC、Snell v4/v5 DRS/QUIC 和受管路由/DNS；完整范围见版本化 61 项清单。
 ShadowQUIC 恢复未通过正式重连资格，本版不包含该协议。Linux kernel WireGuard

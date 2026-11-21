@@ -1,5 +1,5 @@
-// Package proxy validates upstream SOCKS5 and HTTP nodes and owns managed SOCKS5
-// server intent. The runtime and persistence layers own sockets and state.
+// Package proxy validates upstream SOCKS5 and HTTP nodes and owns managed
+// server intent for both protocols. The runtime and persistence layers own sockets and state.
 package proxy
 
 import (

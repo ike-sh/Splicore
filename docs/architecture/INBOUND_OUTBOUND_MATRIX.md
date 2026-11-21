@@ -79,7 +79,7 @@ The hosted Linux evidence uses the repository's isolated network namespace.
 | NaiveProxy H3 CONNECT | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | TLS/QUIC HTTP/3 CONNECT | `NOT_IMPLEMENTED` | TCP | TCP | TCP | Basic over TLS | Full-tag multi-user/payload/half-close and H3 ownership | [NaiveProxy](#naiveproxy) |
 | TrustTunnel H2/H3/auto | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | TLS CONNECT paths | Native tunneled datagrams | TCP/UDP | IPv6 proxy endpoint | Domain proxy endpoint, outbound UDP target resolved locally | Username/password plus TLS | Native TCP/UDP and ownership at H2/H3 and auto | [TrustTunnel](#trusttunnel) |
 | SOCKS5 `5/base` | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | CONNECT | Managed inbound `NOT_IMPLEMENTED`, optional outbound relay to a capable peer | TCP | TCP | TCP | Required RFC 1929 inbound, outbound depends on node settings | Independent wire client, `curl`, two-Core TCP, management and process recovery | [SOCKS5 and HTTP](#socks5-and-http-proxy) |
-| HTTP Proxy `1.1/base` | `NOT_IMPLEMENTED` | `SUPPORTED_WITH_LIMITATIONS` | Outbound HTTP CONNECT | `NOT_IMPLEMENTED` | TCP | `NOT_EXECUTED` across external upstreams | Host CONNECT | Optional Basic to upstream | Buffered CONNECT data and lifecycle fixture, separate local HTTP proxy | [SOCKS5 and HTTP](#socks5-and-http-proxy) |
+| HTTP Proxy `1.1/base` | `SUPPORTED_WITH_LIMITATIONS` | `SUPPORTED_WITH_LIMITATIONS` | CONNECT in both directions, absolute-form HTTP forwarding inbound | `NOT_IMPLEMENTED` | TCP | IPv6 inbound target | Domain inbound target and outbound CONNECT | Required Basic inbound, optional Basic to upstream | Independent curl, two-Core TCP and managed recovery | [SOCKS5 and HTTP](#socks5-and-http-proxy) |
 | Standard WireGuard userspace | `SUPPORTED_VERIFIED` (endpoint) | `SUPPORTED_VERIFIED` (endpoint) | Tunneled IP/TCP | Tunneled IP/UDP | TCP/UDP | TCP/UDP | Core DNS before endpoint selection | Peer keys and AllowedIPs | Native dual-end traffic, wireguard-go and Xray, close and malformed recovery | [WireGuard](#wireguard) |
 
 ### VLESS
@@ -229,11 +229,26 @@ and UDP ASSOCIATE. Native `TestPhase20SOCKSOutboundRemoteDNSRelayLifetime`
 passed baseline default L/W, exit `0`, against a separate upstream fixture
 with UDP relay. The upstream's capability determines whether UDP works.
 
-HTTP has a registered outbound factory and a local HTTP listener. A managed
-HTTP Inbound module/compiler is absent. The outbound CONNECT case
-`TestPhase20HTTPOutboundBoundedResponseAndBufferedPayload` passed baseline
-default L/W, exit `0`. `TestPhase20MatureUpstreamInterop` is `NOT_EXECUTED` in
-the release policy. The outbound capability disables UDP. [Managed module](../../internal/splicore/protocol/proxy/socks5_inbound.go) · [Outbound factories](../../internal/splicore/engine/native/proxy_outbound.go) · [Process tests](../../cmd/splicore/socks5_runtime_test.go) · [Upstream fixtures](../../internal/splicore/engine/native/proxy_outbound_test.go)
+HTTP uses one `http/1.1/base` profile for its managed module and existing
+outbound factory. The local HTTP entry is a separate client listener.
+`TestManagedHTTPProxyProcesses` exercises curl forwarding and HTTPS CONNECT,
+IPv4/IPv6/domain targets, and the local SOCKS5 → HTTP outbound → managed HTTP
+server chain using two Core processes. The HTTP native suites exercise streamed
+requests and responses, safe trailers, target isolation after rejection,
+bounds and cancellation. The existing outbound fixture still checks buffered
+CONNECT data. The optional broader mature-upstream campaign
+`TestPhase20MatureUpstreamInterop` is `NOT_EXECUTED`.
+
+| Managed HTTP capability | Status |
+| --- | --- |
+| HTTP/1.1 managed server inbound and native HTTP outbound | Implemented |
+| CONNECT and absolute-form forwarding | Implemented |
+| Basic authentication, multiple bindings and SQLite recovery | Implemented |
+| Keep-alive and pipelining for forwarded requests | `NOT_IMPLEMENTED`. The first response advertises `Connection: close`. |
+| Server egress | Protected direct TCP and Core route rejection |
+| HTTPS proxy listener, HTTP/2 server, HTTP Upgrade, CONNECT-UDP and MASQUE | `NOT_IMPLEMENTED` |
+
+[Managed module](../../internal/splicore/protocol/proxy/managed_inbound.go) · [Native compiler](../../internal/splicore/engine/native/http.go) · [Outbound factories](../../internal/splicore/engine/native/proxy_outbound.go) · [HTTP process tests](../../cmd/splicore/http_runtime_test.go)
 
 ### WireGuard
 

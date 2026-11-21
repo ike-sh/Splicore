@@ -65,12 +65,21 @@ func (s *Service) Inbound(ctx context.Context, id identity.ID) (InboundView, err
 	if e := id.Validate(); e != nil {
 		return InboundView{}, e
 	}
-	p, e := s.Inbounds(ctx)
+	if s.runtime == nil {
+		return InboundView{}, identity.Err(identity.NotImplemented, "runtime unavailable")
+	}
+	r := s.runtime
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	p, e := s.views(ctx)
 	if e != nil {
 		return InboundView{}, e
 	}
 	for _, v := range p.Items {
 		if v.Inbound.ID == id {
+			if h, ok := r.handles[id].(ports.InboundSessions); ok {
+				v.Sessions = h.ActiveSessions()
+			}
 			return v, nil
 		}
 	}

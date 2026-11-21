@@ -102,6 +102,9 @@ with its matching original master key. [Linux run guide](docs/releases/RUNNING_l
 - **Managed SOCKS5.** The current source adds a loopback-default server with
   required username/password authentication and TCP CONNECT over IPv4, IPv6
   and domain targets. [Server and client examples](docs/CLI.md#managed-socks5-and-a-local-client)
+- **Managed HTTP Proxy.** The `http/1.1/base` server requires Basic proxy
+  authentication and supports CONNECT and absolute-form HTTP forwarding with
+  managed accounts, per-binding statistics and SQLite recovery. [Server and client examples](docs/CLI.md#managed-http-proxy)
 - **Transports.** Supported combinations include TLS and REALITY, WebSocket,
   HTTPUpgrade, gRPC, XHTTP, HTTP/H2/QUIC stream carriers, and modern mKCP.
 - **Client networking.** Local SOCKS5, HTTP, Mixed, and optional TUN ingress

@@ -94,11 +94,22 @@ func dnsFixture(t *testing.T, network string, handler dns.Handler, config *tls.C
 // TCP and UDP addresses expose different concrete types.
 func dnsTCPFixture(t *testing.T, handler dns.Handler, config *tls.Config) access.Endpoint {
 	t.Helper()
+	return dnsTCPFixtureObserved(t, handler, config, nil)
+}
+
+func dnsTCPFixtureObserved(t *testing.T, handler dns.Handler, config *tls.Config, observe func(string, uint16, error)) access.Endpoint {
+	t.Helper()
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
+		if observe != nil {
+			observe("tcp_bind", 0, err)
+		}
 		t.Fatal(err)
 	}
 	endpoint := access.Endpoint{Host: "127.0.0.1", Port: uint16(l.Addr().(*net.TCPAddr).Port)}
+	if observe != nil {
+		observe("tcp_bind", endpoint.Port, nil)
+	}
 	if config != nil {
 		l = tls.NewListener(l, config)
 	}
@@ -106,12 +117,20 @@ func dnsTCPFixture(t *testing.T, handler dns.Handler, config *tls.Config) access
 	s := &dns.Server{Listener: l, Net: "tcp", Handler: handler, NotifyStartedFunc: func() { close(ready) }}
 	go func() { done <- s.ActivateAndServe() }()
 	<-ready
+	if observe != nil {
+		observe("tcp_ready", endpoint.Port, nil)
+	}
 	t.Cleanup(func() {
-		if err := s.Shutdown(); err != nil {
-			t.Error(err)
+		shutdown, served := s.Shutdown(), <-done
+		if observe != nil {
+			observe("tcp_shutdown", endpoint.Port, shutdown)
+			observe("tcp_serve", endpoint.Port, served)
 		}
-		if err := <-done; err != nil {
-			t.Error(err)
+		if shutdown != nil {
+			t.Error(shutdown)
+		}
+		if served != nil {
+			t.Error(served)
 		}
 	})
 	return endpoint

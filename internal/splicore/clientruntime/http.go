@@ -2,19 +2,14 @@ package clientruntime
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
-	"net/textproto"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	P "github.com/ike-sh/Splicore/internal/splicore/domain/networkpolicy"
 	httpproxy "github.com/ike-sh/Splicore/internal/splicore/protocol/http"
@@ -61,31 +56,15 @@ func (m *Manager) serveHTTP(ctx context.Context, s *session, reader *bufio.Reade
 			return
 		}
 	}
+	target, err := httpproxy.Target(req)
+	if err != nil {
+		fail(400)
+		return
+	}
 	if req.Method == http.MethodConnect {
-		host, port, e := net.SplitHostPort(req.Host)
-		n, parseErr := strconv.ParseUint(port, 10, 16)
-		target := access.Endpoint{Host: host, Port: uint16(n)}
-		if e != nil || parseErr != nil || target.Validate() != nil {
-			fail(400)
-			return
-		}
 		m.serveStream(ctx, s, gen, target, reader, func(byte) { fail(502) }, func() error {
 			return socks5.WriteFull(s.local, []byte("HTTP/1.1 200 Connection Established\r\n\r\n"))
 		})
-		return
-	}
-	if req.URL.Scheme != "http" || req.URL.Host == "" || req.URL.User != nil {
-		fail(400)
-		return
-	}
-	host := req.URL.Hostname()
-	port := uint64(80)
-	if req.URL.Port() != "" {
-		port, err = strconv.ParseUint(req.URL.Port(), 10, 16)
-	}
-	target := access.Endpoint{Host: host, Port: uint16(port)}
-	if err != nil || target.Validate() != nil {
-		fail(400)
 		return
 	}
 	selected, resolved, err := selectRoute(ctx, gen, s.inbound, target, "tcp", nil)
@@ -118,7 +97,7 @@ func (m *Manager) serveHTTP(ctx context.Context, s *session, reader *bufio.Reade
 				return nil, context.Canceled
 			}
 			metered := &meteredConn{Conn: c, counters: counters, health: adapter}
-			return &responseHeaderConn{Conn: metered, reader: bufio.NewReader(metered), headers: true}, nil
+			return httpproxy.NewResponseHeaderConn(metered), nil
 		},
 	}
 	defer transport.CloseIdleConnections()
@@ -129,7 +108,7 @@ func (m *Manager) serveHTTP(ctx context.Context, s *session, reader *bufio.Reade
 			defer c.active.Add(-1)
 		}
 	}
-	req = forwardHTTPRequest(req)
+	req = httpproxy.ForwardRequest(req)
 	req.RequestURI = ""
 	req.Close = true
 	// After the streaming request finishes, one reader watches disconnects.
@@ -162,14 +141,7 @@ func (m *Manager) serveHTTP(ctx context.Context, s *session, reader *bufio.Reade
 		return
 	}
 	defer resp.Body.Close()
-	// Response trailers have the same late-population ownership requirement.
-	out := new(http.Response)
-	*out = *resp
-	out.Header = resp.Header.Clone()
-	out.Trailer = forwardHTTPTrailers(resp.Header, resp.Trailer)
-	out.Body = forwardHTTPBody(resp.Body, resp.Trailer, out.Trailer)
-	stripProxyHeaders(out.Header)
-	out.Close = true
+	out := httpproxy.ForwardResponse(resp)
 	if err = out.Write(s.local); err != nil && ctx.Err() == nil {
 		m.proxyFailure(s, gen)
 	}
@@ -191,88 +163,10 @@ func (b *requestBody) Read(p []byte) (int, error) {
 }
 func (b *requestBody) Close() error { e := b.ReadCloser.Close(); b.finish(); return e }
 
-func readBoundedHTTPHeader(r *bufio.Reader) ([]byte, error) { return httpproxy.ReadHeader(r) }
-func stripProxyHeaders(h http.Header)                       { httpproxy.StripHeaders(h) }
-
 type meteredConn struct {
 	net.Conn
 	counters []*counter
 	health   *dialerLease
-}
-
-// net/http removes Connection: close during parsing. Remove every nominated
-// field first, while the original bounded response header is still available.
-type responseHeaderConn struct {
-	net.Conn
-	reader  *bufio.Reader
-	pending *bytes.Reader
-	headers bool
-}
-
-func (c *responseHeaderConn) Read(p []byte) (int, error) {
-	if len(p) == 0 {
-		return 0, nil
-	}
-	if c.pending != nil && c.pending.Len() > 0 {
-		return c.pending.Read(p)
-	}
-	if !c.headers {
-		return c.reader.Read(p)
-	}
-	raw, err := readBoundedHTTPHeader(c.reader)
-	if err != nil {
-		return 0, err
-	}
-	parsed := bufio.NewReader(bytes.NewReader(raw))
-	status, err := parsed.ReadString('\n')
-	if err != nil {
-		return 0, err
-	}
-	fields := strings.Fields(status)
-	if len(fields) < 2 {
-		return 0, fmt.Errorf("invalid HTTP response status")
-	}
-	code, err := strconv.Atoi(fields[1])
-	if err != nil || code < 100 || code > 999 {
-		return 0, fmt.Errorf("invalid HTTP response status")
-	}
-	header, err := textproto.NewReader(parsed).ReadMIMEHeader()
-	if err != nil {
-		return 0, err
-	}
-	closeConnection := false
-	for _, value := range header.Values("Connection") {
-		for _, token := range strings.Split(value, ",") {
-			if strings.EqualFold(strings.TrimSpace(token), "close") {
-				closeConnection = true
-			}
-		}
-	}
-	// Preserve safe trailer declarations for the response parser. Late values
-	// are copied separately by forwardHTTPBody; nominated fields stay excluded.
-	declared := make(http.Header)
-	for _, value := range header.Values("Trailer") {
-		for _, name := range strings.Split(value, ",") {
-			declared[strings.TrimSpace(name)] = nil
-		}
-	}
-	trailers := forwardHTTPTrailers(http.Header(header), declared)
-	stripProxyHeaders(http.Header(header))
-	for name := range trailers {
-		header.Add("Trailer", name)
-	}
-	if closeConnection {
-		header.Set("Connection", "close")
-	}
-	var filtered bytes.Buffer
-	filtered.WriteString(status)
-	if err = http.Header(header).Write(&filtered); err != nil {
-		return 0, err
-	}
-	filtered.WriteString("\r\n")
-	c.headers = code >= 100 && code < 200 && code != 101
-	c.pending = bytes.NewReader(filtered.Bytes())
-	return c.pending.Read(p)
 }
 
 func (c *meteredConn) Read(p []byte) (int, error) {

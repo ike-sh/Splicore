@@ -216,3 +216,97 @@ removed from that route before deletion. The local API uses the same lifecycle
 document at `POST /api/v1/inbounds/{id}/lifecycle` and binding document at
 `POST /api/v1/inbounds/{id}/binding`. Dispose of the demo's private input files
 after use. [SOCKS5 configuration](CONFIGURATION.md#managed-socks5)
+
+## Managed HTTP Proxy
+
+Set `SERVER_CONFIG` and `CLIENT_CONFIG` to the bootstraps of two running Core
+processes with independent keys, state directories and control endpoints.
+Use free loopback proxy ports and set `TARGET_URL` and `HTTPS_TARGET_URL` to
+reachable HTTP and HTTPS test URLs. Set `HTTPS_CA_FILE` if the HTTPS target
+uses a private CA. The Linux example uses `jq`, `openssl` and `curl`.
+[Key provisioning](#key-provisioning)
+
+```sh
+set -eu
+umask 077
+scratch=$(mktemp -d)
+trap 'rm -rf "$scratch"' EXIT
+SERVER_PORT=${SERVER_PORT:-18081}
+LOCAL_PORT=${LOCAL_PORT:-18082}
+openssl rand -hex 24 > "$scratch/password"
+jq -n --argjson port "$SERVER_PORT" --rawfile password "$scratch/password" '
+  {schema:1,name:"Managed HTTP demo",listener:{port:$port},settings:{auth:true},
+   users:[{account_name:"Demo",username:"demo",password:($password|rtrimstr("\n"))}]}' > "$scratch/http.json"
+splicore check --config "$SERVER_CONFIG" --protocol http --file "$scratch/http.json"
+splicore inbound plan --config "$SERVER_CONFIG" --protocol http --file "$scratch/http.json" > "$scratch/http.plan"
+splicore inbound apply --config "$SERVER_CONFIG" --protocol http --file "$scratch/http.json" --plan "$scratch/http.plan" > "$scratch/http-result.json"
+inbound_id=$(jq -er .inbound_id "$scratch/http-result.json")
+binding_id=$(jq -er '.bindings[0].binding_id' "$scratch/http-result.json")
+splicore inbound get --config "$SERVER_CONFIG" --id "$inbound_id"
+
+printf 'proxy-user = "demo:%s"\n' "$(cat "$scratch/password")" > "$scratch/curl.conf"
+server_proxy="http://127.0.0.1:$SERVER_PORT"
+curl --fail --noproxy '' --proxy-basic --config "$scratch/curl.conf" --proxy "$server_proxy" "$TARGET_URL"
+if [ -n "${HTTPS_CA_FILE:-}" ]; then
+  set -- --cacert "$HTTPS_CA_FILE"
+else
+  set --
+fi
+curl --fail --noproxy '' --proxy-basic --config "$scratch/curl.conf" --proxy "$server_proxy" "$@" "$HTTPS_TARGET_URL"
+
+apply_http_client() {
+  splicore "$1" plan --config "$CLIENT_CONFIG" --file "$scratch/$1.json" > "$scratch/$1.plan"
+  splicore "$1" apply --config "$CLIENT_CONFIG" --file "$scratch/$1.json" --plan "$scratch/$1.plan"
+}
+jq -n --argjson port "$SERVER_PORT" --rawfile password "$scratch/password" '
+  {resource:"node",action:"create",node:{name:"HTTP demo upstream",
+   protocol:{protocol:"http",wire_version:"1.1",feature_profile:"base"},
+   endpoint:{host:"127.0.0.1",port:$port},transport:{kind:"tcp"},security:{kind:"none"},
+   options:{schema_version:1,data:{auth:true}}},
+   credential:{kind:"username_password",value:({username:"demo",password:($password|rtrimstr("\n"))}|tojson)}}' > "$scratch/node.json"
+apply_http_client node > "$scratch/node-result.json"
+node_id=$(jq -er .id "$scratch/node-result.json")
+jq -n --arg node "$node_id" '
+  {resource:"outbound",action:"create",outbound:{name:"HTTP CONNECT",kind:"proxy",engine:"native",node_id:$node}}' > "$scratch/outbound.json"
+apply_http_client outbound > "$scratch/outbound-result.json"
+outbound_id=$(jq -er .id "$scratch/outbound-result.json")
+jq -n --arg outbound "$outbound_id" --argjson port "$LOCAL_PORT" '
+  {resource:"local-inbound",action:"create",local_inbound:{name:"Local demo SOCKS5",kind:"socks5",
+   listen:{host:"127.0.0.1",port:$port},selected_outbound:$outbound}}' > "$scratch/local-inbound.json"
+apply_http_client local-inbound
+splicore client start --config "$CLIENT_CONFIG"
+curl --fail --noproxy '' --proxy "socks5h://127.0.0.1:$LOCAL_PORT" "$TARGET_URL"
+splicore inbound get --config "$SERVER_CONFIG" --id "$inbound_id"
+
+http_revision() {
+  splicore inbound list --config "$SERVER_CONFIG" | jq -er .snapshot_revision
+}
+http_resource() {
+  splicore inbound get --config "$SERVER_CONFIG" --id "$inbound_id" | jq -er "$@"
+}
+binding_revision=$(http_resource --arg id "$binding_id" '.bindings[]|select(.binding_id==$id)|.revision')
+jq -n --arg revision "$(http_revision)" --arg resource "$binding_revision" --arg binding "$binding_id" '
+  {binding_id:$binding,enabled:false,revision:$revision,resource_revision:$resource}' > "$scratch/binding.json"
+splicore inbound binding --config "$SERVER_CONFIG" --id "$inbound_id" --file "$scratch/binding.json"
+denied=$(curl --silent --noproxy '' --proxy-basic --config "$scratch/curl.conf" --proxy "$server_proxy" -o /dev/null -w '%{http_code}' "$TARGET_URL")
+test "$denied" = 407
+splicore client stop --config "$CLIENT_CONFIG"
+
+jq -n --arg revision "$(http_revision)" --arg resource "$(http_resource .inbound.revision)" '
+  {action:"stop",revision:$revision,resource_revision:$resource}' > "$scratch/lifecycle.json"
+splicore inbound lifecycle --config "$SERVER_CONFIG" --id "$inbound_id" --file "$scratch/lifecycle.json"
+splicore inbound get --config "$SERVER_CONFIG" --id "$inbound_id"
+```
+
+`inbound get` includes active connection IDs, modes and binding IDs when
+connections are open, plus per-binding byte and session counters. Use
+`action:"add"` with a `user` object in the same shape as the creation document,
+the current inbound `resource_revision` and current snapshot `revision`.
+For existing bindings, use their own `resource_revision` with `enabled:true`
+or `enabled:false`, `action:"rotate"` and a replacement `credential` object,
+`action:"revoke"`, or `action:"delete"`. The local API accepts those documents
+at `POST /api/v1/inbounds/{id}/binding`. Use the lifecycle document at
+`POST /api/v1/inbounds/{id}/lifecycle` with `start`, `stop` or `delete`.
+The corresponding HTTP creation endpoints are
+`POST /api/v1/creation/http/plan` and `POST /api/v1/creation/http/apply`.
+[HTTP listener configuration](CONFIGURATION.md#managed-http-proxy)
