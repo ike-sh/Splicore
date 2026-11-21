@@ -6,10 +6,12 @@ sing-box 或 Mihomo 代理核心进程，也不提供桌面 UI。
 
 ## 下载和验证
 
-[最新正式版本 v0.6.4](https://github.com/ike-sh/Splicore/releases/tag/v0.6.4)。
-按平台选择 zip / tar.gz，另下载 SHA256SUMS。Linux 使用
-`sha256sum -c SHA256SUMS`。在 Windows 上，以 v0.6.4 为例，使用
-`Get-FileHash -Algorithm SHA256 ./splicore-v0.6.4-windows-amd64.zip` 与公开值核对。
+在 GitHub 选择最新公开版本及对应平台。v0.6.5 提供 Linux amd64 的
+`splicore-v0.6.5-linux-amd64.tar.gz` 和 Windows amd64 的
+`splicore-v0.6.5-windows-amd64.zip`。从同一个 Release 下载 `SHA256SUMS`。
+Linux 可用 `sha256sum --ignore-missing -c SHA256SUMS`。Windows 使用
+`Get-FileHash -Algorithm SHA256 ./splicore-v0.6.5-windows-amd64.zip` 核对对应条目。
+[最新公开版本](https://github.com/ike-sh/Splicore/releases/latest) · [v0.6.5 发行说明](docs/releases/v0.6.5.md)
 解压后只有一个主程序 `splicore` / `splicore.exe`，以及许可证、示例、RUNNING.md
 和内部文件校验清单。运行不需要 Go 或 WSL。提供 SHA256，没有声称数字签名。
 
@@ -17,8 +19,9 @@ sing-box 或 Mihomo 代理核心进程，也不提供桌面 UI。
 ARM64 官方支持暂停。v0.6.4 的 ARM64 发行包是历史 `BUILD_ONLY` 资产。
 [v0.6.4 资格范围](docs/releases/v0.6.4.md#qualification-scope) 保留当时的测试记录。
 
-真实进程测试覆盖 Help/Version/Check/Run、VLESS 监听和数据传输、错误凭据拒绝、
-保留活动连接时 Shutdown、端口释放与持久化重启。不能由此推导所有协议互通已合格。
+真实进程测试覆盖 Help/Version/Check/Run、VLESS 传输、HTTP Proxy、SOCKS5 TCP/UDP、
+错误凭据拒绝、活跃连接关闭、端口释放及 SQLite 重启恢复。两平台均执行候选下载后
+Smoke 和原生 Race，各协议的独立对端范围见资格记录。 [资格约定](docs/releases/QUALIFICATION.md)
 
 ## 启动和停止
 
@@ -86,7 +89,7 @@ Windows WG 接收修复仅丢弃已被 Winsock 消耗的 WSAEMSGSIZE 数据报�
 CGO=0；官方构建从最终 main 的精确 Tag Commit 注入版本、提交和时间。
 对应源码归档含 vendor 依赖及无需 Git/下载依赖的构建说明。
 
-完整边界见 [Release Notes](docs/releases/v0.6.4.md)、[CHANGELOG](CHANGELOG.md)、
+完整边界见 [Release Notes](docs/releases/v0.6.5.md)、[CHANGELOG](CHANGELOG.md)、
 [CLI](docs/CLI.md)、[配置](docs/CONFIGURATION.md)、[安全政策](SECURITY.md)。
 开发方向统一维护在 [项目路线图](docs/ROADMAP.md)。
 原始 [LICENSE](LICENSE)、[GPL 全文](licenses/GPL-3.0.txt)、[NOTICE](NOTICE.md)
