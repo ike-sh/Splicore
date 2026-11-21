@@ -118,3 +118,101 @@ profile. Resource creation binds a real native listener; restarting the core
 restores it from committed state. Windows uses the same commands with its
 bootstrap and executable; PowerShell users should write redirected plan JSON
 as UTF-8 without a BOM (PowerShell 7 does so by default).
+
+## Managed SOCKS5 and a local client
+
+The Linux shell examples use `jq`, `openssl` and `curl`. Set `SERVER_CONFIG`
+and `CLIENT_CONFIG` to two bootstraps with separate private key, state and control
+paths. Provision each key and run `splicore run --config <bootstrap>` in its own
+terminal. Set `TARGET_URL` to a reachable HTTP test service, such as
+`http://localhost:18080/` with an HTTP server listening on `127.0.0.1:18080`.
+Use free loopback ports for `SERVER_PORT` and `LOCAL_PORT`, which default to
+1080 and 1081. [Key provisioning](#key-provisioning)
+
+### A. Create the server and test with curl
+
+```sh
+umask 077
+scratch=$(mktemp -d)
+SERVER_PORT=${SERVER_PORT:-1080}
+LOCAL_PORT=${LOCAL_PORT:-1081}
+openssl rand -hex 24 > "$scratch/password"
+jq -n --argjson port "$SERVER_PORT" --rawfile password "$scratch/password" '
+  {schema:1,name:"SOCKS5 demo",listener:{host:"127.0.0.1",port:$port},settings:{auth:true},
+   users:[{account_name:"Demo",username:"demo",password:($password|rtrimstr("\n"))}]}' > "$scratch/server.json"
+splicore check --config "$SERVER_CONFIG" --protocol socks5 --file "$scratch/server.json"
+splicore inbound plan --config "$SERVER_CONFIG" --protocol socks5 --file "$scratch/server.json" > "$scratch/server.plan"
+splicore inbound apply --config "$SERVER_CONFIG" --protocol socks5 --file "$scratch/server.json" --plan "$scratch/server.plan" > "$scratch/server-result.json"
+inbound_id=$(jq -er .inbound_id "$scratch/server-result.json")
+binding_id=$(jq -er '.bindings[0].binding_id' "$scratch/server-result.json")
+splicore inbound get --config "$SERVER_CONFIG" --id "$inbound_id"
+printf 'proxy-user = "demo:%s"\n' "$(cat "$scratch/password")" > "$scratch/curl.conf"
+curl --fail --noproxy '' --config "$scratch/curl.conf" --proxy "socks5h://127.0.0.1:$SERVER_PORT" "$TARGET_URL"
+```
+
+`apply` starts the listener. `inbound get` shows health and per-binding payload
+bytes and session counts for the current runtime generation. Explicit
+`inbound export --id <inbound-id> --binding-id <binding-id> --format mihomo --client-version 1.19.32`
+or `--format sing-box --client-version 1.14.2` returns a credential-bearing
+TCP-only client profile. Redirect it to an owner-only file.
+
+### B. Route a local application through the server
+
+```sh
+apply_client() {
+  splicore "$1" plan --config "$CLIENT_CONFIG" --file "$scratch/$1.json" > "$scratch/$1.plan" &&
+    splicore "$1" apply --config "$CLIENT_CONFIG" --file "$scratch/$1.json" --plan "$scratch/$1.plan"
+}
+jq -n --argjson port "$SERVER_PORT" --rawfile password "$scratch/password" '
+  {resource:"node",action:"create",node:{name:"Demo upstream",
+   protocol:{protocol:"socks5",wire_version:"5",feature_profile:"base"},
+   endpoint:{host:"127.0.0.1",port:$port},transport:{kind:"tcp"},security:{kind:"none"},
+   options:{schema_version:1,data:{auth:true,udp:false}}},
+   credential:{kind:"username_password",value:({username:"demo",password:($password|rtrimstr("\n"))}|tojson)}}' > "$scratch/node.json"
+apply_client node > "$scratch/node-result.json"
+node_id=$(jq -er .id "$scratch/node-result.json")
+jq -n --arg node "$node_id" '
+  {resource:"outbound",action:"create",outbound:{name:"Demo SOCKS5",kind:"proxy",engine:"native",node_id:$node}}' > "$scratch/outbound.json"
+apply_client outbound > "$scratch/outbound-result.json"
+outbound_id=$(jq -er .id "$scratch/outbound-result.json")
+jq -n --arg outbound "$outbound_id" --argjson port "$LOCAL_PORT" '
+  {resource:"local-inbound",action:"create",local_inbound:{name:"Demo local SOCKS5",kind:"socks5",
+   listen:{host:"127.0.0.1",port:$port},selected_outbound:$outbound}}' > "$scratch/local-inbound.json"
+apply_client local-inbound
+splicore client start --config "$CLIENT_CONFIG"
+curl --fail --noproxy '' --proxy "socks5h://127.0.0.1:$LOCAL_PORT" "$TARGET_URL"
+splicore inbound get --config "$SERVER_CONFIG" --id "$inbound_id"
+```
+
+### Disable a user and stop the server listener
+
+```sh
+snapshot_revision() {
+  splicore inbound list --config "$SERVER_CONFIG" | jq -er .snapshot_revision
+}
+resource_revision() {
+  splicore inbound get --config "$SERVER_CONFIG" --id "$inbound_id" | jq -er "$@"
+}
+binding_revision=$(resource_revision --arg id "$binding_id" '.bindings[]|select(.binding_id==$id)|.revision')
+jq -n --arg revision "$(snapshot_revision)" --arg resource "$binding_revision" --arg binding "$binding_id" '
+  {binding_id:$binding,enabled:false,revision:$revision,resource_revision:$resource}' > "$scratch/binding.json"
+splicore inbound binding --config "$SERVER_CONFIG" --id "$inbound_id" --file "$scratch/binding.json"
+lifecycle() {
+  jq -n --arg action "$1" --arg revision "$(snapshot_revision)" --arg resource "$(resource_revision .inbound.revision)" '
+    {action:$action,revision:$revision,resource_revision:$resource}' > "$scratch/lifecycle.json" &&
+    splicore inbound lifecycle --config "$SERVER_CONFIG" --id "$inbound_id" --file "$scratch/lifecycle.json"
+}
+splicore client stop --config "$CLIENT_CONFIG"
+lifecycle stop
+splicore inbound get --config "$SERVER_CONFIG" --id "$inbound_id"
+```
+
+Use `enabled:true` with fresh revisions to enable the binding. The same
+`inbound binding` command accepts `action:"rotate"` with a `credential` object
+shaped like the node example, or `action:"delete"` to remove the user.
+Use `lifecycle start` to start the listener again or `lifecycle delete` to
+remove it and its owned users. An inbound named by a server route must be
+removed from that route before deletion. The local API uses the same lifecycle
+document at `POST /api/v1/inbounds/{id}/lifecycle` and binding document at
+`POST /api/v1/inbounds/{id}/binding`. Dispose of the demo's private input files
+after use. [SOCKS5 configuration](CONFIGURATION.md#managed-socks5)

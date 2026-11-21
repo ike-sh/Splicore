@@ -3,6 +3,8 @@ package ports
 import (
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 )
 
@@ -28,6 +30,7 @@ type CreationUser struct {
 	Enabled, AccountEnabled bool
 	Payload                 access.Payload
 	Policy                  *PolicyDraft
+	ExpiresAt               *time.Time
 }
 type CreationDraft struct {
 	Name                 string

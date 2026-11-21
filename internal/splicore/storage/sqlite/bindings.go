@@ -3,10 +3,30 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"time"
+
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
-	"time"
 )
+
+func (s *Store) BindingAllowed(ctx context.Context, binding access.Binding) bool {
+	var expires sql.NullString
+	err := s.db.QueryRowContext(ctx, `SELECT a.expires_at FROM bindings b
+		JOIN accounts a ON a.id=b.account_id
+		JOIN inbounds i ON i.id=b.inbound_id
+		JOIN credentials c ON c.id=b.credential_id AND c.account_id=b.account_id
+		WHERE b.id=? AND b.inbound_id=? AND b.account_id=? AND b.credential_id=?
+		AND b.enabled=1 AND i.enabled=1 AND a.enabled=1 AND a.status=? AND c.state='active' AND c.kind=?`,
+		binding.ID, binding.InboundID, binding.AccountID, binding.CredentialID, access.Active, access.UsernamePassword).Scan(&expires)
+	if err != nil {
+		return false
+	}
+	if !expires.Valid {
+		return true
+	}
+	deadline, err := time.Parse(time.RFC3339Nano, expires.String)
+	return err == nil && time.Now().Before(deadline)
+}
 
 func (s *Store) Bindings(ctx context.Context, id identity.ID) ([]access.Binding, error) {
 	if id.Validate() != nil {

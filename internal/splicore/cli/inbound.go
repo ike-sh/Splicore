@@ -112,7 +112,7 @@ func inboundCLI(ctx context.Context, args []string, out, errOut io.Writer, deps 
 				result, err = commands.ApplyCreation(ctx, *protocol, application.ApplyRequest{Document: b, Digest: planned.Digest, Revision: planned.Revision})
 			}
 		}
-	case "get", "export", "display", "binding":
+	case "get", "export", "display", "binding", "lifecycle":
 		var parsed identity.ID
 		parsed, err = identity.ParseID(*id)
 		if err == nil {
@@ -150,6 +150,21 @@ func inboundCLI(ctx context.Context, args []string, out, errOut io.Writer, deps 
 				}
 				if err == nil {
 					result, err = bindings.SetBinding(ctx, parsed, req)
+				}
+			case "lifecycle":
+				managed, ok := s.(application.SOCKS5Commands)
+				if !ok {
+					err = identity.Err(identity.NotImplemented, "SOCKS5 lifecycle unavailable")
+					break
+				}
+				var data []byte
+				var req application.SOCKS5LifecycleRequest
+				data, err = boundedFile(*file)
+				if err == nil {
+					err = application.StrictJSON(data, &req)
+				}
+				if err == nil {
+					result, err = managed.SetSOCKS5Lifecycle(ctx, parsed, req)
 				}
 			}
 		}

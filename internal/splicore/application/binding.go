@@ -95,6 +95,21 @@ func (s *Service) SetBinding(ctx context.Context, id identity.ID, req BindingReq
 		if p.ValidateCredential(rotated) != nil {
 			return op, identity.Err(identity.Invalid, "invalid credential rotation")
 		}
+		if managedSOCKS5(i) {
+			username := rotated.Payload.(access.UsernamePasswordPayload).Username.Reveal()
+			for _, binding := range bs {
+				if binding.ID == target.ID {
+					continue
+				}
+				credential, err := repo.RevealCredential(ctx, binding.CredentialID)
+				if err != nil {
+					return op, err
+				}
+				if pair, ok := credential.Payload.(access.UsernamePasswordPayload); ok && pair.Username.Reveal() == username {
+					return op, identity.Err(identity.Invalid, "duplicate SOCKS5 username")
+				}
+			}
+		}
 	}
 	oldIntent, err := s.projection(ctx, i, state.Revision)
 	if err != nil {
@@ -122,8 +137,34 @@ func (s *Service) SetBinding(ctx context.Context, id identity.ID, req BindingReq
 		if req.Action == "rotate" && b.ID == target.ID {
 			c = rotated
 		}
+		if managedSOCKS5(i) && c.State == "revoked" {
+			continue
+		}
 		candidate.Bindings = append(candidate.Bindings, b)
 		candidate.Credentials = append(candidate.Credentials, c)
+	}
+	write := func(w ports.Writer) error {
+		if req.Action != "" {
+			uw, ok := w.(ports.UserWriter)
+			if !ok {
+				return identity.Err(identity.NotImplemented, "user writer unavailable")
+			}
+			if req.Action == "delete" {
+				return uw.DeleteBindingUser(*target, req.ResourceRevision)
+			}
+			return uw.RotateBindingCredential(*target, rotated, req.ResourceRevision)
+		}
+		bw, ok := w.(ports.BindingWriter)
+		if !ok {
+			return identity.Err(identity.NotImplemented, "binding writer unavailable")
+		}
+		return bw.SetBindingEnabled(req.BindingID, req.Enabled, req.ResourceRevision)
+	}
+	if managedSOCKS5(i) && !i.Enabled {
+		if _, err := p.BuildRuntime(ctx, candidate); err != nil {
+			return op, err
+		}
+		return commitSOCKS5Write(ctx, repo, req.Revision, write)
 	}
 	h, err := s.prepare(ctx, candidate)
 	if err != nil {
@@ -182,23 +223,7 @@ func (s *Service) SetBinding(ctx context.Context, id identity.ID, req BindingReq
 	if err != nil {
 		return op, err
 	}
-	err = repo.CommitOperation(ctx, op, func(w ports.Writer) error {
-		if req.Action != "" {
-			uw, ok := w.(ports.UserWriter)
-			if !ok {
-				return identity.Err(identity.NotImplemented, "user writer unavailable")
-			}
-			if req.Action == "delete" {
-				return uw.DeleteBindingUser(*target, req.ResourceRevision)
-			}
-			return uw.RotateBindingCredential(*target, rotated, req.ResourceRevision)
-		}
-		bw, ok := w.(ports.BindingWriter)
-		if !ok {
-			return identity.Err(identity.NotImplemented, "binding writer unavailable")
-		}
-		return bw.SetBindingEnabled(req.BindingID, req.Enabled, req.ResourceRevision)
-	})
+	err = repo.CommitOperation(ctx, op, write)
 	if err != nil {
 		return op, safeOperation(err)
 	}

@@ -1,5 +1,5 @@
-// Package proxy validates generic upstream proxy node intent. It is not a
-// managed encrypted server protocol and has no routing or persistence.
+// Package proxy validates upstream SOCKS5 and HTTP nodes and owns managed SOCKS5
+// server intent. The runtime and persistence layers own sockets and state.
 package proxy
 
 import (

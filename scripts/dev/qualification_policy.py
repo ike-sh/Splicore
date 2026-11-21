@@ -5,6 +5,20 @@ import os
 from pathlib import PurePosixPath
 
 PREFIX = 'github.com/ike-sh/Splicore/'
+RUNTIME_TESTS = {
+    'TestRuntimeBinaryTrafficShutdownAndRestart': (
+        'plain', 'plain-native-sudoku', 'encrypted', 'encrypted-native-sudoku',
+    ),
+    'TestManagedSOCKS5Processes': (
+        'independent-wire-client/127.0.0.1', 'independent-wire-client/::1',
+        'independent-wire-client/localhost', 'reverse-half-close-and-abort',
+        'two-core-outbound-and-restart',
+    ),
+}
+RUNTIME_CASES = tuple(
+    f'cmd/splicore/{name}' + (f'/{leaf}' if leaf else '')
+    for name, leaves in RUNTIME_TESTS.items() for leaf in ('', *leaves)
+)
 SYMLINK_TEST = 'TestRootFileTraversalAndHTTPHTTPSProxyBoundaries/file/symlink'
 SYMLINK_PROOFS = {
     'real file symlink created:', 'file boundary assertion completed: path=/escape status=',
@@ -55,9 +69,14 @@ def validate(root, result, target, profile, event_log=None):
         'protocol/vless/encryption/TestEncryptedStreams',
         'protocol/vless/encryption/TestPinnedReferenceRawMatrix',
         'internal/splicore/storage/sqlite/TestPersistenceReliability',
+        'internal/splicore/protocol/socks5/TestPhase20NegotiationAndPartialFrames',
+        'internal/splicore/protocol/proxy/TestManagedSOCKS5CreationRequiresAuthentication',
+        'internal/splicore/engine/native/TestManagedSOCKS5AuthenticationAndRouting',
+        'internal/splicore/engine/native/TestManagedSOCKS5ConnectionBoundsAndCancellation',
+        'internal/splicore/storage/sqlite/TestManagedSOCKS5CommittedAdmission',
     }
     if profile != 'race':
-        required.add('cmd/splicore/TestRuntimeBinaryTrafficShutdownAndRestart')
+        required.update(RUNTIME_CASES)
     if profile != 'default':
         gates = json.loads((root / 'distribution/feature-gates.json').read_text())
         for feature in gates['features']:

@@ -41,7 +41,7 @@ func (s *Service) projection(ctx context.Context, i access.Inbound, revision ide
 	if err != nil {
 		return in, err
 	}
-	if len(bs) == 0 || len(bs) > 16 {
+	if len(bs) > 16 || len(bs) == 0 && !managedSOCKS5(i) {
 		return in, identity.Err(identity.Corrupt, "invalid inbound bindings")
 	}
 	for _, b := range bs {
@@ -55,6 +55,9 @@ func (s *Service) projection(ctx context.Context, i access.Inbound, revision ide
 		c, err := s.runtime.repo.RevealCredential(ctx, b.CredentialID)
 		if err != nil {
 			return in, err
+		}
+		if managedSOCKS5(i) && c.State == "revoked" {
+			continue
 		}
 		in.Bindings = append(in.Bindings, b)
 		in.Credentials = append(in.Credentials, c)

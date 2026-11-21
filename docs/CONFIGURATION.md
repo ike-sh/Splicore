@@ -52,3 +52,34 @@ it is not opened as a filesystem socket. New state/key directories receive a
 private owner/SYSTEM DACL, and existing broad paths are rejected. `check --config`
 validates configured key/control resources and existing committed state without
 starting listeners. See [offline checks](CLI.md#offline-checks-and-foreground-lifecycle).
+
+### Managed SOCKS5
+
+Use `socks5/5/base` with `inbound plan/apply --protocol socks5`. Omit `listener.host`
+to bind `127.0.0.1`. An IPv6 or IPv4 bind address must be an IP literal. A
+non-loopback listener requires `settings.allow_cleartext_remote: true`. A
+wildcard bind also requires an explicit, usable `display_endpoint`. SOCKS5
+sends RFC 1929 credentials and relayed data without its own encryption. Keep
+remote deployments on a trusted encrypted network. [RFC 1929](https://www.rfc-editor.org/rfc/rfc1929.html#section-3)
+
+Set `settings.auth` to `true` and leave `settings.udp` omitted or `false`.
+The server supports TCP CONNECT to IPv4, IPv6 and domains. BIND and UDP ASSOCIATE
+return `0x07`. An unsupported address type returns `0x08`. [RFC 1928](https://www.rfc-editor.org/rfc/rfc1928.html#section-6)
+
+Each creation document can contain up to 16 users, with at least one enabled,
+unexpired binding. Each user has an `account_name` and a unique, case-sensitive
+`username` of 1 to 64 allowed ASCII characters (`A–Z`, `a–z`, `0–9`, `_`, `-`,
+`.` and an initial alphanumeric character). Omit `password` for an automatically
+generated value. Explicit passwords use 16 to 255 printable non-space ASCII
+bytes, with at least eight distinct characters, and must differ from the username.
+`enabled:false` disables the binding. Optional `expires_at` is a UTC RFC 3339
+timestamp. New authentication checks the committed account, binding and credential
+state. Binding changes replace the owning listener generation and close its
+sessions. Stop, start or delete the listener using revision-guarded lifecycle
+commands. Traffic statistics describe the running generation.
+
+The target dial uses the protected `ServerTarget` underlay. An explicitly
+scoped server inbound route can select a TCP-capable outbound, including a
+proxy. With no scoped route, the server dials the target through the protected
+default path. The local SOCKS5 listener and SOCKS5 remote nodes have their own
+settings and support separate client-side UDP options. [CLI examples](CLI.md#managed-socks5-and-a-local-client)

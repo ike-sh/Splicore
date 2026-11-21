@@ -364,6 +364,14 @@ def stage_record(value):
     return result
 
 
+def test_identities(tests):
+    # Use the same identity boundary as Go JSON events, without log payloads.
+    results = {name: action for name, action in tests.items()
+               if name.startswith('github.com/ike-sh/Splicore/') and re.fullmatch(NAME, name)
+               and action in ('pass', 'fail', 'skip')}
+    return {'results': results, 'omitted': len(tests) - len(results)}
+
+
 def peer_logs(root):
     for scope in ('vless-encryption-evidence', 'h3-evidence', 'wg-evidence', 'snell-evidence'):
         folder = root / scope
@@ -432,6 +440,7 @@ def export(private, public, target, label, kind):
     runner = read_json(runner_file) or fingerprint(target, label, kind)
     runner['reference'] = peer_identity(reference, private / 'compiler')
     stages = {}
+    indexes = {}
     for path in sorted((private / 'raw').glob('*.json')):
         if re.fullmatch(STAGE, path.stem):
             value = read_json(path)
@@ -439,6 +448,8 @@ def export(private, public, target, label, kind):
                 status = stage_record(value)
                 stages[path.stem] = status
                 add('commands/' + path.name, json_bytes(status))
+                if isinstance(value.get('tests'), dict) and value['tests']:
+                    indexes[path.stem] = test_identities(value['tests'])
     runner['test_commands'] = {name: {key: value[key] for key in ('command', 'timeout_seconds', 'execution')}
                                for name, value in stages.items() if '-test' in name or name == 'race'}
     runner['fingerprint_sha256'] = sha256(json_bytes(runner))
@@ -450,6 +461,8 @@ def export(private, public, target, label, kind):
         path = private / 'raw' / (name + '.stdout')
         if path.is_file() and plain_file(path) and (events := failure_events(path, status)):
             add('commands/' + name + '.failures.jsonl', events)
+    for name, index in indexes.items():
+        add(f'commands/{name}.test-identities.json', json_bytes(index))
     for path in sorted((private / 'raw').glob('*')):
         if not re.fullmatch(STAGE + r'\.(?:stdout|stderr|failure\.json)', path.name) or not plain_file(path):
             continue

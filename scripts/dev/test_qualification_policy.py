@@ -4,18 +4,23 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from qualification_policy import PREFIX, SYMLINK_PROOFS, SYMLINK_TEST, validate, verify_windows_underlay
+from qualification_policy import PREFIX, RUNTIME_CASES, SYMLINK_PROOFS, SYMLINK_TEST, validate, verify_windows_underlay
 
 ROOT = Path(__file__).resolve().parents[2]
 BASE = [
     'internal/splicore/clientruntime/TestPhase15OwnedNetworkLifecycle10x',
     'internal/splicore/clientruntime/TestPhase15UDPCancellationCloseJoin',
-    'cmd/splicore/TestRuntimeBinaryTrafficShutdownAndRestart',
     'internal/splicore/clientruntime/TestProviderFetchProtectedHTTPAndHTTPS',
     'internal/splicore/streamtransport/hysteria/TestMasqueradeProtectedDialAndNoDefault',
     'internal/splicore/storage/sqlite/TestInspectIsReadOnly',
     'internal/splicore/storage/sqlite/TestPersistenceReliability',
     'protocol/vless/encryption/TestEncryptedStreams',
+    'internal/splicore/protocol/socks5/TestPhase20NegotiationAndPartialFrames',
+    'internal/splicore/protocol/proxy/TestManagedSOCKS5CreationRequiresAuthentication',
+    'internal/splicore/engine/native/TestManagedSOCKS5AuthenticationAndRouting',
+    'internal/splicore/engine/native/TestManagedSOCKS5ConnectionBoundsAndCancellation',
+    'internal/splicore/storage/sqlite/TestManagedSOCKS5CommittedAdmission',
+    *RUNTIME_CASES,
     'protocol/vless/encryption/TestPinnedReferenceRawMatrix',
 ]
 
@@ -37,6 +42,12 @@ class QualificationTests(unittest.TestCase):
         tests['protocol/vless/encryption/TestUnexpectedSecurityBoundary'] = 'skip'
         with self.assertRaisesRegex(RuntimeError, 'Unexpected skipped'):
             validate(ROOT, {'tests': tests}, 'linux-amd64', 'default')
+
+    def test_missing_socks_process_leaf_fails_native_gates(self):
+        tests = dict.fromkeys(BASE, 'pass')
+        del tests['cmd/splicore/TestManagedSOCKS5Processes/independent-wire-client/::1']
+        with self.assertRaisesRegex(RuntimeError, 'TestManagedSOCKS5Processes/independent-wire-client/::1'):
+            validate(ROOT, {'tests': tests}, 'windows-amd64', 'default')
 
     def test_explicit_optional_oracle_is_reported_not_executed(self):
         tests = dict.fromkeys(BASE, 'pass')

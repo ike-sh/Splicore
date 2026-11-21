@@ -263,10 +263,18 @@ class Publication(unittest.TestCase):
             self.assertEqual(download.call_args.args[-1], draft.file_sha256(sums))
 
     def test_missing_smoke_identity_is_not_a_pass(self):
-        tests = {draft.release.RUNTIME_IDENTITY: 'pass'}
+        policy = draft.release.qualification_policy
+        tests = dict.fromkeys((policy.PREFIX + case for case in policy.RUNTIME_CASES), 'pass')
+        vless = policy.PREFIX + 'cmd/splicore/TestRuntimeBinaryTrafficShutdownAndRestart/plain-native-sudoku'
+        socks = policy.PREFIX + 'cmd/splicore/TestManagedSOCKS5Processes/two-core-outbound-and-restart'
+        del tests[vless]
         with self.assertRaisesRegex(RuntimeError, 'plain-native-sudoku'):
             draft.release.require_runtime_tests({'tests': tests})
-        tests.update({f'{draft.release.RUNTIME_IDENTITY}/{leaf}': 'pass' for leaf in draft.release.RUNTIME_LEAVES})
+        tests[vless] = 'pass'
+        tests[socks] = 'skip'
+        with self.assertRaisesRegex(RuntimeError, 'two-core-outbound-and-restart'):
+            draft.release.require_runtime_tests({'tests': tests})
+        tests[socks] = 'pass'
         draft.release.require_runtime_tests({'tests': tests})
 
     def test_assembly_rejects_missing_amd64_transfer(self):

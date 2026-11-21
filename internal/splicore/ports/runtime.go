@@ -100,6 +100,16 @@ type BindingWriter interface {
 	SetBindingEnabled(identity.ID, bool, identity.Revision) error
 }
 
+// BindingAdmission checks committed identity metadata without revealing secrets.
+type BindingAdmission interface {
+	BindingAllowed(context.Context, access.Binding) bool
+}
+
+type SOCKS5LifecycleWriter interface {
+	SetSOCKS5InboundEnabled(access.Inbound, bool) error
+	DeleteSOCKS5Inbound(access.Inbound, []access.Binding) error
+}
+
 // UserWriter extends the same generation transaction to managed user secrets.
 // Deletion requires exclusive binding/credential/account references.
 type UserWriter interface {
