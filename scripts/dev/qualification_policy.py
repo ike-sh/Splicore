@@ -14,6 +14,13 @@ RUNTIME_TESTS = {
         'independent-wire-client/localhost', 'reverse-half-close-and-abort',
         'two-core-outbound-and-restart',
     ),
+    'TestManagedSOCKS5UDPProcesses': (
+        'independent-rfc1928', 'independent-rfc1928/ipv4', 'independent-rfc1928/ipv6', 'independent-rfc1928/domain',
+        'same-ip-isolation-and-invalid-frames', 'scoped-direct-and-reject',
+        'same-ip-isolation-and-invalid-frames/concurrent-bindings/alice',
+        'same-ip-isolation-and-invalid-frames/concurrent-bindings/bob',
+        'two-core-tcp-udp-dns-and-restart', 'credential-revocation-and-stop',
+    ),
     'TestManagedHTTPProxyProcesses': (
         'port-conflict', 'curl-forward', 'curl-connect', 'scoped-direct-and-reject',
         'local-http-entry', 'two-core-outbound-and-recovery',
@@ -22,6 +29,13 @@ RUNTIME_TESTS = {
 RUNTIME_CASES = tuple(
     f'cmd/splicore/{name}' + (f'/{leaf}' if leaf else '')
     for name, leaves in RUNTIME_TESTS.items() for leaf in ('', *leaves)
+)
+MANAGED_SOCKS5_UDP_CASES = (
+    'internal/splicore/protocol/proxy/TestManagedSOCKS5UDPRelaySettings',
+    'internal/splicore/engine/native/TestManagedSOCKS5UDPProtectedRelayLifecycle',
+    'internal/splicore/engine/native/TestManagedSOCKS5UDPPortExhaustionAndIdle',
+    'internal/splicore/engine/native/TestManagedSOCKS5UDPAssociationAndFlowBounds',
+    'internal/splicore/engine/native/TestManagedSOCKS5UDPDatagramWriteError',
 )
 MANAGED_HTTP_CASES = (
     'internal/splicore/protocol/proxy/TestManagedHTTPCreationRequiresAuthentication',
@@ -92,6 +106,7 @@ def validate(root, result, target, profile, event_log=None):
         'internal/splicore/engine/native/TestManagedSOCKS5AuthenticationAndRouting',
         'internal/splicore/engine/native/TestManagedSOCKS5ConnectionBoundsAndCancellation',
         'internal/splicore/storage/sqlite/TestManagedSOCKS5CommittedAdmission',
+        *MANAGED_SOCKS5_UDP_CASES,
         *MANAGED_HTTP_CASES,
     }
     if profile != 'race':

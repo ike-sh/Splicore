@@ -217,6 +217,38 @@ document at `POST /api/v1/inbounds/{id}/lifecycle` and binding document at
 `POST /api/v1/inbounds/{id}/binding`. Dispose of the demo's private input files
 after use. [SOCKS5 configuration](CONFIGURATION.md#managed-socks5)
 
+### Enable SOCKS5 UDP
+
+For a loopback server, use `"settings":{"auth":true,"udp":true}` in the
+creation document above. Use `"auth":true,"udp":true` in the remote node's
+`options.data`, or import the exported UDP-enabled binding. The local
+application opens UDP ASSOCIATE on its SOCKS5 TCP connection, sends framed
+datagrams to the returned address and port, and keeps the connection open
+while using the relay. The remote relay also closes when its own control
+connection closes.
+
+A remote server can use settings such as the following alongside a
+non-loopback TCP listener and an explicit TCP `display_endpoint`. Restrict
+both ports and addresses to the intended client networks.
+
+```json
+{
+  "auth": true,
+  "allow_cleartext_remote": true,
+  "udp": true,
+  "udp_relay": {
+    "listen": "0.0.0.0",
+    "advertise": "proxy.example",
+    "port_min": 22000,
+    "port_max": 22063
+  }
+}
+```
+
+Allow inbound UDP 22000–22063 and forward these ports unchanged on any NAT.
+Confirm delivery by sending a datagram to a known UDP target and checking the
+response through the relay. [UDP configuration and source rules](CONFIGURATION.md#managed-socks5)
+
 ## Managed HTTP Proxy
 
 Set `SERVER_CONFIG` and `CLIENT_CONFIG` to the bootstraps of two running Core

@@ -52,10 +52,10 @@ XHTTP H1/H2、modern mKCP 等传输。参见[能力矩阵](docs/architecture/CAP
 Windows/Linux amd64 均执行官方 Xray v26.10.21 独立对端的双向真实互通；
 Android/v2rayNG 实机测试 NOT EXECUTED。其他协议不因 Release 自动获得额外资格。
 
-当前源码新增受管 SOCKS5 服务端入站，默认监听回环，强制用户名密码认证，支持
-IPv4、IPv6 和域名 TCP CONNECT。UDP ASSOCIATE 和 BIND 返回 `0x07`。
-服务端和客户端的独立资格记录见[入站与出站审计](docs/architecture/INBOUND_OUTBOUND_MATRIX.md)。
-实际配置和双端命令见 [SOCKS5 示例](docs/CLI.md#managed-socks5-and-a-local-client)。
+受管 SOCKS5 服务端默认监听回环，强制用户名密码认证，支持 IPv4、IPv6 和域名目标的
+TCP CONNECT 和可选 UDP ASSOCIATE。UDP 默认关闭。远程部署需指定公布地址和 UDP 端口范围，
+并在防火墙放行、在 NAT 上按原端口转发。BIND 返回 `0x07`。
+[SOCKS5 配置与双端命令](docs/CLI.md#managed-socks5-and-a-local-client) · [入站与出站审计](docs/architecture/INBOUND_OUTBOUND_MATRIX.md)
 
 当前源码的受管 HTTP Proxy（`http/1.1/base`）支持 HTTP CONNECT、普通 HTTP 转发、
 Basic 代理认证、多账户管理和 SQLite 重启恢复。默认监听回环，普通转发每条连接处理

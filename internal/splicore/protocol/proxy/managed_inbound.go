@@ -45,9 +45,63 @@ func IsManagedInbound(key access.ProtocolKey) bool {
 }
 
 type managedServerOptions struct {
-	Auth                 bool `json:"auth"`
-	UDP                  bool `json:"udp,omitempty"`
-	AllowCleartextRemote bool `json:"allow_cleartext_remote,omitempty"`
+	Auth                 bool            `json:"auth"`
+	UDP                  bool            `json:"udp,omitempty"`
+	UDPRelay             *SOCKS5UDPRelay `json:"udp_relay,omitempty"`
+	AllowCleartextRemote bool            `json:"allow_cleartext_remote,omitempty"`
+}
+
+// SOCKS5UDPRelay configures the ingress socket and the address sent in BND.ADDR.
+// The advertised port is always the actual bound port.
+type SOCKS5UDPRelay struct {
+	Listen    string `json:"listen,omitempty"`
+	Advertise string `json:"advertise,omitempty"`
+	PortMin   uint16 `json:"port_min,omitempty"`
+	PortMax   uint16 `json:"port_max,omitempty"`
+}
+
+func (r SOCKS5UDPRelay) withDefaults(listener netip.Addr) SOCKS5UDPRelay {
+	if r.Listen == "" {
+		r.Listen = listener.Unmap().String()
+	}
+	if r.Advertise == "" {
+		r.Advertise = r.Listen
+	}
+	return r
+}
+
+func (r SOCKS5UDPRelay) valid(listener netip.Addr, allowRemote bool) bool {
+	r = r.withDefaults(listener)
+	bind, err := netip.ParseAddr(r.Listen)
+	if err != nil || bind.Zone() != "" || bind.IsMulticast() || bind != bind.Unmap() ||
+		bind.Is4() != listener.Unmap().Is4() || r.PortMin == 0 && r.PortMax != 0 ||
+		r.PortMin > r.PortMax || int(r.PortMax)-int(r.PortMin) >= 1024 {
+		return false
+	}
+	if (access.Endpoint{Host: r.Advertise, Port: 1}).Validate() != nil {
+		return false
+	}
+	if advertised, err := netip.ParseAddr(r.Advertise); err == nil &&
+		(advertised.IsUnspecified() || advertised.IsMulticast() || advertised.Zone() != "" ||
+			advertised.Unmap().Is4() != bind.Is4() || advertised.IsLoopback() != bind.IsLoopback()) {
+		return false
+	}
+	if !bind.IsLoopback() {
+		return allowRemote && !listener.Unmap().IsLoopback() && r.PortMin != 0
+	}
+	return listener.Unmap().IsLoopback()
+}
+
+func (SOCKS5Inbound) UDPRelay(in access.Inbound) (SOCKS5UDPRelay, bool, error) {
+	if len(in.Listeners) != 1 {
+		return SOCKS5UDPRelay{}, false, (managedInbound{}).invalid()
+	}
+	listener := in.Listeners[0].Endpoint
+	options, err := (managedInbound{}).serverSettings(in.Settings.Data, listener)
+	if err != nil || !options.UDP {
+		return SOCKS5UDPRelay{}, false, err
+	}
+	return options.UDPRelay.withDefaults(netip.MustParseAddr(listener.Host)), true, nil
 }
 
 var managedUsername = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$`)
@@ -55,8 +109,21 @@ var managedUsername = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$`)
 func (m managedInbound) serverSettings(data json.RawMessage, listener access.Endpoint) (managedServerOptions, error) {
 	var options managedServerOptions
 	ip, err := netip.ParseAddr(listener.Host)
-	if len(data) > 1024 || creation.Decode(data, &options) != nil || !options.Auth || options.UDP ||
+	if len(data) > 1024 || creation.Decode(data, &options) != nil || !options.Auth ||
 		err != nil || ip.Zone() != "" || !ip.Unmap().IsLoopback() && !options.AllowCleartextRemote {
+		return options, m.invalid()
+	}
+	if !options.UDP {
+		if options.UDPRelay != nil {
+			return options, m.invalid()
+		}
+		return options, nil
+	}
+	if options.UDPRelay == nil {
+		options.UDPRelay = &SOCKS5UDPRelay{}
+	}
+	if m.http || !options.UDPRelay.valid(ip, options.AllowCleartextRemote) ||
+		!ip.Unmap().IsLoopback() && options.UDPRelay.Advertise == "" {
 		return options, m.invalid()
 	}
 	return options, nil
@@ -83,7 +150,7 @@ func validManagedPassword(username string, password secret.Value) bool {
 }
 
 func (m managedInbound) Metadata() ports.ProtocolMetadata {
-	provenance := "native RFC 1928 CONNECT and RFC 1929 username/password"
+	provenance := "native RFC 1928 CONNECT and optional UDP ASSOCIATE with RFC 1929 username/password"
 	if m.http {
 		provenance = "native HTTP/1.1 CONNECT and absolute-form forwarding with Basic proxy authentication"
 	}
@@ -100,6 +167,9 @@ func (m managedInbound) Capabilities(ports.CapabilityContext) ports.Capabilities
 		Mutation:  ports.MutationCapabilities{Users: ports.Restart, Listener: ports.MutationUnavailable},
 	}
 	if !m.http {
+		capabilities.Transport.Kinds = append(capabilities.Transport.Kinds, "udp")
+		capabilities.Transport.UDPTransport = true
+		capabilities.Transport.UDPPayload = true
 		capabilities.Clients = []ports.ClientCompatibility{
 			{Format: ports.Mihomo, Client: "mihomo", Version: "1.19.32"},
 			{Format: ports.SingBox, Client: "sing-box", Version: "1.14.2"},
@@ -159,9 +229,13 @@ func (m managedInbound) BuildClientProfile(ctx context.Context, b ports.Authoriz
 		Credentials: []access.Credential{b.Credential}, ServerCredentials: b.ServerCredentials}); err != nil {
 		return clientprofile.Profile{}, err
 	}
-	options, _ := json.Marshal(Options{Auth: true})
+	server, err := m.serverSettings(b.Inbound.Settings.Data, b.Inbound.Listeners[0].Endpoint)
+	if err != nil {
+		return clientprofile.Profile{}, err
+	}
+	options, _ := json.Marshal(Options{Auth: true, UDP: server.UDP})
 	profile := clientprofile.Profile{ID: b.Binding.ID, Schema: 1, Protocol: m.key(),
-		Endpoint: b.Inbound.DisplayEndpoints[0].Endpoint, Credentials: b.Credential.Payload,
+		Endpoint: b.Inbound.DisplayEndpoints[0].Endpoint, Credentials: b.Credential.Payload, UDPPayload: server.UDP,
 		Transport: clientprofile.Transport{Kind: "tcp"}, Options: access.Settings{Schema: 1, Data: options},
 		Metadata: identity.Metadata{"display_name": b.Inbound.Name}}
 	return profile, profile.Validate()
