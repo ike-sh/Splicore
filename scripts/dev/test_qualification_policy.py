@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from qualification_policy import PREFIX, RUNTIME_CASES, SYMLINK_PROOFS, SYMLINK_TEST, validate, verify_windows_underlay
+from qualification_policy import MANAGED_HTTP_CASES, PREFIX, RUNTIME_CASES, SYMLINK_PROOFS, SYMLINK_TEST, validate, verify_windows_underlay
 
 ROOT = Path(__file__).resolve().parents[2]
 BASE = [
@@ -21,6 +21,7 @@ BASE = [
     'internal/splicore/engine/native/TestManagedSOCKS5ConnectionBoundsAndCancellation',
     'internal/splicore/storage/sqlite/TestManagedSOCKS5CommittedAdmission',
     *RUNTIME_CASES,
+    *MANAGED_HTTP_CASES,
     'protocol/vless/encryption/TestPinnedReferenceRawMatrix',
 ]
 
@@ -48,6 +49,13 @@ class QualificationTests(unittest.TestCase):
         del tests['cmd/splicore/TestManagedSOCKS5Processes/independent-wire-client/::1']
         with self.assertRaisesRegex(RuntimeError, 'TestManagedSOCKS5Processes/independent-wire-client/::1'):
             validate(ROOT, {'tests': tests}, 'windows-amd64', 'default')
+
+    def test_http_forward_and_connect_need_independent_peer_results(self):
+        for leaf in ('curl-forward', 'curl-connect', 'two-core-outbound-and-recovery'):
+            tests = dict.fromkeys(BASE, 'pass')
+            tests[f'cmd/splicore/TestManagedHTTPProxyProcesses/{leaf}'] = 'skip'
+            with self.subTest(leaf=leaf), self.assertRaisesRegex(RuntimeError, leaf):
+                validate(ROOT, {'tests': tests}, 'linux-amd64', 'default')
 
     def test_explicit_optional_oracle_is_reported_not_executed(self):
         tests = dict.fromkeys(BASE, 'pass')

@@ -152,19 +152,19 @@ func inboundCLI(ctx context.Context, args []string, out, errOut io.Writer, deps 
 					result, err = bindings.SetBinding(ctx, parsed, req)
 				}
 			case "lifecycle":
-				managed, ok := s.(application.SOCKS5Commands)
+				managed, ok := s.(application.ManagedProxyCommands)
 				if !ok {
-					err = identity.Err(identity.NotImplemented, "SOCKS5 lifecycle unavailable")
+					err = identity.Err(identity.NotImplemented, "managed proxy lifecycle unavailable")
 					break
 				}
 				var data []byte
-				var req application.SOCKS5LifecycleRequest
+				var req application.ManagedProxyLifecycleRequest
 				data, err = boundedFile(*file)
 				if err == nil {
 					err = application.StrictJSON(data, &req)
 				}
 				if err == nil {
-					result, err = managed.SetSOCKS5Lifecycle(ctx, parsed, req)
+					result, err = managed.SetManagedProxyLifecycle(ctx, parsed, req)
 				}
 			}
 		}

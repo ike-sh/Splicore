@@ -3,6 +3,8 @@ package ports
 import (
 	"context"
 	"net"
+
+	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 )
 
 // TargetDialer is a protocol-independent Core flow routing boundary. It is
@@ -31,4 +33,17 @@ func RoutedTargetDialer(ctx context.Context, fallback TargetDialer) TargetDialer
 		})
 	}
 	return fallback
+}
+
+// WithDirectServerTarget restricts a scoped route to the native ServerTarget
+// dialer and checks the logical target after Core DNS.
+func WithDirectServerTarget(ctx context.Context, check func(access.Endpoint) error) context.Context {
+	return context.WithValue(ctx, directServerTargetKey{}, check)
+}
+
+type directServerTargetKey struct{}
+
+func DirectServerTargetCheck(ctx context.Context) func(access.Endpoint) error {
+	check, _ := ctx.Value(directServerTargetKey{}).(func(access.Endpoint) error)
+	return check
 }

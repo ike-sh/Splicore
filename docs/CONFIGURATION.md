@@ -83,3 +83,36 @@ scoped server inbound route can select a TCP-capable outbound, including a
 proxy. With no scoped route, the server dials the target through the protected
 default path. The local SOCKS5 listener and SOCKS5 remote nodes have their own
 settings and support separate client-side UDP options. [CLI examples](CLI.md#managed-socks5-and-a-local-client)
+
+### Managed HTTP Proxy
+
+Create `http/1.1/base` with `inbound plan/apply --protocol http`. Set
+`settings.auth: true`. The listener defaults to `127.0.0.1` and accepts explicit
+IPv4 or IPv6 literals. Non-loopback binds require `allow_cleartext_remote: true`
+in `settings`. Wildcard binds also need an explicit, usable `display_endpoint`.
+HTTP Basic sends the proxy credential in cleartext encoding on the client-to-proxy
+link. CONNECT carries an HTTPS session intact. Use an independently encrypted
+network or secure tunnel for remote access. HTTPS proxy listeners, HTTP/2,
+Upgrade and UDP tunneling are outside this profile.
+
+Managed HTTP uses the same username, password, expiry and initial binding rules
+as managed SOCKS5. Create up to 16 bindings with the initial document or enroll
+more through the binding endpoint within that limit. Disable, rotate, revoke or
+delete bindings with current revisions. Revocation disables the binding and
+invalidates its credential. Committed account expiry and admission state are
+checked on every new proxy connection. Binding changes replace the listener
+generation and close its sessions. Natural expiry gates new auth at the
+expiry timestamp, and established sessions run until close or timeout. Stats
+count CONNECT payload and decoded HTTP body bytes in the running generation.
+
+For ordinary HTTP, use an absolute `http://` request target and a matching
+`Host`. The listener forwards one exchange per TCP connection and advertises
+`Connection: close`. Reconnect for each exchange. CONNECT supports TCP
+half-close. The listener permits up to 512 simultaneous sockets, 64 pending
+handshakes and eight pending handshakes per source IP. Headers and target
+dials have 10-second budgets. Established sockets have 60-second idle limits.
+Over-limit sockets close at admission.
+
+Targets use the protected `ServerTarget` underlay. For scoped Core routes,
+direct TCP and rejection are supported. The outbound HTTP client factory is a
+separate capability for local-client routing. [CLI examples](CLI.md#managed-http-proxy)

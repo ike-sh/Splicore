@@ -8,12 +8,13 @@ import (
 )
 
 type InboundView struct {
-	Inbound   access.Inbound `json:"inbound"`
-	BindingID identity.ID    `json:"binding_id,omitempty"`
-	AccountID identity.ID    `json:"account_id,omitempty"`
-	Health    string         `json:"health"`
-	Stats     ports.Stats    `json:"stats"`
-	Bindings  []BindingView  `json:"bindings,omitempty"`
+	Sessions  []ports.InboundSession `json:"active_sessions,omitempty"`
+	Inbound   access.Inbound         `json:"inbound"`
+	BindingID identity.ID            `json:"binding_id,omitempty"`
+	AccountID identity.ID            `json:"account_id,omitempty"`
+	Health    string                 `json:"health"`
+	Stats     ports.Stats            `json:"stats"`
+	Bindings  []BindingView          `json:"bindings,omitempty"`
 }
 type InboundPage struct {
 	Items    []InboundView     `json:"items"`

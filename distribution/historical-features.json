@@ -609,7 +609,7 @@
       "files": [
         "internal/splicore/clientruntime/auth.go",
         "internal/splicore/clientruntime/http.go",
-        "internal/splicore/clientruntime/http_metadata.go",
+        "internal/splicore/protocol/http/forward.go",
         "internal/splicore/clientruntime/udp.go"
       ],
       "disposition": "retained",

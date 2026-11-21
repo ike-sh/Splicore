@@ -6,6 +6,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/access"
 	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"strconv"
+	"time"
 )
 
 // RuntimeHandle is prepared without network I/O, started with admission closed,
@@ -105,9 +106,13 @@ type BindingAdmission interface {
 	BindingAllowed(context.Context, access.Binding) bool
 }
 
-type SOCKS5LifecycleWriter interface {
-	SetSOCKS5InboundEnabled(access.Inbound, bool) error
-	DeleteSOCKS5Inbound(access.Inbound, []access.Binding) error
+type ManagedProxyLifecycleWriter interface {
+	SetManagedProxyInboundEnabled(access.Inbound, bool) error
+	DeleteManagedProxyInbound(access.Inbound, []access.Binding) error
+}
+
+type ManagedProxyCredentialWriter interface {
+	RevokeManagedProxyCredential(access.Binding, identity.Revision) error
 }
 
 // UserWriter extends the same generation transaction to managed user secrets.
@@ -117,6 +122,15 @@ type UserWriter interface {
 	DeleteBindingUser(access.Binding, identity.Revision) error
 }
 type AttributedStats interface{ BindingStats(identity.ID) Stats }
+
+type InboundSession struct {
+	ID        identity.ID `json:"id"`
+	BindingID identity.ID `json:"binding_id"`
+	Mode      string      `json:"mode"`
+	StartedAt time.Time   `json:"started_at"`
+}
+
+type InboundSessions interface{ ActiveSessions() []InboundSession }
 
 // ServerSecretRepository reveals only inbound-owned encrypted server credentials.
 // Client export deliberately does not use this port.

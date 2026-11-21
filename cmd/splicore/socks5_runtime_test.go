@@ -29,19 +29,20 @@ const socksAlice = "Synthetic-Alice-Secret!349"
 const socksBob = "Synthetic-Bob-Secret!582"
 const socksRotated = "Synthetic-Rotated-Secret!691"
 
-type socksCore struct {
+type proxyProcessCore struct {
 	t          *testing.T
 	binary     string
 	root       string
 	bootstrap  string
 	control    *transport.Client
 	generation int
+	redact     func(*testing.T, []byte)
 }
 
-func newSocksCore(t *testing.T, binary string) *socksCore {
+func newProxyProcessCore(t *testing.T, binary string, redact func(*testing.T, []byte)) *proxyProcessCore {
 	t.Helper()
 	// Short enough for the Unix socket length limit and owned by this test.
-	root, err := os.MkdirTemp("", "sp-s5-")
+	root, err := os.MkdirTemp("", "sp-px-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,14 +50,14 @@ func newSocksCore(t *testing.T, binary string) *socksCore {
 	state := filepath.ToSlash(filepath.Join(root, "state"))
 	key := filepath.ToSlash(filepath.Join(root, "key", "master.key"))
 	socket := filepath.ToSlash(filepath.Join(root, "ctl", "core.sock"))
-	core := &socksCore{t: t, binary: binary, root: root, control: transport.UnixClient(socket)}
+	core := &proxyProcessCore{t: t, binary: binary, root: root, control: transport.UnixClient(socket), redact: redact}
 	t.Cleanup(core.control.Close)
 	core.bootstrap = core.file("bootstrap.yaml", []byte(fmt.Sprintf("schema: 1\nstate_directory: %q\nkey_file: %q\napi:\n  unix_socket: %q\n", state, key, socket)))
 	core.cli(t.Context(), "key", "init", "--file", key)
 	return core
 }
 
-func (c *socksCore) file(name string, data []byte) string {
+func (c *proxyProcessCore) file(name string, data []byte) string {
 	c.t.Helper()
 	path := filepath.Join(c.root, name)
 	if err := os.WriteFile(path, data, 0600); err != nil {
@@ -65,18 +66,18 @@ func (c *socksCore) file(name string, data []byte) string {
 	return path
 }
 
-func (c *socksCore) command(ctx context.Context, args ...string) ([]byte, error) {
+func (c *proxyProcessCore) command(ctx context.Context, args ...string) ([]byte, error) {
 	return exec.CommandContext(ctx, c.binary, append(args, "--config", c.bootstrap)...).CombinedOutput()
 }
 
-func (c *socksCore) cli(ctx context.Context, args ...string) []byte {
+func (c *proxyProcessCore) cli(ctx context.Context, args ...string) []byte {
 	c.t.Helper()
 	data, err := c.command(ctx, args...)
 	if len(args) < 2 || args[0] != "inbound" || args[1] != "export" {
-		requireSocksRedacted(c.t, data)
+		c.redact(c.t, data)
 	}
 	if err != nil {
-		c.t.Fatalf("SOCKS5 process CLI %s failed: %v", args[0], err)
+		c.t.Fatalf("Core process CLI %s failed: %v: %s", args[0], err, data)
 	}
 	return data
 }
@@ -90,7 +91,7 @@ func requireSocksRedacted(t *testing.T, data []byte) {
 	}
 }
 
-func (c *socksCore) start(ctx context.Context) func() {
+func (c *proxyProcessCore) start(ctx context.Context) func() {
 	c.t.Helper()
 	c.generation++
 	log, err := os.OpenFile(filepath.Join(c.root, fmt.Sprintf("core-%d.log", c.generation)), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
@@ -125,10 +126,10 @@ func (c *socksCore) start(ctx context.Context) func() {
 		case err := <-done:
 			joined = true
 			data, _ := os.ReadFile(log.Name())
-			requireSocksRedacted(c.t, data)
-			c.t.Fatalf("SOCKS5 Core exited before ready: %v: %s", err, data)
+			c.redact(c.t, data)
+			c.t.Fatalf("Core exited before ready: %v: %s", err, data)
 		case <-ready.Done():
-			c.t.Fatal("SOCKS5 Core readiness timed out")
+			c.t.Fatal("Core readiness timed out")
 		case <-tick.C:
 		}
 	}
@@ -140,21 +141,21 @@ func (c *socksCore) start(ctx context.Context) func() {
 		case err := <-done:
 			joined = true
 			if err != nil {
-				c.t.Fatal("SOCKS5 Core shutdown failed:", err)
+				c.t.Fatal("Core shutdown failed:", err)
 			}
 		case <-ctx.Done():
-			c.t.Fatal("SOCKS5 Core process did not stop")
+			c.t.Fatal("Core process did not stop")
 		}
 		_ = log.Close()
 		data, err := os.ReadFile(log.Name())
 		if err != nil {
 			c.t.Fatal(err)
 		}
-		requireSocksRedacted(c.t, data)
+		c.redact(c.t, data)
 	}
 }
 
-func (c *socksCore) mutation(ctx context.Context, mutation application.ClientMutation) identity.ID {
+func (c *proxyProcessCore) mutation(ctx context.Context, mutation application.ClientMutation) identity.ID {
 	c.t.Helper()
 	doc, err := json.Marshal(mutation)
 	if err != nil {
@@ -170,7 +171,7 @@ func (c *socksCore) mutation(ctx context.Context, mutation application.ClientMut
 	return created.ID
 }
 
-func (c *socksCore) mutateInbound(ctx context.Context, verb string, id identity.ID, doc any) {
+func (c *proxyProcessCore) mutateInbound(ctx context.Context, verb string, id identity.ID, doc any) {
 	c.t.Helper()
 	data, err := json.Marshal(doc)
 	if err != nil {
@@ -179,7 +180,7 @@ func (c *socksCore) mutateInbound(ctx context.Context, verb string, id identity.
 	c.cli(ctx, "inbound", verb, "--id", string(id), "--file", c.file(verb+".json", data))
 }
 
-func (c *socksCore) view(ctx context.Context, id identity.ID) (application.InboundView, identity.Revision) {
+func (c *proxyProcessCore) view(ctx context.Context, id identity.ID) (application.InboundView, identity.Revision) {
 	c.t.Helper()
 	var in application.InboundView
 	if err := json.Unmarshal(c.cli(ctx, "inbound", "get", "--id", string(id)), &in); err != nil {
@@ -315,7 +316,7 @@ func TestManagedSOCKS5Processes(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(t.Context(), 55*time.Second)
 	defer cancel()
-	server, local := newSocksCore(t, core), newSocksCore(t, core)
+	server, local := newProxyProcessCore(t, core, requireSocksRedacted), newProxyProcessCore(t, core, requireSocksRedacted)
 	stopServer := server.start(ctx)
 	stopLocal := local.start(ctx)
 	serverPort := testkit.PeerPort(t, "tcp")
@@ -546,7 +547,7 @@ func TestManagedSOCKS5Processes(t *testing.T) {
 	})
 	stopLocal()
 	stopServer()
-	for _, core := range []*socksCore{local, server} {
+	for _, core := range []*proxyProcessCore{local, server} {
 		for _, file := range []string{"state.db", "state.db-wal"} {
 			data, err := os.ReadFile(filepath.Join(core.root, "state", file))
 			if errors.Is(err, os.ErrNotExist) && file == "state.db-wal" {

@@ -11,6 +11,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"strings"
 )
@@ -35,7 +36,7 @@ func ReadHeader(r *bufio.Reader) ([]byte, error) {
 		if e != nil {
 			return nil, e
 		}
-		if !bytes.HasSuffix(line.Bytes(), []byte("\r\n")) {
+		if !bytes.HasSuffix(line.Bytes(), []byte("\r\n")) || bytes.IndexByte(line.Bytes()[:line.Len()-2], '\r') >= 0 {
 			return nil, ErrProtocol
 		}
 		count++
@@ -56,6 +57,11 @@ func Authority(s string) (access.Endpoint, error) {
 	}
 	for _, c := range port {
 		if c < '0' || c > '9' {
+			return access.Endpoint{}, ErrProtocol
+		}
+	}
+	if strings.HasPrefix(s, "[") {
+		if ip, err := netip.ParseAddr(host); err != nil || !ip.Is6() {
 			return access.Endpoint{}, ErrProtocol
 		}
 	}
@@ -100,33 +106,42 @@ func ReadRequest(r *bufio.Reader) (*http.Request, *bufio.Reader, error) {
 	if req.ProtoMajor != 1 || req.ProtoMinor != 1 || req.Method == "" {
 		return nil, next, ErrProtocol
 	}
-	if req.Method == http.MethodConnect {
-		if req.ContentLength > 0 || len(req.TransferEncoding) > 0 {
+	if _, e = Target(req); e != nil {
+		return nil, next, e
+	}
+	if req.Method == http.MethodConnect && (req.ContentLength > 0 || len(req.TransferEncoding) > 0) {
+		return nil, next, ErrProtocol
+	}
+	if seen["host"] != 1 {
+		return nil, next, ErrProtocol
+	}
+	// net/http takes Host from the absolute target. Check the original field.
+	for _, line := range lines[1 : len(lines)-2] {
+		name, value, _ := strings.Cut(string(line), ":")
+		if strings.EqualFold(name, "Host") && !strings.EqualFold(strings.TrimSpace(value), req.Host) {
 			return nil, next, ErrProtocol
-		}
-		if _, e = Authority(req.RequestURI); e != nil {
-			return nil, next, e
-		}
-		for _, line := range lines[1 : len(lines)-2] {
-			name, v, _ := strings.Cut(string(line), ":")
-			if strings.EqualFold(name, "Host") && !strings.EqualFold(strings.TrimSpace(v), req.RequestURI) {
-				return nil, next, ErrProtocol
-			}
-		}
-	} else {
-		if req.URL.Scheme != "http" || req.URL.Host == "" || req.URL.User != nil || req.URL.Fragment != "" {
-			return nil, next, ErrProtocol
-		}
-		// Absolute-form Host is authoritative, but a conflicting raw Host is rejected.
-		for _, line := range lines[1 : len(lines)-2] {
-			name, v, _ := strings.Cut(string(line), ":")
-			if strings.EqualFold(name, "Host") && !strings.EqualFold(strings.TrimSpace(v), req.URL.Host) {
-				return nil, next, ErrProtocol
-			}
 		}
 	}
 	return req, next, nil
 }
+
+// Target validates the wire authority before routing, including explicit
+// empty ports and invalid bracketed hosts that URL.Hostname would normalize.
+func Target(req *http.Request) (access.Endpoint, error) {
+	if req.Method == http.MethodConnect {
+		return Authority(req.RequestURI)
+	}
+	u := req.URL
+	if u.Scheme != "http" || u.Host == "" || u.User != nil || u.Fragment != "" || u.Opaque != "" {
+		return access.Endpoint{}, ErrProtocol
+	}
+	authority := u.Host
+	if !strings.Contains(authority, ":") || strings.HasSuffix(authority, "]") {
+		authority += ":80"
+	}
+	return Authority(authority)
+}
+
 func Basic(s string) (socks5.Credentials, error) {
 	kind, value, ok := strings.Cut(s, " ")
 	if !ok || !strings.EqualFold(kind, "Basic") || len(value) > 684 {

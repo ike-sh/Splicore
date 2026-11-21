@@ -19,6 +19,7 @@ identity does not imply ownership of another Core process.
 | Trojan standard | TCP / UDP | TLS/password |
 | VMess AEAD | TCP / UDP | UUID; supported security profiles |
 | Managed SOCKS5 | TCP CONNECT | Mandatory RFC 1929, loopback by default, explicit opt-in for remote cleartext |
+| Managed HTTP Proxy `http/1.1/base` | TCP CONNECT and absolute-form HTTP forwarding | Required Basic proxy authentication, loopback default, one forwarded exchange per connection |
 | SOCKS5 / HTTP proxy nodes | SOCKS5 TCP and optional UDP, HTTP CONNECT TCP | Canonical node/auth settings |
 
 Local entry includes SOCKS5 TCP/UDP, HTTP, Mixed and native TUN. Routing supports
@@ -70,7 +71,7 @@ runtime generation. Read the live capability API rather than assuming uniform
 hot mutation behavior.
 
 Formal platform support covers Linux and Windows amd64. Native process tests
-cover the local control API, VLESS and SOCKS5 loopback transfer, authentication
+cover the local control API, VLESS, SOCKS5 and HTTP Proxy transfer, authentication
 refusal, shutdown and persisted listener restoration. The direction audit identifies
 the tested transport combinations and independent peers. [Direction audit](INBOUND_OUTBOUND_MATRIX.md)
 Other protocol combinations, native Linux auto-route, real

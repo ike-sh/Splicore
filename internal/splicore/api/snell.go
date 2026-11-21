@@ -114,14 +114,14 @@ func snellRoute(w http.ResponseWriter, r *http.Request, q application.Queries) b
 					result, err = hy.SetBinding(r.Context(), id, req)
 				}
 			case len(parts) == 2 && parts[1] == "lifecycle":
-				commands, ok := q.(application.SOCKS5Commands)
+				commands, ok := q.(application.ManagedProxyCommands)
 				if !ok {
-					err = identity.Err(identity.NotImplemented, "SOCKS5 lifecycle unavailable")
+					err = identity.Err(identity.NotImplemented, "managed proxy lifecycle unavailable")
 					break
 				}
-				var req application.SOCKS5LifecycleRequest
+				var req application.ManagedProxyLifecycleRequest
 				if err = application.StrictJSON(body, &req); err == nil {
-					result, err = commands.SetSOCKS5Lifecycle(r.Context(), id, req)
+					result, err = commands.SetManagedProxyLifecycle(r.Context(), id, req)
 				}
 			default:
 				err = identity.Err(identity.NotFound, "unknown endpoint")

@@ -14,13 +14,26 @@ import (
 )
 
 func TestManagedSOCKS5CommittedAdmission(t *testing.T) {
+	testManagedProxyAdmission(t, "socks5")
+}
+
+func TestManagedHTTPCommittedAdmission(t *testing.T) {
+	testManagedProxyAdmission(t, "http")
+}
+
+func testManagedProxyAdmission(t *testing.T, protocol string) {
+	t.Helper()
 	ctx := t.Context()
 	modules, _, _, err := registry.NativeCore()
 	if err != nil {
 		t.Fatal(err)
 	}
 	opts := options(t)
-	opts.ValidateInbound = (proxy.SOCKS5Inbound{}).ValidateInbound
+	module, err := modules.Get(proxy.Key(protocol))
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts.ValidateInbound = module.ValidateInbound
 	opts.CredentialKinds = func(key access.ProtocolKey) ([]access.CredentialKind, error) {
 		module, err := modules.Get(key)
 		if err != nil {
@@ -40,7 +53,7 @@ func TestManagedSOCKS5CommittedAdmission(t *testing.T) {
 	a := account(t)
 	stamp := identity.NewStamp(time.Now())
 	endpoint := access.Endpoint{Host: "127.0.0.1", Port: 1080}
-	in := access.Inbound{ID: newID(t), NodeID: state.NodeID, Name: "SOCKS5 admission fixture", Protocol: proxy.Key("socks5"), Engine: "native", Enabled: true,
+	in := access.Inbound{ID: newID(t), NodeID: state.NodeID, Name: "Managed proxy admission fixture", Protocol: proxy.Key(protocol), Engine: "native", Enabled: true,
 		Listeners:        []access.Listener{{ID: newID(t), Transport: "tcp", Endpoint: endpoint}},
 		DisplayEndpoints: []access.DisplayEndpoint{{ID: newID(t), Endpoint: endpoint}},
 		Settings:         access.Settings{Schema: 1, Data: []byte(`{"auth":true}`)}, Stamp: stamp}
@@ -94,4 +107,31 @@ func TestManagedSOCKS5CommittedAdmission(t *testing.T) {
 			}
 		})
 	}
+	if protocol != "http" {
+		return
+	}
+	t.Run("revoke-commits-credential-and-binding", func(t *testing.T) {
+		state, err := s.State(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		write := func(w ports.Writer) error {
+			return w.(ports.ManagedProxyCredentialWriter).RevokeManagedProxyCredential(b, b.Revision)
+		}
+		op, err := s.BeginRuntimeOperation(ctx, state.Revision, actor(t), "runtime_replace")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := s.CommitOperation(ctx, op, write); err != nil {
+			t.Fatal(err)
+		}
+		revealed, err := s.RevealCredential(ctx, c.ID)
+		if err != nil || revealed.State != "revoked" || revealed.Revision == c.Revision || s.BindingAllowed(ctx, b) {
+			t.Fatal("committed revocation did not persist or close credential admission", err)
+		}
+		bindings, err := s.Bindings(ctx, in.ID)
+		if err != nil || len(bindings) != 1 || bindings[0].Enabled || bindings[0].Revision == b.Revision {
+			t.Fatal("revocation did not atomically revise and disable the binding", err)
+		}
+	})
 }

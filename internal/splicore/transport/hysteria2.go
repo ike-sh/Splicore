@@ -37,6 +37,10 @@ func (c *Client) SetBinding(ctx context.Context, id identity.ID, r application.B
 }
 
 func (c *Client) SetSOCKS5Lifecycle(ctx context.Context, id identity.ID, r application.SOCKS5LifecycleRequest) (identity.Transaction, error) {
+	return c.SetManagedProxyLifecycle(ctx, id, r)
+}
+
+func (c *Client) SetManagedProxyLifecycle(ctx context.Context, id identity.ID, r application.ManagedProxyLifecycleRequest) (identity.Transaction, error) {
 	var v identity.Transaction
 	if err := id.Validate(); err != nil {
 		return v, err

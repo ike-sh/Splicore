@@ -14,6 +14,11 @@ qualification and unresolved findings remain in their release and issue records.
 | 5 | SQLite persistence and failure recovery | Acknowledged data and revision recovery, encrypted state, and fail-closed mutation checks |
 | 6 | Build, release and deployment quality | Exact source and package identity, dual-platform downloaded smoke, and documented deployment scope |
 
+Managed HTTP/1.1 joins SOCKS5 under the native inbound lifecycle. HTTP
+qualification covers independent curl, client-to-server Core chaining and
+recovery on the supported amd64 platforms. The direction matrix records the
+connection and transport scope.
+
 The capability and direction matrices record current protocol boundaries and
 independent-peer evidence. [Capabilities](architecture/CAPABILITY_MATRIX.md) · [Direction audit](architecture/INBOUND_OUTBOUND_MATRIX.md)
 Review the [historical inventory](../distribution/historical-features.json)
