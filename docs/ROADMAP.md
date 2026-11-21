@@ -30,6 +30,12 @@ target routing and dual-Core traffic. The same Official release workflow
 requires both platforms to execute the UDP product smoke before publication.
 [SOCKS5 UDP settings](CONFIGURATION.md#managed-socks5)
 
+The merged UDP increment passed the native amd64 PR and main gates. The
+v0.6.5 release scope combines managed HTTP Proxy and SOCKS5 TCP/UDP.
+[UDP PR qualification](https://github.com/ike-sh/Splicore/actions/runs/44881031505) ·
+[UDP main qualification](https://github.com/ike-sh/Splicore/actions/runs/44883153262) ·
+[v0.6.5 scope](releases/v0.6.5.md)
+
 The capability and direction matrices record current protocol boundaries and
 independent-peer evidence. [Capabilities](architecture/CAPABILITY_MATRIX.md) · [Direction audit](architecture/INBOUND_OUTBOUND_MATRIX.md)
 Review the [historical inventory](../distribution/historical-features.json)

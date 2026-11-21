@@ -10,8 +10,9 @@ and integrators.
 
 ## Latest stable release
 
-[Splicore v0.6.4](https://github.com/ike-sh/Splicore/releases/tag/v0.6.4) is the
-current stable release. The `v0.6.3` tag remains an unpublished candidate.
+Download the latest public release from GitHub. The v0.6.5 notes document
+managed HTTP Proxy, SOCKS5 TCP and UDP, and the native amd64 qualification scope.
+[Latest release](https://github.com/ike-sh/Splicore/releases/latest) · [v0.6.5 notes](docs/releases/v0.6.5.md)
 
 ## Downloads
 
@@ -19,21 +20,21 @@ Splicore uses the `AMD64_ONLY` support policy. Linux amd64 and Windows amd64
 are the official CI and release targets. ARM64 packages in v0.6.4 are historical
 `BUILD_ONLY` assets. Formal ARM64 support is paused.
 
-| Platform | v0.6.4 archive | Release archive qualification |
+| Platform | v0.6.5 archive | Release archive qualification |
 | --- | --- | --- |
-| Linux amd64 | [tar.gz](https://github.com/ike-sh/Splicore/releases/download/v0.6.4/splicore-v0.6.4-linux-amd64.tar.gz) | Native tests and Linux Race |
-| Linux ARM64 | [tar.gz](https://github.com/ike-sh/Splicore/releases/download/v0.6.4/splicore-v0.6.4-linux-arm64.tar.gz) | Historical `BUILD_ONLY` |
-| Windows amd64 | [zip](https://github.com/ike-sh/Splicore/releases/download/v0.6.4/splicore-v0.6.4-windows-amd64.zip) | Native tests |
-| Windows ARM64 | [zip](https://github.com/ike-sh/Splicore/releases/download/v0.6.4/splicore-v0.6.4-windows-arm64.zip) | Historical `BUILD_ONLY` |
+| Linux amd64 | `splicore-v0.6.5-linux-amd64.tar.gz` | Native tests, Linux Race and downloaded smoke |
+| Windows amd64 | `splicore-v0.6.5-windows-amd64.zip` | Native tests, Windows Race and downloaded smoke |
 
-[SHA256SUMS](https://github.com/ike-sh/Splicore/releases/download/v0.6.4/SHA256SUMS) ·
-[RELEASE_MANIFEST.json](https://github.com/ike-sh/Splicore/releases/download/v0.6.4/RELEASE_MANIFEST.json) ·
-[Corresponding source archive](https://github.com/ike-sh/Splicore/releases/download/v0.6.4/splicore-v0.6.4-source.tar.gz)
+Download `SHA256SUMS` from the same release as your archive and verify the hash
+before extraction. With a single archive on Linux, use
+`sha256sum --ignore-missing -c SHA256SUMS`. On Windows, compare
+`Get-FileHash -Algorithm SHA256 .\splicore-v0.6.5-windows-amd64.zip` with the
+matching line. `RELEASE_MANIFEST.json` records the source identity, platforms
+and checksums. [Latest release](https://github.com/ike-sh/Splicore/releases/latest)
 
-Verify the archive SHA256 before extraction. Each platform archive includes one
-executable, build metadata, examples, and licenses. The source archive includes
-vendored dependencies and offline build instructions. For the recorded v0.6.4
-results, see the [historical qualification scope](docs/releases/v0.6.4.md#qualification-scope)
+Each platform archive includes one executable, build metadata, examples and
+licenses. The corresponding source archive includes vendored dependencies and
+offline build instructions. [Historical v0.6.4 qualification](docs/releases/v0.6.4.md#qualification-scope)
 
 ## Quick start
 
@@ -117,20 +118,18 @@ profiles, dependencies, and limits. The direction audit records runtime
 traffic, lifecycle, independent peer coverage and remaining gaps for each
 profile. [Inbound and outbound audit](docs/architecture/INBOUND_OUTBOUND_MATRIX.md)
 
-## Changes in v0.6.4
+## Changes in v0.6.5
 
-- **TUIC.** A valid authentication command stream can finish before the server
-  cancels its reads, allowing authenticated parallel CONNECT to proceed.
-- **Mieru.** Full accept queues no longer stall UDP receive for established
-  sessions. The patch also fixes read-deadline wakeup order and preserves
-  socket access during session cleanup. The release pins the internal Mieru
-  fork at `f237626f5345d83ba35d8e24c1721dc8e1c928d3`.
-- **Test fixtures.** Gecko reassembly uses a deterministic test clock. The
-  WireGuard Xray fixture uses OS-assigned ports and verifies child socket ownership.
-- **Engineering tools.** Native CI includes runtime qualification and bounded
-  persistence checks. Network performance baselines run on demand.
+- **SOCKS5.** Managed accounts serve TCP CONNECT and optional UDP ASSOCIATE.
+  Use `settings.udp: true` to enable UDP, then import an exported binding
+  or enable UDP on the corresponding remote node. [UDP settings](docs/CONFIGURATION.md#managed-socks5)
+- **HTTP Proxy.** Managed Basic authentication covers CONNECT and ordinary
+  HTTP forwarding with one exchange per connection. [HTTP configuration](docs/CONFIGURATION.md#managed-http-proxy)
+- **Release validation.** The Tag workflow checks the five Draft assets and
+  runs native Linux and Windows smoke from the downloaded contents before
+  publishing. [Qualification contract](docs/releases/QUALIFICATION.md)
 
-See the [release notes](docs/releases/v0.6.4.md) for changes and evidence.
+[Release notes and historical findings](docs/releases/v0.6.5.md)
 
 ## Build from source
 
@@ -146,12 +145,13 @@ their own gates. [Build and installation guide](docs/INSTALLATION.md)
   AmneziaWG/Phase37 is `RETIRED`. Standard userspace WireGuard is available.
 - WAL/P1-B remains outside production qualification. Physical power loss and
   OS crash recovery are `NOT_EXECUTED`.
-- The historical Snell v5 concurrent QUIC IPv6 read timeout and TrustTunnel
-  HTTP/2 Race `tcp_connect` failure remain `ROOT_CAUSE_UNRESOLVED`.
+- The historical Snell v5 IPv6 Race timeout, Windows protected DNS fallback
+  failure, Mieru reconnect failure and TrustTunnel HTTP/2 Race finding retain
+  their original conclusions. [Known limits](docs/releases/v0.6.5.md#known-limits)
 - Linux TUN requires a kernel device and appropriate network privileges.
   Windows TUN requires an operator-supplied Wintun driver/DLL and privileges.
   Physical TUN/Wintun, Android/v2rayNG interoperability, and extended soak
-  tests remain outside the release qualification. [Release limits](docs/releases/v0.6.4.md#known-limits)
+  tests remain outside the release qualification. [Release limits](docs/releases/v0.6.5.md#known-limits)
 
 ## Documentation
 
@@ -159,5 +159,5 @@ their own gates. [Build and installation guide](docs/INSTALLATION.md)
 - [CLI](docs/CLI.md) and [local API](docs/api/README.md)
 - [Architecture](docs/ARCHITECTURE.md) and [Capability Matrix](docs/architecture/CAPABILITY_MATRIX.md)
 - [Operations](docs/OPERATIONS.md), [contributor workflow](docs/DEVELOPMENT.md) and [project roadmap](docs/ROADMAP.md)
-- [Release notes](docs/releases/v0.6.4.md) and [changelog](CHANGELOG.md)
+- [Release notes](docs/releases/v0.6.5.md) and [changelog](CHANGELOG.md)
 - [Security policy](SECURITY.md) and [license](LICENSE)

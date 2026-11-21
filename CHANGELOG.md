@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.6.5
+
+- Add managed SOCKS5 TCP CONNECT and opt-in UDP ASSOCIATE with RFC 1929
+  authentication, per-binding statistics, protected UDP targets and SQLite
+  recovery. The native SOCKS5 client supports TCP and optional UDP.
+- Add the managed HTTP/1.1 proxy with Basic authentication, CONNECT and
+  absolute-form forwarding. Ordinary HTTP handles one request per connection.
+- Use the AMD64_ONLY release policy. Both native platforms run Default, Full,
+  vet, Race, and downloaded-product smoke before publication. The release
+  workflow verifies the five Draft assets before running the downloaded cores.
+
+[Release notes and known limits](docs/releases/v0.6.5.md)
+
 ## v0.6.4
 
 - TUIC lets a valid authentication command finish its stream before canceling
