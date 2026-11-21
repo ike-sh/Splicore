@@ -49,6 +49,26 @@ func TestXHTTPH3StreamBodyUnsentGOAWAY(t *testing.T) {
 				packet.Close()
 				t.Fatal(err)
 			}
+			selected := make(chan struct{})
+			var trace struct {
+				sync.Mutex
+				sealed                  bool
+				selections, writeErrors int
+				events                  []string
+			}
+			// Run after the client and server cleanup. The HTTP/3 request-body
+			// sender can call WroteRequest after RoundTrip and transport close.
+			// Callbacks only write to the recorder, which is sealed before logging.
+			t.Cleanup(func() {
+				trace.Lock()
+				trace.sealed = true
+				events := trace.events
+				trace.events = nil
+				trace.Unlock()
+				for _, event := range events {
+					t.Log(event)
+				}
+			})
 			accepted := make(chan *h3BodyProbeConn, 8)
 			var workers sync.WaitGroup
 			workers.Go(func() {
@@ -99,21 +119,25 @@ func TestXHTTPH3StreamBodyUnsentGOAWAY(t *testing.T) {
 				client.pool.release(entry)
 				t.Cleanup(func() { client.Close(); owned.Close() })
 			}
-			selected := make(chan struct{})
-			var selections atomic.Int32
-			var writeErrors atomic.Int32
 			client.ctx = httptrace.WithClientTrace(client.ctx, &httptrace.ClientTrace{
 				GotConn: func(info httptrace.GotConnInfo) {
-					n := selections.Add(1)
-					t.Logf("GotConn selection=%d local=%v reused=%t", n, info.Conn.LocalAddr(), info.Reused)
-					if n == 2 {
+					trace.Lock()
+					defer trace.Unlock()
+					if trace.sealed {
+						return
+					}
+					trace.selections++
+					trace.events = append(trace.events, fmt.Sprintf("GotConn selection=%d local=%v reused=%t", trace.selections, info.Conn.LocalAddr(), info.Reused))
+					if trace.selections == 2 {
 						close(selected)
 					}
 				},
 				WroteRequest: func(info httptrace.WroteRequestInfo) {
-					if info.Err != nil {
-						writeErrors.Add(1)
-						t.Logf("WroteRequest error: %v", info.Err)
+					trace.Lock()
+					defer trace.Unlock()
+					if !trace.sealed && info.Err != nil {
+						trace.writeErrors++
+						trace.events = append(trace.events, fmt.Sprintf("WroteRequest error: %v", info.Err))
 					}
 				},
 			})
@@ -132,7 +156,10 @@ func TestXHTTPH3StreamBodyUnsentGOAWAY(t *testing.T) {
 			secondResult := make(chan h3CarrierResult, 1)
 			ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
 			defer cancel()
-			go func() { c, e := client.DialContext(ctx); secondResult <- h3CarrierResult{conn: c, err: e} }()
+			workers.Go(func() {
+				c, err := client.DialContext(ctx)
+				secondResult <- h3CarrierResult{conn: c, err: err}
+			})
 			select {
 			case <-selected:
 			case <-time.After(3 * time.Second):
@@ -153,7 +180,10 @@ func TestXHTTPH3StreamBodyUnsentGOAWAY(t *testing.T) {
 			// The first stream remains alive: this is a graceful GOAWAY, not
 			// physical connection failure, and cleanup must not break that user.
 			exchange(t, first, []byte("first stream survives graceful GOAWAY"))
-			t.Logf("after retry: dials=%d GotConn=%d old_handled_requests=%d write_errors=%d dial_error=%v", dials.Load(), selections.Load(), old.requests.Load(), writeErrors.Load(), second.err)
+			trace.Lock()
+			selections, writeErrors := trace.selections, trace.writeErrors
+			trace.Unlock()
+			t.Logf("after retry: dials=%d GotConn=%d old_handled_requests=%d write_errors=%d dial_error=%v", dials.Load(), selections, old.requests.Load(), writeErrors, second.err)
 			if old.requests.Load() != 1 {
 				t.Error("second request unexpectedly reached old server")
 			}
