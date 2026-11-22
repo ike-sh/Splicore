@@ -325,9 +325,27 @@ func (c *bodyConn) SetDeadline(t time.Time) error {
 	return c.SetWriteDeadline(t)
 }
 
-// untilEstablished watches the caller during CONNECT only. Successful streams
-// remain owned by the returned connection after the caller's dial scope ends.
-func untilEstablished(ctx context.Context, cancel context.CancelFunc) func() {
-	stop := context.AfterFunc(ctx, cancel)
-	return func() { stop() }
+// untilEstablished watches the caller during CONNECT only. Calling the returned
+// function at the success boundary is the ownership linearization point: true
+// transfers the stream to the returned connection; false means caller
+// cancellation completed first. Joining an in-flight callback prevents a
+// canceled stream from being returned as live. Error paths also call it to join
+// or unregister the callback before returning.
+func untilEstablished(ctx context.Context, cancel context.CancelFunc) func() bool {
+	completed := make(chan struct{})
+	stop := context.AfterFunc(ctx, func() {
+		cancel()
+		close(completed)
+	})
+	var once sync.Once
+	established := false
+	return func() bool {
+		once.Do(func() {
+			established = stop()
+			if !established {
+				<-completed
+			}
+		})
+		return established
+	}
 }

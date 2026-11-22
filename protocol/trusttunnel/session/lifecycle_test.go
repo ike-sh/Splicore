@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"errors"
 	"io"
 	"net"
 	"os"
@@ -28,6 +29,7 @@ func TestH2InitialWindowOnWire(t *testing.T) {
 	}
 	defer l.Close()
 	observed := make(chan uint32, 1)
+	release := make(chan struct{})
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -62,6 +64,12 @@ func TestH2InitialWindowOnWire(t *testing.T) {
 		})
 		_ = f.WriteSettings()
 		_ = f.WriteSettingsAck()
+		// This test owns the peer until newH2 has cleared its handshake
+		// deadline. Peer-close ordering is covered separately below.
+		select {
+		case <-release:
+		case <-time.After(5 * time.Second):
+		}
 	}()
 	cfg := ClientConfig{TLS: tc, DialTCP: (&net.Dialer{}).DialContext}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -70,6 +78,7 @@ func TestH2InitialWindowOnWire(t *testing.T) {
 	if raw != nil {
 		defer raw.close()
 	}
+	close(release)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -82,6 +91,150 @@ func TestH2InitialWindowOnWire(t *testing.T) {
 		t.Fatal("no SETTINGS")
 	}
 	<-done
+}
+
+type deadlineGateConn struct {
+	net.Conn
+	clearStarted chan struct{}
+	allowClear   chan struct{}
+	closed       chan struct{}
+	clearOnce    sync.Once
+	closeOnce    sync.Once
+}
+
+func (c *deadlineGateConn) SetDeadline(deadline time.Time) error {
+	if deadline.IsZero() {
+		c.clearOnce.Do(func() { close(c.clearStarted) })
+		select {
+		case <-c.allowClear:
+		case <-time.After(5 * time.Second):
+			return os.ErrDeadlineExceeded
+		}
+		// Report the canonical socket result once the real HTTP/2 reader has
+		// closed this wrapper. Some kernels accept a concurrent deadline update
+		// after Close, which would make this fault-injection ordering ambiguous.
+		select {
+		case <-c.closed:
+			return net.ErrClosed
+		default:
+		}
+	}
+	return c.Conn.SetDeadline(deadline)
+}
+
+func (c *deadlineGateConn) Close() error {
+	c.closeOnce.Do(func() { close(c.closed) })
+	return c.Conn.Close()
+}
+
+func TestH2InitialWindowPeerCloseBeforeDeadlineClear(t *testing.T) {
+	var pair tls.Certificate
+	_, tc, _ := startServer(t, "http2", func(c *ServerConfig) { pair = c.TLS.Certificates[0] })
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	closePeer := make(chan struct{})
+	peerDone := make(chan struct{})
+	go func() {
+		defer close(peerDone)
+		raw, acceptErr := l.Accept()
+		if acceptErr != nil {
+			return
+		}
+		defer raw.Close()
+		_ = raw.SetDeadline(time.Now().Add(5 * time.Second))
+		conn := tls.Server(raw, &tls.Config{Certificates: []tls.Certificate{pair}, NextProtos: []string{"h2"}})
+		if conn.Handshake() != nil {
+			return
+		}
+		preface := make([]byte, len(http2.ClientPreface))
+		if _, readErr := io.ReadFull(conn, preface); readErr != nil || string(preface) != http2.ClientPreface {
+			return
+		}
+		framer := http2.NewFramer(conn, conn)
+		if _, readErr := framer.ReadFrame(); readErr != nil {
+			return
+		}
+		if writeErr := framer.WriteSettings(); writeErr != nil {
+			return
+		}
+		if writeErr := framer.WriteSettingsAck(); writeErr != nil {
+			return
+		}
+		select {
+		case <-closePeer:
+		case <-time.After(5 * time.Second):
+		}
+	}()
+
+	gateReady := make(chan *deadlineGateConn, 1)
+	allowClear := make(chan struct{})
+	cfg := ClientConfig{TLS: tc, DialTCP: func(ctx context.Context, network, address string) (net.Conn, error) {
+		conn, dialErr := (&net.Dialer{}).DialContext(ctx, network, address)
+		if dialErr != nil {
+			return nil, dialErr
+		}
+		gated := &deadlineGateConn{Conn: conn, clearStarted: make(chan struct{}), allowClear: allowClear, closed: make(chan struct{})}
+		gateReady <- gated
+		return gated, nil
+	}}
+	type result struct {
+		conn connection
+		err  error
+	}
+	resultReady := make(chan result, 1)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	go func() {
+		conn, openErr := newH2(ctx, ctx, cfg, l.Addr().String())
+		resultReady <- result{conn: conn, err: openErr}
+	}()
+
+	var gated *deadlineGateConn
+	select {
+	case gated = <-gateReady:
+	case <-ctx.Done():
+		t.Fatal("dial did not complete")
+	}
+	select {
+	case <-gated.clearStarted:
+	case <-ctx.Done():
+		t.Fatal("deadline clear was not reached")
+	}
+	// The historical fixture returned immediately after SETTINGS/ACK. Hold
+	// SetDeadline at the constructor's final ownership transition so that the
+	// same peer-close ordering is deterministic rather than scheduler-dependent.
+	close(closePeer)
+	select {
+	case <-peerDone:
+	case <-ctx.Done():
+		t.Fatal("peer did not close")
+	}
+	select {
+	case <-gated.closed:
+		if ctx.Err() != nil {
+			t.Fatal("context timeout, not the HTTP/2 reader, closed the socket")
+		}
+	case <-ctx.Done():
+		t.Fatal("HTTP/2 reader did not close the client socket")
+	}
+	close(allowClear)
+	var got result
+	select {
+	case got = <-resultReady:
+	case <-ctx.Done():
+		t.Fatal("constructor did not return")
+	}
+	if got.conn != nil {
+		got.conn.close()
+		t.Fatal("closed connection returned as live")
+	}
+	if !IsCode(got.err, TCP) || !errors.Is(got.err, net.ErrClosed) {
+		t.Fatalf("error = %v, want tcp_connect wrapping net.ErrClosed", got.err)
+	}
+	t.Logf("controlled peer close at deadline-clear: error=%v closed_cause=%v", got.err, errors.Is(got.err, net.ErrClosed))
 }
 func TestAutoSelectionWinnerAndLoserOwnership(t *testing.T) {
 	if !H3Enabled() {

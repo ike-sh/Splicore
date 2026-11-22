@@ -71,8 +71,8 @@ func (h *h3Connection) open(ctx context.Context, authority string, headers http.
 		s.CancelRead(quic.StreamErrorCode(http3.ErrCodeRequestCanceled))
 		s.CancelWrite(quic.StreamErrorCode(http3.ErrCodeRequestCanceled))
 	}
-	stop := untilEstablished(ctx, cancel)
-	defer stop()
+	establish := untilEstablished(ctx, cancel)
+	defer establish()
 	req := &http.Request{Method: http.MethodConnect, URL: &url.URL{Scheme: "https", Host: authority}, Host: authority, Header: headers, ContentLength: -1}
 	if e = s.SendRequestHeader(req); e != nil {
 		cancel()
@@ -86,14 +86,17 @@ func (h *h3Connection) open(ctx context.Context, authority string, headers http.
 		}
 		return nil, classify(HTTP, e)
 	}
-	if resp.StatusCode != 200 || ctx.Err() != nil {
+	if resp.StatusCode != 200 {
 		cancel()
 		if ctx.Err() != nil {
 			return nil, failure(Closed, ctx.Err())
 		}
 		return nil, status(resp.StatusCode)
 	}
-	stop()
+	if !establish() {
+		cancel()
+		return nil, failure(Closed, ctx.Err())
+	}
 	conn := newBodyConn(io.NopCloser(s), s, s.Close, func(graceful bool) {
 		s.CancelRead(quic.StreamErrorCode(http3.ErrCodeRequestCanceled))
 		if !graceful {
