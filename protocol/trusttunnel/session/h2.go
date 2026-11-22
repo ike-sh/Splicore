@@ -88,8 +88,8 @@ func (h *h2Connection) alive() bool  { s := h.client.State(); return !s.Closed &
 func (h *h2Connection) close() error { _ = h.client.Close(); return h.tcp.Close() }
 func (h *h2Connection) open(ctx context.Context, authority string, headers http.Header) (net.Conn, error) {
 	sc, cancel := context.WithCancel(h.ctx)
-	stop := untilEstablished(ctx, cancel)
-	defer stop()
+	establish := untilEstablished(ctx, cancel)
+	defer establish()
 	r, w := io.Pipe()
 	req := &http.Request{Method: http.MethodConnect, URL: &url.URL{Scheme: "https", Host: authority}, Host: authority, Header: headers, Body: r, ContentLength: -1}
 	resp, e := h.client.RoundTrip(req.WithContext(sc))
@@ -102,7 +102,7 @@ func (h *h2Connection) open(ctx context.Context, authority string, headers http.
 		}
 		return nil, classify(HTTP, e)
 	}
-	if resp.StatusCode != 200 || ctx.Err() != nil {
+	if resp.StatusCode != 200 {
 		cancel()
 		_ = resp.Body.Close()
 		_ = r.Close()
@@ -112,6 +112,12 @@ func (h *h2Connection) open(ctx context.Context, authority string, headers http.
 		}
 		return nil, status(resp.StatusCode)
 	}
-	stop()
+	if !establish() {
+		cancel()
+		_ = resp.Body.Close()
+		_ = r.Close()
+		_ = w.Close()
+		return nil, failure(Closed, ctx.Err())
+	}
 	return newBodyConn(resp.Body, w, w.Close, func(bool) { cancel(); _ = r.Close() }, h.tcp.LocalAddr(), h.tcp.RemoteAddr(), h.idle), nil
 }

@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net"
@@ -10,6 +11,62 @@ import (
 	"testing"
 	"time"
 )
+
+func TestUntilEstablishedJoinsCancellationOwner(t *testing.T) {
+	ctx, cancelContext := context.WithCancel(context.Background())
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	finish := untilEstablished(ctx, func() {
+		close(entered)
+		<-release
+	})
+	cancelContext()
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("cancellation callback did not start")
+	}
+	finished := make(chan bool, 1)
+	go func() {
+		finished <- finish()
+	}()
+	select {
+	case <-finished:
+		t.Fatal("establishment returned before cancellation owner completed")
+	case <-time.After(30 * time.Millisecond):
+	}
+	close(release)
+	select {
+	case established := <-finished:
+		if established {
+			t.Fatal("canceled stream ownership transferred to the caller")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("establishment did not join cancellation owner")
+	}
+	if finish() {
+		t.Fatal("repeated completion changed canceled ownership")
+	}
+}
+
+func TestUntilEstablishedTransfersOwnership(t *testing.T) {
+	ctx, cancelContext := context.WithCancel(context.Background())
+	defer cancelContext()
+	canceled := make(chan struct{}, 1)
+	finish := untilEstablished(ctx, func() { canceled <- struct{}{} })
+	if !finish() {
+		t.Fatal("live stream ownership was not transferred")
+	}
+	if !finish() {
+		t.Fatal("repeated completion changed established ownership")
+	}
+	cancelContext()
+	select {
+	case <-canceled:
+		t.Fatal("caller cancellation reached an established stream")
+	case <-time.After(30 * time.Millisecond):
+	}
+}
 
 type emptyBodyReader struct{ reads atomic.Int64 }
 
