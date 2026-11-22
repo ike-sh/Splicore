@@ -177,11 +177,12 @@ class EvidenceTests(unittest.TestCase):
         dns_test = 'TestProtectedDNSUDPTruncationFallsBackToTCP'
         snell_test = 'TestSnellV5NativeAndOfficial/Official_true/::1'
         bind = 'dns_fallback_test.go:90: dns_fallback_stage stage=udp_bind port=58189 result=socket_error errno=10013'
+        retry_close = 'dns_fallback_test.go:91: dns_fallback_stage stage=tcp_retry_close port=58189 result=ok errno=0'
         check = 'dns_fallback_test.go:125: dns_fallback_assertion check=protection'
         flow = ('snell_v5_test.go:250: snell_v5_flow id=12 udp_port=42000 echo_port=43100 written=1200 received=0 '
                 'phase=read timeout=true elapsed_ms=5000')
         output = [
-            (dns, dns_test, bind), (dns, dns_test, check), (snell, snell_test, flow),
+            (dns, dns_test, bind), (dns, dns_test, retry_close), (dns, dns_test, check), (snell, snell_test, flow),
             (dns, dns_test, bind + ' password=' + MARKER),
             (dns, 'TestOther', check), (PACKAGE, snell_test, flow),
             (snell, snell_test, flow.replace('phase=read', 'phase=' + MARKER)),
@@ -205,7 +206,8 @@ class EvidenceTests(unittest.TestCase):
             self.assertEqual(log.read_bytes(), saved)
             name = 'commands/full-test.protocol-observations.jsonl'
             projected = (public / name).read_bytes()
-            self.assertEqual([json.loads(line)['Output'].rstrip() for line in projected.splitlines()], [bind, check, flow])
+            self.assertEqual([json.loads(line)['Output'].rstrip() for line in projected.splitlines()],
+                             [bind, retry_close, check, flow])
             self.assertNotIn(MARKER.encode(), (public / 'commands/full-test.failures.jsonl').read_bytes())
             self.assertIn(bind.encode(), (public / 'commands/full-test.failures.jsonl').read_bytes())
             manifest = json.loads((public / 'SHA256_MANIFEST.json').read_bytes())

@@ -256,7 +256,7 @@ def safe_output(line):
 
 DNS_FALLBACK_RESULT = r'(?:ok|timeout|socket_error|error) errno=\d{1,10}'
 DNS_FALLBACK_FIELDS = (
-    r'dns_fallback_stage stage=(?:tcp_bind|tcp_ready|tcp_shutdown|tcp_serve|udp_bind|udp_ready|udp_shutdown|udp_serve|'
+    r'dns_fallback_stage stage=(?:tcp_bind|tcp_retry_close|tcp_ready|tcp_shutdown|tcp_serve|udp_bind|udp_ready|udp_shutdown|udp_serve|'
     r'underlay_begin|engine_start|lookup) port=\d{1,5} result=' + DNS_FALLBACK_RESULT,
     r'dns_fallback_reply network=(?:udp|tcp) id=\d{1,5} tc=(?:true|false) rcode=\d{1,4} answers=\d{1,5} result='
     + DNS_FALLBACK_RESULT,
