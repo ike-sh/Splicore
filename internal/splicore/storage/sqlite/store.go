@@ -25,14 +25,23 @@ type Options struct {
 	// CredentialKinds is resolved from compiled protocol metadata at composition.
 	CredentialKinds func(access.ProtocolKey) ([]access.CredentialKind, error)
 	ValidateInbound func(access.Inbound) error
+	// OnIntegrityFailure seals the owning application when a database commit
+	// cannot be durably paired with its independent acknowledgement witness.
+	OnIntegrityFailure func()
 }
 type Store struct {
-	db        *sql.DB
-	lock      *os.File
-	options   Options
-	write     sync.Mutex
-	closeOnce sync.Once
-	closeErr  error
+	db                  *sql.DB
+	lock                *os.File
+	path                string
+	options             Options
+	write               sync.Mutex
+	integrityMu         sync.RWMutex
+	integrityErr        error
+	witness             commitWitness
+	persistWitness      func(string, *commitWitness, commitWitness) error
+	afterDatabaseCommit func()
+	closeOnce           sync.Once
+	closeErr            error
 }
 
 var _ ports.Repository = (*Store)(nil)
@@ -45,10 +54,15 @@ func Open(ctx context.Context, path string, opts Options) (*Store, error) {
 	if err := privateDirectory(filepath.Dir(path)); err != nil {
 		return nil, err
 	}
-	for _, suffix := range []string{"", "-wal", "-shm", ".lock"} {
+	for _, suffix := range []string{"", "-wal", "-shm", ".lock", witnessSuffix, pendingSuffix} {
 		if err := safeFile(path + suffix); err != nil {
 			return nil, err
 		}
+	}
+	_, statErr := os.Lstat(path)
+	fresh := os.IsNotExist(statErr)
+	if statErr != nil && !fresh {
+		return nil, identity.Err(identity.Unavailable, "cannot inspect database file")
 	}
 	lock, err := os.OpenFile(path+".lock", os.O_CREATE|os.O_RDWR, 0o600)
 	if err != nil {
@@ -58,13 +72,32 @@ func Open(ctx context.Context, path string, opts Options) (*Store, error) {
 		lock.Close()
 		return nil, identity.Err(identity.Unavailable, "installation is already owned by another process")
 	}
-	s := &Store{lock: lock, options: opts}
+	s := &Store{lock: lock, path: path, options: opts, persistWitness: persistCommitWitness}
 	failed := true
 	defer func() {
 		if failed {
 			s.Close()
 		}
 	}()
+	if pending, pendingErr := pendingWitnessExists(path); pendingErr != nil || pending {
+		return nil, integrityUnverified()
+	}
+	if fresh {
+		if _, witnessErr := os.Lstat(path + witnessSuffix); witnessErr == nil || !os.IsNotExist(witnessErr) {
+			return nil, integrityUnverified()
+		}
+	} else {
+		s.witness, err = readWitness(path + witnessSuffix)
+		if err != nil {
+			return nil, integrityUnverified()
+		}
+		// Reject a rolled-back or altered logical generation through a
+		// read-only handle before journal-mode setup, migration, or writable
+		// SQLite recovery can change the retained evidence.
+		if err = verifyExistingWitnessReadOnly(ctx, path, s.witness); err != nil {
+			return nil, integrityUnverified()
+		}
+	}
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
 	if err != nil {
 		return nil, identity.Err(identity.Unavailable, "cannot open database file")
@@ -97,10 +130,22 @@ func Open(ctx context.Context, path string, opts Options) (*Store, error) {
 	if count != 1 {
 		return nil, identity.Err(identity.Corrupt, "invalid installation identity count")
 	}
+	if fresh {
+		state, stateErr := databaseWitnessState(ctx, s.db, true)
+		if stateErr != nil {
+			return nil, identity.Err(identity.Corrupt, "initial committed state cannot be witnessed")
+		}
+		s.witness = initialWitness(state, witnessLineageNative, witnessKindInitial)
+		if err = s.persistWitness(path, nil, s.witness); err != nil {
+			return nil, identity.Err(identity.Unavailable, "initial commit witness persistence failed")
+		}
+	} else if _, err = verifyWitnessAgainst(ctx, s.db, s.witness, true); err != nil {
+		return nil, integrityUnverified()
+	}
 	if _, err = s.State(ctx); err != nil {
 		return nil, err
 	}
-	for _, suffix := range []string{"", "-wal", "-shm", ".lock"} {
+	for _, suffix := range []string{"", "-wal", "-shm", ".lock", witnessSuffix, pendingSuffix} {
 		if err = safeFile(path + suffix); err != nil {
 			return nil, err
 		}
@@ -126,6 +171,9 @@ func (s *Store) Close() error {
 
 func (s *Store) State(ctx context.Context) (ports.State, error) {
 	var out ports.State
+	if err := s.integrityFailure(); err != nil {
+		return out, err
+	}
 	var schema string
 	err := s.db.QueryRowContext(ctx, `SELECT n.id,s.committed_revision,m.value,
  (SELECT count(*) FROM transactions WHERE state='pending')
@@ -196,12 +244,19 @@ func (s *Store) Transact(ctx context.Context, expected identity.Revision, actor 
 	op := identity.Transaction{ID: id, State: identity.Pending, BaseRevision: expected, TargetRevision: next, Actor: actor, CreatedAt: now, UpdatedAt: now}
 	s.write.Lock()
 	defer s.write.Unlock()
+	if err = s.admitMutation(ctx); err != nil {
+		return op, err
+	}
 	_, err = s.db.ExecContext(ctx, "INSERT INTO transactions(id,state,base_revision,target_revision,principal,request_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)", op.ID, op.State, expected, next, actor.Principal, actor.RequestID, utc(now), utc(now))
 	if err != nil {
 		return op, storageError(err)
 	}
 	err = s.apply(ctx, op, fn)
 	if err != nil {
+		var integrity *identity.Error
+		if errors.As(err, &integrity) && integrity.Code == identity.StorageIntegrityUnverified && s.integrityFailure() != nil {
+			return op, err
+		}
 		code := identity.Unavailable
 		var de *identity.Error
 		if errors.As(err, &de) {
@@ -250,7 +305,19 @@ func (s *Store) apply(ctx context.Context, op identity.Transaction, fn func(port
 	if _, err = tx.ExecContext(ctx, "UPDATE transactions SET state='committed',updated_at=? WHERE id=? AND state='pending'", utc(time.Now()), op.ID); err != nil {
 		return storageError(err)
 	}
-	return storageError(tx.Commit())
+	digest, err := logicalStateDigest(ctx, tx)
+	if err != nil {
+		return storageError(err)
+	}
+	if err = tx.Commit(); err != nil {
+		// SQLite commit errors can be outcome-ambiguous. Keep the older witness
+		// and seal admission rather than writing a misleading failed journal row.
+		return s.markIntegrityFailure()
+	}
+	if s.persistWitness == nil { // Same-package historical migration fixture only.
+		return nil
+	}
+	return s.publishWitness(op, digest)
 }
 
 func safeCommandError(err error) error {

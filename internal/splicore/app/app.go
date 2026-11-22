@@ -67,7 +67,7 @@ func ServeWithReady(ctx context.Context, c config.Config, ready func() error) (e
 			return nil, err
 		}
 		return entry.Metadata().CredentialKinds, nil
-	}})
+	}, OnIntegrityFailure: cancel})
 	if err != nil {
 		return err
 	}

@@ -41,6 +41,16 @@ func MaintenanceBackup(ctx context.Context, source, destination string) (int, er
 	if err = privateDirectory(filepath.Dir(destination)); err != nil {
 		return 0, err
 	}
+	for _, suffix := range []string{"", witnessSuffix, pendingSuffix} {
+		if err = safeFile(destination + suffix); err != nil {
+			return 0, err
+		}
+	}
+	for _, suffix := range []string{witnessSuffix, pendingSuffix} {
+		if _, statErr := os.Lstat(destination + suffix); statErr == nil || !os.IsNotExist(statErr) {
+			return 0, fmt.Errorf("backup destination and witness must be new")
+		}
+	}
 	f, err := os.OpenFile(destination, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if err != nil {
 		return 0, fmt.Errorf("backup destination must be new")
@@ -50,6 +60,10 @@ func MaintenanceBackup(ctx context.Context, source, destination string) (int, er
 	defer func() {
 		if !complete {
 			os.Remove(destination)
+			os.Remove(destination + witnessSuffix)
+			// A retained pending file would correctly block opening an otherwise
+			// incomplete backup, but the incomplete destination is removed here.
+			os.Remove(destination + pendingSuffix)
 		}
 	}()
 	u := url.URL{Scheme: "file", Path: filepath.ToSlash(source)}
@@ -71,6 +85,19 @@ func MaintenanceBackup(ctx context.Context, source, destination string) (int, er
 	if err != nil || n < 1 || n > version.DatabaseSchema {
 		return 0, fmt.Errorf("backup source schema incompatible")
 	}
+	var sourceWitness *commitWitness
+	if pending, pendingErr := pendingWitnessExists(source); pendingErr != nil || pending {
+		return 0, fmt.Errorf("backup source witness requires review")
+	}
+	witness, witnessErr := readWitness(source + witnessSuffix)
+	if witnessErr == nil {
+		if _, verifyErr := verifyWitnessAgainst(ctx, db, witness, true); verifyErr != nil {
+			return 0, fmt.Errorf("backup source witness mismatch")
+		}
+		sourceWitness = &witness
+	} else if !os.IsNotExist(witnessErr) {
+		return 0, fmt.Errorf("backup source witness invalid")
+	}
 	if _, err = db.ExecContext(ctx, "VACUUM INTO ?", destination); err != nil {
 		return 0, fmt.Errorf("SQLite snapshot failed")
 	}
@@ -83,6 +110,26 @@ func MaintenanceBackup(ctx context.Context, source, destination string) (int, er
 	}
 	defer f.Close()
 	if err = f.Sync(); err != nil {
+		return 0, err
+	}
+	if sourceWitness != nil {
+		u, urlErr := readOnlyDatabaseURL(destination)
+		if urlErr != nil {
+			return 0, urlErr
+		}
+		backupDB, openErr := sql.Open("sqlite", u)
+		if openErr != nil {
+			return 0, openErr
+		}
+		_, verifyErr := verifyWitnessAgainst(ctx, backupDB, *sourceWitness, true)
+		closeErr := backupDB.Close()
+		if verifyErr != nil || closeErr != nil {
+			return 0, fmt.Errorf("backup snapshot does not match commit witness")
+		}
+		if err = persistCommitWitness(destination, nil, *sourceWitness); err != nil {
+			return 0, fmt.Errorf("backup witness persistence failed")
+		}
+	} else if err = syncParentDirectory(filepath.Dir(destination)); err != nil {
 		return 0, err
 	}
 	complete = true

@@ -64,6 +64,31 @@ owned by that account. The command refuses to overwrite an existing key. Set
 the bootstrap `key_file` to that path; startup loads it without creating a key.
 Preserve the original key with the database during backup or recovery.
 
+## Commit-witness integrity and legacy upgrade
+
+Every new database has a durable acknowledgement witness beside `state.db`.
+Inspect a stopped or running installation without changing its trust state:
+
+```sh
+splicore state integrity --source /var/lib/splicore/state.db
+```
+
+Startup rejects a missing, damaged, rolled-back, ahead, or content-mismatched
+witness with `storage_integrity_unverified` before restoring listeners. For a
+pre-witness Schema 8 installation, stop the service, retain a coherent database
+backup and matching Vault key, inspect the state, and explicitly establish a
+legacy baseline:
+
+```sh
+splicore state establish-witness \
+  --source /var/lib/splicore/state.db --acknowledge-current-state
+```
+
+This command never overwrites existing witness evidence. Its
+`legacy_baseline` lineage remains visible after later commits and means the
+current state was explicitly accepted; it does not prove the earlier commit
+history. See [commit witness and storage integrity](architecture/STORAGE_INTEGRITY.md).
+
 `splicore vlessenc --auth mlkem768 --mode random --handshake 0rtt --ticket 600s`
 explicitly outputs private server `decryption` and public client `encryption`
 strings. Store this output privately. See [VLESS Encryption](protocol/VLESS_ENCRYPTION.md)

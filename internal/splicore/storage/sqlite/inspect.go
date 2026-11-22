@@ -19,10 +19,17 @@ func Inspect(ctx context.Context, path string, opts Options) (*Store, error) {
 	if !filepath.IsAbs(path) || statErr != nil || !info.IsDir() || privateDirectory(dir) != nil {
 		return nil, identity.Err(identity.Invalid, "private directory owner or permissions invalid")
 	}
-	for _, suffix := range []string{"", "-wal", "-shm", ".lock"} {
+	for _, suffix := range []string{"", "-wal", "-shm", ".lock", witnessSuffix, pendingSuffix} {
 		if err := safeFile(path + suffix); err != nil {
 			return nil, err
 		}
+	}
+	if pending, err := pendingWitnessExists(path); err != nil || pending {
+		return nil, integrityUnverified()
+	}
+	witness, err := readWitness(path + witnessSuffix)
+	if err != nil {
+		return nil, integrityUnverified()
 	}
 	u := url.URL{Scheme: "file", Path: filepath.ToSlash(path)}
 	if filepath.VolumeName(path) != "" {
@@ -34,11 +41,14 @@ func Inspect(ctx context.Context, path string, opts Options) (*Store, error) {
 		return nil, storageError(err)
 	}
 	db.SetMaxOpenConns(1)
-	s := &Store{db: db, options: opts}
+	s := &Store{db: db, path: path, options: opts, witness: witness, persistWitness: persistCommitWitness}
 	fail := func(err error) (*Store, error) { _ = s.Close(); return nil, err }
 	var integrity string
 	if db.QueryRowContext(ctx, "PRAGMA quick_check").Scan(&integrity) != nil || integrity != "ok" {
 		return fail(identity.Err(identity.Corrupt, "invalid or corrupt committed state"))
+	}
+	if _, err = verifyWitnessAgainst(ctx, db, witness, true); err != nil {
+		return fail(integrityUnverified())
 	}
 	state, err := s.State(ctx)
 	if err != nil {

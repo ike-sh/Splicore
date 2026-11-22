@@ -21,6 +21,7 @@ func credentialClockFixture(t *testing.T, s *Store, binding, credential identity
 	if _, err := s.db.ExecContext(ctx, "UPDATE credentials SET created_at=?,updated_at=? WHERE id=?", utc(credential.CreatedAt), utc(credential.UpdatedAt), b.CredentialID); err != nil {
 		t.Fatal(err)
 	}
+	rebaselineFixtureForTest(t, s)
 	got, err := s.Binding(ctx, b.InboundID)
 	if err != nil || got.Validate() != nil {
 		t.Fatal("invalid initial binding", err)
@@ -171,8 +172,8 @@ func TestCredentialRotationRejectsCorruptCommittedStamp(t *testing.T) {
 				op, err := s.Transact(ctx, 1, actor(t), func(w ports.Writer) error {
 					return w.(ports.UserWriter).RotateBindingCredential(b, c, 1)
 				})
-				if !codeIs(err, identity.Corrupt) || op.State != identity.Failed {
-					t.Fatal("corrupt committed Stamp was accepted", err, op.State)
+				if !codeIs(err, identity.StorageIntegrityUnverified) || op.State != identity.Pending {
+					t.Fatal("unwitnessed corrupt committed Stamp was not sealed", err, op.State)
 				}
 				if readCredentialClockRows(t, s, b) != before {
 					t.Fatal("failed rotation partially mutated or silently repaired committed state")
@@ -184,9 +185,12 @@ func TestCredentialRotationRejectsCorruptCommittedStamp(t *testing.T) {
 				} else if _, err := s.Bindings(ctx, b.InboundID); !codeIs(err, identity.Corrupt) {
 					t.Fatal("corrupt binding reader was weakened", err)
 				}
-				state, err := s.State(ctx)
-				if err != nil || state.Revision != 1 || state.PendingTransactions != 0 {
-					t.Fatal("failed rotation changed generation or left pending journal", err)
+				var global, pending int
+				if err := s.db.QueryRowContext(ctx, `SELECT (SELECT committed_revision FROM settings WHERE singleton=1),(SELECT count(*) FROM transactions WHERE state='pending')`).Scan(&global, &pending); err != nil || global != 1 || pending != 0 {
+					t.Fatal("failed rotation changed generation or left pending journal", err, global, pending)
+				}
+				if _, err := s.State(ctx); !codeIs(err, identity.StorageIntegrityUnverified) {
+					t.Fatal("integrity failure was not latched", err)
 				}
 			})
 		}
@@ -203,6 +207,7 @@ func TestCredentialRotationSQLFailureRollsBackRelatedRows(t *testing.T) {
 	if _, err := s.db.ExecContext(ctx, "CREATE TRIGGER reject_clock_binding_update BEFORE UPDATE ON bindings BEGIN SELECT RAISE(ABORT, 'clock fixture binding failure'); END"); err != nil {
 		t.Fatal(err)
 	}
+	rebaselineFixtureForTest(t, s)
 	op, err := s.Transact(ctx, 1, actor(t), func(w ports.Writer) error {
 		return w.(ports.UserWriter).RotateBindingCredential(b, c, 1)
 	})

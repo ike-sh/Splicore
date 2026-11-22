@@ -127,6 +127,9 @@ func writeError(w http.ResponseWriter, err error) {
 		case identity.PortConflict:
 			status = http.StatusConflict
 			message = "listener port is already in use"
+		case identity.StorageIntegrityUnverified:
+			status = http.StatusServiceUnavailable
+			message = "storage integrity unverified"
 		}
 	}
 	writeJSON(w, status, Problem{Code: code, Message: message, RequestID: requestID(), CurrentRevision: current})

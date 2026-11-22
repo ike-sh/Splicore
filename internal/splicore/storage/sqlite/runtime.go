@@ -32,6 +32,9 @@ func (s *Store) BeginRuntimeOperation(ctx context.Context, expected identity.Rev
 	op := identity.Transaction{ID: id, State: identity.Pending, BaseRevision: expected, TargetRevision: next, Actor: actor, CreatedAt: now, UpdatedAt: now}
 	s.write.Lock()
 	defer s.write.Unlock()
+	if err = s.admitMutation(ctx); err != nil {
+		return op, err
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return op, storageError(err)
@@ -60,6 +63,9 @@ func (s *Store) BeginRuntimeOperation(ctx context.Context, expected identity.Rev
 func (s *Store) CommitOperation(ctx context.Context, op identity.Transaction, fn func(ports.Writer) error) error {
 	s.write.Lock()
 	defer s.write.Unlock()
+	if err := s.admitMutation(ctx); err != nil {
+		return err
+	}
 	var count int
 	if err := s.db.QueryRowContext(ctx, "SELECT count(*) FROM transactions WHERE id=? AND state='pending' AND base_revision=? AND target_revision=? AND operation IN ('snell_create','runtime_create','runtime_replace')", op.ID, op.BaseRevision, op.TargetRevision).Scan(&count); err != nil {
 		return storageError(err)
@@ -72,12 +78,18 @@ func (s *Store) CommitOperation(ctx context.Context, op identity.Transaction, fn
 func (s *Store) FailOperation(ctx context.Context, op identity.Transaction) error {
 	s.write.Lock()
 	defer s.write.Unlock()
+	if err := s.admitMutation(ctx); err != nil {
+		return err
+	}
 	_, e := s.db.ExecContext(ctx, "UPDATE transactions SET state='failed',failure_code='unavailable',updated_at=? WHERE id=? AND state='pending' AND operation IN ('snell_create','runtime_create','runtime_replace')", utc(time.Now()), op.ID)
 	return storageError(e)
 }
 func (s *Store) RecoverPending(ctx context.Context) error {
 	s.write.Lock()
 	defer s.write.Unlock()
+	if err := s.admitMutation(ctx); err != nil {
+		return err
+	}
 	// Owned processes are gone at restart; committed rows reconstruct both creates and replacements.
 	_, err := s.db.ExecContext(ctx, "UPDATE transactions SET state='failed',failure_code='unavailable',updated_at=? WHERE state='pending' AND operation IN ('snell_create','runtime_create','runtime_replace')", utc(time.Now()))
 	return storageError(err)

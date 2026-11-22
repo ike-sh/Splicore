@@ -16,6 +16,8 @@ BASE = [
     'internal/splicore/clientruntime/TestProviderFetchProtectedHTTPAndHTTPS',
     'internal/splicore/streamtransport/hysteria/TestMasqueradeProtectedDialAndNoDefault',
     'internal/splicore/storage/sqlite/TestInspectIsReadOnly',
+    'internal/splicore/storage/sqlite/TestCommitWitnessFailClosed',
+    'internal/splicore/storage/sqlite/TestCommitWitnessLegacyLifecycle',
     'internal/splicore/storage/sqlite/TestPersistenceReliability',
     'protocol/vless/encryption/TestEncryptedStreams',
     'internal/splicore/protocol/socks5/TestPhase20NegotiationAndPartialFrames',

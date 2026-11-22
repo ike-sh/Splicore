@@ -29,6 +29,9 @@ func TestNetworkSchemaFiveMigrationPersistenceAndCorruptionDefense(t *testing.T)
 	if err := os.Chmod(path, 0600); err != nil {
 		t.Fatal(err)
 	}
+	if _, err = EstablishCommitWitness(ctx, path, true); err != nil {
+		t.Fatal("explicit legacy migration and witness", err)
+	}
 	s, err := Open(ctx, path, options(t))
 	if err != nil {
 		t.Fatal(err)

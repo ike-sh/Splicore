@@ -49,6 +49,9 @@ func TestLegacyHostSchemaInertAcrossUpgrades(t *testing.T) {
 					if err = os.Chmod(path, 0600); err != nil {
 						t.Fatal(err)
 					}
+					if _, err = EstablishCommitWitness(ctx, path, true); err != nil {
+						t.Fatal("explicit legacy migration and witness", err)
+					}
 				}
 				s, err := Open(ctx, path, options(t))
 				if err != nil {
@@ -63,6 +66,7 @@ func TestLegacyHostSchemaInertAcrossUpgrades(t *testing.T) {
 				if _, err = s.db.Exec(`CREATE TRIGGER no_legacy_host_write BEFORE UPDATE ON client_host_profiles BEGIN SELECT RAISE(ABORT,'legacy table is inert'); END`); err != nil {
 					t.Fatal(err)
 				}
+				rebaselineFixtureForTest(t, s)
 				state, err := s.ClientState(ctx)
 				if err != nil {
 					t.Fatal(err)

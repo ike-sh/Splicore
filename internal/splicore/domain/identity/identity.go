@@ -33,6 +33,7 @@ const (
 	PortConflict                 Code = "port_conflict"
 	Unavailable                  Code = "unavailable"
 	Corrupt                      Code = "corrupt_state"
+	StorageIntegrityUnverified   Code = "storage_integrity_unverified"
 )
 
 // Error contains only fixed, safe messages; never attach untrusted inputs.

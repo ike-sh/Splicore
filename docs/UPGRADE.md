@@ -23,9 +23,19 @@ sudo /usr/local/bin/splicore state backup \
 ```
 
 Preserve the master key and bootstrap in the same protected backup generation,
-then restart the service. Existing snapshot destinations are rejected. Backups
-contain credentials. A live WAL database must not be backed up by copying only
-its main database file.
+then restart the service. A verified source produces both `state.db` and
+`state.db.witness`; preserve them together. Existing snapshot destinations are
+rejected. Backups contain credentials. A live WAL database must not be backed
+up by copying only its main database file.
+
+An installation created before commit witnesses needs an explicit baseline
+before the new Core will start. While the service is stopped, first retain the
+old coherent backup and Vault key, then run the new binary's read-only
+`state integrity` command and, only after accepting that current snapshot, run
+`state establish-witness --acknowledge-current-state`. The resulting
+`legacy_baseline` does not claim proof of older acknowledgements. A damaged or
+mismatched existing witness is evidence to preserve, not a baseline to replace.
+See [storage integrity](architecture/STORAGE_INTEGRITY.md).
 
 Retired external-engine or unsupported transport-mask intent is rejected during
 upgrade; disabled records also count. Resolve it through the previous installation

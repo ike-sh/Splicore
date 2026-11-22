@@ -145,8 +145,8 @@ func TestBindingEnabledClockRollbackRejectsCorruptStamp(t *testing.T) {
 			op, err := s.Transact(ctx, 1, actor(t), func(w ports.Writer) error {
 				return w.(ports.BindingWriter).SetBindingEnabled(b.ID, false, 1)
 			})
-			if !codeIs(err, identity.Corrupt) || op.State != identity.Failed {
-				t.Fatal("corrupt committed stamp was overwritten", err)
+			if !codeIs(err, identity.StorageIntegrityUnverified) || op.State != identity.Pending {
+				t.Fatal("unwitnessed corrupt committed stamp was not sealed", err)
 			}
 			var enabled bool
 			var revision identity.Revision
@@ -157,9 +157,12 @@ func TestBindingEnabledClockRollbackRejectsCorruptStamp(t *testing.T) {
 			if !enabled || revision != 1 || created != tc.created || updated != tc.updated {
 				t.Fatal("rejected mutation changed committed binding")
 			}
-			state, err := s.State(ctx)
-			if err != nil || state.Revision != 1 || state.PendingTransactions != 0 {
-				t.Fatal("rejected mutation partially committed or left pending journal", err)
+			var global, pending int
+			if err := s.db.QueryRowContext(ctx, `SELECT (SELECT committed_revision FROM settings WHERE singleton=1),(SELECT count(*) FROM transactions WHERE state='pending')`).Scan(&global, &pending); err != nil || global != 1 || pending != 0 {
+				t.Fatal("rejected mutation partially committed or left pending journal", err, global, pending)
+			}
+			if _, err := s.State(ctx); !codeIs(err, identity.StorageIntegrityUnverified) {
+				t.Fatal("integrity failure was not latched", err)
 			}
 			if _, err := s.Bindings(ctx, b.InboundID); !codeIs(err, identity.Corrupt) {
 				t.Fatal("corrupt state was suppressed", err)
