@@ -10,9 +10,10 @@ and integrators.
 
 ## Latest stable release
 
-Download the latest public release from GitHub. The v0.6.5 notes document
-managed HTTP Proxy, SOCKS5 TCP and UDP, and the native amd64 qualification scope.
-[Latest release](https://github.com/ike-sh/Splicore/releases/latest) · [v0.6.5 notes](docs/releases/v0.6.5.md)
+Download the latest public release from GitHub. The v0.6.6 notes document the
+DNS fixture repair, TrustTunnel H2/H3 reliability fixes, P3 Commit Witness and
+the native amd64 qualification scope.
+[Latest release](https://github.com/ike-sh/Splicore/releases/latest) · [v0.6.6 notes](docs/releases/v0.6.6.md)
 
 ## Downloads
 
@@ -20,17 +21,19 @@ Splicore uses the `AMD64_ONLY` support policy. Linux amd64 and Windows amd64
 are the official CI and release targets. ARM64 packages in v0.6.4 are historical
 `BUILD_ONLY` assets. Formal ARM64 support is paused.
 
-| Platform | v0.6.5 archive | Release archive qualification |
+| Platform | v0.6.6 archive | Release archive qualification |
 | --- | --- | --- |
-| Linux amd64 | `splicore-v0.6.5-linux-amd64.tar.gz` | Native tests, Linux Race and downloaded smoke |
-| Windows amd64 | `splicore-v0.6.5-windows-amd64.zip` | Native tests, Windows Race and downloaded smoke |
+| Linux amd64 | `splicore-v0.6.6-linux-amd64.tar.gz` | Native tests, Linux Race and downloaded smoke |
+| Windows amd64 | `splicore-v0.6.6-windows-amd64.zip` | Native tests, Windows Race and downloaded smoke |
 
 Download `SHA256SUMS` from the same release as your archive and verify the hash
 before extraction. With a single archive on Linux, use
 `sha256sum --ignore-missing -c SHA256SUMS`. On Windows, compare
-`Get-FileHash -Algorithm SHA256 .\splicore-v0.6.5-windows-amd64.zip` with the
+`Get-FileHash -Algorithm SHA256 .\splicore-v0.6.6-windows-amd64.zip` with the
 matching line. `RELEASE_MANIFEST.json` records the source identity, platforms
-and checksums. [Latest release](https://github.com/ike-sh/Splicore/releases/latest)
+and checksums. The corresponding offline source archive is
+`splicore-v0.6.6-source.tar.gz`.
+[Latest release](https://github.com/ike-sh/Splicore/releases/latest)
 
 Each platform archive includes one executable, build metadata, examples and
 licenses. The corresponding source archive includes vendored dependencies and
@@ -118,18 +121,18 @@ profiles, dependencies, and limits. The direction audit records runtime
 traffic, lifecycle, independent peer coverage and remaining gaps for each
 profile. [Inbound and outbound audit](docs/architecture/INBOUND_OUTBOUND_MATRIX.md)
 
-## Changes in v0.6.5
+## Changes in v0.6.6
 
-- **SOCKS5.** Managed accounts serve TCP CONNECT and optional UDP ASSOCIATE.
-  Use `settings.udp: true` to enable UDP, then import an exported binding
-  or enable UDP on the corresponding remote node. [UDP settings](docs/CONFIGURATION.md#managed-socks5)
-- **HTTP Proxy.** Managed Basic authentication covers CONNECT and ordinary
-  HTTP forwarding with one exchange per connection. [HTTP configuration](docs/CONFIGURATION.md#managed-http-proxy)
-- **Release validation.** The Tag workflow checks the five Draft assets and
-  runs native Linux and Windows smoke from the downloaded contents before
-  publishing. [Qualification contract](docs/releases/QUALIFICATION.md)
+- **DNS qualification fixture.** Paired TCP/UDP port ownership, bounded retry,
+  cleanup and diagnostics are corrected without changing the unresolved
+  historical DNS conclusion.
+- **TrustTunnel.** H2/H3 CONNECT cancellation ownership prevents cancelled
+  streams from being returned and joins in-flight cancellation callbacks.
+- **Storage integrity.** The P3 Commit Witness detects Revision, content or
+  committed-transaction disagreement and fails closed. New installations begin
+  with a Revision-0 Witness; SQLite schema remains 8.
 
-[Release notes and historical findings](docs/releases/v0.6.5.md)
+[Release notes and historical findings](docs/releases/v0.6.6.md)
 
 ## Build from source
 
@@ -147,11 +150,11 @@ their own gates. [Build and installation guide](docs/INSTALLATION.md)
   OS crash recovery are `NOT_EXECUTED`.
 - The historical Snell v5 IPv6 Race timeout, Windows protected DNS fallback
   failure, Mieru reconnect failure and TrustTunnel HTTP/2 Race finding retain
-  their original conclusions. [Known limits](docs/releases/v0.6.5.md#known-limits)
+  their original conclusions. [Known limits](docs/releases/v0.6.6.md#known-limits-and-open-investigations)
 - Linux TUN requires a kernel device and appropriate network privileges.
   Windows TUN requires an operator-supplied Wintun driver/DLL and privileges.
   Physical TUN/Wintun, Android/v2rayNG interoperability, and extended soak
-  tests remain outside the release qualification. [Release limits](docs/releases/v0.6.5.md#known-limits)
+  tests remain outside the release qualification. [Release limits](docs/releases/v0.6.6.md#known-limits-and-open-investigations)
 
 ## Documentation
 
@@ -159,5 +162,5 @@ their own gates. [Build and installation guide](docs/INSTALLATION.md)
 - [CLI](docs/CLI.md) and [local API](docs/api/README.md)
 - [Architecture](docs/ARCHITECTURE.md) and [Capability Matrix](docs/architecture/CAPABILITY_MATRIX.md)
 - [Operations](docs/OPERATIONS.md), [contributor workflow](docs/DEVELOPMENT.md) and [project roadmap](docs/ROADMAP.md)
-- [Release notes](docs/releases/v0.6.5.md) and [changelog](CHANGELOG.md)
+- [Release notes](docs/releases/v0.6.6.md) and [changelog](CHANGELOG.md)
 - [Security policy](SECURITY.md) and [license](LICENSE)
