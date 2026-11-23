@@ -140,6 +140,56 @@ type naiveWriteGate struct {
 	entered, release chan struct{}
 }
 
+// A transport response Close may wait on a connection-wide write lock even
+// after stream cancellation has already interrupted its Read. Full Close must
+// join the read pump without inheriting that unrelated carrier lock wait.
+type naiveBlockingResponseClose struct {
+	readEntered, stopRead, closeEntered, releaseClose chan struct{}
+	readOnce, closeOnce                               sync.Once
+}
+
+func (r *naiveBlockingResponseClose) Read([]byte) (int, error) {
+	r.readOnce.Do(func() { close(r.readEntered) })
+	<-r.stopRead
+	return 0, net.ErrClosed
+}
+func (r *naiveBlockingResponseClose) Close() error {
+	r.closeOnce.Do(func() { close(r.closeEntered) })
+	<-r.releaseClose
+	return nil
+}
+
+func TestNaiveFullCloseIndependentOfBlockedResponseClose(t *testing.T) {
+	r := &naiveBlockingResponseClose{
+		readEntered: make(chan struct{}), stopRead: make(chan struct{}),
+		closeEntered: make(chan struct{}), releaseClose: make(chan struct{}),
+	}
+	stopOnce := sync.OnceFunc(func() { close(r.stopRead) })
+	releaseOnce := sync.OnceFunc(func() { close(r.releaseClose) })
+	defer stopOnce()
+	defer releaseOnce()
+	conn := newBodyConn(r, io.Discard, func() error { return nil }, func(bool) { stopOnce() }, streamAddr("a"), streamAddr("b"), time.Hour)
+	halfCloseWait(t, r.readEntered)
+	closed := make(chan error, 1)
+	go func() { closed <- conn.Close() }()
+	halfCloseWait(t, r.closeEntered)
+	select {
+	case err := <-closed:
+		if err != nil {
+			t.Fatal(err)
+		}
+		releaseOnce()
+		return
+	case <-time.After(time.Second):
+		t.Error("full Close inherited a blocked transport response Close")
+	}
+	releaseOnce()
+	select {
+	case <-closed:
+	case <-time.After(time.Second):
+	}
+}
+
 func (w *naiveWriteGate) Write(p []byte) (int, error) {
 	close(w.entered)
 	<-w.release

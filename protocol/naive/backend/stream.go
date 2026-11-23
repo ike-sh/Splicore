@@ -202,7 +202,11 @@ func (c *bodyConn) terminate() {
 		if c.stop != nil {
 			c.stop(graceful)
 		}
-		_ = c.r.Close()
+		// Transport response cleanup can require a connection-wide write lock
+		// held by an unrelated stream. Local Close has already committed and stop
+		// must interrupt Read; return after joining the read pump while transport
+		// flow-control cleanup finishes independently.
+		go func() { _ = c.r.Close() }()
 	})
 }
 func (c *bodyConn) Close() error { c.terminate(); <-c.pumpDone; return nil }

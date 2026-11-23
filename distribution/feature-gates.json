@@ -224,12 +224,14 @@
           "TestNaiveBodyConnAPIState"
         ],
         "protocol/naive/backend/h2_closewrite_test.go": [
-          "TestNaiveH2CloseWriteIndependentOfCarrierWrite"
+          "TestNaiveH2CloseWriteIndependentOfCarrierWrite",
+          "TestNaiveH2CloseWriteRejectsCommittedCarrierFailure"
         ],
         "protocol/naive/backend/close_state_race_test.go": [
           "TestNaiveCloseWriteDuringFullCleanup",
           "TestNaiveCloseWriteAfterCarrierFailure",
           "TestNaiveCloseInterruptsPendingWriteAndHalfClose",
+          "TestNaiveFullCloseIndependentOfBlockedResponseClose",
           "TestNaivePaddedWriteAndCloseWrite"
         ]
       }

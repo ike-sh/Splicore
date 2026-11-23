@@ -2,6 +2,8 @@ package backend
 
 import (
 	"context"
+	"errors"
+	"io"
 	"net"
 	"os"
 	"runtime/pprof"
@@ -26,6 +28,36 @@ func (g *closeWriteTLSWriteGate) Write(b []byte) (int, error) {
 		<-g.release
 	}
 	return g.Conn.Write(b)
+}
+
+func TestNaiveH2CloseWriteRejectsCommittedCarrierFailure(t *testing.T) {
+	local, remote := net.Pipe()
+	carrier := &h2CarrierConn{Conn: local}
+	defer carrier.Close()
+	readDone := make(chan error, 1)
+	go func() {
+		var b [1]byte
+		_, err := carrier.Read(b[:])
+		readDone <- err
+	}()
+	if err := remote.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-readDone; err == nil {
+		t.Fatal("terminal carrier Read succeeded")
+	}
+	reader, writer := io.Pipe()
+	defer reader.Close()
+	request := &h2RequestBody{PipeReader: reader}
+	if err := h2FinishWrite(context.Background(), request, writer, carrier)(); !errors.Is(err, net.ErrClosed) {
+		t.Fatalf("CloseWrite after committed carrier failure = %T %v; want net.ErrClosed", err, err)
+	}
+	request.mu.Lock()
+	closed, failed := request.closed, request.failed
+	request.mu.Unlock()
+	if closed || failed != nil {
+		t.Fatalf("test requires lagging per-stream mirrors, got closed=%t failed=%v", closed, failed)
+	}
 }
 
 func TestNaiveH2CloseWriteIndependentOfCarrierWrite(t *testing.T) {

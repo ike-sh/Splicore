@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -369,11 +370,36 @@ func (s *pooledStream) setIdle(d time.Duration) {
 	}
 }
 
+type h2CarrierConn struct {
+	net.Conn
+	failed atomic.Bool
+}
+
+func (c *h2CarrierConn) Read(p []byte) (n int, err error) {
+	n, err = c.Conn.Read(p)
+	if err != nil {
+		c.failed.Store(true)
+	}
+	return
+}
+func (c *h2CarrierConn) Write(p []byte) (n int, err error) {
+	n, err = c.Conn.Write(p)
+	if err != nil {
+		c.failed.Store(true)
+	}
+	return
+}
+func (c *h2CarrierConn) Close() error {
+	c.failed.Store(true)
+	return c.Conn.Close()
+}
+
 type h2Connection struct {
-	client *http2.ClientConn
-	tcp    net.Conn
-	ctx    context.Context
-	config ClientConfig
+	client  *http2.ClientConn
+	tcp     net.Conn
+	carrier *h2CarrierConn
+	ctx     context.Context
+	config  ClientConfig
 }
 
 func newH2Connection(ctx, lifetime context.Context, config ClientConfig) (connection, error) {
@@ -416,9 +442,10 @@ func newH2Connection(ctx, lifetime context.Context, config ClientConfig) (connec
 		return nil, ErrProtocol
 	}
 	transport := &http2.Transport{DisableCompression: true, StrictMaxConcurrentStreams: true, MaxHeaderListSize: MaxHeaders}
-	client, err := transport.NewClientConn(conn)
+	carrier := &h2CarrierConn{Conn: conn}
+	client, err := transport.NewClientConn(carrier)
 	if err != nil {
-		_ = conn.Close()
+		_ = carrier.Close()
 		return nil, err
 	}
 	// Join any cancellation callback before handing ownership to the pool.
@@ -432,7 +459,7 @@ func newH2Connection(ctx, lifetime context.Context, config ClientConfig) (connec
 		_ = client.Close()
 		return nil, err
 	}
-	return &h2Connection{client: client, tcp: conn, ctx: lifetime, config: config}, nil
+	return &h2Connection{client: client, tcp: carrier, carrier: carrier, ctx: lifetime, config: config}, nil
 }
 func (h *h2Connection) alive() bool {
 	state := h.client.State()
@@ -466,6 +493,25 @@ func (r *h2RequestBody) finish(w *io.PipeWriter) error {
 		return io.ErrClosedPipe
 	}
 	return w.Close()
+}
+
+func h2FinishWrite(ctx context.Context, request *h2RequestBody, writer *io.PipeWriter, carrier *h2CarrierConn) func() error {
+	return func() error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		// x/net/http2 publishes ClientConn.closed before asynchronously closing
+		// request bodies. The carrier witness is committed by Read/Write/Close
+		// first and avoids both that mirror lag and ClientConn.State's write lock.
+		if carrier.failed.Load() {
+			return net.ErrClosed
+		}
+		err := request.finish(writer)
+		if carrier.failed.Load() {
+			return net.ErrClosed
+		}
+		return err
+	}
 }
 
 type h2ResponseBody struct {
@@ -510,12 +556,7 @@ func (h *h2Connection) open(ctx context.Context, authority string, headers http.
 		return nil, false, ErrProtocol
 	}
 	stop()
-	finishWrite := func() error {
-		if err := streamCtx.Err(); err != nil {
-			return err
-		}
-		return reader.finish(writer)
-	}
+	finishWrite := h2FinishWrite(streamCtx, reader, writer, h.carrier)
 	body := h2ResponseBody{ReadCloser: resp.Body, request: reader}
 	conn := newBodyConn(body, writer, finishWrite, func(bool) { cancel(); _ = reader.Close() }, h.tcp.LocalAddr(), h.tcp.RemoteAddr(), h.config.IdleTimeout)
 	return conn, padding, nil
