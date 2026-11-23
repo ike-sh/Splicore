@@ -116,14 +116,18 @@ func TestNaiveNativeManagedTCPAttributionAndOwnedLifecycle(t *testing.T) {
 						pc.Close()
 						t.Fatal("UDP accepted")
 					}
+					t.Cleanup(func() { _ = d.Close() })
 					anytlsTCP(t, d, target)
-					if err := d.Close(); err != nil {
-						t.Fatal(err)
-					}
+					// anytlsTCP closes the stream. Keep its carrier alive until
+					// the peer has processed that close: QUIC can retransmit a
+					// stream reset, but closing the carrier stops retransmission.
 					select {
 					case <-targetFinished:
 					case <-time.After(5 * time.Second):
 						t.Fatal("target fixture worker did not join")
+					}
+					if err := d.Close(); err != nil {
+						t.Fatal(err)
 					}
 					if h.BindingStats(in.Bindings[user].ID).Upload == 0 || h.BindingStats(in.Bindings[user].ID).Download == 0 {
 						t.Fatal("missing binding accounting")

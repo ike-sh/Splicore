@@ -340,6 +340,87 @@ func TestNaiveH3UploadEOFOwnership(t *testing.T) {
 	}
 }
 
+// h3AbortPacketGate is armed only after the last echo byte. It keeps the
+// carrier live while withholding client datagrams, then restores delivery.
+type h3AbortPacketGate struct {
+	net.PacketConn
+	armed   atomic.Bool
+	dropped chan struct{}
+	once    sync.Once
+}
+
+func (p *h3AbortPacketGate) WriteTo(b []byte, addr net.Addr) (int, error) {
+	if !p.armed.Load() {
+		return p.PacketConn.WriteTo(b, addr)
+	}
+	p.once.Do(func() { close(p.dropped) })
+	return len(b), nil
+}
+
+func TestNaiveH3StreamAbortReleasesTargetAfterPacketLoss(t *testing.T) {
+	target, received := halfCloseTarget(t, func(conn *net.TCPConn) error {
+		var b [1]byte
+		if _, err := io.ReadFull(conn, b[:]); err != nil {
+			return err
+		}
+		if _, err := conn.Write(b[:]); err != nil {
+			return err
+		}
+		_, err := io.Copy(io.Discard, conn)
+		return err
+	})
+	proxy, tc, server, traces := h3OwnershipServer(t, 2, nil, false)
+	var dials atomic.Int64
+	var gate *h3AbortPacketGate
+	client := newTestClient(t, "quic", proxy, tc, func(c *ClientConfig) {
+		c.Padding = "off"
+		packetSocket := c.PacketSocket
+		c.PacketSocket = func(ctx context.Context) (net.PacketConn, net.Addr, error) {
+			packet, remote, err := packetSocket(ctx)
+			if err != nil {
+				return nil, nil, err
+			}
+			gate = &h3AbortPacketGate{PacketConn: packet, dropped: make(chan struct{})}
+			return gate, remote, nil
+		}
+	}, &dials)
+	conn, err := client.Open(context.Background(), target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	trace := h3Trace(t, traces)
+	if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.Write([]byte{1}); err != nil {
+		t.Fatal(err)
+	}
+	var b [1]byte
+	if _, err := io.ReadFull(conn, b[:]); err != nil || b[0] != 1 {
+		t.Fatal("last echo", b[0], err)
+	}
+
+	gate.armed.Store(true)
+	defer gate.armed.Store(false)
+	if err := conn.Close(); err != nil {
+		t.Fatal(err)
+	}
+	halfCloseWait(t, gate.dropped)
+	h3AssertLive(t, server, trace, 1)
+	gate.armed.Store(false)
+
+	h3AssertReleased(t, server, trace, 0)
+	halfCloseResult(t, received)
+	if trace.target.halfCloses.Load() != 0 {
+		t.Fatal("stream abort was treated as a normal upload EOF")
+	}
+	transfer(t, client, echoTarget(t, "tcp", "127.0.0.1:0"), 64)
+	if dials.Load() != 1 {
+		t.Fatal("stream abort retired the shared carrier", dials.Load())
+	}
+}
+
 func TestNaiveH3IdleAdmissionMultiplexReuse(t *testing.T) {
 	for _, padding := range []string{"enabled", "off"} {
 		for _, terminal := range []string{"idle", "client-cancel", "connection-close", "server-shutdown"} {
