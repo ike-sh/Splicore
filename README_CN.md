@@ -6,12 +6,13 @@ sing-box 或 Mihomo 代理核心进程，也不提供桌面 UI。
 
 ## 下载和验证
 
-在 GitHub 选择最新公开版本及对应平台。v0.6.5 提供 Linux amd64 的
-`splicore-v0.6.5-linux-amd64.tar.gz` 和 Windows amd64 的
-`splicore-v0.6.5-windows-amd64.zip`。从同一个 Release 下载 `SHA256SUMS`。
+在 GitHub 选择最新公开版本及对应平台。v0.6.6 提供 Linux amd64 的
+`splicore-v0.6.6-linux-amd64.tar.gz` 和 Windows amd64 的
+`splicore-v0.6.6-windows-amd64.zip`，对应离线源码包为
+`splicore-v0.6.6-source.tar.gz`。从同一个 Release 下载 `SHA256SUMS`。
 Linux 可用 `sha256sum --ignore-missing -c SHA256SUMS`。Windows 使用
-`Get-FileHash -Algorithm SHA256 ./splicore-v0.6.5-windows-amd64.zip` 核对对应条目。
-[最新公开版本](https://github.com/ike-sh/Splicore/releases/latest) · [v0.6.5 发行说明](docs/releases/v0.6.5.md)
+`Get-FileHash -Algorithm SHA256 ./splicore-v0.6.6-windows-amd64.zip` 核对对应条目。
+[最新公开版本](https://github.com/ike-sh/Splicore/releases/latest) · [v0.6.6 发行说明](docs/releases/v0.6.6.md)
 解压后只有一个主程序 `splicore` / `splicore.exe`，以及许可证、示例、RUNNING.md
 和内部文件校验清单。运行不需要 Go 或 WSL。提供 SHA256，没有声称数字签名。
 
@@ -22,6 +23,11 @@ ARM64 官方支持暂停。v0.6.4 的 ARM64 发行包是历史 `BUILD_ONLY` 资�
 真实进程测试覆盖 Help/Version/Check/Run、VLESS 传输、HTTP Proxy、SOCKS5 TCP/UDP、
 错误凭据拒绝、活跃连接关闭、端口释放及 SQLite 重启恢复。两平台均执行候选下载后
 Smoke 和原生 Race，各协议的独立对端范围见资格记录。 [资格约定](docs/releases/QUALIFICATION.md)
+
+v0.6.6 修复 DNS 测试夹具的 TCP/UDP 配对端口所有权、有限重试、失败清理和诊断，
+修复 TrustTunnel H2/H3 CONNECT 的取消所有权，并加入 P3 Commit Witness。Witness
+校验 Revision、逻辑内容及已提交事务身份，异常时 fail-closed；新安装在 Revision 0
+建立 Witness。SQLite Schema 仍为 8，历史 Snell、DNS 与 TrustTunnel 根因结论不被改写。
 
 ## 启动和停止
 
@@ -89,7 +95,7 @@ Windows WG 接收修复仅丢弃已被 Winsock 消耗的 WSAEMSGSIZE 数据报�
 CGO=0；官方构建从最终 main 的精确 Tag Commit 注入版本、提交和时间。
 对应源码归档含 vendor 依赖及无需 Git/下载依赖的构建说明。
 
-完整边界见 [Release Notes](docs/releases/v0.6.5.md)、[CHANGELOG](CHANGELOG.md)、
+完整边界见 [Release Notes](docs/releases/v0.6.6.md)、[CHANGELOG](CHANGELOG.md)、
 [CLI](docs/CLI.md)、[配置](docs/CONFIGURATION.md)、[安全政策](SECURITY.md)。
 开发方向统一维护在 [项目路线图](docs/ROADMAP.md)。
 原始 [LICENSE](LICENSE)、[GPL 全文](licenses/GPL-3.0.txt)、[NOTICE](NOTICE.md)

@@ -70,21 +70,21 @@ this release's VLESS process qualification. No drivers are bundled.
 
 Use the same CLI to create a managed HTTP Proxy or SOCKS5 listener. SOCKS5
 UDP is opt-in. Open the advertised UDP range before testing a remote relay.
-[Managed inbound examples](https://github.com/ike-sh/Splicore/blob/v0.6.5/docs/CLI.md#managed-socks5-and-a-local-client)
+[Managed inbound examples](https://github.com/ike-sh/Splicore/blob/v0.6.6/docs/CLI.md#managed-socks5-and-a-local-client)
 
-Follow the [upgrade guide](https://github.com/ike-sh/Splicore/blob/v0.6.5/docs/UPGRADE.md)
-when migrating from the v0.3.0 Frozen line. v0.6.5 includes standard userspace
+Follow the [upgrade guide](https://github.com/ike-sh/Splicore/blob/v0.6.6/docs/UPGRADE.md)
+when migrating from the v0.3.0 Frozen line. v0.6.6 includes standard userspace
 WireGuard, XHTTP H3 and additional generic stream carriers. ShadowQUIC and
 Linux kernel WireGuard remain `ISOLATED_NOT_QUALIFIED`.
 Native VLESS Encryption is restored, with ML-KEM-768/X25519 handshakes and
 AES-GCM/ChaCha records. Generate keys with `splicore vlessenc` (use `.exe` on
 Windows), set inbound `server_secret.decryption` and public client
 `options.data.encryption`, and follow the tagged
-[VLESS Encryption configuration](https://github.com/ike-sh/Splicore/blob/v0.6.5/docs/protocol/VLESS_ENCRYPTION.md).
+[VLESS Encryption configuration](https://github.com/ike-sh/Splicore/blob/v0.6.6/docs/protocol/VLESS_ENCRYPTION.md).
 Generator output contains private key material; store it privately. Sudoku is
 obfuscation, not encryption. Android/v2rayNG real-device traffic is NOT EXECUTED.
 Phase37 and unadmitted SQLite WAL candidates remain excluded.
 Keep backups and do not mix frozen database/configuration trees.
 
-See the [v0.6.5 release and qualification limits](https://github.com/ike-sh/Splicore/releases/tag/v0.6.5)
-and the [tagged documentation](https://github.com/ike-sh/Splicore/tree/v0.6.5/docs).
+See the [v0.6.6 release and qualification limits](https://github.com/ike-sh/Splicore/releases/tag/v0.6.6)
+and the [tagged documentation](https://github.com/ike-sh/Splicore/tree/v0.6.6/docs).
