@@ -446,6 +446,7 @@ type h2RequestBody struct {
 	*io.PipeReader
 	mu     sync.Mutex
 	closed bool
+	failed error
 }
 
 func (r *h2RequestBody) Close() error {
@@ -458,10 +459,31 @@ func (r *h2RequestBody) Close() error {
 func (r *h2RequestBody) finish(w *io.PipeWriter) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.failed != nil {
+		return r.failed
+	}
 	if r.closed {
 		return io.ErrClosedPipe
 	}
 	return w.Close()
+}
+
+type h2ResponseBody struct {
+	io.ReadCloser
+	request *h2RequestBody
+}
+
+func (r h2ResponseBody) Read(p []byte) (int, error) {
+	n, err := r.ReadCloser.Read(p)
+	if err != nil && !errors.Is(err, io.EOF) {
+		// HTTP/2 reset/connection failure ends this request, while a
+		// normal response EOF leaves the upload independent. Record the
+		// error before the read pump publishes it to the caller.
+		r.request.mu.Lock()
+		r.request.failed = err
+		r.request.mu.Unlock()
+	}
+	return n, err
 }
 
 func (h *h2Connection) open(ctx context.Context, authority string, headers http.Header) (net.Conn, bool, error) {
@@ -492,11 +514,9 @@ func (h *h2Connection) open(ctx context.Context, authority string, headers http.
 		if err := streamCtx.Err(); err != nil {
 			return err
 		}
-		if h.client.State().Closed {
-			return io.ErrClosedPipe
-		}
 		return reader.finish(writer)
 	}
-	conn := newBodyConn(resp.Body, writer, finishWrite, func(bool) { cancel(); _ = reader.Close() }, h.tcp.LocalAddr(), h.tcp.RemoteAddr(), h.config.IdleTimeout)
+	body := h2ResponseBody{ReadCloser: resp.Body, request: reader}
+	conn := newBodyConn(body, writer, finishWrite, func(bool) { cancel(); _ = reader.Close() }, h.tcp.LocalAddr(), h.tcp.RemoteAddr(), h.config.IdleTimeout)
 	return conn, padding, nil
 }
