@@ -202,6 +202,7 @@
       "tests": {
         "protocol/naive/backend/h3_ownership_test.go": [
           "TestNaiveH3UploadEOFOwnership",
+          "TestNaiveH3StreamAbortReleasesTargetAfterPacketLoss",
           "TestNaiveH3IdleAdmissionMultiplexReuse",
           "TestNaiveH3ActiveAndTargetFailureCleanup",
           "TestNaiveH3RejectedBeforeTargetOwnership"
