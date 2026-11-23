@@ -58,7 +58,12 @@
     "protocol/naive/backend/TestNaivePoolCapacityRetirementIdleAndReconnect/quic",
     "protocol/naive/backend/TestNaiveCancellationDialFailureTLSAndShutdown/quic",
     "protocol/naive/backend/TestNaiveCancelDuringCONNECTJoinsDestinationDial/quic",
-    "protocol/naive/backend/TestNaiveBoundedPoolAndConcurrentUsers/quic"
+    "protocol/naive/backend/TestNaiveBoundedPoolAndConcurrentUsers/quic",
+    "protocol/naive/backend/TestNaiveBodyConnAPIState/h3",
+    "protocol/naive/backend/TestNaiveCloseWriteDuringFullCleanup/quic",
+    "protocol/naive/backend/TestNaiveCloseWriteAfterCarrierFailure/quic",
+    "protocol/naive/backend/TestNaiveCloseInterruptsPendingWriteAndHalfClose/quic",
+    "protocol/naive/backend/TestNaivePaddedWriteAndCloseWrite/quic"
   ],
   "windows_optional_nic_ipv6": [
     "internal/splicore/wireguardendpoint/TestWindowsUDPTruncationEnvironment/nic-ipv6",

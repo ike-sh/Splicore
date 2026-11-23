@@ -439,11 +439,37 @@ func (h *h2Connection) alive() bool {
 	return !state.Closed && !state.Closing
 }
 func (h *h2Connection) close() error { _ = h.client.Close(); return h.tcp.Close() }
+
+// A PipeWriter.Close alone also returns nil when the transport has already
+// closed the request body. Order reader shutdown and local EOF acceptance.
+type h2RequestBody struct {
+	*io.PipeReader
+	mu     sync.Mutex
+	closed bool
+}
+
+func (r *h2RequestBody) Close() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.closed = true
+	return r.PipeReader.Close()
+}
+
+func (r *h2RequestBody) finish(w *io.PipeWriter) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.closed {
+		return io.ErrClosedPipe
+	}
+	return w.Close()
+}
+
 func (h *h2Connection) open(ctx context.Context, authority string, headers http.Header) (net.Conn, bool, error) {
 	streamCtx, cancel := context.WithCancel(h.ctx)
 	stop := untilEstablished(ctx, cancel)
 	defer stop()
-	reader, writer := io.Pipe()
+	pipe, writer := io.Pipe()
+	reader := &h2RequestBody{PipeReader: pipe}
 	req := &http.Request{Method: http.MethodConnect, URL: &url.URL{Scheme: "https", Host: authority}, Host: authority,
 		Header: headers, Body: reader, ContentLength: -1}
 	resp, err := h.client.RoundTrip(req.WithContext(streamCtx))
@@ -462,6 +488,15 @@ func (h *h2Connection) open(ctx context.Context, authority string, headers http.
 		return nil, false, ErrProtocol
 	}
 	stop()
-	conn := newBodyConn(resp.Body, writer, writer.Close, func(bool) { cancel(); _ = reader.Close() }, h.tcp.LocalAddr(), h.tcp.RemoteAddr(), h.config.IdleTimeout)
+	finishWrite := func() error {
+		if err := streamCtx.Err(); err != nil {
+			return err
+		}
+		if h.client.State().Closed {
+			return io.ErrClosedPipe
+		}
+		return reader.finish(writer)
+	}
+	conn := newBodyConn(resp.Body, writer, finishWrite, func(bool) { cancel(); _ = reader.Close() }, h.tcp.LocalAddr(), h.tcp.RemoteAddr(), h.config.IdleTimeout)
 	return conn, padding, nil
 }

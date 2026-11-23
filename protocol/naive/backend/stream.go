@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -42,8 +41,7 @@ type bodyConn struct {
 	idle                 time.Duration
 	last                 time.Time
 	idleTimer            *time.Timer
-	closed               bool
-	wroteEOF             atomic.Bool
+	closed, writeClosed  bool // under mu; read EOF is independent
 }
 
 func newBodyConn(r io.ReadCloser, w io.Writer, closeWrite func() error, stop func(bool), local, remote net.Addr, idle time.Duration) *bodyConn {
@@ -127,7 +125,7 @@ func (c *bodyConn) Write(p []byte) (int, error) {
 		return 0, nil
 	}
 	c.mu.Lock()
-	deadline, closed := c.wDeadline, c.closed
+	deadline, closed := c.wDeadline, c.closed || c.writeClosed
 	c.mu.Unlock()
 	if closed {
 		return 0, net.ErrClosed
@@ -195,28 +193,39 @@ func (c *bodyConn) terminate() {
 	c.once.Do(func() {
 		c.mu.Lock()
 		c.closed = true
+		graceful := c.writeClosed
 		if c.idleTimer != nil {
 			c.idleTimer.Stop()
 		}
 		close(c.done)
 		c.mu.Unlock()
 		if c.stop != nil {
-			c.stop(c.wroteEOF.Load())
+			c.stop(graceful)
 		}
-		_ = c.closeWrite()
 		_ = c.r.Close()
 	})
 }
 func (c *bodyConn) Close() error { c.terminate(); <-c.pumpDone; return nil }
+
+// CloseWrite commits local send completion, not delivery to the peer. The
+// callback only closes the local pipe or queues a FIN, without waiting for I/O.
+// Full Close never takes wmu, so it can still interrupt a blocked writer.
 func (c *bodyConn) CloseWrite() error {
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
-	c.wroteEOF.Store(true)
-	err := c.closeWrite()
-	if err != nil {
-		c.wroteEOF.Store(false)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closed {
+		return net.ErrClosed
 	}
-	return err
+	if c.writeClosed {
+		return nil
+	}
+	if err := c.closeWrite(); err != nil {
+		return err
+	}
+	c.writeClosed = true
+	return nil
 }
 func (c *bodyConn) LocalAddr() net.Addr  { return c.local }
 func (c *bodyConn) RemoteAddr() net.Addr { return c.remote }

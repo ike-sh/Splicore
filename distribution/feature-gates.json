@@ -210,6 +210,28 @@
       }
     },
     {
+      "id": "naive-closewrite-contract",
+      "source_commit": "b9a38be14c861b20be575ebc80c73626b5637264",
+      "qualification": "native Naive H2/H3 send completion, terminal errors, and concurrent ownership",
+      "files": [
+        "protocol/naive/backend/client.go",
+        "protocol/naive/backend/h3.go",
+        "protocol/naive/backend/padding.go",
+        "protocol/naive/backend/stream.go"
+      ],
+      "tests": {
+        "protocol/naive/backend/state_contract_test.go": [
+          "TestNaiveBodyConnAPIState"
+        ],
+        "protocol/naive/backend/close_state_race_test.go": [
+          "TestNaiveCloseWriteDuringFullCleanup",
+          "TestNaiveCloseWriteAfterCarrierFailure",
+          "TestNaiveCloseInterruptsPendingWriteAndHalfClose",
+          "TestNaivePaddedWriteAndCloseWrite"
+        ]
+      }
+    },
+    {
       "id": "core-network-lifecycle",
       "source_commit": "7b6eb4baaed12b6c7d97b6c52efd50e318764f95",
       "qualification": "native default/full and complete Linux Race; original resource and rebind assertions retained",
