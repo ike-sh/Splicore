@@ -235,6 +235,9 @@ func failure(out io.Writer, err error) int {
 		if e.Code == identity.UnsupportedEngineForProtocol && e.Message == identity.RetiredRuntimeStateMessage {
 			message = string(e.Code) + ": " + identity.RetiredRuntimeStateMessage
 		}
+		if e.Code == identity.Invalid && e.Message == identity.LegacyWitnessRequiredMessage {
+			message = string(e.Code) + ": " + identity.LegacyWitnessRequiredMessage
+		}
 	}
 	_, _ = fmt.Fprintln(out, message)
 	return 1

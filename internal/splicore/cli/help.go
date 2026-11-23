@@ -21,6 +21,11 @@ Usage:
   splicore key init --file <master.key>    Provision a new private vault key
   splicore vlessenc [--auth x25519|mlkem768] Generate VLESS Encryption key pair
   splicore wireguard <operation>           Manage standard WireGuard endpoints
+  splicore state integrity --source <db>   Inspect DB/commit-witness agreement
+  splicore state establish-witness --source <db> --acknowledge-current-state
+                                            Establish an explicit legacy baseline
+  splicore state backup --source <db> --output <db>
+                                            Snapshot DB with matching witness
 
 Managed resources (use --config for the local control endpoint):
   inbound validate|plan|apply --protocol <name> --file <document> [--plan <plan>]

@@ -305,7 +305,7 @@ func p3capture(t *testing.T, root, name string) {
 	if e := os.MkdirAll(dst, 0700); e != nil {
 		t.Fatal(e)
 	}
-	for _, suffix := range []string{"", "-wal", "-shm", ".lock"} {
+	for _, suffix := range []string{"", "-wal", "-shm", ".lock", witnessSuffix, pendingSuffix} {
 		b, e := os.ReadFile(filepath.Join(root, "state.db") + suffix)
 		if os.IsNotExist(e) {
 			continue
@@ -465,6 +465,7 @@ func p3BackupVaultPair(t *testing.T) {
 		if _, e = s.db.Exec("VACUUM INTO ?", snapshot); e != nil {
 			t.Fatal(e)
 		}
+		copyWitnessForTest(t, path, snapshot)
 		s.Close()
 	}
 	keyBytes, e := os.ReadFile(key)
@@ -540,6 +541,10 @@ func p3IndependentWALTail(t *testing.T) {
 	if e != nil || len(wal) < 32 {
 		t.Fatal("missing genuine committed WAL", e)
 	}
+	witness, e := os.ReadFile(filepath.Join(original, "state.db") + witnessSuffix)
+	if e != nil {
+		t.Fatal("missing genuine commit witness", e)
+	}
 	page := int(binary.BigEndian.Uint32(wal[8:12]))
 	if page == 1 {
 		page = 65536
@@ -567,6 +572,9 @@ func p3IndependentWALTail(t *testing.T) {
 			if e := os.WriteFile(path+"-wal", damaged, 0600); e != nil {
 				t.Fatal(e)
 			}
+			if e := os.WriteFile(path+witnessSuffix, witness, 0600); e != nil {
+				t.Fatal(e)
+			}
 			p3capture(t, root, "independent-wal-"+fault+"-original")
 			db, e := sql.Open("sqlite", path)
 			if e != nil {
@@ -588,8 +596,20 @@ func p3IndependentWALTail(t *testing.T) {
 			}
 			store, openErr := Open(context.Background(), path, options(t))
 			application["store_open_error"] = fmt.Sprint(openErr)
-			if (fault == "unchanged" || fault == "partial-uncommitted-tail") && openErr != nil {
+			valid := fault == "unchanged" || fault == "partial-uncommitted-tail"
+			if valid && openErr != nil {
 				t.Fatal("valid WAL application reopen failed", openErr)
+			}
+			if !valid {
+				if openErr == nil {
+					store.Close()
+					t.Fatal("damaged acknowledged WAL opened writable")
+				}
+				if !codeIs(openErr, identity.StorageIntegrityUnverified) {
+					t.Fatal("damaged acknowledged WAL returned ambiguous error", openErr)
+				}
+				application["acknowledged_loss_detected"] = true
+				application["write_admission"] = "REJECTED_BEFORE_CALLBACK"
 			}
 			if openErr == nil {
 				state, stateErr := store.State(context.Background())
@@ -599,20 +619,11 @@ func p3IndependentWALTail(t *testing.T) {
 				}
 				application["state"] = state
 				application["state_error"] = fmt.Sprint(stateErr)
-				if count != 2 {
-					_, mutationErr := store.Transact(context.Background(), state.Revision, actor(t), func(ports.Writer) error { return nil })
-					application["mutation_rejected"] = mutationErr != nil
-					if !codeIs(mutationErr, identity.Unavailable) {
-						store.Close()
-						t.Fatal("damaged WAL state admitted mutation despite unresolved journal")
-					}
-					application["mutation_error"] = fmt.Sprint(mutationErr)
-				}
 				if e := store.Close(); e != nil {
 					t.Fatal(e)
 				}
 			}
-			p3json(t, "wal-"+fault, map[string]any{"application": application, "sqlite": version, "accounts": count, "acknowledged_accounts": 2, "query_error": fmt.Sprint(e), "integrity_check": check, "integrity_error": fmt.Sprint(integrity), "qualification": qualifier, "note": "native SQLite diagnostic; no P1-B guard or production behavior change"})
+			p3json(t, "wal-"+fault, map[string]any{"application": application, "sqlite": version, "accounts": count, "acknowledged_accounts": 2, "query_error": fmt.Sprint(e), "integrity_check": check, "integrity_error": fmt.Sprint(integrity), "qualification": qualifier, "note": "Native SQLite structural recovery and Splicore acknowledged-state admission are evaluated independently; the witness detects loss but does not reconstruct data."})
 			if (fault == "unchanged" || fault == "partial-uncommitted-tail") && (e != nil || check != "ok" || count != 2) {
 				t.Fatal("valid committed prefix was lost", count, e, integrity)
 			}

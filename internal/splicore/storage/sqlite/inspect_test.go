@@ -21,6 +21,10 @@ func TestInspectIsReadOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	witnessBefore, err := os.ReadFile(path + witnessSuffix)
+	if err != nil {
+		t.Fatal(err)
+	}
 	r, err := Inspect(context.Background(), path, Options{})
 	if err != nil {
 		t.Fatal(err)
@@ -37,6 +41,13 @@ func TestInspectIsReadOnly(t *testing.T) {
 	after, err := os.ReadFile(path)
 	if err != nil || sha256.Sum256(before) != sha256.Sum256(after) {
 		t.Fatal("inspection changed database bytes", err)
+	}
+	witnessAfter, err := os.ReadFile(path + witnessSuffix)
+	if err != nil || sha256.Sum256(witnessBefore) != sha256.Sum256(witnessAfter) {
+		t.Fatal("inspection changed commit witness", err)
+	}
+	if _, err = os.Lstat(path + pendingSuffix); !os.IsNotExist(err) {
+		t.Fatal("inspection created a pending witness", err)
 	}
 }
 

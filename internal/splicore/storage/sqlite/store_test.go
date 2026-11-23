@@ -252,7 +252,7 @@ func TestFutureSchemaChecksumCorruptionAndMetadata(t *testing.T) {
 				s.Close()
 				t.Fatal("invalid state opened writable")
 			}
-			if !codeIs(err, identity.Corrupt) && !codeIs(err, identity.Unavailable) {
+			if !codeIs(err, identity.Corrupt) && !codeIs(err, identity.Unavailable) && !codeIs(err, identity.StorageIntegrityUnverified) {
 				t.Fatal("unclear invalid state error", err)
 			}
 		})
@@ -394,6 +394,7 @@ func TestMissingKeyAndCoherentSnapshot(t *testing.T) {
 	if _, err = s.db.Exec("VACUUM INTO ?", snapshot); err != nil {
 		t.Fatal(err)
 	}
+	copyWitnessForTest(t, s.path, snapshot)
 	if err = os.Chmod(snapshot, 0o600); err != nil {
 		t.Fatal(err)
 	}

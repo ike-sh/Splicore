@@ -10,6 +10,9 @@ import (
 )
 
 func (s *Store) BindingAllowed(ctx context.Context, binding access.Binding) bool {
+	if s.integrityFailure() != nil {
+		return false
+	}
 	var expires sql.NullString
 	err := s.db.QueryRowContext(ctx, `SELECT a.expires_at FROM bindings b
 		JOIN accounts a ON a.id=b.account_id

@@ -106,6 +106,9 @@ func TestNativeOnlyHistoricalUpgrade(t *testing.T) {
 	if err = VerifyRuntimeBoundary(ctx, path); err != nil {
 		t.Fatal(err)
 	}
+	if _, err = EstablishCommitWitness(ctx, path, true); err != nil {
+		t.Fatal("explicit legacy migration and witness", err)
+	}
 	s, err := Open(ctx, path, Options{})
 	if err != nil {
 		t.Fatal(err)

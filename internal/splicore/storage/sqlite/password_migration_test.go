@@ -81,6 +81,9 @@ func testPopulatedForwardMigration(t *testing.T, from int) {
 	if e = os.Chmod(path, 0600); e != nil {
 		t.Fatal(e)
 	}
+	if _, e = EstablishCommitWitness(ctx, path, true); e != nil {
+		t.Fatal("explicit legacy migration and witness", e)
+	}
 	migrated, e := Open(ctx, path, opts)
 	if e != nil {
 		t.Fatal("populated migration", e)

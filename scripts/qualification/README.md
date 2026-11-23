@@ -54,30 +54,25 @@ capture; it is never called a coherent backup.
 
 The native WAL diagnostic uses synthetic copies only: unchanged WAL, partial
 uncommitted tail, last committed frame truncation and checksum corruption.
-It reports native SQLite recovery separately from application journal protection.
-A structurally valid earlier state missing acknowledged rows is
-`NOT_QUALIFIED`, even when `integrity_check=ok`. The ordinary test assertion
-protects fail-closed application mutation; a test PASS does not certify media
-corruption recovery. Retain the per-fault JSON classification. This is a bounded
-diagnostic, not exhaustive WAL/P1-B qualification.
+It reports native SQLite structural recovery separately from acknowledged-state
+protection. The independent commit witness must reject a structurally valid
+earlier state missing acknowledged rows with `storage_integrity_unverified`,
+even when `integrity_check=ok`. A test PASS qualifies loss detection and
+fail-closed admission; it does not certify automatic media-corruption recovery.
+Retain the per-fault JSON classification. This is a bounded diagnostic, not
+exhaustive WAL recovery qualification.
 
 The committed-WAL safety-boundary diagnostic also captures real runtime-operation
 commits, verifies commit-frame offsets, and uses separate native-reader and
 application copies of each damaged input. It distinguishes structural validity,
-acknowledged business rows/revision, actual write admission before/after startup
-`RecoverPending`, and restoration from an intact, verified backup. The journal
-does not provide an independent durable oracle outside its own WAL: damage to
-the pending-journal commit can remove the symptom altogether. Runtime startup
-recovery can also retire a pending runtime operation after its acknowledged
-business commit was lost. These observed write-admission blind spots are
-`NOT_QUALIFIED` and block PR admission even when diagnostic assertions pass.
-Do not infer a universal fail-closed property from the narrower generic-journal
-case. Preserve the original DB/WAL/SHM before opening diagnostic copies; no
-automatic repair, production WAL parser, new Schema or same-WAL marker is added.
-Rejecting the business callback also does not imply that SQLite is read-only:
-the generic transaction path can append a failed journal entry. The diagnostic
-records journal row counts separately and retains the verified backup file,
-its SHA256 and the native/application/backup-restored database copies.
+acknowledged business rows/revision, witness comparison before writable Open,
+and restoration from an intact verified DB+witness backup. Damage to either the
+business or pending-journal commit frame must not reach startup `RecoverPending`
+or a mutation callback when the surviving witness names a newer generation.
+Preserve the original DB/WAL/SHM/witness before opening diagnostic copies. No
+automatic repair or production WAL parser is added. The diagnostic records
+journal row counts separately and retains the verified backup files, their
+SHA256 values, and native/application/backup-restored copies.
 
 Pinned Xray's h3-only server listens on UDP. The peer fixture reserves both
 protocols at an OS-selected port on the exact IPv4/IPv6 address, then releases
@@ -88,13 +83,15 @@ QUIC profile. Windows records dynamic/excluded ranges, actual socket outcomes
 and child PID ownership; cleanup requires immediate TCP/UDP rebind.
 
 Linux production MaintenanceBackup refuses the running store, then uses
-lock-protected `VACUUM INTO` on the stopped source. A separately preserved
-synthetic Vault key must decrypt the restored snapshot, survive a new write and
-reopen, and wrong/missing keys must fail. Keys are never logged or put in CI
-artifacts. AES-256-GCM protects secret fields; metadata is not whole-file
+lock-protected `VACUUM INTO` on the stopped source, verifies the snapshot's
+logical digest, and persists the matching witness. A separately preserved
+synthetic Vault key must decrypt the restored snapshot, survive a new witnessed
+write and reopen, and wrong/missing keys must fail. Keys are never logged or put
+in CI artifacts. AES-256-GCM protects secret fields; metadata is not whole-file
 encrypted. Key identity is recorded without key bytes. Windows production
 maintenance remains Linux-only: the Windows `VACUUM INTO` test is explicitly a
-test-only snapshot, and production Windows backup is **NOT EXECUTED**.
+test-only snapshot with a copied verified witness, and production Windows backup
+is **NOT EXECUTED**.
 
 Use fresh output directories. Retain environment/source SHA, exact commands,
 per-test events, per-fault JSON, original and recovered files, and checksums of

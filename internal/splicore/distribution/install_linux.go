@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ike-sh/Splicore/internal/splicore/config"
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/storage/sqlite"
 	"github.com/ike-sh/Splicore/internal/splicore/transport"
 	"github.com/ike-sh/Splicore/internal/splicore/version"
@@ -184,6 +185,91 @@ func atomicCopy(src, dst string, mode os.FileMode, uid, gid int) error {
 	return atomicBytes(dst, b, mode, uid, gid)
 }
 
+func upgradeWitnessPreflight(database string) error {
+	if err := safePath(database, false); err != nil {
+		return err
+	}
+	info, err := os.Lstat(database)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil || !info.Mode().IsRegular() {
+		return fmt.Errorf("unsafe upgrade database")
+	}
+	witness := database + ".witness"
+	if err = safePath(witness, false); err != nil {
+		return err
+	}
+	info, err = os.Lstat(witness)
+	if os.IsNotExist(err) {
+		return identity.Err(identity.Invalid, identity.LegacyWitnessRequiredMessage)
+	}
+	if err != nil || !info.Mode().IsRegular() {
+		return fmt.Errorf("unsafe upgrade witness")
+	}
+	return nil
+}
+
+// restoreDatabaseGeneration replaces the complete stopped-service generation.
+// A legacy backup deliberately has no witness; in that case candidate witness
+// and pending files are removed instead of being paired with the older DB.
+func restoreDatabaseGeneration(backup, state string, uid, gid int) error {
+	for _, name := range []string{"master.key", "state.db"} {
+		if err := safePath(filepath.Join(backup, name), true); err != nil {
+			return err
+		}
+		info, err := os.Lstat(filepath.Join(backup, name))
+		if err != nil || !info.Mode().IsRegular() {
+			return fmt.Errorf("unsafe database rollback source")
+		}
+	}
+	backupWitness := filepath.Join(backup, "state.db.witness")
+	if err := safePath(backupWitness, false); err != nil {
+		return err
+	}
+	witnessInfo, witnessErr := os.Lstat(backupWitness)
+	hasWitness := witnessErr == nil
+	if witnessErr != nil && !os.IsNotExist(witnessErr) || hasWitness && !witnessInfo.Mode().IsRegular() {
+		return fmt.Errorf("unsafe database rollback witness")
+	}
+	backupPending := filepath.Join(backup, "state.db.witness.pending")
+	if err := safePath(backupPending, false); err != nil {
+		return err
+	}
+	if _, err := os.Lstat(backupPending); err == nil || !os.IsNotExist(err) {
+		return fmt.Errorf("backup generation contains pending witness")
+	}
+	for _, suffix := range []string{"-wal", "-shm", ".witness", ".witness.pending"} {
+		path := state + "/state.db" + suffix
+		if err := safePath(path, false); err != nil {
+			return err
+		}
+		if info, err := os.Lstat(path); err == nil {
+			if !info.Mode().IsRegular() {
+				return fmt.Errorf("unsafe database rollback sidecar")
+			}
+		} else if !os.IsNotExist(err) {
+			return err
+		}
+	}
+	for _, suffix := range []string{"-wal", "-shm", ".witness", ".witness.pending"} {
+		if err := os.Remove(state + "/state.db" + suffix); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	for _, name := range []string{"master.key", "state.db"} {
+		if err := atomicCopy(filepath.Join(backup, name), filepath.Join(state, name), 0600, uid, gid); err != nil {
+			return err
+		}
+	}
+	if hasWitness {
+		if err := atomicCopy(backupWitness, state+"/state.db.witness", 0600, uid, gid); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func marker(p string) error {
 	if err := safePath(p, true); err != nil {
 		return err
@@ -313,6 +399,11 @@ func Install(ctx context.Context, directory string, start bool) error {
 	if old != nil && (old.DatabaseSchema < m.DatabaseMin || old.DatabaseSchema > m.DatabaseSchema) {
 		return fmt.Errorf("unsupported upgrade schema boundary")
 	}
+	if old != nil {
+		if err = upgradeWitnessPreflight(StatePath + "/state.db"); err != nil {
+			return err
+		}
+	}
 	if err = safePath("/run/systemd/system", true); err != nil {
 		return fmt.Errorf("systemd must be running")
 	}
@@ -418,19 +509,8 @@ func Install(ctx context.Context, directory string, start bool) error {
 			}
 		}
 		if _, e := os.Lstat(filepath.Join(backup, "state.db")); e == nil {
-			for _, suffix := range []string{"-wal", "-shm"} {
-				p := StatePath + "/state.db" + suffix
-				if e = safePath(p, false); e != nil {
-					return fmt.Errorf("unsafe database rollback sidecar")
-				}
-				if e = os.Remove(p); e != nil && !os.IsNotExist(e) {
-					return e
-				}
-			}
-			for _, name := range []string{"master.key", "state.db"} {
-				if e = atomicCopy(filepath.Join(backup, name), StatePath+"/"+name, 0600, uid, gid); e != nil {
-					return fmt.Errorf("upgrade failed; database rollback failed; backup retained")
-				}
+			if e = restoreDatabaseGeneration(backup, StatePath, uid, gid); e != nil {
+				return fmt.Errorf("upgrade failed; database rollback failed; backup retained")
 			}
 		}
 		if systemctl(recovery, "daemon-reload") != nil || systemctl(recovery, "reset-failed", "splicore.service") != nil {

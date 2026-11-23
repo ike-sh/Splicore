@@ -10,6 +10,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/operations"
 	"github.com/ike-sh/Splicore/internal/splicore/storage/sqlite"
 	"github.com/ike-sh/Splicore/internal/splicore/transport"
+	"github.com/ike-sh/Splicore/internal/splicore/version"
 	"io"
 	"os"
 	"time"
@@ -33,6 +34,7 @@ func operationsCLI(parent context.Context, args []string, out, errOut io.Writer,
 	platform := fs.String("platform", "", "")
 	start := fs.Bool("start", false, "")
 	purge := fs.Bool("purge", false, "")
+	acknowledgeCurrentState := fs.Bool("acknowledge-current-state", false, "")
 	if fs.Parse(rest) != nil || fs.NArg() != 0 {
 		return failure(errOut, fmt.Errorf("invalid operation flags"))
 	}
@@ -47,6 +49,10 @@ func operationsCLI(parent context.Context, args []string, out, errOut io.Writer,
 		allowed = map[string]bool{"purge": true}
 	case "state/backup":
 		allowed = map[string]bool{"source": true, "output": true}
+	case "state/integrity":
+		allowed = map[string]bool{"source": true}
+	case "state/establish-witness":
+		allowed = map[string]bool{"source": true, "acknowledge-current-state": true}
 	case "service/initialize", "service/record-exit", "service/health", "service/recover-network":
 		allowed = map[string]bool{"config": true}
 	case "support-bundle/":
@@ -80,13 +86,41 @@ func operationsCLI(parent context.Context, args []string, out, errOut io.Writer,
 			err = distribution.Uninstall(ctx, *purge)
 		}
 	} else if command == "state" {
-		var schema int
-		schema, err = sqlite.MaintenanceBackup(ctx, *source, *output)
-		if err == nil {
-			return outputJSON(out, struct {
-				Schema   int  `json:"db_schema"`
-				Snapshot bool `json:"snapshot"`
-			}{schema, true})
+		switch sub {
+		case "backup":
+			var schema int
+			schema, err = sqlite.MaintenanceBackup(ctx, *source, *output)
+			if err == nil {
+				witnessStatus := "witness_missing"
+				historicalProof := false
+				if schema == version.DatabaseSchema {
+					var inspection sqlite.WitnessInspection
+					inspection, err = sqlite.InspectCommitWitness(ctx, *output)
+					if err == nil {
+						witnessStatus, historicalProof = inspection.Status, inspection.HistoricalProof
+					}
+				}
+				if err == nil {
+					return outputJSON(out, struct {
+						Schema          int    `json:"db_schema"`
+						Snapshot        bool   `json:"snapshot"`
+						WitnessStatus   string `json:"witness_status"`
+						HistoricalProof bool   `json:"historical_proof"`
+					}{schema, true, witnessStatus, historicalProof})
+				}
+			}
+		case "integrity":
+			var inspection sqlite.WitnessInspection
+			inspection, err = sqlite.InspectCommitWitness(ctx, *source)
+			if err == nil {
+				return outputJSON(out, inspection)
+			}
+		case "establish-witness":
+			var inspection sqlite.WitnessInspection
+			inspection, err = sqlite.EstablishCommitWitness(ctx, *source, *acknowledgeCurrentState)
+			if err == nil {
+				return outputJSON(out, inspection)
+			}
 		}
 	} else {
 		var c config.Config

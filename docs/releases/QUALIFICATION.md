@@ -31,6 +31,26 @@ Their archive and executable digests are recorded where applicable.
 `qualification_policy.py` enforces required traffic, lifecycle, safety,
 interop and persistence identities and records approved skip reasons.
 
+Persistence qualification requires `TestCommitWitnessFailClosed`,
+`TestCommitWitnessLegacyLifecycle`, and `TestPersistenceReliability` in every
+native Default, Full, and Race profile. The witness gates exercise the
+SQLite-Commit-before-witness crash window, missing/corrupt/rolled-back/ahead
+witnesses, same-Revision content mismatch, committed-journal identity loss,
+partial witness writes, permission/no-space write failures, explicit legacy
+baseline lineage, normal reopen/checkpoint, an interrupted-checkpoint main-file
+state with its complete WAL, an older complete WAL replacement, and
+committed-WAL frame damage. Linux backup tests require a matching copied
+witness, retain legacy snapshots as unwitnessed, and reject pending, corrupt,
+or rolled-back witness evidence. A PASS qualifies detection and fail-closed
+admission; it does not qualify automatic reconstruction of missing
+acknowledged rows. See the
+[storage-integrity boundary](../architecture/STORAGE_INTEGRITY.md).
+
+The same native profiles require the raw-evidence inspection regression and
+the LF/CRLF migration-history compatibility regressions. Inspection derives its
+SQLite SHM index only in a private, disposable snapshot and must leave the
+source DB, WAL, SHM, witness and pending-file presence byte-for-byte unchanged.
+
 `assemble` requires both qualified targets and source-matched Windows Race
 evidence. It verifies the two platform archives and corresponding source, then
 writes `SHA256SUMS` and `RELEASE_MANIFEST.json` for the five-asset set.

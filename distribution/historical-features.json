@@ -659,16 +659,18 @@
     },
     {
       "id": 47,
-      "feature": "SQLite encrypted credentials/schema8",
+      "feature": "SQLite encrypted credentials/schema8 and commit witness",
       "historical_commit": "e42c6e995d000205ba7c1c316eda1a0e95ef8297",
       "files": [
         "internal/splicore/storage/sqlite/bindings.go",
         "internal/splicore/storage/sqlite/client_runtime.go",
         "internal/splicore/storage/sqlite/credentials.go",
-        "internal/splicore/storage/sqlite/files_unix.go"
+        "internal/splicore/storage/sqlite/files_unix.go",
+        "internal/splicore/storage/sqlite/witness.go",
+        "internal/splicore/storage/sqlite/witness_files_windows.go"
       ],
       "disposition": "retained",
-      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. Encrypted SQLite schema 8 retained; historical WAL/P1-B candidate excluded. Linux-only production backup and fail-closed Windows behavior tested separately.",
+      "qualification": "Native Linux/Windows regression scope is enforced by release qualification; exact executed behavior identities and optional NOT EXECUTED campaigns are retained in RELEASE_MANIFEST.json. Encrypted SQLite schema 8 retained; the external durable commit witness detects acknowledged Revision/content rollback and seals mutation/runtime admission. Historical WAL/P1-B remains excluded, and detection does not claim automatic reconstruction. Linux production backup preserves the matching witness; Windows backup remains NOT EXECUTED.",
       "status": "MAIN_VERIFIED"
     },
     {

@@ -11,7 +11,7 @@ qualification and unresolved findings remain in their release and issue records.
 | 2 | Real network performance and reliability | Reproducible native measurements with stated conditions and performance targets |
 | 3 | In-house UDP transport and secure handshakes | Loss, cancellation and resource ownership tests plus handshake and rejection evidence |
 | 4 | Multi-protocol operation and interoperability | Native traffic and pinned independent peers for each claimed protocol capability |
-| 5 | SQLite persistence and failure recovery | Acknowledged data and revision recovery, encrypted state, and fail-closed mutation checks |
+| 5 | SQLite persistence and failure recovery | [Durable commit-witness](architecture/STORAGE_INTEGRITY.md) comparison, acknowledged-loss detection, encrypted state, and fail-closed mutation/runtime checks; automatic damaged-WAL reconstruction remains separate |
 | 6 | Build, release and deployment quality | Exact source and package identity, dual-platform downloaded smoke, and documented deployment scope |
 
 Managed HTTP/1.1 joins SOCKS5 under the native inbound lifecycle. The first
