@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 )
 
 func TestAbsentAndInvalidResponses(t *testing.T) {
@@ -27,5 +29,22 @@ func TestAbsentAndInvalidResponses(t *testing.T) {
 		}
 		client.Close()
 		server.Close()
+	}
+}
+
+func TestIntegrityFailureIdentitySurvivesControlTransport(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte(`{"code":"storage_integrity_unverified","message":"storage integrity unverified","request_id":"fixture"}`))
+	}))
+	defer server.Close()
+	client := TestClient(server.Client(), server.URL)
+	defer client.Close()
+	var out any
+	err := client.post(context.Background(), "/mutation", []byte(`{}`), &out)
+	var typed *identity.Error
+	if !errors.As(err, &typed) || typed.Code != identity.StorageIntegrityUnverified {
+		t.Fatal("control client discarded storage-integrity identity", err)
 	}
 }

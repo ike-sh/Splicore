@@ -40,6 +40,7 @@ type Store struct {
 	witness             commitWitness
 	persistWitness      func(string, *commitWitness, commitWitness) error
 	afterDatabaseCommit func()
+	cleanup             func() error
 	closeOnce           sync.Once
 	closeErr            error
 }
@@ -163,6 +164,9 @@ func (s *Store) Close() error {
 		if s.lock != nil {
 			unlockFile(s.lock)
 			err = errors.Join(err, s.lock.Close())
+		}
+		if s.cleanup != nil {
+			err = errors.Join(err, s.cleanup())
 		}
 		s.closeErr = storageError(err)
 	})

@@ -301,7 +301,16 @@ func verifyWitnessTransaction(ctx context.Context, q queryer, w commitWitness) e
 }
 
 func verifyExistingWitnessReadOnly(ctx context.Context, path string, w commitWitness) error {
-	u, err := readOnlyDatabaseURL(path)
+	snapshot, cleanup, err := readOnlyEvidenceSnapshot(path)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+	snapshotWitness, err := readWitness(snapshot + witnessSuffix)
+	if err != nil || !reflect.DeepEqual(snapshotWitness, w) {
+		return errors.New("witness changed during read-only verification")
+	}
+	u, err := readOnlyDatabaseURL(snapshot)
 	if err != nil {
 		return err
 	}
@@ -462,12 +471,12 @@ func logicalStateDigest(ctx context.Context, q queryer) (string, error) {
 		if queryErr != nil {
 			return "", queryErr
 		}
+		values := make([]any, len(names))
+		destinations := make([]any, len(names))
+		for i := range values {
+			destinations[i] = &values[i]
+		}
 		for dataRows.Next() {
-			values := make([]any, len(names))
-			destinations := make([]any, len(names))
-			for i := range values {
-				destinations[i] = &values[i]
-			}
 			if queryErr = dataRows.Scan(destinations...); queryErr != nil {
 				dataRows.Close()
 				return "", queryErr
@@ -554,6 +563,12 @@ func (s *Store) publishWitness(op identity.Transaction, digest string) error {
 
 func inspectWitnessDatabase(ctx context.Context, path string) (WitnessInspection, error) {
 	var out WitnessInspection
+	snapshot, cleanup, err := readOnlyEvidenceSnapshot(path)
+	if err != nil {
+		return out, err
+	}
+	defer cleanup()
+	path = snapshot
 	pending, err := pendingWitnessExists(path)
 	if err != nil {
 		return out, err
@@ -756,7 +771,7 @@ func migrateHistoryOnly(ctx context.Context, q queryer) error {
 	for rows.Next() {
 		var version int
 		var name, sum string
-		if err = rows.Scan(&version, &name, &sum); err != nil || version != current+1 || version > len(steps) || steps[version-1].Name != name || checksum(steps[version-1]) != sum {
+		if err = rows.Scan(&version, &name, &sum); err != nil || version != current+1 || version > len(steps) || steps[version-1].Name != name || !migrationChecksumMatches(steps[version-1], sum) {
 			return identity.Err(identity.Corrupt, "migration history checksum or sequence mismatch")
 		}
 		current = version

@@ -46,8 +46,13 @@ func VerifyRuntimeBoundary(ctx context.Context, path string) error {
 	if err := safeFile(path); err != nil {
 		return err
 	}
-	uriPath := filepath.ToSlash(path)
-	if filepath.VolumeName(path) != "" {
+	snapshot, cleanup, err := readOnlyEvidenceSnapshot(path)
+	if err != nil {
+		return identity.Err(identity.Unavailable, "runtime boundary snapshot unavailable")
+	}
+	defer cleanup()
+	uriPath := filepath.ToSlash(snapshot)
+	if filepath.VolumeName(snapshot) != "" {
 		uriPath = "/" + uriPath
 	}
 	u := url.URL{Scheme: "file", Path: uriPath, RawQuery: "mode=ro"}

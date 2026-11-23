@@ -24,24 +24,31 @@ func Inspect(ctx context.Context, path string, opts Options) (*Store, error) {
 			return nil, err
 		}
 	}
-	if pending, err := pendingWitnessExists(path); err != nil || pending {
-		return nil, integrityUnverified()
-	}
-	witness, err := readWitness(path + witnessSuffix)
+	snapshot, cleanup, err := readOnlyEvidenceSnapshot(path)
 	if err != nil {
+		return nil, identity.Err(identity.Unavailable, "committed storage snapshot unavailable")
+	}
+	if pending, err := pendingWitnessExists(snapshot); err != nil || pending {
+		_ = cleanup()
 		return nil, integrityUnverified()
 	}
-	u := url.URL{Scheme: "file", Path: filepath.ToSlash(path)}
-	if filepath.VolumeName(path) != "" {
+	witness, err := readWitness(snapshot + witnessSuffix)
+	if err != nil {
+		_ = cleanup()
+		return nil, integrityUnverified()
+	}
+	u := url.URL{Scheme: "file", Path: filepath.ToSlash(snapshot)}
+	if filepath.VolumeName(snapshot) != "" {
 		u.Path = "/" + u.Path
 	}
 	u.RawQuery = url.Values{"mode": {"ro"}, "_pragma": {"query_only(1)", "busy_timeout(5000)"}}.Encode()
 	db, err := sql.Open("sqlite", u.String())
 	if err != nil {
+		_ = cleanup()
 		return nil, storageError(err)
 	}
 	db.SetMaxOpenConns(1)
-	s := &Store{db: db, path: path, options: opts, witness: witness, persistWitness: persistCommitWitness}
+	s := &Store{db: db, path: snapshot, options: opts, witness: witness, persistWitness: persistCommitWitness, cleanup: cleanup}
 	fail := func(err error) (*Store, error) { _ = s.Close(); return nil, err }
 	var integrity string
 	if db.QueryRowContext(ctx, "PRAGMA quick_check").Scan(&integrity) != nil || integrity != "ok" {

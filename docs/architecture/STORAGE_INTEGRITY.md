@@ -101,6 +101,14 @@ status. It does not initialize, migrate, recover, or establish trust. Preserve
 the database, WAL, SHM, witness, pending witness, and their hashes before manual
 recovery.
 
+Read-only verification copies the DB, WAL, witness and pending-witness bytes to
+a private disposable directory, verifies that those authoritative source files
+did not change during the copy, and lets SQLite derive or update SHM only in
+that copy. The source DB, WAL, existing SHM and witness bytes therefore remain
+unchanged even when SQLite needs to rebuild its transient WAL index. Normal
+cleanup removes the private copy; it contains the same encrypted state and must
+be treated as sensitive if a process is terminated before cleanup.
+
 ## Existing Schema 8 and explicit legacy baseline
 
 A pre-witness database does not open writable. After stopping the service and

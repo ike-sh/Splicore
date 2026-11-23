@@ -46,6 +46,11 @@ admission; it does not qualify automatic reconstruction of missing
 acknowledged rows. See the
 [storage-integrity boundary](../architecture/STORAGE_INTEGRITY.md).
 
+The same native profiles require the raw-evidence inspection regression and
+the LF/CRLF migration-history compatibility regressions. Inspection derives its
+SQLite SHM index only in a private, disposable snapshot and must leave the
+source DB, WAL, SHM, witness and pending-file presence byte-for-byte unchanged.
+
 `assemble` requires both qualified targets and source-matched Windows Race
 evidence. It verifies the two platform archives and corresponding source, then
 writes `SHA256SUMS` and `RELEASE_MANIFEST.json` for the five-asset set.

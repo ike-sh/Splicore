@@ -129,3 +129,29 @@ func TestMaintenanceBackupWitnessBoundaries(t *testing.T) {
 		})
 	}
 }
+
+func TestMaintenanceSnapshotRootAcceptsServiceOwnedDatabase(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("root-only ownership boundary")
+	}
+	directory := t.TempDir()
+	if err := os.Chmod(directory, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	source := filepath.Join(directory, "state.db")
+	if err := os.WriteFile(source, []byte("service-owned-database"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chown(source, 65534, 65534); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, cleanup, err := readOnlyMaintenanceSnapshot(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	data, err := os.ReadFile(snapshot)
+	if err != nil || string(data) != "service-owned-database" {
+		t.Fatal("maintenance snapshot changed the service-owned source", err)
+	}
+}

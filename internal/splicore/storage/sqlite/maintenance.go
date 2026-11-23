@@ -38,6 +38,11 @@ func MaintenanceBackup(ctx context.Context, source, destination string) (int, er
 		return 0, fmt.Errorf("stop the service before backup")
 	}
 	defer unlockFile(lock)
+	snapshot, cleanup, err := readOnlyMaintenanceSnapshot(source)
+	if err != nil {
+		return 0, fmt.Errorf("backup source snapshot unavailable")
+	}
+	defer cleanup()
 	if err = privateDirectory(filepath.Dir(destination)); err != nil {
 		return 0, err
 	}
@@ -66,7 +71,7 @@ func MaintenanceBackup(ctx context.Context, source, destination string) (int, er
 			os.Remove(destination + pendingSuffix)
 		}
 	}()
-	u := url.URL{Scheme: "file", Path: filepath.ToSlash(source)}
+	u := url.URL{Scheme: "file", Path: filepath.ToSlash(snapshot)}
 	q := url.Values{"mode": []string{"ro"}, "_pragma": []string{"busy_timeout(5000)"}}
 	u.RawQuery = q.Encode()
 	db, err := sql.Open("sqlite", u.String())
@@ -86,10 +91,10 @@ func MaintenanceBackup(ctx context.Context, source, destination string) (int, er
 		return 0, fmt.Errorf("backup source schema incompatible")
 	}
 	var sourceWitness *commitWitness
-	if pending, pendingErr := pendingWitnessExists(source); pendingErr != nil || pending {
+	if pending, pendingErr := pendingWitnessExists(snapshot); pendingErr != nil || pending {
 		return 0, fmt.Errorf("backup source witness requires review")
 	}
-	witness, witnessErr := readWitness(source + witnessSuffix)
+	witness, witnessErr := readWitness(snapshot + witnessSuffix)
 	if witnessErr == nil {
 		if _, verifyErr := verifyWitnessAgainst(ctx, db, witness, true); verifyErr != nil {
 			return 0, fmt.Errorf("backup source witness mismatch")

@@ -6,10 +6,19 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/ike-sh/Splicore/internal/splicore/domain/identity"
 	"github.com/ike-sh/Splicore/internal/splicore/storage/sqlite"
 )
+
+func TestLegacyWitnessUpgradeDiagnosticSurvivesCLIRedaction(t *testing.T) {
+	var stderr bytes.Buffer
+	if exit := failure(&stderr, identity.Err(identity.Invalid, identity.LegacyWitnessRequiredMessage)); exit == 0 || !strings.Contains(stderr.String(), "state establish-witness --acknowledge-current-state") {
+		t.Fatal("fixed upgrade guidance was redacted", exit, stderr.String())
+	}
+}
 
 func TestStateWitnessOperations(t *testing.T) {
 	ctx := context.Background()
