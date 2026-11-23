@@ -16,6 +16,7 @@ import (
 	"github.com/ike-sh/Splicore/internal/splicore/domain/secret"
 	"github.com/ike-sh/Splicore/internal/splicore/engine/testfixture"
 	snell "github.com/ike-sh/Splicore/internal/splicore/protocol/snell"
+	"github.com/ike-sh/Splicore/internal/splicore/testkit"
 	"github.com/ike-sh/Splicore/internal/splicore/underlay"
 )
 
@@ -164,19 +165,10 @@ func TestSnellNonConflictListenErrorIsNotPortConflict(t *testing.T) {
 func TestSnellListenerConcurrentStartClose(t *testing.T) {
 	for range 16 {
 		ctx := underlay.WithFactory(context.Background(), underlay.New())
-		probe, err := net.Listen("tcp4", "127.0.0.1:0")
-		if err != nil {
-			t.Fatal(err)
-		}
-		address := probe.Addr().String()
-		packet, err := net.ListenPacket("udp4", address)
-		if err != nil {
-			probe.Close()
-			t.Fatal(err)
-		}
-		h := listenerSnell(t, ctx, access.Endpoint{Host: "127.0.0.1", Port: uint16(probe.Addr().(*net.TCPAddr).Port)}, 5)
-		_ = packet.Close()
-		_ = probe.Close()
+		lease := testkit.ReserveDualPeerPort(t, "127.0.0.1")
+		address := lease.Address()
+		h := listenerSnell(t, ctx, access.Endpoint{Host: lease.Host, Port: uint16(lease.Port)}, 5)
+		lease.ReleaseSockets()
 		barrier := make(chan struct{})
 		started, closed := make(chan error, 1), make(chan error, 1)
 		go func() { <-barrier; started <- h.Start(ctx) }()
@@ -188,12 +180,12 @@ func TestSnellListenerConcurrentStartClose(t *testing.T) {
 		if err := <-closed; err != nil {
 			t.Fatal(err)
 		}
-		probe, err = net.Listen("tcp4", address)
+		probe, err := net.Listen("tcp4", address)
 		if err != nil {
 			t.Fatal("concurrent shutdown retained TCP", err)
 		}
 		_ = probe.Close()
-		packet, err = net.ListenPacket("udp4", address)
+		packet, err := net.ListenPacket("udp4", address)
 		if err != nil {
 			t.Fatal("concurrent shutdown retained UDP", err)
 		}
