@@ -32,30 +32,34 @@ type hyIngressEvent struct {
 	Port   int       `json:"destination_port"`
 	Source string    `json:"source"`
 }
-type hyIngress struct {
-	sockets []net.PacketConn
+type hyIngressPeer struct {
 	up      net.PacketConn
-	mu      sync.Mutex
 	last    net.Addr
 	via     net.PacketConn
-	events  []hyIngressEvent
-	wg      sync.WaitGroup
+	reorder sync.Mutex
+	held    []byte
+	seen    int
 }
 
-// Every public port remains actually bound throughout the test. One upstream
-// source socket models destination NAT while preserving the logical QUIC peer.
+type hyIngress struct {
+	sockets   []net.PacketConn
+	remote    net.Addr
+	reorder   bool
+	mu        sync.Mutex
+	peers     map[string]*hyIngressPeer
+	events    []hyIngressEvent
+	listeners sync.WaitGroup
+	returns   sync.WaitGroup
+}
+
+// Every public port remains actually bound throughout the test. Each downstream
+// client source owns one upstream socket, just as independent NAT mappings do.
+// Port hopping by one client retains its logical QUIC peer without allowing a
+// live or closing client to overwrite another client's reverse path.
 func hyNewIngress(t *testing.T, remote net.Addr, reorder bool, boundaryHost string) (*hyIngress, string) {
 	t.Helper()
-	r := &hyIngress{}
-	var e error
-	r.up, e = net.ListenPacket("udp", "127.0.0.1:0")
-	if e != nil {
-		t.Fatal(e)
-	}
+	r := &hyIngress{remote: remote, reorder: reorder, peers: map[string]*hyIngressPeer{}}
 	var ports []string
-	var reorderMu sync.Mutex
-	var held []byte
-	var seen int
 	listenPorts := []string{"0", "0", "0", "0"}
 	host := "127.0.0.1"
 	if boundaryHost != "" {
@@ -70,68 +74,94 @@ func hyNewIngress(t *testing.T, remote net.Addr, reorder bool, boundaryHost stri
 		r.sockets = append(r.sockets, p)
 		port := p.LocalAddr().(*net.UDPAddr).Port
 		ports = append(ports, strconv.Itoa(port))
-		r.wg.Add(1)
+		r.listeners.Add(1)
 		go func() {
-			defer r.wg.Done()
+			defer r.listeners.Done()
 			b := make([]byte, 65535)
 			for {
 				n, a, e := p.ReadFrom(b)
 				if e != nil {
 					return
 				}
-				r.mu.Lock()
-				r.last, r.via = a, p
-				r.events = append(r.events, hyIngressEvent{time.Now().UTC(), port, a.String()})
-				r.mu.Unlock()
-				reorderMu.Lock()
-				if reorder && seen == 0 {
-					held = bytes.Clone(b[:n])
-					seen++
-					reorderMu.Unlock()
+				peer, e := r.peer(a, p, port)
+				if e != nil {
+					return
+				}
+				peer.reorder.Lock()
+				if r.reorder && peer.seen == 0 {
+					peer.held = bytes.Clone(b[:n])
+					peer.seen++
+					peer.reorder.Unlock()
 					continue
 				}
-				if reorder && seen == 1 {
-					r.up.WriteTo(b[:n], remote)
-					r.up.WriteTo(held, remote)
-					held = nil
-					seen++
-					reorderMu.Unlock()
+				if r.reorder && peer.seen == 1 {
+					peer.up.WriteTo(b[:n], r.remote)
+					peer.up.WriteTo(peer.held, r.remote)
+					peer.held = nil
+					peer.seen++
+					peer.reorder.Unlock()
 					continue
 				}
-				reorderMu.Unlock()
-				r.up.WriteTo(b[:n], remote)
+				peer.reorder.Unlock()
+				peer.up.WriteTo(b[:n], r.remote)
 			}
 		}()
 	}
-	r.wg.Add(1)
-	go func() {
-		defer r.wg.Done()
-		b := make([]byte, 65535)
-		for {
-			n, _, e := r.up.ReadFrom(b)
-			if e != nil {
-				return
-			}
-			r.mu.Lock()
-			a, p := r.last, r.via
-			r.mu.Unlock()
-			if p != nil {
-				p.WriteTo(b[:n], a)
-			}
-		}
-	}()
 	t.Cleanup(func() {
 		for _, p := range r.sockets {
 			p.Close()
 		}
-		r.up.Close()
-		r.wg.Wait()
+		r.listeners.Wait()
+		r.mu.Lock()
+		for _, peer := range r.peers {
+			peer.up.Close()
+		}
+		r.mu.Unlock()
+		r.returns.Wait()
 	})
 	if boundaryHost != "" {
 		return r, "65534-65535"
 	}
 	return r, strings.Join(ports, ",")
 }
+
+func (r *hyIngress) peer(a net.Addr, via net.PacketConn, port int) (*hyIngressPeer, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	key := a.String()
+	peer := r.peers[key]
+	if peer == nil {
+		up, e := net.ListenPacket("udp", "127.0.0.1:0")
+		if e != nil {
+			return nil, e
+		}
+		peer = &hyIngressPeer{up: up}
+		r.peers[key] = peer
+		r.returns.Add(1)
+		go r.returnPath(peer)
+	}
+	peer.last, peer.via = a, via
+	r.events = append(r.events, hyIngressEvent{time.Now().UTC(), port, a.String()})
+	return peer, nil
+}
+
+func (r *hyIngress) returnPath(peer *hyIngressPeer) {
+	defer r.returns.Done()
+	b := make([]byte, 65535)
+	for {
+		n, _, e := peer.up.ReadFrom(b)
+		if e != nil {
+			return
+		}
+		r.mu.Lock()
+		a, p := peer.last, peer.via
+		r.mu.Unlock()
+		if p != nil {
+			p.WriteTo(b[:n], a)
+		}
+	}
+}
+
 func (r *hyIngress) snapshot() []hyIngressEvent {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -208,6 +238,37 @@ func hyCompletenessClient(t *testing.T, remote net.Addr, tc *tls.Config, h cfg.H
 	t.Cleanup(c.Close)
 	return c, sockets
 }
+func hyLivePoolExchange(t *testing.T, c *backend.Client, success bool) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
+	defer cancel()
+	openStarted := time.Now()
+	stream, e := c.OpenTCP(ctx, access.Endpoint{Host: "127.0.0.1", Port: 1234})
+	openElapsed := time.Since(openStarted)
+	if !success {
+		if e == nil {
+			stream.Close()
+			t.Fatal("incompatible manager borrowed admitted connection")
+		}
+		t.Logf("live_pool_stage=expected_rejection elapsed=%s error=%v", openElapsed, e)
+		return
+	}
+	if e != nil {
+		t.Fatalf("live_pool_stage=open_tcp elapsed=%s: %v", openElapsed, e)
+	}
+	defer stream.Close()
+	stream.SetDeadline(time.Now().Add(time.Second))
+	exchangeStarted := time.Now()
+	if _, e = stream.Write([]byte{7}); e != nil {
+		t.Fatalf("live_pool_stage=stream_write open_elapsed=%s: %v", openElapsed, e)
+	}
+	b := make([]byte, 1)
+	if _, e = io.ReadFull(stream, b); e != nil || b[0] != 7 {
+		t.Fatalf("live_pool_stage=stream_read open_elapsed=%s exchange_elapsed=%s: %v", openElapsed, time.Since(exchangeStarted), e)
+	}
+	t.Logf("live_pool_stage=stream_ready open_elapsed=%s exchange_elapsed=%s", openElapsed, time.Since(exchangeStarted))
+}
+
 func TestNativeHysteriaCompletenessNegativeMatrix(t *testing.T) {
 	sam := &cfg.HysteriaObfs{Type: "salamander", Password: "SyntheticObfsPassword"}
 	gecko := &cfg.HysteriaObfs{Type: "gecko", Password: sam.Password}
@@ -670,32 +731,7 @@ func TestNativeHysteriaCompletenessLivePoolIsolation(t *testing.T) {
 	first := ingress.sockets[0].LocalAddr()
 	settings := cfg.Hysteria{Version: 2, Obfs: o, UDP: &cfg.HysteriaUDP{Ports: strconv.Itoa(first.(*net.UDPAddr).Port), HopInterval: 5}}
 	baseline, baseOpens := hyCompletenessClient(t, first, tc, settings)
-	exchange := func(c *backend.Client, success bool) {
-		t.Helper()
-		ctx, cancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
-		defer cancel()
-		stream, e := c.OpenTCP(ctx, access.Endpoint{Host: "127.0.0.1", Port: 1234})
-		if !success {
-			if e == nil {
-				stream.Close()
-				t.Fatal("incompatible manager borrowed admitted connection")
-			}
-			return
-		}
-		if e != nil {
-			t.Fatal(e)
-		}
-		defer stream.Close()
-		stream.SetDeadline(time.Now().Add(time.Second))
-		if _, e = stream.Write([]byte{7}); e != nil {
-			t.Fatal(e)
-		}
-		b := make([]byte, 1)
-		if _, e = io.ReadFull(stream, b); e != nil || b[0] != 7 {
-			t.Fatal(e)
-		}
-	}
-	exchange(baseline, true)
+	hyLivePoolExchange(t, baseline, true)
 	for _, variant := range []string{"password", "type", "ports", "policy"} {
 		t.Run(variant, func(t *testing.T) {
 			h := settings.Clone()
@@ -711,16 +747,84 @@ func TestNativeHysteriaCompletenessLivePoolIsolation(t *testing.T) {
 				h.UDP.MinHopInterval = 5
 				h.UDP.MaxHopInterval = 6
 			}
+			createdAt := time.Now()
 			c, opens := hyCompletenessClient(t, first, tc, h)
-			exchange(c, variant == "ports" || variant == "policy")
+			t.Logf("live_pool_stage=client_created elapsed=%s", time.Since(createdAt))
+			hyLivePoolExchange(t, c, variant == "ports" || variant == "policy")
 			if opens.Load() != 1 {
 				t.Fatal("manager socket ownership", opens.Load())
 			}
+			cleanupAt := time.Now()
 			c.Close()
+			t.Logf("live_pool_stage=resource_cleanup elapsed=%s", time.Since(cleanupAt))
 		})
 	}
-	exchange(baseline, true)
+	hyLivePoolExchange(t, baseline, true)
 	if baseOpens.Load() != 1 || auth.Load() != 3 {
 		t.Fatal("pool isolation", baseOpens.Load(), auth.Load())
+	}
+}
+
+func TestNativeHysteriaCompletenessIngressSeparatesClients(t *testing.T) {
+	upstream, e := net.ListenPacket("udp", "127.0.0.1:0")
+	if e != nil {
+		t.Fatal(e)
+	}
+	t.Cleanup(func() { upstream.Close() })
+	ingress, _ := hyNewIngress(t, upstream.LocalAddr(), false, "")
+	public := ingress.sockets[0].LocalAddr()
+	clients := make([]net.PacketConn, 2)
+	for i := range clients {
+		clients[i], e = net.ListenPacket("udp", "127.0.0.1:0")
+		if e != nil {
+			t.Fatal(e)
+		}
+		t.Cleanup(func() { clients[i].Close() })
+		clients[i].SetDeadline(time.Now().Add(time.Second))
+	}
+	upstream.SetDeadline(time.Now().Add(time.Second))
+	upstreamPeers := make([]net.Addr, len(clients))
+	for i, client := range clients {
+		payload := []byte{byte(i + 1)}
+		if _, e = client.WriteTo(payload, public); e != nil {
+			t.Fatal(e)
+		}
+		b := make([]byte, 1)
+		n, peer, e := upstream.ReadFrom(b)
+		if e != nil || n != 1 || b[0] != payload[0] {
+			t.Fatal("ingress upstream", i, n, e)
+		}
+		upstreamPeers[i] = peer
+	}
+	if upstreamPeers[0].String() == upstreamPeers[1].String() {
+		t.Fatal("ingress collapsed independent client reverse paths", upstreamPeers[0])
+	}
+	hoppedPublic := ingress.sockets[1].LocalAddr()
+	if _, e = clients[0].WriteTo([]byte{21}, hoppedPublic); e != nil {
+		t.Fatal(e)
+	}
+	b := make([]byte, 1)
+	n, hoppedPeer, e := upstream.ReadFrom(b)
+	if e != nil || n != 1 || b[0] != 21 || hoppedPeer.String() != upstreamPeers[0].String() {
+		t.Fatal("ingress changed logical peer across public ports", n, hoppedPeer, e)
+	}
+	if _, e = upstream.WriteTo([]byte{31}, hoppedPeer); e != nil {
+		t.Fatal(e)
+	}
+	n, from, e := clients[0].ReadFrom(b)
+	if e != nil || n != 1 || b[0] != 31 || from.String() != hoppedPublic.String() {
+		t.Fatal("ingress did not return through latest public port", n, from, e)
+	}
+	for i := len(clients) - 1; i >= 0; i-- {
+		if _, e = upstream.WriteTo([]byte{byte(i + 11)}, upstreamPeers[i]); e != nil {
+			t.Fatal(e)
+		}
+	}
+	for i, client := range clients {
+		b := make([]byte, 1)
+		n, _, e := client.ReadFrom(b)
+		if e != nil || n != 1 || b[0] != byte(i+11) {
+			t.Fatal("ingress reverse path", i, n, b[0], e)
+		}
 	}
 }
