@@ -183,6 +183,7 @@ func TestSnellV5NativeAndOfficial(t *testing.T) {
 				snellV5Reference(t, in.Inbound.Listeners[0].Endpoint)
 			}
 			d := snellV5Client(t, ctx, in, 5)
+			packets := newSnellV5PeerPackets(t)
 			tcp := netaddrEndpoint(testfixture.TCP(t).Addr())
 			for _, version := range []int{4, 5} {
 				t.Run(fmt.Sprintf("TCPVersion%d", version), func(t *testing.T) {
@@ -205,7 +206,7 @@ func TestSnellV5NativeAndOfficial(t *testing.T) {
 							if err != nil {
 								t.Fatal(err)
 							}
-							defer p.Close()
+							packets.keep(p)
 							_ = p.SetDeadline(time.Now().Add(5 * time.Second))
 							payloads := [][]byte{[]byte("ordinary-UDP")}
 							if quic {
@@ -253,13 +254,13 @@ func TestSnellV5NativeAndOfficial(t *testing.T) {
 								t.Error(err)
 								return
 							}
+							packets.keep(p)
 							start := time.Now()
 							defer func() {
 								flow.elapsed = time.Since(start)
 								if addr, ok := p.LocalAddr().(*net.UDPAddr); ok && addr.IP.IsLoopback() {
 									flow.port = addr.Port
 								}
-								_ = p.Close()
 							}()
 							_ = p.SetDeadline(start.Add(5 * time.Second))
 							want := snellV5Initial()
@@ -319,9 +320,12 @@ func TestSnellV5NativeAndOfficial(t *testing.T) {
 					t.Fatal("negative input poisoned healthy sibling", err)
 				}
 			})
+			held := packets.assertHeld(t, 26)
 			if err := d.Close(); err != nil {
 				t.Fatal(err)
 			}
+			packets.assertClosed(t)
+			packets.assertReleased(t, held, 26)
 			if !official {
 				native := h.(*Handle)
 				if err := h.Close(ctx); err != nil {
