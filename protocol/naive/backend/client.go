@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -27,16 +28,37 @@ type connection interface {
 	alive() bool
 	close() error
 }
-type poolSlot struct {
-	conn        connection
-	born        time.Time
-	active      int
-	retired     bool
-	streams     map[*pooledStream]bool
-	dialing     chan struct{}
-	idleTimer   *time.Timer
-	retireTimer *time.Timer
+type ownedTimer struct {
+	timer  *time.Timer
+	owner  *Client
+	finish sync.Once
 }
+
+func (t *ownedTimer) stop() {
+	if t != nil && t.timer.Stop() {
+		t.finish.Do(t.owner.timers.Done)
+	}
+}
+
+type poolSlot struct {
+	conn           connection
+	born           time.Time
+	active         int
+	retired        bool
+	streams        map[*pooledStream]bool
+	dialing        chan struct{}
+	idleTimer      *ownedTimer
+	retireTimer    *ownedTimer
+	idleGeneration uint64
+	closeOnce      sync.Once
+}
+
+func (s *poolSlot) closeConnection() {
+	if s.conn != nil {
+		s.closeOnce.Do(func() { _ = s.conn.close() })
+	}
+}
+
 type Client struct {
 	config     ClientConfig
 	ctx        context.Context
@@ -44,10 +66,14 @@ type Client struct {
 	mu         sync.Mutex
 	slots      []*poolSlot
 	retired    map[*poolSlot]bool
-	capacity   chan struct{}
+	capacity   chan struct{} // caller-visible active streams, bounded by MaxStreams
+	lifecycle  chan struct{} // active plus detached cleanup owners, bounded by 2*MaxStreams
+	closeDone  chan struct{}
 	closed     bool
 	connecting sync.WaitGroup
+	opening    sync.WaitGroup
 	watchers   sync.WaitGroup
+	timers     sync.WaitGroup
 }
 
 func NewClient(config ClientConfig) (*Client, error) {
@@ -84,8 +110,34 @@ func NewClient(config ClientConfig) (*Client, error) {
 	config.TLS = config.TLS.Clone()
 	config.Headers = config.Headers.Clone()
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Client{config: config, ctx: ctx, cancel: cancel, slots: make([]*poolSlot, config.MaxConnections), retired: map[*poolSlot]bool{}, capacity: make(chan struct{}, config.MaxStreams)}, nil
+	return &Client{config: config, ctx: ctx, cancel: cancel, slots: make([]*poolSlot, config.MaxConnections), retired: map[*poolSlot]bool{},
+		capacity: make(chan struct{}, config.MaxStreams), lifecycle: make(chan struct{}, 2*config.MaxStreams), closeDone: make(chan struct{})}, nil
 }
+func (c *Client) afterLocked(delay time.Duration, callback func()) *ownedTimer {
+	t := &ownedTimer{owner: c}
+	c.timers.Add(1)
+	t.timer = time.AfterFunc(delay, func() {
+		defer t.finish.Do(c.timers.Done)
+		callback()
+	})
+	return t
+}
+
+func (c *Client) scheduleIdleLocked(slot *poolSlot) {
+	slot.idleGeneration++
+	generation := slot.idleGeneration
+	slot.idleTimer = c.afterLocked(c.config.IdleTimeout, func() { c.expireIdle(slot, generation) })
+}
+
+func (c *Client) expireIdle(slot *poolSlot, generation uint64) {
+	c.mu.Lock()
+	closeIdle := slot.idleGeneration == generation && slot.active == 0 && !c.closed && c.retireLocked(slot)
+	c.mu.Unlock()
+	if closeIdle {
+		slot.closeConnection()
+	}
+}
+
 func (c *Client) acquire(ctx context.Context) (*poolSlot, error) {
 	for {
 		c.mu.Lock()
@@ -93,42 +145,115 @@ func (c *Client) acquire(ctx context.Context) (*poolSlot, error) {
 			c.mu.Unlock()
 			return nil, net.ErrClosed
 		}
-		var selected *poolSlot
+		var selected, closeSlot *poolSlot
 		var waiting <-chan struct{}
-		index := 0
+		selectedIndex, dialIndex := -1, -1
 		for i, slot := range c.slots {
 			if slot == nil {
-				index = i
-				selected = nil
-				waiting = nil
+				dialIndex = i
 				break
 			}
 			if slot.dialing != nil {
 				waiting = slot.dialing
 				continue
 			}
-			if !slot.conn.alive() || time.Since(slot.born) >= c.config.TunnelTimeout {
-				c.retireLocked(slot)
-				index = i
-				selected = nil
-				waiting = nil
+			if time.Since(slot.born) >= c.config.TunnelTimeout {
+				if c.retireLocked(slot) {
+					closeSlot = slot
+				}
+				dialIndex = i
 				break
 			}
 			if selected == nil || slot.active < selected.active {
-				selected = slot
-				index = i
+				selected, selectedIndex = slot, i
 			}
 		}
+		if dialIndex >= 0 {
+			slot := &poolSlot{dialing: make(chan struct{}), streams: map[*pooledStream]bool{}}
+			c.slots[dialIndex] = slot
+			c.connecting.Add(1)
+			c.mu.Unlock()
+			if closeSlot != nil {
+				closeSlot.closeConnection()
+			}
+
+			dialCtx, cancel := context.WithTimeout(ctx, c.config.ConnectTimeout)
+			stop := context.AfterFunc(c.ctx, cancel)
+			var conn connection
+			var err error
+			if c.config.Mode == "quic" {
+				conn, err = newH3Connection(dialCtx, c.ctx, c.config)
+			} else {
+				conn, err = newH2Connection(dialCtx, c.ctx, c.config)
+			}
+			stop()
+			cancel()
+
+			c.mu.Lock()
+			close(slot.dialing)
+			slot.dialing = nil
+			valid := c.slots[dialIndex] == slot
+			if err != nil || c.closed || !valid {
+				if valid {
+					c.slots[dialIndex] = nil
+				}
+				if err == nil {
+					err = net.ErrClosed
+				}
+				c.mu.Unlock()
+				if conn != nil {
+					_ = conn.close()
+				}
+				c.connecting.Done()
+				return nil, err
+			}
+			slot.conn = conn
+			slot.born = time.Now()
+			slot.active = 1
+			slot.retireTimer = c.afterLocked(c.config.TunnelTimeout, func() {
+				c.mu.Lock()
+				closeNow := !c.closed && c.retireLocked(slot)
+				c.mu.Unlock()
+				if closeNow {
+					slot.closeConnection()
+				}
+			})
+			c.mu.Unlock()
+			c.connecting.Done()
+			return slot, nil
+		}
 		if selected != nil {
+			conn := selected.conn
+			c.mu.Unlock()
+			alive := conn.alive()
+			c.mu.Lock()
+			if c.closed {
+				c.mu.Unlock()
+				return nil, net.ErrClosed
+			}
+			if selectedIndex >= len(c.slots) || c.slots[selectedIndex] != selected || selected.retired || selected.conn != conn {
+				c.mu.Unlock()
+				continue
+			}
+			if !alive || time.Since(selected.born) >= c.config.TunnelTimeout {
+				closeNow := c.retireLocked(selected)
+				c.mu.Unlock()
+				if closeNow {
+					selected.closeConnection()
+				}
+				continue
+			}
 			selected.active++
 			if selected.idleTimer != nil {
-				selected.idleTimer.Stop()
+				selected.idleTimer.stop()
+				selected.idleTimer = nil
+				selected.idleGeneration++
 			}
 			c.mu.Unlock()
 			return selected, nil
 		}
+		c.mu.Unlock()
 		if waiting != nil {
-			c.mu.Unlock()
 			select {
 			case <-waiting:
 				continue
@@ -138,93 +263,67 @@ func (c *Client) acquire(ctx context.Context) (*poolSlot, error) {
 				return nil, net.ErrClosed
 			}
 		}
-		slot := &poolSlot{dialing: make(chan struct{}), streams: map[*pooledStream]bool{}}
-		c.slots[index] = slot
-		c.connecting.Add(1)
-		c.mu.Unlock()
-		dialCtx, cancel := context.WithTimeout(ctx, c.config.ConnectTimeout)
-		stop := context.AfterFunc(c.ctx, cancel)
-		var conn connection
-		var err error
-		if c.config.Mode == "quic" {
-			conn, err = newH3Connection(dialCtx, c.ctx, c.config)
-		} else {
-			conn, err = newH2Connection(dialCtx, c.ctx, c.config)
-		}
-		stop()
-		cancel()
-		c.mu.Lock()
-		close(slot.dialing)
-		slot.dialing = nil
-		if err != nil || c.closed {
-			if c.slots[index] == slot {
-				c.slots[index] = nil
-			}
-			if conn != nil {
-				_ = conn.close()
-			}
-			if err == nil {
-				err = net.ErrClosed
-			}
-			c.mu.Unlock()
-			c.connecting.Done()
-			return nil, err
-		}
-		slot.conn = conn
-		slot.born = time.Now()
-		slot.active = 1
-		slot.retireTimer = time.AfterFunc(c.config.TunnelTimeout, func() {
-			c.mu.Lock()
-			defer c.mu.Unlock()
-			if !c.closed {
-				c.retireLocked(slot)
-			}
-		})
-		c.mu.Unlock()
-		c.connecting.Done()
-		return slot, nil
 	}
 }
 
 // Retirement removes a connection from admission while allowing its existing
 // streams to drain with the pinned shorter idle timeout.
-func (c *Client) retireLocked(slot *poolSlot) {
+func (c *Client) retireLocked(slot *poolSlot) bool {
 	if slot.retired {
-		return
+		return false
 	}
 	slot.retired = true
 	if slot.retireTimer != nil {
-		slot.retireTimer.Stop()
+		slot.retireTimer.stop()
+		slot.retireTimer = nil
 	}
 	if slot.idleTimer != nil {
-		slot.idleTimer.Stop()
+		slot.idleTimer.stop()
+		slot.idleTimer = nil
 	}
+	slot.idleGeneration++
 	for i, current := range c.slots {
 		if current == slot {
 			c.slots[i] = nil
 		}
 	}
 	if slot.active == 0 {
-		_ = slot.conn.close()
-		return
+		delete(c.retired, slot)
+		return true
 	}
 	c.retired[slot] = true
 	for stream := range slot.streams {
 		stream.setIdle(c.config.IdleTimeout / 10)
 	}
+	return false
 }
 func (c *Client) Open(ctx context.Context, authority string) (net.Conn, error) {
 	return c.open(ctx, authority, true)
 }
 func (c *Client) open(ctx context.Context, authority string, retry bool) (net.Conn, error) {
+	c.mu.Lock()
+	if c.closed {
+		c.mu.Unlock()
+		return nil, net.ErrClosed
+	}
+	c.opening.Add(1)
+	c.mu.Unlock()
+	defer c.opening.Done()
 	select {
 	case c.capacity <- struct{}{}:
 	default:
 		return nil, ErrBusy
 	}
+	select {
+	case c.lifecycle <- struct{}{}:
+	default:
+		<-c.capacity
+		return nil, ErrBusy
+	}
 	slot, err := c.acquire(ctx)
 	if err != nil {
 		<-c.capacity
+		<-c.lifecycle
 		return nil, err
 	}
 	headers := c.config.Headers.Clone()
@@ -235,7 +334,7 @@ func (c *Client) open(ctx context.Context, authority string, retry bool) (net.Co
 	if c.config.Padding != "off" {
 		value, err := HeaderPadding(false)
 		if err != nil {
-			c.release(slot, nil)
+			c.release(slot, nil, true)
 			return nil, err
 		}
 		headers.Set("Padding", value)
@@ -244,7 +343,7 @@ func (c *Client) open(ctx context.Context, authority string, retry bool) (net.Co
 	conn, padding, err := slot.conn.open(openCtx, authority, headers)
 	cancel()
 	if err != nil {
-		c.release(slot, nil)
+		c.release(slot, nil, true)
 		// Reconnect once when an established connection died during CONNECT.
 		// No application payload has been sent at this point.
 		if retry && ctx.Err() == nil && !slot.conn.alive() {
@@ -254,12 +353,14 @@ func (c *Client) open(ctx context.Context, authority string, retry bool) (net.Co
 	}
 	if c.config.Padding == "enabled" && !padding {
 		_ = conn.Close()
-		c.release(slot, nil)
+		conn.(*bodyConn).waitCleanup()
+		c.release(slot, nil, true)
 		return nil, ErrProtocol
 	}
 	if c.config.Padding == "off" && padding {
 		_ = conn.Close()
-		c.release(slot, nil)
+		conn.(*bodyConn).waitCleanup()
+		c.release(slot, nil, true)
 		return nil, ErrProtocol
 	}
 	stream := &pooledStream{Conn: conn, raw: conn, client: c, slot: slot}
@@ -270,78 +371,107 @@ func (c *Client) open(ctx context.Context, authority string, retry bool) (net.Co
 	if c.closed {
 		c.mu.Unlock()
 		_ = conn.Close()
-		c.release(slot, nil)
+		conn.(*bodyConn).waitCleanup()
+		c.release(slot, nil, true)
 		return nil, net.ErrClosed
 	}
 	slot.streams[stream] = true
 	retired := slot.retired
 	c.watchers.Add(1)
 	c.mu.Unlock()
-	go func() { defer c.watchers.Done(); <-conn.(*bodyConn).done; _ = stream.Close() }()
+	go func() {
+		defer c.watchers.Done()
+		body := conn.(*bodyConn)
+		<-body.done
+		_ = stream.Close()
+		body.waitCleanup()
+		c.release(slot, stream, false)
+	}()
 	if retired {
 		stream.setIdle(c.config.IdleTimeout / 10)
 	}
 	return stream, nil
 }
-func (c *Client) release(slot *poolSlot, stream *pooledStream) {
+func (c *Client) release(slot *poolSlot, stream *pooledStream, returnCapacity bool) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
-	delete(slot.streams, stream)
+	if stream != nil {
+		delete(slot.streams, stream)
+	}
+	if slot.active <= 0 {
+		c.mu.Unlock()
+		panic("naive: pool slot active underflow")
+	}
 	slot.active--
-	<-c.capacity
+	closeNow := false
 	if slot.active == 0 {
 		if slot.retired || c.closed {
-			_ = slot.conn.close()
 			delete(c.retired, slot)
+			closeNow = true
 		} else {
-			slot.idleTimer = time.AfterFunc(c.config.IdleTimeout, func() {
-				c.mu.Lock()
-				defer c.mu.Unlock()
-				if slot.active == 0 {
-					c.retireLocked(slot)
-				}
-			})
+			c.scheduleIdleLocked(slot)
 		}
+	}
+	c.mu.Unlock()
+	if returnCapacity {
+		<-c.capacity
+	}
+	<-c.lifecycle
+	if closeNow {
+		slot.closeConnection()
 	}
 }
 func (c *Client) Close() error {
 	c.mu.Lock()
 	if c.closed {
+		done := c.closeDone
 		c.mu.Unlock()
+		<-done
 		return nil
 	}
 	c.closed = true
 	c.cancel()
 	all := map[*poolSlot]bool{}
-	for _, slot := range c.slots {
+	for i, slot := range c.slots {
 		if slot != nil {
 			all[slot] = true
+			slot.retired = true
+			c.slots[i] = nil
 		}
 	}
 	for slot := range c.retired {
 		all[slot] = true
+		slot.retired = true
 	}
 	streams := []*pooledStream{}
 	for slot := range all {
+		slot.idleGeneration++
 		if slot.idleTimer != nil {
-			slot.idleTimer.Stop()
+			slot.idleTimer.stop()
+			slot.idleTimer = nil
 		}
 		if slot.retireTimer != nil {
-			slot.retireTimer.Stop()
+			slot.retireTimer.stop()
+			slot.retireTimer = nil
 		}
 		for stream := range slot.streams {
 			streams = append(streams, stream)
 		}
-		if slot.conn != nil {
-			_ = slot.conn.close()
-		}
 	}
 	c.mu.Unlock()
+
+	// Closing carriers first releases any connection-wide transport mutex wait;
+	// local stream Close can then return immediately while tracked watchers join.
+	for slot := range all {
+		slot.closeConnection()
+	}
 	for _, stream := range streams {
 		_ = stream.Close()
 	}
+	c.opening.Wait()
 	c.connecting.Wait()
 	c.watchers.Wait()
+	c.timers.Wait()
+	close(c.closeDone)
 	return nil
 }
 
@@ -354,7 +484,10 @@ type pooledStream struct {
 }
 
 func (s *pooledStream) Close() error {
-	s.once.Do(func() { _ = s.Conn.Close(); s.client.release(s.slot, s) })
+	s.once.Do(func() {
+		_ = s.Conn.Close()
+		<-s.client.capacity
+	})
 	return nil
 }
 func (s *pooledStream) CloseWrite() error {
@@ -369,11 +502,36 @@ func (s *pooledStream) setIdle(d time.Duration) {
 	}
 }
 
+type h2CarrierConn struct {
+	net.Conn
+	failed atomic.Bool
+}
+
+func (c *h2CarrierConn) Read(p []byte) (n int, err error) {
+	n, err = c.Conn.Read(p)
+	if err != nil {
+		c.failed.Store(true)
+	}
+	return
+}
+func (c *h2CarrierConn) Write(p []byte) (n int, err error) {
+	n, err = c.Conn.Write(p)
+	if err != nil {
+		c.failed.Store(true)
+	}
+	return
+}
+func (c *h2CarrierConn) Close() error {
+	c.failed.Store(true)
+	return c.Conn.Close()
+}
+
 type h2Connection struct {
-	client *http2.ClientConn
-	tcp    net.Conn
-	ctx    context.Context
-	config ClientConfig
+	client  *http2.ClientConn
+	tcp     net.Conn
+	carrier *h2CarrierConn
+	ctx     context.Context
+	config  ClientConfig
 }
 
 func newH2Connection(ctx, lifetime context.Context, config ClientConfig) (connection, error) {
@@ -416,9 +574,10 @@ func newH2Connection(ctx, lifetime context.Context, config ClientConfig) (connec
 		return nil, ErrProtocol
 	}
 	transport := &http2.Transport{DisableCompression: true, StrictMaxConcurrentStreams: true, MaxHeaderListSize: MaxHeaders}
-	client, err := transport.NewClientConn(conn)
+	carrier := &h2CarrierConn{Conn: conn}
+	client, err := transport.NewClientConn(carrier)
 	if err != nil {
-		_ = conn.Close()
+		_ = carrier.Close()
 		return nil, err
 	}
 	// Join any cancellation callback before handing ownership to the pool.
@@ -432,18 +591,84 @@ func newH2Connection(ctx, lifetime context.Context, config ClientConfig) (connec
 		_ = client.Close()
 		return nil, err
 	}
-	return &h2Connection{client: client, tcp: conn, ctx: lifetime, config: config}, nil
+	return &h2Connection{client: client, tcp: carrier, carrier: carrier, ctx: lifetime, config: config}, nil
 }
 func (h *h2Connection) alive() bool {
-	state := h.client.State()
-	return !state.Closed && !state.Closing
+	return !h.carrier.failed.Load() && h.client.CanTakeNewRequest()
 }
 func (h *h2Connection) close() error { _ = h.client.Close(); return h.tcp.Close() }
+
+// A PipeWriter.Close alone also returns nil when the transport has already
+// closed the request body. Order reader shutdown and local EOF acceptance.
+type h2RequestBody struct {
+	*io.PipeReader
+	mu     sync.Mutex
+	closed bool
+	failed error
+}
+
+func (r *h2RequestBody) Close() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.closed = true
+	return r.PipeReader.Close()
+}
+
+func (r *h2RequestBody) finish(w *io.PipeWriter) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.failed != nil {
+		return r.failed
+	}
+	if r.closed {
+		return io.ErrClosedPipe
+	}
+	return w.Close()
+}
+
+func h2FinishWrite(ctx context.Context, request *h2RequestBody, writer *io.PipeWriter, carrier *h2CarrierConn) func() error {
+	return func() error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		// x/net/http2 publishes ClientConn.closed before asynchronously closing
+		// request bodies. The carrier witness is committed by Read/Write/Close
+		// first and avoids both that mirror lag and ClientConn.State's write lock.
+		if carrier.failed.Load() {
+			return net.ErrClosed
+		}
+		err := request.finish(writer)
+		if carrier.failed.Load() {
+			return net.ErrClosed
+		}
+		return err
+	}
+}
+
+type h2ResponseBody struct {
+	io.ReadCloser
+	request *h2RequestBody
+}
+
+func (r h2ResponseBody) Read(p []byte) (int, error) {
+	n, err := r.ReadCloser.Read(p)
+	if err != nil && !errors.Is(err, io.EOF) {
+		// HTTP/2 reset/connection failure ends this request, while a
+		// normal response EOF leaves the upload independent. Record the
+		// error before the read pump publishes it to the caller.
+		r.request.mu.Lock()
+		r.request.failed = err
+		r.request.mu.Unlock()
+	}
+	return n, err
+}
+
 func (h *h2Connection) open(ctx context.Context, authority string, headers http.Header) (net.Conn, bool, error) {
 	streamCtx, cancel := context.WithCancel(h.ctx)
 	stop := untilEstablished(ctx, cancel)
 	defer stop()
-	reader, writer := io.Pipe()
+	pipe, writer := io.Pipe()
+	reader := &h2RequestBody{PipeReader: pipe}
 	req := &http.Request{Method: http.MethodConnect, URL: &url.URL{Scheme: "https", Host: authority}, Host: authority,
 		Header: headers, Body: reader, ContentLength: -1}
 	resp, err := h.client.RoundTrip(req.WithContext(streamCtx))
@@ -462,6 +687,8 @@ func (h *h2Connection) open(ctx context.Context, authority string, headers http.
 		return nil, false, ErrProtocol
 	}
 	stop()
-	conn := newBodyConn(resp.Body, writer, writer.Close, func(bool) { cancel(); _ = reader.Close() }, h.tcp.LocalAddr(), h.tcp.RemoteAddr(), h.config.IdleTimeout)
+	finishWrite := h2FinishWrite(streamCtx, reader, writer, h.carrier)
+	body := h2ResponseBody{ReadCloser: resp.Body, request: reader}
+	conn := newBodyConn(body, writer, finishWrite, func(bool) { cancel(); _ = reader.Close() }, h.tcp.LocalAddr(), h.tcp.RemoteAddr(), h.config.IdleTimeout)
 	return conn, padding, nil
 }

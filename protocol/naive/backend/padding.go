@@ -4,6 +4,7 @@ package backend
 import (
 	"crypto/rand"
 	"encoding/binary"
+	"errors"
 	"io"
 	"net"
 	"sync"
@@ -121,8 +122,11 @@ func (c *PaddingConn) Write(p []byte) (int, error) {
 		copy(frame[3:], p[:length])
 		n, err := writeAll(c.Conn, frame)
 		if err != nil {
-			// A partially emitted record cannot be retried as a fresh record.
-			_ = c.Conn.Close()
+			// A late write rejected before emitting even a header does not
+			// damage framing. In particular, keep a half-closed stream readable.
+			if n != 0 || !errors.Is(err, net.ErrClosed) {
+				_ = c.Conn.Close()
+			}
 			return total + max(0, min(length, n-3)), err
 		}
 		total += length
@@ -136,6 +140,8 @@ func (c *PaddingConn) Write(p []byte) (int, error) {
 	return total, nil
 }
 func (c *PaddingConn) CloseWrite() error {
+	c.wmu.Lock()
+	defer c.wmu.Unlock()
 	if half, ok := c.Conn.(interface{ CloseWrite() error }); ok {
 		return half.CloseWrite()
 	}

@@ -207,7 +207,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			}, streamAddr("naive-server"), streamAddr(req.RemoteAddr), s.config.IdleTimeout)
 		conn = body
 	}
-	defer conn.Close()
+	body := conn.(*bodyConn)
+	defer func() {
+		_ = conn.Close()
+		body.waitCleanup()
+	}()
 	if padding {
 		conn = Padded(conn)
 	}

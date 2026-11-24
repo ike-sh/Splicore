@@ -108,7 +108,7 @@ func TestNaiveH2InitializationCancellation(t *testing.T) {
 			halfCloseWait(t, observed.closed)
 			halfCloseWait(t, peerDone)
 			client.mu.Lock()
-			owners := len(client.capacity) + len(client.retired)
+			owners := len(client.capacity) + len(client.lifecycle) + len(client.retired)
 			for _, slot := range client.slots {
 				if slot != nil {
 					owners++

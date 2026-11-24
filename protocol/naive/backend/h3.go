@@ -82,7 +82,7 @@ func (h *h3Connection) open(ctx context.Context, authority string, headers http.
 		return nil, false, ErrProtocol
 	}
 	stop()
-	conn := newBodyConn(io.NopCloser(stream), stream, stream.Close, func(graceful bool) {
+	conn := newBodyConn(io.NopCloser(stream), stream, h3FinishWrite(stream.Context(), stream.Close), func(graceful bool) {
 		stream.CancelRead(quic.StreamErrorCode(http3.ErrCodeRequestCanceled))
 		if !graceful {
 			stream.CancelWrite(quic.StreamErrorCode(http3.ErrCodeRequestCanceled))
@@ -139,6 +139,28 @@ func takeH3Stream(w http.ResponseWriter, req *http.Request, idle time.Duration, 
 			stream.CancelWrite(quic.StreamErrorCode(http3.ErrCodeRequestCanceled))
 		}
 	}
-	conn := newBodyConn(io.NopCloser(stream), stream, stream.Close, closeStream, streamAddr("naive-server"), streamAddr(req.RemoteAddr), idle)
+	conn := newBodyConn(io.NopCloser(stream), stream, h3FinishWrite(stream.Context(), stream.Close), closeStream, streamAddr("naive-server"), streamAddr(req.RemoteAddr), idle)
 	return conn, true
+}
+
+// quic-go's send Close can be a nil no-op after carrier shutdown. A fresh
+// context.Canceled cause is the local FIN transition, not its delivery.
+func h3FinishWrite(ctx context.Context, closeWrite func() error) func() error {
+	return func() error {
+		if cause := context.Cause(ctx); cause != nil {
+			return cause
+		}
+		err := closeWrite()
+		cause := context.Cause(ctx)
+		if cause != nil && cause != context.Canceled {
+			return cause
+		}
+		if err != nil {
+			return err
+		}
+		if cause != context.Canceled {
+			return net.ErrClosed
+		}
+		return nil
+	}
 }

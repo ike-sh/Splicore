@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -25,30 +24,29 @@ type readResult struct {
 // A write timeout cancels this stream; its partially written request cannot be
 // reused. Read deadlines can be cleared without dropping received bytes.
 type bodyConn struct {
-	r                    io.ReadCloser
-	w                    io.Writer
-	closeWrite           func() error
-	stop                 func(bool)
-	local, remote        net.Addr
-	done                 chan struct{}
-	reads                chan readResult
-	pumpDone             chan struct{}
-	once                 sync.Once
-	rmu, wmu, mu         sync.Mutex
-	pending              []byte
-	pendingErr           error
-	rDeadline, wDeadline time.Time
-	rChanged, wChanged   chan struct{}
-	idle                 time.Duration
-	last                 time.Time
-	idleTimer            *time.Timer
-	closed               bool
-	wroteEOF             atomic.Bool
+	r                     io.ReadCloser
+	w                     io.Writer
+	closeWrite            func() error
+	stop                  func(bool)
+	local, remote         net.Addr
+	done                  chan struct{}
+	reads                 chan readResult
+	pumpDone, cleanupDone chan struct{}
+	once                  sync.Once
+	rmu, wmu, mu          sync.Mutex
+	pending               []byte
+	pendingErr            error
+	rDeadline, wDeadline  time.Time
+	rChanged, wChanged    chan struct{}
+	idle                  time.Duration
+	last                  time.Time
+	idleTimer             *time.Timer
+	closed, writeClosed   bool // under mu; read EOF is independent
 }
 
 func newBodyConn(r io.ReadCloser, w io.Writer, closeWrite func() error, stop func(bool), local, remote net.Addr, idle time.Duration) *bodyConn {
 	c := &bodyConn{r: r, w: w, closeWrite: closeWrite, stop: stop, local: local, remote: remote,
-		done: make(chan struct{}), reads: make(chan readResult, 1), pumpDone: make(chan struct{}),
+		done: make(chan struct{}), reads: make(chan readResult, 1), pumpDone: make(chan struct{}), cleanupDone: make(chan struct{}),
 		rChanged: make(chan struct{}), wChanged: make(chan struct{}), last: time.Now()}
 	c.setIdle(idle)
 	go c.readPump()
@@ -127,7 +125,7 @@ func (c *bodyConn) Write(p []byte) (int, error) {
 		return 0, nil
 	}
 	c.mu.Lock()
-	deadline, closed := c.wDeadline, c.closed
+	deadline, closed := c.wDeadline, c.closed || c.writeClosed
 	c.mu.Unlock()
 	if closed {
 		return 0, net.ErrClosed
@@ -195,28 +193,49 @@ func (c *bodyConn) terminate() {
 	c.once.Do(func() {
 		c.mu.Lock()
 		c.closed = true
+		graceful := c.writeClosed
 		if c.idleTimer != nil {
 			c.idleTimer.Stop()
 		}
 		close(c.done)
 		c.mu.Unlock()
 		if c.stop != nil {
-			c.stop(c.wroteEOF.Load())
+			c.stop(graceful)
 		}
-		_ = c.closeWrite()
-		_ = c.r.Close()
+		// Transport response cleanup and an in-flight Read can each require a
+		// connection-wide write lock held by an unrelated stream. Local Close is
+		// complete after done is published and stop has interrupted this stream.
+		// One bounded cleanup worker owns the response body and joins the read
+		// pump; its owner keeps the pool lifecycle reservation until cleanupDone.
+		go func() {
+			_ = c.r.Close()
+			<-c.pumpDone
+			close(c.cleanupDone)
+		}()
 	})
 }
-func (c *bodyConn) Close() error { c.terminate(); <-c.pumpDone; return nil }
+func (c *bodyConn) Close() error { c.terminate(); return nil }
+func (c *bodyConn) waitCleanup() { <-c.cleanupDone }
+
+// CloseWrite commits local send completion, not delivery to the peer. The
+// callback only closes the local pipe or queues a FIN, without waiting for I/O.
+// Full Close never takes wmu, so it can still interrupt a blocked writer.
 func (c *bodyConn) CloseWrite() error {
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
-	c.wroteEOF.Store(true)
-	err := c.closeWrite()
-	if err != nil {
-		c.wroteEOF.Store(false)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closed {
+		return net.ErrClosed
 	}
-	return err
+	if c.writeClosed {
+		return nil
+	}
+	if err := c.closeWrite(); err != nil {
+		return err
+	}
+	c.writeClosed = true
+	return nil
 }
 func (c *bodyConn) LocalAddr() net.Addr  { return c.local }
 func (c *bodyConn) RemoteAddr() net.Addr { return c.remote }
