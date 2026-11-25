@@ -179,14 +179,29 @@ func phase20LocalUDP(t *testing.T, i client.LocalInbound, target access.Endpoint
 
 type phase20Resources struct{ Goroutines, FDs, Listeners, Sessions, UDPWorkers int }
 
-func phase20Sample(s *application.Service) phase20Resources {
+type phase20ResourceAvailability struct{ FDs, Status, StackComplete bool }
+
+type phase20ResourceFailure struct {
+	Check                   string
+	Baseline, Actual, Limit int
+}
+
+type phase20CategoryCount struct {
+	Category string
+	Count    int
+}
+
+func phase20SampleObserved(s *application.Service) (phase20Resources, phase20ResourceAvailability) {
 	r := phase20Resources{Goroutines: runtime.NumGoroutine()}
+	availability := phase20ResourceAvailability{}
 	fd, e := os.ReadDir("/proc/self/fd")
 	if e == nil {
 		r.FDs = len(fd)
+		availability.FDs = true
 	}
 	state, e := s.ClientStatus(context.Background())
 	if e == nil {
+		availability.Status = true
 		r.Sessions = len(state.Sessions)
 		if state.Health == "healthy" {
 			r.Listeners = len(state.LocalStats)
@@ -194,8 +209,169 @@ func phase20Sample(s *application.Service) phase20Resources {
 	}
 	stack := make([]byte, 1<<20)
 	n := runtime.Stack(stack, true)
+	availability.StackComplete = n < len(stack)
 	r.UDPWorkers = bytes.Count(stack[:n], []byte("proxy_outbound.go")) + bytes.Count(stack[:n], []byte("clientruntime.(*Manager).serveUDP.func"))
+	return r, availability
+}
+
+func phase20Sample(s *application.Service) phase20Resources {
+	r, _ := phase20SampleObserved(s)
 	return r
+}
+
+func phase20LogResources(t *testing.T, stage string, round int, event, result string, stopped bool, r phase20Resources, availability phase20ResourceAvailability) {
+	t.Helper()
+	t.Logf("phase20_lifecycle stage=%s round=%d event=%s result=%s stopped=%t goroutines=%d fds=%d listeners=%d sessions=%d udp_workers=%d fds_known=%t status_known=%t stack_complete=%t",
+		stage, round, event, result, stopped, r.Goroutines, r.FDs, r.Listeners, r.Sessions, r.UDPWorkers,
+		availability.FDs, availability.Status, availability.StackComplete)
+}
+
+func phase20LogResourcePair(t *testing.T, start phase20Resources, startAvailability phase20ResourceAvailability, end phase20Resources, endAvailability phase20ResourceAvailability) {
+	t.Helper()
+	t.Logf("phase20_lifecycle stage=final round=25 event=resource_check result=observed baseline_goroutines=%d baseline_fds=%d baseline_listeners=%d baseline_sessions=%d baseline_udp_workers=%d baseline_fds_known=%t baseline_status_known=%t baseline_stack_complete=%t final_goroutines=%d final_fds=%d final_listeners=%d final_sessions=%d final_udp_workers=%d final_fds_known=%t final_status_known=%t final_stack_complete=%t",
+		start.Goroutines, start.FDs, start.Listeners, start.Sessions, start.UDPWorkers,
+		startAvailability.FDs, startAvailability.Status, startAvailability.StackComplete,
+		end.Goroutines, end.FDs, end.Listeners, end.Sessions, end.UDPWorkers,
+		endAvailability.FDs, endAvailability.Status, endAvailability.StackComplete)
+}
+
+func phase20RuntimeAction(t *testing.T, s *application.Service, stage string, round int, action string) {
+	t.Helper()
+	event := "runtime_" + action
+	mutation := application.ClientMutation{Resource: "runtime", Action: action}
+	document, _ := json.Marshal(mutation)
+	plan, err := s.PlanClient(context.Background(), document)
+	if err != nil {
+		t.Logf("phase20_lifecycle stage=%s round=%d event=%s result=plan_error", stage, round, event)
+		t.Fatal("plan", err)
+	}
+	_, err = s.ApplyClient(context.Background(), application.ApplyRequest{Document: document, Digest: plan.Digest, Revision: plan.Revision})
+	if err != nil {
+		t.Logf("phase20_lifecycle stage=%s round=%d event=%s result=apply_error", stage, round, event)
+		t.Fatal("apply", err)
+	}
+}
+
+func phase20IdleResult(err error) string {
+	if err == nil {
+		return "ok"
+	}
+	return "error"
+}
+
+func phase20StoppedFailures(start, end phase20Resources) []phase20ResourceFailure {
+	var failures []phase20ResourceFailure
+	if end.FDs != start.FDs {
+		failures = append(failures, phase20ResourceFailure{"fds", start.FDs, end.FDs, start.FDs})
+	}
+	if end.Sessions != 0 {
+		failures = append(failures, phase20ResourceFailure{"sessions", 0, end.Sessions, 0})
+	}
+	if end.UDPWorkers != 0 {
+		failures = append(failures, phase20ResourceFailure{"udp_workers", 0, end.UDPWorkers, 0})
+	}
+	return failures
+}
+
+func phase20FinalFailure(start, end phase20Resources) phase20ResourceFailure {
+	return phase20ResourceFailure{"goroutines", start.Goroutines, end.Goroutines, start.Goroutines + 1}
+}
+
+func phase20LogFailure(t *testing.T, round int, failure phase20ResourceFailure) {
+	t.Helper()
+	t.Logf("phase20_lifecycle stage=assertion round=%d event=failure result=fail check=%s baseline=%d actual=%d limit=%d",
+		round, failure.Check, failure.Baseline, failure.Actual, failure.Limit)
+}
+
+func phase20GoroutineCategory(block string) string {
+	switch {
+	case strings.Contains(block, "application_test.phase20Echo.func1.1"):
+		return "echo_connection"
+	case strings.Contains(block, "application_test.phase20Echo.func1"):
+		return "echo_accept"
+	case strings.Contains(block, "clientruntime.(*Manager).accept"):
+		return "client_listener"
+	case strings.Contains(block, "clientruntime.(*Manager).serveUDP"):
+		return "client_udp"
+	case strings.Contains(block, "database/sql.(*DB).connectionOpener"):
+		return "sql"
+	case strings.Contains(block, "testing.tRunner"), strings.Contains(block, "testing.(*T).Run"):
+		return "testing"
+	case strings.Contains(block, "runtime.forcegchelper"), strings.Contains(block, "runtime.bgsweep"),
+		strings.Contains(block, "runtime.bgscavenge"), strings.Contains(block, "runtime.runfinq"),
+		strings.Contains(block, "runtime.cleanup"):
+		return "runtime_background"
+	default:
+		return "unknown"
+	}
+}
+
+func phase20GoroutineCategories(stack []byte) []phase20CategoryCount {
+	counts := map[string]int{}
+	for _, block := range strings.Split(strings.TrimSpace(string(stack)), "\n\n") {
+		if strings.HasPrefix(block, "goroutine ") {
+			counts[phase20GoroutineCategory(block)]++
+		}
+	}
+	categories := []string{"testing", "sql", "echo_accept", "echo_connection", "client_listener", "client_udp", "runtime_background", "unknown"}
+	result := make([]phase20CategoryCount, 0, len(categories))
+	for _, category := range categories {
+		result = append(result, phase20CategoryCount{category, counts[category]})
+	}
+	return result
+}
+
+func phase20LogGoroutineCategories(t *testing.T) {
+	t.Helper()
+	stack := make([]byte, 1<<20)
+	n := runtime.Stack(stack, true)
+	truncated := n == len(stack)
+	categories := phase20GoroutineCategories(stack[:n])
+	captured := 0
+	for _, category := range categories {
+		captured += category.Count
+	}
+	t.Logf("phase20_lifecycle stage=classification round=25 event=goroutine_snapshot result=observed captured=%d truncated=%t", captured, truncated)
+	for _, category := range categories {
+		t.Logf("phase20_lifecycle stage=classification round=25 event=goroutine_category result=observed category=%s count=%d", category.Category, category.Count)
+	}
+}
+
+func phase20FDCategory(target string) string {
+	switch {
+	case strings.HasPrefix(target, "socket:"):
+		return "socket"
+	case strings.HasPrefix(target, "pipe:"):
+		return "pipe"
+	case strings.HasPrefix(target, "anon_inode:"):
+		return "anon_inode"
+	case strings.HasPrefix(target, "/"):
+		return "file"
+	default:
+		return "unknown"
+	}
+}
+
+func phase20LogFDCategories(t *testing.T) {
+	t.Helper()
+	counts := map[string]int{}
+	result := "observed"
+	fds, err := os.ReadDir("/proc/self/fd")
+	if err != nil {
+		result = "unavailable"
+	} else {
+		for _, fd := range fds {
+			target, readErr := os.Readlink("/proc/self/fd/" + fd.Name())
+			if readErr != nil {
+				counts["unknown"]++
+				continue
+			}
+			counts[phase20FDCategory(target)]++
+		}
+	}
+	for _, category := range []string{"socket", "pipe", "anon_inode", "file", "unknown"} {
+		t.Logf("phase20_lifecycle stage=warmup round=0 event=fd_category result=%s category=%s count=%d", result, category, counts[category])
+	}
 }
 func TestPhase20ProxyLifetimeAuthRotation25(t *testing.T) {
 	ctx := context.Background()
@@ -210,11 +386,17 @@ func TestPhase20ProxyLifetimeAuthRotation25(t *testing.T) {
 		listeners = append(listeners, i)
 		bindings = append(bindings, b)
 	}
-	clientApply(t, s, application.ClientMutation{Resource: "runtime", Action: "stop"})
-	start := phase20Sample(s)
+	phase20RuntimeAction(t, s, "setup", 0, "stop")
+	start, startAvailability := phase20SampleObserved(s)
+	t.Log("phase20_lifecycle stage=setup round=0 event=runtime_stop result=ok")
 	peak := start
 	for cycle := range 26 {
-		clientApply(t, s, application.ClientMutation{Resource: "runtime", Action: "start"})
+		stage := "round"
+		if cycle == 0 {
+			stage = "warmup"
+		}
+		phase20RuntimeAction(t, s, stage, cycle, "start")
+		t.Logf("phase20_lifecycle stage=%s round=%d event=runtime_start result=ok", stage, cycle)
 		for j, i := range listeners {
 			for range 8 {
 				phase20Stream(t, i, echo, "fixture")
@@ -234,59 +416,78 @@ func TestPhase20ProxyLifetimeAuthRotation25(t *testing.T) {
 			}
 			_ = c.Close()
 			if e == nil {
+				t.Logf("phase20_lifecycle stage=%s round=%d event=failure result=fail check=wrong_auth", stage, cycle)
 				t.Fatal("wrong auth accepted")
 			}
 			clientApply(t, s, application.ClientMutation{Resource: "local-binding", Action: "rotate", ID: bindings[j], Credential: proxyAuthInput("fixture")})
 		}
-		current := phase20Sample(s)
+		current, currentAvailability := phase20SampleObserved(s)
+		phase20LogResources(t, stage, cycle, "running_sample", "observed", false, current, currentAvailability)
 		peak.Goroutines = max(peak.Goroutines, current.Goroutines)
 		peak.FDs = max(peak.FDs, current.FDs)
 		peak.Listeners = max(peak.Listeners, current.Listeners)
 		peak.Sessions = max(peak.Sessions, current.Sessions)
-		clientApply(t, s, application.ClientMutation{Resource: "runtime", Action: "stop"})
+		phase20RuntimeAction(t, s, stage, cycle, "stop")
 		wait, cancel := context.WithTimeout(ctx, 3*time.Second)
-		if e := s.WaitClientIdle(wait); e != nil {
-			t.Fatal(e)
+		idleErr := s.WaitClientIdle(wait)
+		if idleErr != nil {
+			cancel()
+			t.Logf("phase20_lifecycle stage=%s round=%d event=runtime_stop result=ok", stage, cycle)
+			t.Logf("phase20_lifecycle stage=%s round=%d event=idle_wait result=%s", stage, cycle, phase20IdleResult(idleErr))
+			t.Logf("phase20_lifecycle stage=assertion round=%d event=failure result=fail check=idle", cycle)
+			t.Fatal(idleErr)
 		}
 		cancel()
-		end := phase20Sample(s)
+		end, endAvailability := phase20SampleObserved(s)
+		t.Logf("phase20_lifecycle stage=%s round=%d event=runtime_stop result=ok", stage, cycle)
+		t.Logf("phase20_lifecycle stage=%s round=%d event=idle_wait result=%s", stage, cycle, phase20IdleResult(idleErr))
+		phase20LogResources(t, stage, cycle, "stopped_sample", "observed", true, end, endAvailability)
 		if cycle == 0 {
-			t.Logf("warm-up start=%+v stopped=%+v", start, end)
-			fds, _ := os.ReadDir("/proc/self/fd")
-			for _, fd := range fds {
-				target, _ := os.Readlink("/proc/self/fd/" + fd.Name())
-				t.Logf("warm-up fd=%s target=%s", fd.Name(), target)
-			}
+			phase20LogResources(t, "warmup", 0, "complete", "ok", true, end, endAvailability)
+			phase20LogFDCategories(t)
 			start = end
+			startAvailability = endAvailability
 			peak = end
 			continue
 		}
 		if end.FDs != start.FDs || end.Sessions != 0 || end.UDPWorkers != 0 {
+			for _, failure := range phase20StoppedFailures(start, end) {
+				phase20LogFailure(t, cycle, failure)
+			}
 			t.Fatalf("resource residue start=%+v end=%+v", start, end)
 		}
-		t.Logf("cycle=%d resources=%+v", cycle, end)
+		t.Logf("phase20_lifecycle stage=round round=%d event=resource_check result=ok", cycle)
 	}
-	end := phase20Sample(s)
+	end, endAvailability := phase20SampleObserved(s)
+	phase20LogResourcePair(t, start, startAvailability, end, endAvailability)
 	if end.Goroutines > start.Goroutines+1 {
+		phase20LogFailure(t, 25, phase20FinalFailure(start, end))
+		phase20LogGoroutineCategories(t)
 		t.Fatalf("goroutine residue start=%+v end=%+v", start, end)
 	}
+	t.Logf("phase20_lifecycle stage=final round=25 event=assertion result=ok check=goroutines baseline=%d actual=%d limit=%d", start.Goroutines, end.Goroutines, start.Goroutines+1)
 	t.Logf("x25 TCP/auth churn=675 valid plus 75 invalid rotations=150 start=%+v peak=%+v end=%+v", start, peak, end)
 	state, e := s.ClientStatus(ctx)
 	if e != nil {
+		t.Log("phase20_lifecycle stage=assertion round=25 event=failure result=fail check=status")
 		t.Fatal(e)
 	}
 	if len(state.Accounts) != 3 {
+		t.Log("phase20_lifecycle stage=assertion round=25 event=failure result=fail check=account_count")
 		t.Fatal("account attribution missing")
 	}
 	for _, a := range state.Accounts {
 		if a.Stats.Upload == 0 || a.Stats.Download == 0 || a.Stats.Active != 0 {
+			t.Log("phase20_lifecycle stage=assertion round=25 event=failure result=fail check=account_stats")
 			t.Fatal("account byte attribution")
 		}
 	}
 	raw, _ := json.Marshal(state)
 	if bytes.Contains(raw, []byte("rotated-fixture")) || bytes.Contains(raw, []byte(`"password"`)) {
+		t.Log("phase20_lifecycle stage=assertion round=25 event=failure result=fail check=status_secret")
 		t.Fatal("status secret leak")
 	}
+	t.Log("phase20_lifecycle stage=final round=25 event=complete result=ok")
 }
 func TestPhase20CurlInboundInterop(t *testing.T) {
 	if os.Getenv("SPLICORE_P20_CURL") == "" {

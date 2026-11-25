@@ -270,6 +270,58 @@ SNELL_V5_FIELDS = (
     r'snell_v5_echo port=\d{1,5} received=\d{1,9} sent=\d{1,9}',
     r'snell_v5_peer pid=\d{1,10} exit_code=-?\d{1,10} cleanup_kill=(?:requested|already_done|error)',
 )
+PHASE20_COUNT = r'(?:0|[1-9]\d{0,8})'
+PHASE20_ROUND = r'(?:[1-9]|1[0-9]|2[0-5])'
+PHASE20_SCOPE = r'(?:stage=warmup round=0|stage=round round=' + PHASE20_ROUND + r')'
+PHASE20_RESOURCES = (r'goroutines=' + PHASE20_COUNT + r' fds=' + PHASE20_COUNT +
+                     r' listeners=' + PHASE20_COUNT + r' sessions=' + PHASE20_COUNT +
+                     r' udp_workers=' + PHASE20_COUNT + r' fds_known=(?:true|false)'
+                     r' status_known=(?:true|false) stack_complete=(?:true|false)')
+PHASE20_LIFECYCLE_FIELDS = (
+    r'phase20_lifecycle stage=setup round=0 event=runtime_stop result=(?:ok|plan_error|apply_error)',
+    r'phase20_lifecycle ' + PHASE20_SCOPE +
+    r' event=runtime_(?:start|stop) result=(?:ok|plan_error|apply_error)',
+    r'phase20_lifecycle ' + PHASE20_SCOPE + r' event=idle_wait result=(?:ok|error)',
+    r'phase20_lifecycle ' + PHASE20_SCOPE +
+    r' event=running_sample result=observed stopped=false ' + PHASE20_RESOURCES,
+    r'phase20_lifecycle ' + PHASE20_SCOPE +
+    r' event=stopped_sample result=observed stopped=true ' + PHASE20_RESOURCES,
+    r'phase20_lifecycle stage=warmup round=0 event=complete result=ok stopped=true ' + PHASE20_RESOURCES,
+    r'phase20_lifecycle stage=warmup round=0 event=fd_category '
+    r'(?:result=observed category=(?:socket|pipe|anon_inode|file|unknown) count=' + PHASE20_COUNT +
+    r'|result=unavailable category=(?:socket|pipe|anon_inode|file|unknown) count=0)',
+    r'phase20_lifecycle stage=round round=' + PHASE20_ROUND + r' event=resource_check result=ok',
+    r'phase20_lifecycle stage=final round=25 event=resource_check result=observed '
+    r'baseline_goroutines=' + PHASE20_COUNT + r' baseline_fds=' + PHASE20_COUNT +
+    r' baseline_listeners=' + PHASE20_COUNT + r' baseline_sessions=' + PHASE20_COUNT +
+    r' baseline_udp_workers=' + PHASE20_COUNT + r' baseline_fds_known=(?:true|false)'
+    r' baseline_status_known=(?:true|false) baseline_stack_complete=(?:true|false)'
+    r' final_goroutines=' + PHASE20_COUNT + r' final_fds=' + PHASE20_COUNT +
+    r' final_listeners=' + PHASE20_COUNT + r' final_sessions=' + PHASE20_COUNT +
+    r' final_udp_workers=' + PHASE20_COUNT + r' final_fds_known=(?:true|false)'
+    r' final_status_known=(?:true|false) final_stack_complete=(?:true|false)',
+    r'phase20_lifecycle stage=assertion round=25 event=failure result=fail check=goroutines '
+    r'baseline=' + PHASE20_COUNT + r' actual=' + PHASE20_COUNT + r' limit=' + PHASE20_COUNT,
+    r'phase20_lifecycle stage=assertion round=' + PHASE20_ROUND +
+    r' event=failure result=fail check=(?:fds|sessions|udp_workers) '
+    r'baseline=' + PHASE20_COUNT + r' actual=' + PHASE20_COUNT + r' limit=' + PHASE20_COUNT,
+    r'phase20_lifecycle stage=assertion round=(?:0|' + PHASE20_ROUND +
+    r') event=failure result=fail check=(?:idle|wrong_auth)',
+    r'phase20_lifecycle stage=assertion round=25 event=failure result=fail '
+    r'check=(?:status|account_count|account_stats|status_secret)',
+    r'phase20_lifecycle stage=classification round=25 event=goroutine_snapshot result=observed '
+    r'captured=' + PHASE20_COUNT + r' truncated=(?:true|false)',
+    r'phase20_lifecycle stage=classification round=25 event=goroutine_category result=observed '
+    r'category=(?:testing|sql|echo_accept|echo_connection|client_listener|client_udp|runtime_background|unknown) '
+    r'count=' + PHASE20_COUNT,
+    r'phase20_lifecycle stage=final round=25 event=assertion result=ok check=goroutines '
+    r'baseline=' + PHASE20_COUNT + r' actual=' + PHASE20_COUNT + r' limit=' + PHASE20_COUNT,
+    r'phase20_lifecycle stage=final round=25 event=complete result=ok',
+)
+SENSITIVE_OBSERVATION = re.compile(
+    r'(?:authorization|cookie|set-cookie|password|passwd|psk|private[_-]?key|secret|token|bearer|credential|api[_-]?key)\s*[:=]',
+    re.IGNORECASE,
+)
 
 
 def protocol_observation(event):
@@ -277,18 +329,33 @@ def protocol_observation(event):
         return ''
     package, test = event.get('Package'), event.get('Test')
     output = event.get('Output')
-    if not isinstance(test, str) or not isinstance(output, str) or len(output) > 512:
+    if not isinstance(test, str) or not isinstance(output, str) or len(output.encode('utf-8')) > 512:
+        return ''
+    if SENSITIVE_OBSERVATION.search(output):
         return ''
     if (package == 'github.com/ike-sh/Splicore/internal/splicore/networkruntime'
             and test == 'TestProtectedDNSUDPTruncationFallsBackToTCP'):
         source, fields = 'dns_fallback_test.go', DNS_FALLBACK_FIELDS
+        line = output.strip()
+        site = re.match(re.escape(source) + r':\d{1,6}: ', line)
     elif (package == 'github.com/ike-sh/Splicore/internal/splicore/engine/native'
           and re.fullmatch(r'TestSnellV5NativeAndOfficial/Official_(?:true|false)(?:/(?:127\.0\.0\.1|::1))?', test)):
         source, fields = 'snell_v5_test.go', SNELL_V5_FIELDS
+        line = output.strip()
+        site = re.match(re.escape(source) + r':\d{1,6}: ', line)
+    elif (package == 'github.com/ike-sh/Splicore/internal/splicore/application'
+          and test == 'TestPhase20ProxyLifetimeAuthRotation25'):
+        if '\r' in output or not output.endswith('\n') or output.count('\n') != 1:
+            return ''
+        line = output[:-1]
+        if line.startswith('    '):
+            line = line[4:]
+        elif line != line.lstrip(' '):
+            return ''
+        source, fields = 'proxy_interfaces_test.go', PHASE20_LIFECYCLE_FIELDS
+        site = re.match(re.escape(source) + r':[1-9]\d{0,5}: ', line)
     else:
         return ''
-    line = output.strip()
-    site = re.match(re.escape(source) + r':\d{1,6}: ', line)
     if site and any(re.fullmatch(pattern, line[site.end():]) for pattern in fields):
         return line
     return ''
@@ -304,18 +371,19 @@ def protocol_observations(path):
             scanned += len(raw)
             if scanned > 64 * MIB or len(lines) >= 256:
                 return b''.join(lines) + limit
-            if not raw.startswith(b'{') or (b'snell_v5_' not in raw and b'dns_fallback_' not in raw):
+            if not raw.startswith(b'{') or not any(marker in raw for marker in
+                    (b'snell_v5_', b'dns_fallback_', b'phase20_lifecycle')):
                 continue
             try:
                 event = json.loads(raw)
             except ValueError:
                 continue
             if protocol_observation(event):
-                lines.append((safe_event(raw) + '\n').encode('utf-8'))
+                lines.append((safe_event(raw, include_phase20=True) + '\n').encode('utf-8'))
     return b''.join(lines)
 
 
-def safe_event(line):
+def safe_event(line, include_phase20=False):
     try:
         event = json.loads(line)
     except ValueError:
@@ -330,6 +398,8 @@ def safe_event(line):
         result['Elapsed'] = event['Elapsed']
     if isinstance(event.get('Output'), str):
         observation = protocol_observation(event)
+        if observation and ' phase20_lifecycle ' in observation and not include_phase20:
+            observation = ''
         result['Output'] = (observation or '\n'.join(
             safe_output(part).rstrip('\n') for part in event['Output'].splitlines())) + '\n'
     return json.dumps(result, separators=(',', ':'))
