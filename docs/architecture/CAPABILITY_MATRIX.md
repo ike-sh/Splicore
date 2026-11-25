@@ -2,8 +2,8 @@
 
 Protocol profiles are experimental. Native is the runtime engine; protocol
 identity does not imply ownership of another Core process.
-The v0.6.6 release contract covers Linux and Windows amd64. Qualification
-of a profile is limited to its tested behavior and peers. [v0.6.6 scope](../releases/v0.6.6.md)
+The v0.6.7 release contract covers Linux and Windows amd64. Qualification
+of a profile is limited to its tested behavior and peers. [v0.6.7 scope](../releases/v0.6.7.md)
 
 | Protocol/profile | Server and client payload | Security/transport |
 | --- | --- | --- |
