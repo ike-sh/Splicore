@@ -174,19 +174,35 @@ class EvidenceTests(unittest.TestCase):
     def test_protocol_observations_use_only_known_test_fields(self):
         dns = 'github.com/ike-sh/Splicore/internal/splicore/networkruntime'
         snell = 'github.com/ike-sh/Splicore/internal/splicore/engine/native'
+        phase20 = 'github.com/ike-sh/Splicore/internal/splicore/application'
         dns_test = 'TestProtectedDNSUDPTruncationFallsBackToTCP'
         snell_test = 'TestSnellV5NativeAndOfficial/Official_true/::1'
+        phase20_test = 'TestPhase20ProxyLifetimeAuthRotation25'
         bind = 'dns_fallback_test.go:90: dns_fallback_stage stage=udp_bind port=58189 result=socket_error errno=10013'
         retry_close = 'dns_fallback_test.go:91: dns_fallback_stage stage=tcp_retry_close port=58189 result=ok errno=0'
         check = 'dns_fallback_test.go:125: dns_fallback_assertion check=protection'
         flow = ('snell_v5_test.go:250: snell_v5_flow id=12 udp_port=42000 echo_port=43100 written=1200 received=0 '
                 'phase=read timeout=true elapsed_ms=5000')
+        phase20_sample = ('proxy_interfaces_test.go:420: phase20_lifecycle stage=round round=25 event=stopped_sample '
+                          'result=observed stopped=true goroutines=4 fds=12 listeners=0 sessions=0 udp_workers=0 '
+                          'fds_known=true status_known=true stack_complete=true')
+        phase20_final = ('proxy_interfaces_test.go:440: phase20_lifecycle stage=final round=25 event=resource_check '
+                         'result=observed baseline_goroutines=4 baseline_fds=12 baseline_listeners=0 '
+                         'baseline_sessions=0 baseline_udp_workers=0 baseline_fds_known=true baseline_status_known=true '
+                         'baseline_stack_complete=true final_goroutines=4 final_fds=12 final_listeners=0 '
+                         'final_sessions=0 final_udp_workers=0 final_fds_known=true final_status_known=true '
+                         'final_stack_complete=true')
         output = [
             (dns, dns_test, bind), (dns, dns_test, retry_close), (dns, dns_test, check), (snell, snell_test, flow),
+            (phase20, phase20_test, phase20_sample), (phase20, phase20_test, phase20_final),
             (dns, dns_test, bind + ' password=' + MARKER),
             (dns, 'TestOther', check), (PACKAGE, snell_test, flow),
             (snell, snell_test, flow.replace('phase=read', 'phase=' + MARKER)),
             (dns, dns_test, check + '\n' + MARKER),
+            (phase20, phase20_test + '/child', phase20_sample),
+            (PACKAGE, phase20_test, phase20_sample),
+            (phase20, phase20_test, phase20_sample + ' extra=1'),
+            (phase20, phase20_test, phase20_sample + ' token=' + MARKER),
         ]
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp).resolve()
@@ -207,12 +223,71 @@ class EvidenceTests(unittest.TestCase):
             name = 'commands/full-test.protocol-observations.jsonl'
             projected = (public / name).read_bytes()
             self.assertEqual([json.loads(line)['Output'].rstrip() for line in projected.splitlines()],
-                             [bind, retry_close, check, flow])
+                             [bind, retry_close, check, flow, phase20_sample, phase20_final])
             self.assertNotIn(MARKER.encode(), (public / 'commands/full-test.failures.jsonl').read_bytes())
             self.assertIn(bind.encode(), (public / 'commands/full-test.failures.jsonl').read_bytes())
             manifest = json.loads((public / 'SHA256_MANIFEST.json').read_bytes())
             self.assertEqual(manifest['files'][name]['sha256'], evidence.sha256(projected))
             self.assertEqual(json.loads((public / 'commands/full-test.json').read_bytes())['exit_code'], 1)
+    def test_phase20_lifecycle_observations_are_strict(self):
+        package = 'github.com/ike-sh/Splicore/internal/splicore/application'
+        test = 'TestPhase20ProxyLifetimeAuthRotation25'
+        valid = [
+            'proxy_interfaces_test.go:370: phase20_lifecycle stage=warmup round=0 event=runtime_start result=ok',
+            ('proxy_interfaces_test.go:420: phase20_lifecycle stage=round round=25 event=stopped_sample '
+             'result=observed stopped=true goroutines=4 fds=12 listeners=0 sessions=0 udp_workers=0 '
+             'fds_known=true status_known=true stack_complete=true'),
+            ('proxy_interfaces_test.go:440: phase20_lifecycle stage=assertion round=25 event=failure result=fail '
+             'check=goroutines baseline=4 actual=16 limit=5'),
+            ('proxy_interfaces_test.go:440: phase20_lifecycle stage=assertion round=1 event=failure result=fail '
+             'check=fds baseline=12 actual=13 limit=12'),
+            ('proxy_interfaces_test.go:440: phase20_lifecycle stage=assertion round=1 event=failure result=fail '
+             'check=sessions baseline=0 actual=1 limit=0'),
+            ('proxy_interfaces_test.go:440: phase20_lifecycle stage=assertion round=1 event=failure result=fail '
+             'check=udp_workers baseline=0 actual=1 limit=0'),
+            'proxy_interfaces_test.go:440: phase20_lifecycle stage=assertion round=1 event=failure result=fail check=idle',
+            ('proxy_interfaces_test.go:441: phase20_lifecycle stage=classification round=25 '
+             'event=goroutine_category result=observed category=unknown count=12'),
+        ]
+        for line in valid:
+            event = dict(Action='output', Package=package, Test=test, Output='    ' + line + '\n')
+            self.assertEqual(evidence.protocol_observation(event), line)
+        base = dict(Action='output', Package=package, Test=test, Output=valid[1] + '\n')
+        invalid = [
+            dict(base, Action='pass'),
+            dict(base, Package=PACKAGE),
+            dict(base, Test=test + '/child'),
+            dict(base, Test='TestOther'),
+            dict(base, Output=valid[1].replace('sessions=0', 'session_count=0') + '\n'),
+            dict(base, Output=valid[1].replace('goroutines=4', 'goroutines=04') + '\n'),
+            dict(base, Output='proxy_interfaces_test.go:1: phase20_lifecycle stage=setup round=0 event=runtime_start result=ok\n'),
+            dict(base, Output=('proxy_interfaces_test.go:1: phase20_lifecycle stage=assertion round=1 '
+                               'event=failure result=fail check=goroutines baseline=4 actual=16 limit=5\n')),
+            dict(base, Output=valid[1] + ' extra=1\n'),
+            dict(base, Output='prefix ' + valid[1] + '\n'),
+            dict(base, Output=valid[1] + ' password=' + MARKER + '\n'),
+            dict(base, Output=valid[1] + ' Authorization: Bearer ' + MARKER + '\n'),
+            dict(base, Output=valid[1] + '\r\n'),
+            dict(base, Output=valid[1] + '\nsecond line\n'),
+            dict(base, Output=valid[1]),
+            dict(base, Output=('界' * 171) + '\n'),
+            dict(base, Output=('x' * 512) + '\n'),
+        ]
+        for event in invalid:
+            self.assertEqual(evidence.protocol_observation(event), '', event)
+
+    def test_phase20_lifecycle_observation_total_limit(self):
+        package = 'github.com/ike-sh/Splicore/internal/splicore/application'
+        test = 'TestPhase20ProxyLifetimeAuthRotation25'
+        line = 'proxy_interfaces_test.go:370: phase20_lifecycle stage=warmup round=0 event=runtime_start result=ok\n'
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / 'default-test.stdout'
+            path.write_text(''.join(json.dumps(dict(Action='output', Package=package, Test=test, Output=line)) + '\n'
+                                    for _ in range(257)), encoding='utf-8')
+            projected = evidence.protocol_observations(path).splitlines()
+        self.assertEqual(len(projected), 257)
+        self.assertTrue(all(json.loads(raw).get('Output', '').rstrip().endswith('result=ok') for raw in projected[:256]))
+        self.assertEqual(json.loads(projected[-1]), {'Evidence': 'protocol observation scan reached its limit'})
 
 
 class ComparisonTests(unittest.TestCase):
