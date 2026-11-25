@@ -214,8 +214,10 @@ class EvidenceTests(unittest.TestCase):
                                    for p, t, line in output), encoding='utf-8')
             saved = log.read_bytes()
             evidence.save(raw / 'full-test.json', {'result': 'FAIL', 'exit_code': 1, 'command': ['go', 'test'],
-                          'timeout_seconds': 5, 'execution': {}, 'tests': {dns + '/' + dns_test: 'fail'},
-                          'failed_tests': [dns + '/' + dns_test]})
+                          'timeout_seconds': 5, 'execution': {},
+                          'tests': {dns + '/' + dns_test: 'fail',
+                                    phase20 + '/' + phase20_test: 'fail'},
+                          'failed_tests': [dns + '/' + dns_test, phase20 + '/' + phase20_test]})
             target = release.native_target()
             with patch.object(evidence, 'fingerprint', return_value=evidence.fingerprint(target, 'unit-test', 'release')):
                 evidence.export(private, public, target, 'unit-test', 'release')
@@ -224,8 +226,16 @@ class EvidenceTests(unittest.TestCase):
             projected = (public / name).read_bytes()
             self.assertEqual([json.loads(line)['Output'].rstrip() for line in projected.splitlines()],
                              [bind, retry_close, check, flow, phase20_sample, phase20_final])
-            self.assertNotIn(MARKER.encode(), (public / 'commands/full-test.failures.jsonl').read_bytes())
-            self.assertIn(bind.encode(), (public / 'commands/full-test.failures.jsonl').read_bytes())
+            general = (public / 'commands/full-test.stdout').read_bytes()
+            failures = (public / 'commands/full-test.failures.jsonl').read_bytes()
+            self.assertNotIn(b'phase20_lifecycle', general)
+            self.assertNotIn(b'phase20_lifecycle', failures)
+            self.assertNotIn(phase20_sample.encode(), general)
+            self.assertNotIn(phase20_final.encode(), failures)
+            self.assertIn(b'[redacted]', general)
+            self.assertIn(b'[redacted]', failures)
+            self.assertNotIn(MARKER.encode(), failures)
+            self.assertIn(bind.encode(), failures)
             manifest = json.loads((public / 'SHA256_MANIFEST.json').read_bytes())
             self.assertEqual(manifest['files'][name]['sha256'], evidence.sha256(projected))
             self.assertEqual(json.loads((public / 'commands/full-test.json').read_bytes())['exit_code'], 1)

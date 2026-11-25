@@ -379,11 +379,11 @@ def protocol_observations(path):
             except ValueError:
                 continue
             if protocol_observation(event):
-                lines.append((safe_event(raw) + '\n').encode('utf-8'))
+                lines.append((safe_event(raw, include_phase20=True) + '\n').encode('utf-8'))
     return b''.join(lines)
 
 
-def safe_event(line):
+def safe_event(line, include_phase20=False):
     try:
         event = json.loads(line)
     except ValueError:
@@ -398,6 +398,8 @@ def safe_event(line):
         result['Elapsed'] = event['Elapsed']
     if isinstance(event.get('Output'), str):
         observation = protocol_observation(event)
+        if observation and ' phase20_lifecycle ' in observation and not include_phase20:
+            observation = ''
         result['Output'] = (observation or '\n'.join(
             safe_output(part).rstrip('\n') for part in event['Output'].splitlines())) + '\n'
     return json.dumps(result, separators=(',', ':'))
