@@ -10,10 +10,10 @@ and integrators.
 
 ## Latest stable release
 
-Download the latest public release from GitHub. The v0.6.6 notes document the
-DNS fixture repair, TrustTunnel H2/H3 reliability fixes, P3 Commit Witness and
-the native amd64 qualification scope.
-[Latest release](https://github.com/ike-sh/Splicore/releases/latest) · [v0.6.6 notes](docs/releases/v0.6.6.md)
+Download the latest public release from GitHub. The v0.6.7 notes document the
+Naive H2/H3 lifecycle repair, qualified fixture/evidence improvements, retained
+historical root-cause boundaries, and the native amd64 qualification scope.
+[Latest release](https://github.com/ike-sh/Splicore/releases/latest) · [v0.6.7 notes](docs/releases/v0.6.7.md)
 
 ## Downloads
 
@@ -21,18 +21,18 @@ Splicore uses the `AMD64_ONLY` support policy. Linux amd64 and Windows amd64
 are the official CI and release targets. ARM64 packages in v0.6.4 are historical
 `BUILD_ONLY` assets. Formal ARM64 support is paused.
 
-| Platform | v0.6.6 archive | Release archive qualification |
+| Platform | v0.6.7 archive | Release archive qualification |
 | --- | --- | --- |
-| Linux amd64 | `splicore-v0.6.6-linux-amd64.tar.gz` | Native tests, Linux Race and downloaded smoke |
-| Windows amd64 | `splicore-v0.6.6-windows-amd64.zip` | Native tests, Windows Race and downloaded smoke |
+| Linux amd64 | `splicore-v0.6.7-linux-amd64.tar.gz` | Native tests, Linux Race and downloaded smoke |
+| Windows amd64 | `splicore-v0.6.7-windows-amd64.zip` | Native tests, Windows Race and downloaded smoke |
 
 Download `SHA256SUMS` from the same release as your archive and verify the hash
 before extraction. With a single archive on Linux, use
 `sha256sum --ignore-missing -c SHA256SUMS`. On Windows, compare
-`Get-FileHash -Algorithm SHA256 .\splicore-v0.6.6-windows-amd64.zip` with the
+`Get-FileHash -Algorithm SHA256 .\splicore-v0.6.7-windows-amd64.zip` with the
 matching line. `RELEASE_MANIFEST.json` records the source identity, platforms
 and checksums. The corresponding offline source archive is
-`splicore-v0.6.6-source.tar.gz`.
+`splicore-v0.6.7-source.tar.gz`.
 [Latest release](https://github.com/ike-sh/Splicore/releases/latest)
 
 Each platform archive includes one executable, build metadata, examples and
@@ -121,18 +121,19 @@ profiles, dependencies, and limits. The direction audit records runtime
 traffic, lifecycle, independent peer coverage and remaining gaps for each
 profile. [Inbound and outbound audit](docs/architecture/INBOUND_OUTBOUND_MATRIX.md)
 
-## Changes in v0.6.6
+## Changes in v0.6.7
 
-- **DNS qualification fixture.** Paired TCP/UDP port ownership, bounded retry,
-  cleanup and diagnostics are corrected without changing the unresolved
-  historical DNS conclusion.
-- **TrustTunnel.** H2/H3 CONNECT cancellation ownership prevents cancelled
-  streams from being returned and joins in-flight cancellation callbacks.
-- **Storage integrity.** The P3 Commit Witness detects Revision, content or
-  committed-transaction disagreement and fails closed. New installations begin
-  with a Revision-0 Witness; SQLite schema remains 8.
+- **Naive H2/H3 lifecycle.** CloseWrite, concurrent carrier writes, Padding,
+  full Close, asynchronous cleanup, connection-pool capacity, idle timers and
+  Client shutdown now have explicit ownership and terminal-state contracts.
+- **Qualification fixtures.** Naive H3 target join, Hysteria LivePool ingress,
+  Snell v5 endpoint lifetime and Hysteria2 abnormal cleanup fixtures now own
+  and join their resources deterministically. These are test repairs, not
+  production protocol-performance claims.
+- **Failure evidence.** Phase20 retains bounded dedicated lifecycle records on
+  every native profile while general and failure-event output stays redacted.
 
-[Release notes and historical findings](docs/releases/v0.6.6.md)
+[Release notes, compatibility and historical limits](docs/releases/v0.6.7.md)
 
 ## Build from source
 
@@ -148,13 +149,15 @@ their own gates. [Build and installation guide](docs/INSTALLATION.md)
   AmneziaWG/Phase37 is `RETIRED`. Standard userspace WireGuard is available.
 - WAL/P1-B remains outside production qualification. Physical power loss and
   OS crash recovery are `NOT_EXECUTED`.
-- The historical Snell v5 IPv6 Race timeout, Windows protected DNS fallback
-  failure, Mieru reconnect failure and TrustTunnel HTTP/2 Race finding retain
-  their original conclusions. [Known limits](docs/releases/v0.6.6.md#known-limits-and-open-investigations)
+- The historical Snell v5 IPv6 Race timeout, Windows protected DNS fallback,
+  Mieru reconnect, Naive H3, Phase20 proxy-lifetime and Hysteria2 parallel UDP
+  failures retain their unresolved historical conclusions. The historical
+  Phase15 backup-crash failure still cannot exclude a production integrity
+  defect. [Known limits](docs/releases/v0.6.7.md#known-limits-and-open-investigations)
 - Linux TUN requires a kernel device and appropriate network privileges.
   Windows TUN requires an operator-supplied Wintun driver/DLL and privileges.
   Physical TUN/Wintun, Android/v2rayNG interoperability, and extended soak
-  tests remain outside the release qualification. [Release limits](docs/releases/v0.6.6.md#known-limits-and-open-investigations)
+  tests remain outside the release qualification. [Release limits](docs/releases/v0.6.7.md#known-limits-and-open-investigations)
 
 ## Documentation
 
@@ -162,5 +165,5 @@ their own gates. [Build and installation guide](docs/INSTALLATION.md)
 - [CLI](docs/CLI.md) and [local API](docs/api/README.md)
 - [Architecture](docs/ARCHITECTURE.md) and [Capability Matrix](docs/architecture/CAPABILITY_MATRIX.md)
 - [Operations](docs/OPERATIONS.md), [contributor workflow](docs/DEVELOPMENT.md) and [project roadmap](docs/ROADMAP.md)
-- [Release notes](docs/releases/v0.6.6.md) and [changelog](CHANGELOG.md)
+- [Release notes](docs/releases/v0.6.7.md) and [changelog](CHANGELOG.md)
 - [Security policy](SECURITY.md) and [license](LICENSE)

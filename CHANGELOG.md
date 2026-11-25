@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.6.7
+
+- Define explicit Naive H2/H3 CloseWrite, concurrent carrier write, Padding,
+  full Close, asynchronous cleanup, connection-pool capacity, idle-timer and
+  Client-shutdown lifecycle ownership without changing payload framing or the
+  protocol version.
+- Qualify deterministic test-fixture ownership for Naive H3 target join,
+  Hysteria LivePool ingress, Snell v5 endpoints and Hysteria2 abnormal cleanup.
+  Preserve bounded dedicated Phase20 lifecycle evidence.
+- Keep Config Schema 1, SQLite Schema 8, Protocol ABI 1, API v1, dependencies,
+  CLI, configuration and wire formats unchanged. Historical Phase15, Phase20,
+  Snell, DNS, Mieru, Naive H3 and Hysteria2 findings remain unresolved within
+  the documented release limits.
+
+[Release notes, compatibility and known limits](docs/releases/v0.6.7.md)
+
+## v0.6.6
+
+- Repair the protected-DNS qualification fixture without attributing its
+  historical Windows fallback failure.
+- Keep TrustTunnel H2/H3 CONNECT cancellation ownership with the operation and
+  join in-flight cancellation callbacks.
+- Add the P3 Commit Witness for state-generation disagreement detection and
+  fail-closed admission. It does not reconstruct lost acknowledged state or
+  provide an independent disk failure domain.
+
+[Release notes and known limits](docs/releases/v0.6.6.md)
+
 ## v0.6.5
 
 - Add managed SOCKS5 TCP CONNECT and opt-in UDP ASSOCIATE with RFC 1929
